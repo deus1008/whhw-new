@@ -1,19 +1,33 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
-import { ADMIN_EMAIL } from '@/lib/constants';
 
 export async function proxy(request: NextRequest) {
   const { supabaseResponse, user, supabase } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
-  if (pathname.startsWith('/dashboard')) {
-    if (!user) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
+  // 인증 필요 경로
+  const isProtected =
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/documents') ||
+    pathname.startsWith('/pending');
 
+  if (!isProtected) return supabaseResponse;
+
+  if (!user) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // profile(status + role) 조회가 필요한 경로
+  const needsProfile =
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/documents');
+
+  if (needsProfile) {
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('status')
+      .select('status, role')
       .eq('id', user.id)
       .single();
 
@@ -21,20 +35,28 @@ export async function proxy(request: NextRequest) {
       console.error('[proxy:getProfile error]', error);
     }
 
-    if (!profile || profile.status !== 'approved') {
-      return NextResponse.redirect(new URL('/pending', request.url));
+    // /admin: role = 'admin' 만 접근
+    if (pathname.startsWith('/admin')) {
+      if (!profile || profile.role !== 'admin') {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
     }
-  }
 
-  if (pathname.startsWith('/admin')) {
-    if (!user || user.email !== ADMIN_EMAIL) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+    // /documents: role = 'admin' | 'uploader' 만 접근
+    if (pathname.startsWith('/documents')) {
+      if (!profile || profile.status !== 'approved') {
+        return NextResponse.redirect(new URL('/pending', request.url));
+      }
+      if (profile.role !== 'admin' && profile.role !== 'uploader') {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
     }
-  }
 
-  if (pathname.startsWith('/pending')) {
-    if (!user) {
-      return NextResponse.redirect(new URL('/login', request.url));
+    // /dashboard: 승인된 사용자만 접근
+    if (pathname.startsWith('/dashboard')) {
+      if (!profile || profile.status !== 'approved') {
+        return NextResponse.redirect(new URL('/pending', request.url));
+      }
     }
   }
 

@@ -1,15 +1,18 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { updateStatus } from './actions';
+import { updateStatus, updateRole } from './actions';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import LogoutButton from '@/components/LogoutButton';
 
 type Status = 'pending' | 'approved' | 'rejected';
+type Role   = 'admin' | 'uploader' | 'member';
 
 type Profile = {
   id: string;
   email: string;
   status: Status;
+  role: Role;
   created_at: string;
 };
 
@@ -19,24 +22,55 @@ const sectionMeta: Record<Status, { label: string; color: string; rgba: string }
   rejected: { label: '거부됨',   color: '#fca5a5', rgba: 'rgba(239,68,68,'  },
 };
 
-/* 버튼 정의: [label, target status, green?] */
+const roleMeta: Record<Role, { label: string; color: string; bg: string; border: string }> = {
+  admin:    { label: '관리자',  color: '#c084fc', bg: 'rgba(162,89,255,0.13)', border: 'rgba(162,89,255,0.28)' },
+  uploader: { label: '업로더',  color: '#93c5fd', bg: 'rgba(59,130,246,0.13)', border: 'rgba(59,130,246,0.28)' },
+  member:   { label: '멤버',    color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', border: 'rgba(148,163,184,0.2)' },
+};
+
 const buttonDefs: Record<Status, [string, Status, boolean][]> = {
   pending:  [['승인', 'approved', true],  ['거부', 'rejected', false]],
   approved: [['승인 취소', 'pending', false], ['거부', 'rejected', false]],
   rejected: [['승인', 'approved', true],  ['대기로', 'pending', false]],
 };
 
+function RoleBadge({ role }: { role: Role }) {
+  const { label, color, bg, border } = roleMeta[role];
+  return (
+    <span style={{
+      display: 'inline-block',
+      padding: '2px 9px',
+      borderRadius: '100px',
+      fontSize: '0.7rem',
+      fontWeight: 600,
+      letterSpacing: '0.03em',
+      color,
+      background: bg,
+      border: `1px solid ${border}`,
+      whiteSpace: 'nowrap',
+      flexShrink: 0,
+    }}>
+      {label}
+    </span>
+  );
+}
+
 function ActionButtons({ profile }: { profile: Profile }) {
-  if (profile.email === ADMIN_EMAIL) {
+  // admin 역할 행: 상태/역할 변경 버튼 없음
+  if (profile.role === 'admin') {
     return (
-      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-        관리자
+      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', flexShrink: 0 }}>
+        관리자 (고정)
       </span>
     );
   }
 
+  const nextRole: Role = profile.role === 'uploader' ? 'member' : 'uploader';
+  const roleLabel = profile.role === 'uploader' ? '업로더 해제' : '업로더로 지정';
+
   return (
-    <div style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', flexShrink: 0 }}>
+      {/* 상태 변경 */}
       {buttonDefs[profile.status].map(([label, target, isGreen]) => (
         <form key={target} action={updateStatus}>
           <input type="hidden" name="userId" value={profile.id} />
@@ -49,12 +83,8 @@ function ActionButtons({ profile }: { profile: Profile }) {
               fontSize: '0.75rem',
               fontWeight: 600,
               cursor: 'pointer',
-              border: isGreen
-                ? '1px solid rgba(34,197,94,0.25)'
-                : '1px solid rgba(239,68,68,0.22)',
-              background: isGreen
-                ? 'rgba(34,197,94,0.12)'
-                : 'rgba(239,68,68,0.09)',
+              border: isGreen ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(239,68,68,0.22)',
+              background: isGreen ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.09)',
               color: isGreen ? '#86efac' : '#fca5a5',
             }}
           >
@@ -62,6 +92,27 @@ function ActionButtons({ profile }: { profile: Profile }) {
           </button>
         </form>
       ))}
+
+      {/* 역할 변경 */}
+      <form action={updateRole}>
+        <input type="hidden" name="userId" value={profile.id} />
+        <input type="hidden" name="role" value={nextRole} />
+        <button
+          type="submit"
+          style={{
+            padding: '0.35rem 0.8rem',
+            borderRadius: '6px',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            border: '1px solid rgba(59,130,246,0.25)',
+            background: 'rgba(59,130,246,0.1)',
+            color: '#93c5fd',
+          }}
+        >
+          {roleLabel}
+        </button>
+      </form>
     </div>
   );
 }
@@ -76,7 +127,11 @@ function Section({ title, profiles, status }: { title: string; profiles: Profile
 
   return (
     <div className="auth-card" style={{ marginBottom: '1.5rem' }}>
-      <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.2rem', color, letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+      <h2 style={{
+        fontSize: '1rem', fontWeight: 700, marginBottom: '1.2rem',
+        color, letterSpacing: '0.02em',
+        display: 'flex', alignItems: 'center', gap: '0.6rem',
+      }}>
         {title}
         <span style={{
           background: `${rgba}0.13)`,
@@ -97,7 +152,7 @@ function Section({ title, profiles, status }: { title: string; profiles: Profile
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
           {profiles.map(p => (
             <div key={p.id} style={{
-              display: 'flex', alignItems: 'center', gap: '0.75rem',
+              display: 'flex', alignItems: 'center', gap: '0.6rem',
               background: 'rgba(255,255,255,0.03)',
               border: '1px solid rgba(255,255,255,0.07)',
               borderRadius: '10px',
@@ -110,6 +165,7 @@ function Section({ title, profiles, status }: { title: string; profiles: Profile
               <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                 {new Date(p.created_at).toLocaleDateString('ko-KR')}
               </span>
+              <RoleBadge role={p.role} />
               <ActionButtons profile={p} />
             </div>
           ))}
@@ -127,20 +183,29 @@ export default async function AdminPage() {
     console.error('[admin:getUser error]', userError);
   }
 
-  if (!user || user.email !== ADMIN_EMAIL) {
+  if (!user) redirect('/login');
+
+  // role 기반 관리자 확인
+  const { data: myProfile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single();
+
+  if (!myProfile || myProfile.role !== 'admin') {
     redirect('/dashboard');
   }
 
   const { data: profiles, error: profilesError } = await supabase
     .from('profiles')
-    .select('id, email, status, created_at')
+    .select('id, email, status, role, created_at')
     .order('created_at', { ascending: false });
 
   if (profilesError) {
     console.error('[admin:getProfiles error]', profilesError);
   }
 
-  const all = (profiles ?? []) as Profile[];
+  const all      = (profiles ?? []) as Profile[];
   const pending  = all.filter(p => p.status === 'pending');
   const approved = all.filter(p => p.status === 'approved');
   const rejected = all.filter(p => p.status === 'rejected');
@@ -158,10 +223,20 @@ export default async function AdminPage() {
         >
           WHHW.co.kr
         </p>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', margin: 0 }}>
             관리자 패널 · {ADMIN_EMAIL}
           </p>
+          <Link
+            href="/documents"
+            style={{
+              padding: '0.3rem 0.8rem', borderRadius: '7px',
+              background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.28)',
+              color: '#93c5fd', fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none',
+            }}
+          >
+            문서 →
+          </Link>
           <LogoutButton compact />
         </div>
 

@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { ADMIN_EMAIL } from '@/lib/constants';
 
 type Status = 'idle' | 'loading' | 'error';
 
@@ -27,15 +26,15 @@ export default function LoginPage() {
         }
         if (data.session) {
           const user = data.session.user;
-          if (user.email === ADMIN_EMAIL) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('status, role')
+            .eq('id', user.id)
+            .single();
+          if (profile?.role === 'admin') {
             router.replace('/admin');
             return;
           }
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('status')
-            .eq('id', user.id)
-            .single();
           if (profile?.status === 'approved') {
             router.replace('/dashboard');
           } else {
@@ -67,15 +66,15 @@ export default function LoginPage() {
 
       console.log('[signIn success]', data);
       const user = data.user!;
-      if (user.email === ADMIN_EMAIL) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('status, role')
+        .eq('id', user.id)
+        .single();
+      if (profile?.role === 'admin') {
         router.push('/admin');
         return;
       }
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('status')
-        .eq('id', user.id)
-        .single();
       if (profile?.status === 'approved') {
         router.push('/dashboard');
       } else {
