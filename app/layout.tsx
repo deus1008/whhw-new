@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "WHHW.co.kr — Coming Soon",
+  title: "판매대행사업",
   description: "곧 새로운 모습으로 찾아옵니다",
 };
 

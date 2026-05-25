@@ -98,7 +98,7 @@ export default function Home() {
           준비 중 &nbsp;·&nbsp; Under Construction
         </div>
 
-        <h1 className="domain">WHHW.co.kr</h1>
+        <h1 className="domain">판매대행사업</h1>
 
         <p className="tagline">
           <span style={{ color: '#f0f4ff', fontWeight: 500 }}>Coming Soon</span>
@@ -163,7 +163,7 @@ export default function Home() {
         className="fixed bottom-6 left-1/2 -translate-x-1/2 text-[0.72rem] tracking-[0.05em] z-10 whitespace-nowrap"
         style={{ color: '#6b7a99' }}
       >
-        &copy; 2026 WHHW.co.kr
+        &copy; 2026 판매대행사업
       </footer>
     </>
   );

@@ -43,7 +43,7 @@ export default async function PendingPage() {
           className="domain"
           style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: 'clamp(1.6rem, 5vw, 2.4rem)' }}
         >
-          WHHW.co.kr
+          판매대행사업
         </p>
 
         <div className="auth-card">
