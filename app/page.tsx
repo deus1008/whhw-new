@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 
 const NAV_ITEMS = [
@@ -106,6 +107,17 @@ export default function Home() {
       <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[1]" />
 
       <div className="relative z-10 text-center px-6 py-8 w-full max-w-[700px]">
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+          <Image
+            src="/aju-alliance-logo.jpg"
+            alt="아주얼라이언스(주)"
+            width={200}
+            height={60}
+            style={{ objectFit: 'contain' }}
+            priority
+          />
+        </div>
+
         <h1 className="domain">판매대행사업</h1>
 
         {/* 페이지 바로가기 */}
