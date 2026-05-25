@@ -5,7 +5,7 @@ import {
   DragEvent, ChangeEvent, useEffect,
 } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { deleteDocument } from '@/app/documents/actions';
+import { deleteDocument, renameFolder } from '@/app/documents/actions';
 import type { Document } from '@/app/documents/page';
 
 /* ── 허용 형식 ──────────────────────────────────────────── */
@@ -85,8 +85,13 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
   const [confirmId, setConfirmId]         = useState<string | null>(null);
   const [deleteError, setDeleteError]     = useState('');
   const [isPending, startTransition]      = useTransition();
-  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
-  const fileInputRef                      = useRef<HTMLInputElement>(null);
+  const [processingIds, setProcessingIds]   = useState<Set<string>>(new Set());
+  // 폴더 이름 변경 상태
+  const [renamingFolder, setRenamingFolder] = useState<string | null | undefined>(undefined); // undefined = 비활성
+  const [renameValue, setRenameValue]       = useState('');
+  const [renameError, setRenameError]       = useState('');
+  const [renameLoading, setRenameLoading]   = useState(false);
+  const fileInputRef                        = useRef<HTMLInputElement>(null);
 
   // 폴더 목록 (문서가 추가/삭제될 때마다 재계산)
   const folders = extractFolders(documents);
@@ -247,6 +252,47 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
         return next;
       });
     }
+  }
+
+  /* ── 폴더 이름 변경 ──────────────────────────────────── */
+  function startRename(dbKey: string | null, displayName: string) {
+    setRenamingFolder(dbKey);
+    setRenameValue(displayName === '미분류' ? '' : displayName);
+    setRenameError('');
+  }
+
+  function cancelRename() {
+    setRenamingFolder(undefined);
+    setRenameValue('');
+    setRenameError('');
+  }
+
+  async function handleRenameConfirm(oldDbKey: string | null) {
+    const trimmed = renameValue.trim();
+    if (!trimmed) { setRenameError('이름을 입력하세요.'); return; }
+    if (trimmed === (oldDbKey ?? '미분류')) { cancelRename(); return; }
+
+    setRenameLoading(true);
+    setRenameError('');
+
+    const result = await renameFolder(oldDbKey, trimmed);
+    setRenameLoading(false);
+
+    if (result.error) {
+      setRenameError(result.error);
+      return;
+    }
+
+    // 로컬 상태 업데이트
+    setDocuments(prev => prev.map(d => {
+      const docFolder = d.category ?? null;
+      if (docFolder === oldDbKey) return { ...d, category: trimmed };
+      return d;
+    }));
+    if (activeFolder === (oldDbKey === null ? '미분류' : oldDbKey)) {
+      setActiveFolder(trimmed);
+    }
+    cancelRename();
   }
 
   /* ── 삭제 ─────────────────────────────────────────────── */
@@ -428,15 +474,62 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
               전체 {documents.length}
             </button>
             {folders.map(f => {
-              const count = documents.filter(d => (d.category ?? '미분류') === f).length;
+              const count       = documents.filter(d => (d.category ?? '미분류') === f).length;
+              const dbKey       = f === '미분류' ? null : f; // DB 값 (null = 미분류)
+              const isRenaming  = renamingFolder !== undefined && renamingFolder === dbKey;
+
+              if (isRenaming) {
+                return (
+                  <span key={f} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <input
+                      type="text"
+                      value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleRenameConfirm(dbKey);
+                        if (e.key === 'Escape') cancelRename();
+                      }}
+                      style={{
+                        padding: '0.28rem 0.6rem', borderRadius: '8px', fontSize: '0.78rem',
+                        background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(79,142,247,0.5)',
+                        color: 'var(--text-primary)', fontFamily: 'inherit', outline: 'none', width: '110px',
+                      }}
+                      autoFocus
+                      disabled={renameLoading}
+                    />
+                    <button
+                      onClick={() => handleRenameConfirm(dbKey)}
+                      disabled={renameLoading}
+                      style={{ ...renameSaveBtn, opacity: renameLoading ? 0.5 : 1 }}
+                    >
+                      {renameLoading ? '…' : '저장'}
+                    </button>
+                    <button onClick={cancelRename} disabled={renameLoading} style={cancelSmallBtn}>
+                      취소
+                    </button>
+                    {renameError && (
+                      <span style={{ fontSize: '0.72rem', color: '#fca5a5' }}>{renameError}</span>
+                    )}
+                  </span>
+                );
+              }
+
               return (
-                <button
-                  key={f}
-                  onClick={() => setActiveFolder(f)}
-                  style={tabStyle(activeFolder === f)}
-                >
-                  {f === '미분류' ? '📄 미분류' : `📁 ${f}`} {count}
-                </button>
+                <span key={f} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                  <button
+                    onClick={() => setActiveFolder(f)}
+                    style={tabStyle(activeFolder === f)}
+                  >
+                    {f === '미분류' ? '📄 미분류' : `📁 ${f}`} {count}
+                  </button>
+                  <button
+                    onClick={() => startRename(dbKey, f)}
+                    style={renameIconBtn}
+                    title="폴더 이름 변경"
+                  >
+                    ✏️
+                  </button>
+                </span>
               );
             })}
           </div>
@@ -641,4 +734,16 @@ const cancelBtn: React.CSSProperties = {
   padding: '0.28rem 0.65rem', borderRadius: '6px',
   border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)',
   fontSize: '0.74rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
+};
+
+const renameIconBtn: React.CSSProperties = {
+  padding: '0.18rem 0.3rem', borderRadius: '6px', border: 'none',
+  background: 'transparent', fontSize: '0.72rem', cursor: 'pointer',
+  lineHeight: 1, opacity: 0.5, transition: 'opacity 0.15s',
+};
+
+const renameSaveBtn: React.CSSProperties = {
+  padding: '0.25rem 0.6rem', borderRadius: '6px', border: 'none', fontFamily: 'inherit',
+  background: 'rgba(79,142,247,0.25)', color: '#93c5fd',
+  fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
 };

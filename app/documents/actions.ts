@@ -64,3 +64,34 @@ export async function deleteDocument(formData: FormData) {
 
   revalidatePath('/documents');
 }
+
+/* ── 폴더 이름 변경 ─────────────────────────────────────── */
+export async function renameFolder(oldName: string | null, newName: string): Promise<{ error?: string }> {
+  try {
+    const { supabase, userId, role } = await verifyUploaderOrAdmin();
+
+    const trimmed = newName.trim();
+    if (!trimmed) return { error: '폴더 이름을 입력하세요.' };
+
+    let query = supabase.from('documents').update({ category: trimmed });
+
+    if (role === 'admin') {
+      // 관리자: 해당 폴더의 모든 문서 변경
+      query = oldName === null
+        ? (query as any).is('category', null)
+        : (query as any).eq('category', oldName);
+    } else {
+      // uploader: 본인 문서만
+      query = oldName === null
+        ? (query as any).is('category', null).eq('uploaded_by', userId)
+        : (query as any).eq('category', oldName).eq('uploaded_by', userId);
+    }
+
+    const { error: dbErr } = await query;
+    if (dbErr) return { error: `변경 실패: ${dbErr.message}` };
+
+    return {};
+  } catch {
+    return { error: '권한이 없습니다.' };
+  }
+}
