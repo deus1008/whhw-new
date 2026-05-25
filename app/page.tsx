@@ -8,11 +8,19 @@ const TARGET = new Date('2026-08-01T00:00:00+09:00').getTime();
 const NAV_ITEMS = [
   {
     href: '/dashboard',
-    icon: '💬',
+    icon: '🏠',
     label: '대시보드',
     color: '#93c5fd',
     bg:   'rgba(59,130,246,0.10)',
     bd:   'rgba(59,130,246,0.22)',
+  },
+  {
+    href: '/chat',
+    icon: '💬',
+    label: '챗봇',
+    color: '#67e8f9',
+    bg:   'rgba(6,182,212,0.10)',
+    bd:   'rgba(6,182,212,0.22)',
   },
   {
     href: '/visits',
