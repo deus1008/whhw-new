@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
+import HomeButton from '@/components/HomeButton';
 import VisitsClient from '@/components/VisitsClient';
 
 export type VisitRecord = {
@@ -82,6 +83,7 @@ export default async function VisitsPage() {
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+          <HomeButton />
           <Link href="/dashboard" style={navLink}>← 대시보드</Link>
           {isAdmin && <Link href="/admin" style={navLink}>관리자 →</Link>}
           <LogoutButton compact />

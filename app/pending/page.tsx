@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
+import HomeButton from '@/components/HomeButton';
 
 export default async function PendingPage() {
   const supabase = await createClient();
@@ -87,7 +88,10 @@ export default async function PendingPage() {
             {user!.email}
           </p>
 
-          <LogoutButton />
+          <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center' }}>
+            <HomeButton />
+            <LogoutButton />
+          </div>
         </div>
       </div>
     </>

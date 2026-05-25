@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
+import HomeButton from '@/components/HomeButton';
 import DocumentsClient from '@/components/DocumentsClient';
 
 type DocStatus = 'processing' | 'ready' | 'error';
@@ -58,6 +59,7 @@ export default async function DocumentsPage() {
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+          <HomeButton />
           <Link href="/dashboard" style={navLinkStyle}>← 대시보드</Link>
           {role === 'admin' && (
             <Link href="/admin" style={navLinkStyle}>관리자 →</Link>

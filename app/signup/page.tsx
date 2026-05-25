@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import HomeButton from '@/components/HomeButton';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
@@ -77,10 +78,13 @@ export default function SignupPage() {
       <div className="relative z-10 w-full px-4" style={{ maxWidth: '460px' }}>
         <p
           className="domain"
-          style={{ textAlign: 'center', marginBottom: '1.5rem', fontSize: 'clamp(1.6rem, 5vw, 2.4rem)' }}
+          style={{ textAlign: 'center', marginBottom: '0.8rem', fontSize: 'clamp(1.6rem, 5vw, 2.4rem)' }}
         >
           판매대행사업
         </p>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+          <HomeButton />
+        </div>
 
         <div className="auth-card">
           <h1 className="auth-title">회원가입</h1>

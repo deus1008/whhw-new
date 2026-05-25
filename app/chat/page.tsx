@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
+import HomeButton from '@/components/HomeButton';
 import Chat from '@/components/Chat';
 
 export default async function ChatPage() {
@@ -51,6 +52,7 @@ export default async function ChatPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           gap: '0.7rem', marginBottom: '1.6rem', flexWrap: 'wrap',
         }}>
+          <HomeButton />
           <Link href="/dashboard" style={navLink}>← 대시보드</Link>
           <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
             {user.email}

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { updateStatus, updateRole } from './actions';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import LogoutButton from '@/components/LogoutButton';
+import HomeButton from '@/components/HomeButton';
 
 type Status = 'pending' | 'approved' | 'rejected';
 type Role   = 'admin' | 'uploader' | 'member';
@@ -224,6 +225,7 @@ export default async function AdminPage() {
           판매대행사업
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+          <HomeButton />
           <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', margin: 0 }}>
             관리자 패널 · {ADMIN_EMAIL}
           </p>
