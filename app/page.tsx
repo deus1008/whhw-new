@@ -148,7 +148,7 @@ export default function Home() {
             alt="아주얼라이언스(주)"
             width={320}
             height={96}
-            style={{ objectFit: 'contain' }}
+            style={{ objectFit: 'contain', width: 'min(320px, 80vw)', height: 'auto' }}
             priority
           />
         </div>
@@ -166,11 +166,12 @@ export default function Home() {
               onClick={() => handleNav(href)}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.45rem',
-                padding: '0.85rem 1.05rem',
+                padding: '1rem 1.1rem',
                 borderRadius: '16px',
                 background: bg,
                 border: `1px solid ${bd}`,
-                minWidth: '72px',
+                minWidth: '68px',
+                minHeight: '80px',
                 cursor: 'pointer',
                 transition: 'transform 0.15s, box-shadow 0.15s',
                 fontFamily: 'inherit',

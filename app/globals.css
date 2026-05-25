@@ -19,6 +19,26 @@ body {
   background-color: var(--bg-dark);
   color: var(--text-primary);
   overflow-x: hidden;
+  /* 아이폰 홈 인디케이터 / 노치 여백 */
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left:   env(safe-area-inset-left);
+  padding-right:  env(safe-area-inset-right);
+}
+
+/* 탭 하이라이트 제거 (안드로이드·iOS 공통) */
+* { -webkit-tap-highlight-color: transparent; }
+
+/* iOS input 자동 줌 방지 — 16px 미만이면 iOS가 자동 확대함 */
+input, textarea, select {
+  font-size: max(16px, 0.88rem) !important;
+}
+
+/* 공통 터치 타겟: 최소 44px (Apple HIG 기준) */
+button, a[href] {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Grid overlay */
@@ -224,6 +244,10 @@ body::before {
   animation: fade-up 0.45s ease both;
 }
 
+@media (max-width: 480px) {
+  .auth-card { padding: 1.5rem 1.2rem; border-radius: 16px; }
+}
+
 .auth-title {
   font-size: 1.55rem;
   font-weight: 700;
@@ -356,3 +380,66 @@ body::before {
 }
 
 .auth-link:hover { opacity: 0.75; }
+
+/* ── Mobile utilities ──────────────────────────────────── */
+
+/* 방문기록 폼 2열 그리드 → 모바일 1열 */
+.visit-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+}
+@media (max-width: 600px) {
+  .visit-form-grid { grid-template-columns: 1fr; }
+}
+
+/* 방문기록 통계 카드 2×2 */
+.visit-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
+  margin-bottom: 1.2rem;
+}
+@media (max-width: 600px) {
+  .visit-stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* 폴더 탭 / 필터 pill 스크롤 처리 */
+.scroll-x {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+  flex-wrap: nowrap !important;
+}
+.scroll-x::-webkit-scrollbar { display: none; }
+
+/* 네비게이션 바 */
+.page-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-bottom: 1.6rem;
+  flex-wrap: wrap;
+}
+@media (max-width: 480px) {
+  .page-nav { gap: 0.4rem; margin-bottom: 1.2rem; }
+}
+
+/* 도메인 타이틀 (서브 페이지용) */
+.domain-sub {
+  text-align: center;
+  margin-bottom: 0.5rem;
+  font-size: clamp(1.2rem, 4vw, 1.8rem);
+}
+
+/* 채팅 창 높이 */
+.chat-height {
+  height: clamp(420px, 65vh, 620px);
+}
+@media (max-width: 480px) {
+  .chat-height { height: calc(100dvh - 200px); min-height: 380px; }
+}

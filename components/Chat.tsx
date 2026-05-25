@@ -124,7 +124,7 @@ export default function Chat({ initialMessages = [] }: Props) {
   }
 
   return (
-    <div style={styles.wrapper}>
+    <div style={styles.wrapper} className="chat-height">
       {/* 헤더 */}
       <div style={styles.header}>
         <span style={styles.headerLeft}>
@@ -280,7 +280,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: 'column',
     overflow: 'hidden',
     width: '100%',
-    height: '520px',
+    /* height은 chat-height CSS 클래스로 제어 */
   },
   header: {
     display: 'flex',
@@ -427,17 +427,18 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '12px',
     color: 'var(--text-primary)',
     padding: '0.65rem 0.9rem',
-    fontSize: '0.88rem',
+    fontSize: '16px',   /* iOS 자동 줌 방지 */
     fontFamily: 'inherit',
     resize: 'none',
     outline: 'none',
     lineHeight: 1.5,
     transition: 'border-color 0.2s, box-shadow 0.2s',
+    minHeight: '44px',
   },
   sendBtn: {
     flexShrink: 0,
-    width: '42px',
-    height: '42px',
+    width: '44px',
+    height: '44px',
     borderRadius: '12px',
     border: 'none',
     background: 'linear-gradient(135deg, #4f8ef7, #a259ff)',

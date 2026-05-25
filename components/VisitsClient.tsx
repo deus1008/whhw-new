@@ -226,7 +226,7 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
       </div>
 
       {/* ── 통계 카드 ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '0.6rem', marginBottom: '1.5rem' }}>
+      <div className="visit-stats-grid">
         {[
           { label: '오늘',   value: stats.today,     color: '#fde68a', rgba: 'rgba(251,191,36,' },
           { label: '이번 주', value: stats.thisWeek,  color: '#86efac', rgba: 'rgba(34,197,94,'  },
@@ -256,7 +256,7 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
           )}
 
           {/* Row 1: 방문일 · 거래처명 · 거래처유형 */}
-          <div style={formGrid3}>
+          <div className="visit-form-grid">
             <Field label="방문일 *">
               <input type="date" value={form.visited_at}
                 onChange={e => setField('visited_at', e.target.value)}
@@ -277,7 +277,7 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
           </div>
 
           {/* Row 2: 담당자 · 방문목적 */}
-          <div style={formGrid2}>
+          <div className="visit-form-grid">
             <Field label="담당자명">
               <input type="text" value={form.contact_name}
                 onChange={e => setField('contact_name', e.target.value)}
@@ -317,7 +317,7 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
           <Field label="후속 방문 예정일">
             <input type="date" value={form.follow_up_date}
               onChange={e => setField('follow_up_date', e.target.value)}
-              style={{ ...inputStyle, maxWidth: '200px' }} disabled={saving} />
+              style={inputStyle} disabled={saving} />
           </Field>
 
           {/* 버튼 */}
@@ -331,33 +331,27 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
       )}
 
       {/* ── 필터 바 ── */}
-      <div className="auth-card" style={{ marginBottom: '1rem', padding: '0.9rem 1.2rem' }}>
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          {/* 검색 */}
-          <input
-            type="text" value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="🔍  거래처 · 담당자 · 제품 검색"
-            style={{ ...inputStyle, flex: 1, minWidth: '180px', marginBottom: 0 }}
-          />
-
-          {/* 거래처유형 필터 */}
-          <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
-            {(['전체', 'CSO법인', '딜러'] as FilterType[]).map(t => (
-              <button key={t} onClick={() => setFilterType(t)} style={pillBtn(filterType === t)}>
-                {t}
-              </button>
-            ))}
-          </div>
-
-          {/* 기간 필터 */}
-          <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
-            {(['전체', '이번주', '이번달', '지난달'] as Period[]).map(p => (
-              <button key={p} onClick={() => setFilterPeriod(p)} style={pillBtn(filterPeriod === p)}>
-                {p}
-              </button>
-            ))}
-          </div>
+      <div className="auth-card" style={{ marginBottom: '1rem', padding: '0.9rem 1rem' }}>
+        {/* 검색 */}
+        <input
+          type="text" value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="🔍  거래처 · 담당자 · 제품 검색"
+          style={{ ...inputStyle, width: '100%', marginBottom: '0.7rem' }}
+        />
+        {/* 거래처유형 + 기간 필터 — 가로 스크롤 */}
+        <div className="scroll-x">
+          {(['전체', 'CSO법인', '딜러'] as FilterType[]).map(t => (
+            <button key={t} onClick={() => setFilterType(t)} style={pillBtn(filterType === t)}>
+              {t}
+            </button>
+          ))}
+          <span style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 0.2rem', flexShrink: 0 }} />
+          {(['전체', '이번주', '이번달', '지난달'] as Period[]).map(p => (
+            <button key={p} onClick={() => setFilterPeriod(p)} style={pillBtn(filterPeriod === p)}>
+              {p}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -536,10 +530,10 @@ const formGrid2: React.CSSProperties = {
 };
 
 const inputStyle: React.CSSProperties = {
-  width: '100%', padding: '0.55rem 0.75rem', borderRadius: '10px',
+  width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px',
   background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
-  color: 'var(--text-primary)', fontSize: '0.87rem', fontFamily: 'inherit',
-  outline: 'none', boxSizing: 'border-box',
+  color: 'var(--text-primary)', fontSize: '16px', fontFamily: 'inherit',
+  outline: 'none', boxSizing: 'border-box', minHeight: '44px',
 };
 
 const selectStyle: React.CSSProperties = {
@@ -547,28 +541,31 @@ const selectStyle: React.CSSProperties = {
 };
 
 const primaryBtn: React.CSSProperties = {
-  padding: '0.58rem 1.3rem', borderRadius: '10px', border: 'none', fontFamily: 'inherit',
+  padding: '0.62rem 1.4rem', borderRadius: '10px', border: 'none', fontFamily: 'inherit',
   background: 'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
-  color: '#fff', fontSize: '0.87rem', fontWeight: 600, cursor: 'pointer',
-  display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+  color: '#fff', fontSize: '0.92rem', fontWeight: 600, cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: '0.4rem', minHeight: '44px',
 };
 
 const cancelBtn: React.CSSProperties = {
-  padding: '0.55rem 1.1rem', borderRadius: '10px',
+  padding: '0.62rem 1.2rem', borderRadius: '10px',
   border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)',
-  color: 'var(--text-muted)', fontSize: '0.87rem', cursor: 'pointer', fontFamily: 'inherit',
+  color: 'var(--text-muted)', fontSize: '0.92rem', cursor: 'pointer', fontFamily: 'inherit',
+  minHeight: '44px',
 };
 
 const editBtn: React.CSSProperties = {
-  padding: '0.35rem 0.9rem', borderRadius: '7px',
+  padding: '0.5rem 1rem', borderRadius: '8px',
   border: '1px solid rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.1)',
-  color: '#93c5fd', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+  color: '#93c5fd', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+  minHeight: '44px',
 };
 
 const dangerBtn: React.CSSProperties = {
-  padding: '0.35rem 0.9rem', borderRadius: '7px',
+  padding: '0.5rem 1rem', borderRadius: '8px',
   border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)',
-  color: '#fca5a5', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+  color: '#fca5a5', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+  minHeight: '44px',
 };
 
 const spinnerSt: React.CSSProperties = {
@@ -585,11 +582,11 @@ const cardHeader: React.CSSProperties = {
 
 function pillBtn(active: boolean): React.CSSProperties {
   return {
-    padding: '0.3rem 0.75rem', borderRadius: '100px', cursor: 'pointer',
-    fontSize: '0.76rem', fontWeight: active ? 700 : 500, fontFamily: 'inherit',
+    padding: '0.45rem 0.9rem', borderRadius: '100px', cursor: 'pointer',
+    fontSize: '0.82rem', fontWeight: active ? 700 : 500, fontFamily: 'inherit',
     border: active ? '1px solid rgba(79,142,247,0.5)' : '1px solid rgba(255,255,255,0.09)',
     background: active ? 'rgba(79,142,247,0.18)' : 'rgba(255,255,255,0.04)',
     color: active ? '#93c5fd' : 'var(--text-muted)',
-    transition: 'all 0.15s', whiteSpace: 'nowrap',
+    transition: 'all 0.15s', whiteSpace: 'nowrap', minHeight: '38px', flexShrink: 0,
   };
 }
