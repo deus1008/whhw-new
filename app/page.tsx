@@ -136,11 +136,6 @@ export default function Home() {
       <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[1]" />
 
       <div className="relative z-10 text-center px-6 py-8 w-full max-w-[700px]">
-        <div className="badge">
-          <span className="badge-dot" />
-          준비 중 &nbsp;·&nbsp; Under Construction
-        </div>
-
         <h1 className="domain">판매대행사업</h1>
 
         {/* 페이지 바로가기 */}
