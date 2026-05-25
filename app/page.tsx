@@ -107,12 +107,12 @@ export default function Home() {
       <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[1]" />
 
       <div className="relative z-10 text-center px-6 py-8 w-full max-w-[700px]">
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
           <Image
-            src="/aju-alliance-logo.jpg"
+            src="/aju-alliance-logo.png"
             alt="아주얼라이언스(주)"
-            width={200}
-            height={60}
+            width={320}
+            height={96}
             style={{ objectFit: 'contain' }}
             priority
           />
