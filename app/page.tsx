@@ -1,9 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
-
-const TARGET = new Date('2026-08-01T00:00:00+09:00').getTime();
 
 const NAV_ITEMS = [
   {
@@ -48,29 +46,8 @@ const NAV_ITEMS = [
   },
 ];
 
-function pad(n: number) {
-  return String(n).padStart(2, '0');
-}
-
-function getTimeLeft() {
-  const diff = Math.max(0, TARGET - Date.now());
-  return {
-    days:    Math.floor(diff / 86400000),
-    hours:   Math.floor((diff % 86400000) / 3600000),
-    minutes: Math.floor((diff % 3600000)  / 60000),
-    seconds: Math.floor((diff % 60000)    / 1000),
-  };
-}
-
 export default function Home() {
-  const [time, setTime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    setTime(getTimeLeft());
-    const id = setInterval(() => setTime(getTimeLeft()), 1000);
-    return () => clearInterval(id);
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -120,13 +97,6 @@ export default function Home() {
     };
   }, []);
 
-  const units = [
-    { value: time.days,    label: 'Days' },
-    { value: time.hours,   label: 'Hours' },
-    { value: time.minutes, label: 'Min' },
-    { value: time.seconds, label: 'Sec' },
-  ];
-
   return (
     <>
       <div className="orb orb-1" />
@@ -171,26 +141,6 @@ export default function Home() {
           ))}
         </div>
 
-        <p className="tagline">
-          <span style={{ color: '#f0f4ff', fontWeight: 500 }}>Coming Soon</span>
-          {' '}&mdash; 곧 새로운 모습으로 찾아옵니다
-        </p>
-
-        <div className="countdown-wrap">
-          {units.map(({ value, label }) => (
-            <div key={label} className="countdown-item">
-              <span className="countdown-number">{pad(value)}</span>
-              <span className="countdown-label">{label}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="divider" />
-
-        <p className="open-date">
-          오픈 예정일 &nbsp;·&nbsp; Launch Date &nbsp;
-          <strong style={{ color: '#4f8ef7', fontWeight: 600 }}>2026 . 08 . 01</strong>
-        </p>
       </div>
 
       <div className="fixed top-5 right-6 z-20 flex gap-3">
