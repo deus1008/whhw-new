@@ -31,12 +31,8 @@ export default function LoginPage() {
             .select('status, role')
             .eq('id', user.id)
             .single();
-          if (profile?.role === 'admin') {
-            router.replace('/admin');
-            return;
-          }
           if (profile?.status === 'approved') {
-            router.replace('/dashboard');
+            router.replace('/');
           } else {
             router.replace('/pending');
           }
@@ -71,12 +67,8 @@ export default function LoginPage() {
         .select('status, role')
         .eq('id', user.id)
         .single();
-      if (profile?.role === 'admin') {
-        router.push('/admin');
-        return;
-      }
       if (profile?.status === 'approved') {
-        router.push('/dashboard');
+        router.push('/');
       } else {
         router.push('/pending');
       }

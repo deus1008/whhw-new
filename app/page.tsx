@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 const NAV_ITEMS = [
   {
@@ -48,8 +50,44 @@ const NAV_ITEMS = [
 ];
 
 export default function Home() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef  = useRef<HTMLCanvasElement>(null);
+  const router     = useRouter();
+  const timerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // 인증 상태: null=확인 중, false=비로그인, true=로그인됨
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [toast, setToast]           = useState('');
+  const [toastVisible, setToastVisible] = useState(false);
+
+  /* ── 인증 상태 감지 ─────────────────────────────────────── */
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data }) => {
+      setIsLoggedIn(!!data.session);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+      setIsLoggedIn(!!session);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  /* ── 아이콘 클릭 핸들러 ─────────────────────────────────── */
+  function handleNav(href: string) {
+    if (!isLoggedIn) {
+      showToast('로그인이 필요한 페이지입니다.\n우측 상단의 로그인 버튼을 눌러주세요.');
+      return;
+    }
+    router.push(href);
+  }
+
+  function showToast(msg: string) {
+    setToast(msg);
+    setToastVisible(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setToastVisible(false), 3000);
+  }
+
+  /* ── 파티클 배경 ─────────────────────────────────────────── */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -63,19 +101,16 @@ export default function Home() {
       W = canvas!.width  = window.innerWidth;
       H = canvas!.height = window.innerHeight;
     }
-
     function init() {
       const count = Math.min(Math.floor((W * H) / 18000), 80);
       particles = Array.from({ length: count }, () => ({
-        x:  Math.random() * W,
-        y:  Math.random() * H,
-        r:  Math.random() * 1.4 + 0.3,
+        x: Math.random() * W, y: Math.random() * H,
+        r: Math.random() * 1.4 + 0.3,
         vx: (Math.random() - 0.5) * 0.18,
         vy: (Math.random() - 0.5) * 0.18,
-        a:  Math.random() * 0.5 + 0.1,
+        a: Math.random() * 0.5 + 0.1,
       }));
     }
-
     function draw() {
       ctx!.clearRect(0, 0, W, H);
       for (const p of particles) {
@@ -88,7 +123,6 @@ export default function Home() {
       }
       animId = requestAnimationFrame(draw);
     }
-
     const onResize = () => { resize(); init(); };
     window.addEventListener('resize', onResize);
     resize(); init(); draw();
@@ -107,6 +141,7 @@ export default function Home() {
       <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[1]" />
 
       <div className="relative z-10 text-center px-6 py-8 w-full max-w-[700px]">
+        {/* 로고 */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
           <Image
             src="/aju-alliance-logo.png"
@@ -120,76 +155,97 @@ export default function Home() {
 
         <h1 className="domain">판매대행사업</h1>
 
-        {/* 페이지 바로가기 */}
+        {/* 페이지 바로가기 아이콘 */}
         <div style={{
           display: 'flex', justifyContent: 'center', gap: '0.75rem',
-          flexWrap: 'wrap', margin: '1.4rem 0 0.2rem',
+          flexWrap: 'wrap', margin: '1.4rem 0 0.4rem',
         }}>
           {NAV_ITEMS.map(({ href, icon, label, color, bg, bd }) => (
-            <Link key={href} href={href} style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.45rem',
-              padding: '0.85rem 1.05rem',
-              borderRadius: '16px',
-              background: bg,
-              border: `1px solid ${bd}`,
-              textDecoration: 'none',
-              minWidth: '72px',
-              transition: 'transform 0.15s, box-shadow 0.15s',
-            }}
+            <button
+              key={href}
+              onClick={() => handleNav(href)}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.45rem',
+                padding: '0.85rem 1.05rem',
+                borderRadius: '16px',
+                background: bg,
+                border: `1px solid ${bd}`,
+                minWidth: '72px',
+                cursor: 'pointer',
+                transition: 'transform 0.15s, box-shadow 0.15s',
+                fontFamily: 'inherit',
+              }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLAnchorElement).style.transform = 'translateY(-3px)';
-                (e.currentTarget as HTMLAnchorElement).style.boxShadow = `0 8px 24px ${bd}`;
+                e.currentTarget.style.transform = 'translateY(-3px)';
+                e.currentTarget.style.boxShadow = `0 8px 24px ${bd}`;
               }}
               onMouseLeave={e => {
-                (e.currentTarget as HTMLAnchorElement).style.transform = '';
-                (e.currentTarget as HTMLAnchorElement).style.boxShadow = '';
+                e.currentTarget.style.transform = '';
+                e.currentTarget.style.boxShadow = '';
               }}
             >
               <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{icon}</span>
               <span style={{ fontSize: '0.7rem', fontWeight: 600, color, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
                 {label}
               </span>
-            </Link>
+            </button>
           ))}
         </div>
 
+        {/* 비로그인 토스트 메시지 */}
+        <div style={{
+          minHeight: '2.4rem',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <p style={{
+            fontSize: '0.82rem',
+            color: '#fca5a5',
+            background: 'rgba(239,68,68,0.10)',
+            border: '1px solid rgba(239,68,68,0.25)',
+            borderRadius: '10px',
+            padding: '0.5rem 1rem',
+            whiteSpace: 'pre-line',
+            lineHeight: 1.6,
+            transition: 'opacity 0.4s, transform 0.4s',
+            opacity: toastVisible ? 1 : 0,
+            transform: toastVisible ? 'translateY(0)' : 'translateY(6px)',
+            pointerEvents: 'none',
+          }}>
+            {toast}
+          </p>
+        </div>
       </div>
 
+      {/* 우측 상단: 로그인 상태에 따라 다르게 표시 */}
       <div className="fixed top-5 right-6 z-20 flex gap-3">
-        <Link
-          href="/login"
-          style={{
-            padding: '0.4rem 1rem',
-            borderRadius: '8px',
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: 'var(--text-muted)',
-            fontSize: '0.78rem',
-            fontWeight: 500,
-            textDecoration: 'none',
-            letterSpacing: '0.02em',
-            transition: 'border-color 0.2s, color 0.2s',
-          }}
-        >
-          로그인
-        </Link>
-        <Link
-          href="/signup"
-          style={{
-            padding: '0.4rem 1rem',
-            borderRadius: '8px',
-            background: 'rgba(79,142,247,0.12)',
-            border: '1px solid rgba(79,142,247,0.3)',
-            color: '#93b8ff',
-            fontSize: '0.78rem',
-            fontWeight: 600,
-            textDecoration: 'none',
-            letterSpacing: '0.02em',
-            transition: 'opacity 0.2s',
-          }}
-        >
-          회원가입
-        </Link>
+        {isLoggedIn ? (
+          <LogoutButton />
+        ) : (
+          <>
+            <Link
+              href="/login"
+              style={{
+                padding: '0.4rem 1rem', borderRadius: '8px',
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 500,
+                textDecoration: 'none', letterSpacing: '0.02em',
+              }}
+            >
+              로그인
+            </Link>
+            <Link
+              href="/signup"
+              style={{
+                padding: '0.4rem 1rem', borderRadius: '8px',
+                background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.3)',
+                color: '#93b8ff', fontSize: '0.78rem', fontWeight: 600,
+                textDecoration: 'none', letterSpacing: '0.02em',
+              }}
+            >
+              회원가입
+            </Link>
+          </>
+        )}
       </div>
 
       <footer
@@ -199,5 +255,30 @@ export default function Home() {
         &copy; 2026 판매대행사업
       </footer>
     </>
+  );
+}
+
+/* ── 로그아웃 버튼 (로그인 상태일 때 우측 상단) ─────────── */
+function LogoutButton() {
+  const router = useRouter();
+
+  async function handleLogout() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.refresh();
+  }
+
+  return (
+    <button
+      onClick={handleLogout}
+      style={{
+        padding: '0.4rem 1rem', borderRadius: '8px',
+        background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)',
+        color: '#fca5a5', fontSize: '0.78rem', fontWeight: 500,
+        cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.02em',
+      }}
+    >
+      로그아웃
+    </button>
   );
 }
