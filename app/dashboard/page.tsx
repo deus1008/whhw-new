@@ -57,6 +57,9 @@ export default async function DashboardPage() {
               <strong style={{ color: 'var(--text-primary)' }}>{user!.email}</strong> 로 로그인됨
             </p>
             <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
+              <Link href="/visits" style={navLinkStyle('#10b981', 'rgba(16,185,129,0.12)', 'rgba(16,185,129,0.28)')}>
+                방문기록 →
+              </Link>
               {canUpload && (
                 <Link href="/documents" style={navLinkStyle('#3b82f6', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.28)')}>
                   문서 →
