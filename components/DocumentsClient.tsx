@@ -2,7 +2,7 @@
 
 import {
   useState, useRef, useTransition,
-  DragEvent, ChangeEvent,
+  DragEvent, ChangeEvent, useEffect,
 } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { deleteDocument } from '@/app/documents/actions';
@@ -55,6 +55,17 @@ function Badge({ label, color, bg, bd }: { label: string; color: string; bg: str
   );
 }
 
+/** 고유 폴더 목록 추출 (null → '미분류') */
+function extractFolders(docs: Document[]): string[] {
+  const set = new Set<string>();
+  for (const d of docs) set.add(d.category ?? '미분류');
+  return Array.from(set).sort((a, b) => {
+    if (a === '미분류') return 1;
+    if (b === '미분류') return -1;
+    return a.localeCompare(b, 'ko');
+  });
+}
+
 /* ── 컴포넌트 ───────────────────────────────────────────── */
 interface Props {
   initialDocuments: Document[];
@@ -64,7 +75,10 @@ interface Props {
 export default function DocumentsClient({ initialDocuments, userId }: Props) {
   const [documents, setDocuments]         = useState<Document[]>(initialDocuments);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [category, setCategory]           = useState('');
+  const [folder, setFolder]               = useState('');
+  const [newFolder, setNewFolder]         = useState('');
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [activeFolder, setActiveFolder]   = useState<string | null>(null); // null = 전체
   const [isDragging, setIsDragging]       = useState(false);
   const [uploading, setUploading]         = useState(false);
   const [uploadError, setUploadError]     = useState('');
@@ -73,6 +87,21 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
   const [isPending, startTransition]      = useTransition();
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const fileInputRef                      = useRef<HTMLInputElement>(null);
+
+  // 폴더 목록 (문서가 추가/삭제될 때마다 재계산)
+  const folders = extractFolders(documents);
+
+  // activeFolder가 삭제된 경우 전체로 리셋
+  useEffect(() => {
+    if (activeFolder !== null && !folders.includes(activeFolder)) {
+      setActiveFolder(null);
+    }
+  }, [folders, activeFolder]);
+
+  // 현재 탭에 표시할 문서
+  const visibleDocs = activeFolder === null
+    ? documents
+    : documents.filter(d => (d.category ?? '미분류') === activeFolder);
 
   /* ── 파일 추가 ────────────────────────────────────────── */
   function addFiles(incoming: File[]) {
@@ -106,6 +135,12 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
     setSelectedFiles(prev => prev.filter(f => f.name !== name));
   }
 
+  // 최종 폴더명 계산
+  function resolvedFolder(): string | null {
+    if (showNewFolder) return newFolder.trim() || null;
+    return folder || null;
+  }
+
   /* ── 업로드 ───────────────────────────────────────────── */
   async function handleUpload() {
     if (selectedFiles.length === 0 || uploading) return;
@@ -120,12 +155,12 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
       return;
     }
 
+    const categoryValue = resolvedFolder();
     const uploaded: Document[] = [];
     const failed:   string[]   = [];
 
     for (const file of selectedFiles) {
       const ext         = getExt(file.name);
-      // 한글·공백·특수문자를 Storage key에서 제거: UUID + 확장자만 사용
       const safeKey     = ext ? `${crypto.randomUUID()}.${ext}` : crypto.randomUUID();
       const storagePath = `${user.id}/${safeKey}`;
 
@@ -142,7 +177,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
             filename:    file.name,
             file_type:   ext,
             storage_path: storagePath,
-            category:    category.trim() || null,
+            category:    categoryValue,
             uploaded_by: user.id,
             status:      'processing',
           })
@@ -150,7 +185,6 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
           .single();
 
         if (dbErr) {
-          // 테이블 삽입 실패 시 Storage 파일도 롤백
           await supabase.storage.from('documents').remove([storagePath]);
           throw new Error(`DB 저장 실패: ${dbErr.message}`);
         }
@@ -165,21 +199,22 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
 
     if (uploaded.length > 0) {
       setDocuments(prev => [...[...uploaded].reverse(), ...prev]);
+      // 업로드한 폴더로 탭 이동
+      if (categoryValue) setActiveFolder(categoryValue);
     }
-    if (failed.length > 0) {
-      setUploadError(failed.join('\n'));
-    }
+    if (failed.length > 0) setUploadError(failed.join('\n'));
 
     const uploadedNames = new Set(uploaded.map(d => d.filename));
     setSelectedFiles(prev => prev.filter(f => !uploadedNames.has(f.name)));
-    if (failed.length === 0) setCategory('');
+    if (failed.length === 0) {
+      setFolder('');
+      setNewFolder('');
+      setShowNewFolder(false);
+    }
 
     setUploading(false);
 
-    // 업로드 성공한 문서 자동 처리 시작
-    for (const doc of uploaded) {
-      triggerProcess(doc.id);
-    }
+    for (const doc of uploaded) triggerProcess(doc.id);
   }
 
   /* ── RAG 처리 트리거 ──────────────────────────────────── */
@@ -194,7 +229,6 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
       });
 
       const data = await res.json() as { ok?: boolean; error?: string; chunks?: number };
-
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
 
       setDocuments(prev => prev.map(d =>
@@ -237,7 +271,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
   /* ── 렌더 ─────────────────────────────────────────────── */
   return (
     <div>
-      {/* 업로드 영역 */}
+      {/* ── 업로드 영역 ── */}
       <div className="auth-card" style={{ marginBottom: '1.5rem' }}>
         <h2 style={sectionTitle}>
           파일 업로드
@@ -254,9 +288,9 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
           onClick={() => fileInputRef.current?.click()}
           style={{
             ...dropZone,
-            borderColor:       isDragging ? 'rgba(79,142,247,0.6)' : 'rgba(255,255,255,0.12)',
-            background:        isDragging ? 'rgba(79,142,247,0.07)' : 'rgba(255,255,255,0.02)',
-            boxShadow:         isDragging ? '0 0 0 3px rgba(79,142,247,0.15)' : 'none',
+            borderColor: isDragging ? 'rgba(79,142,247,0.6)' : 'rgba(255,255,255,0.12)',
+            background:  isDragging ? 'rgba(79,142,247,0.07)' : 'rgba(255,255,255,0.02)',
+            boxShadow:   isDragging ? '0 0 0 3px rgba(79,142,247,0.15)' : 'none',
           }}
         >
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -269,14 +303,8 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
           <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0 }}>
             {isDragging ? '여기에 놓으세요' : '클릭하거나 파일을 드래그하여 추가'}
           </p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.docx,.xlsx,.xls"
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
-          />
+          <input ref={fileInputRef} type="file" multiple accept=".pdf,.docx,.xlsx,.xls"
+            onChange={handleFileChange} style={{ display: 'none' }} />
         </div>
 
         {/* 선택된 파일 미리보기 */}
@@ -291,40 +319,74 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flexShrink: 0 }}>
                     {(f.size / 1024 / 1024).toFixed(1)} MB
                   </span>
-                  <button
-                    onClick={e => { e.stopPropagation(); removeSelectedFile(f.name); }}
-                    style={removeBtn}
-                    aria-label="제거"
-                  >×</button>
+                  <button onClick={e => { e.stopPropagation(); removeSelectedFile(f.name); }}
+                    style={removeBtn} aria-label="제거">×</button>
                 </div>
               );
             })}
           </div>
         )}
 
-        {/* 업로드 에러 */}
         {uploadError && (
           <div className="auth-error" style={{ marginTop: '0.8rem', whiteSpace: 'pre-line' }}>
             {uploadError}
           </div>
         )}
 
-        {/* 카테고리 + 업로드 버튼 */}
+        {/* 폴더 선택 + 업로드 버튼 */}
         <div style={{ display: 'flex', gap: '0.6rem', marginTop: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div style={{ flex: 1, minWidth: '160px' }}>
+          {/* 폴더 선택 영역 */}
+          <div style={{ flex: 1, minWidth: '200px' }}>
             <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 500 }}>
-              카테고리 (선택)
+              📁 폴더 선택
             </label>
-            <input
-              type="text"
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              placeholder="예: 거래처명, 2025-Q1 …"
-              className="auth-input"
-              style={{ marginBottom: 0 }}
-              disabled={uploading}
-            />
+            {!showNewFolder ? (
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <select
+                  value={folder}
+                  onChange={e => setFolder(e.target.value)}
+                  disabled={uploading}
+                  style={selectStyle}
+                >
+                  <option value="">— 폴더 없음 (미분류) —</option>
+                  {folders.filter(f => f !== '미분류').map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => { setShowNewFolder(true); setFolder(''); }}
+                  disabled={uploading}
+                  style={newFolderBtn}
+                  title="새 폴더 만들기"
+                >
+                  + 새 폴더
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '0.4rem' }}>
+                <input
+                  type="text"
+                  value={newFolder}
+                  onChange={e => setNewFolder(e.target.value)}
+                  placeholder="새 폴더 이름 입력"
+                  className="auth-input"
+                  style={{ marginBottom: 0, flex: 1 }}
+                  disabled={uploading}
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => { setShowNewFolder(false); setNewFolder(''); }}
+                  disabled={uploading}
+                  style={cancelSmallBtn}
+                >
+                  취소
+                </button>
+              </div>
+            )}
           </div>
+
           <button
             onClick={handleUpload}
             disabled={selectedFiles.length === 0 || uploading}
@@ -334,121 +396,123 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
               cursor:  selectedFiles.length === 0 || uploading ? 'not-allowed' : 'pointer',
             }}
           >
-            {uploading ? (
-              <><span style={spinner} />업로드 중…</>
-            ) : (
-              `업로드 (${selectedFiles.length}개)`
-            )}
+            {uploading ? <><span style={spinnerStyle} />업로드 중…</> : `업로드 (${selectedFiles.length}개)`}
           </button>
         </div>
       </div>
 
-      {/* 문서 목록 */}
+      {/* ── 문서 목록 ── */}
       <div className="auth-card">
-        <h2 style={{ ...sectionTitle, marginBottom: '1.2rem' }}>
-          업로드된 문서
-          <span style={{
-            marginLeft: '0.5rem',
-            background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.25)',
-            borderRadius: '100px', padding: '2px 10px',
-            fontSize: '0.73rem', fontWeight: 600, color: '#93c5fd',
-          }}>
-            {documents.length}
-          </span>
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <h2 style={{ ...sectionTitle, marginBottom: 0 }}>
+            업로드된 문서
+            <span style={{
+              marginLeft: '0.5rem',
+              background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.25)',
+              borderRadius: '100px', padding: '2px 10px',
+              fontSize: '0.73rem', fontWeight: 600, color: '#93c5fd',
+            }}>
+              {visibleDocs.length}{activeFolder !== null && `/${documents.length}`}
+            </span>
+          </h2>
+        </div>
+
+        {/* 폴더 탭 */}
+        {folders.length > 0 && (
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1.2rem' }}>
+            {/* 전체 탭 */}
+            <button
+              onClick={() => setActiveFolder(null)}
+              style={tabStyle(activeFolder === null)}
+            >
+              전체 {documents.length}
+            </button>
+            {folders.map(f => {
+              const count = documents.filter(d => (d.category ?? '미분류') === f).length;
+              return (
+                <button
+                  key={f}
+                  onClick={() => setActiveFolder(f)}
+                  style={tabStyle(activeFolder === f)}
+                >
+                  {f === '미분류' ? '📄 미분류' : `📁 ${f}`} {count}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {deleteError && (
           <div className="auth-error" style={{ marginBottom: '0.8rem' }}>{deleteError}</div>
         )}
 
-        {documents.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>업로드된 문서가 없습니다.</p>
+        {visibleDocs.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            {activeFolder !== null ? `"${activeFolder}" 폴더에 문서가 없습니다.` : '업로드된 문서가 없습니다.'}
+          </p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {documents.map(doc => {
-              const fileMeta    = FILE_META[doc.file_type] ?? { label: doc.file_type.toUpperCase(), color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', bd: 'rgba(148,163,184,0.2)' };
-              const isRunning   = processingIds.has(doc.id);
-              const statusKey   = isRunning ? 'running' : doc.status;
-              const statusMeta  = STATUS_META[statusKey] ?? STATUS_META['error'];
-              const isConfirm   = confirmId === doc.id;
-              const isError     = !isRunning && doc.status === 'error';
+            {visibleDocs.map(doc => {
+              const fileMeta   = FILE_META[doc.file_type] ?? { label: doc.file_type.toUpperCase(), color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', bd: 'rgba(148,163,184,0.2)' };
+              const isRunning  = processingIds.has(doc.id);
+              const statusKey  = isRunning ? 'running' : doc.status;
+              const statusMeta = STATUS_META[statusKey] ?? STATUS_META['error'];
+              const isConfirm  = confirmId === doc.id;
+              const isError    = !isRunning && doc.status === 'error';
 
               return (
                 <div key={doc.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   <div style={docRow}>
-                    {/* 파일명 */}
                     <span style={{ flex: 1, fontSize: '0.87rem', wordBreak: 'break-all', color: 'var(--text-primary)', minWidth: '120px' }}>
                       {doc.filename}
                     </span>
-
-                    {/* 형식 배지 */}
                     <Badge {...fileMeta} />
 
-                    {/* 카테고리 */}
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', minWidth: '60px', textAlign: 'center' }}>
-                      {doc.category ?? '—'}
-                    </span>
+                    {/* 폴더 배지 (전체 탭일 때만 표시) */}
+                    {activeFolder === null && doc.category && (
+                      <span
+                        onClick={() => setActiveFolder(doc.category!)}
+                        style={folderBadge}
+                        title={`"${doc.category}" 폴더 보기`}
+                      >
+                        📁 {doc.category}
+                      </span>
+                    )}
 
-                    {/* 날짜 */}
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                       {new Date(doc.created_at).toLocaleDateString('ko-KR')}
                     </span>
 
-                    {/* 상태 배지 (처리 중이면 스피너 포함) */}
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                      {isRunning && <span style={{ ...spinner, width: '10px', height: '10px', borderWidth: '1.5px', borderColor: 'rgba(147,197,253,0.35)', borderTopColor: '#93c5fd' }} />}
+                      {isRunning && <span style={{ ...spinnerStyle, width: '10px', height: '10px', borderWidth: '1.5px', borderColor: 'rgba(147,197,253,0.35)', borderTopColor: '#93c5fd' }} />}
                       <Badge label={statusMeta.label} color={statusMeta.color} bg={statusMeta.bg} bd={statusMeta.bd} />
                     </span>
 
-                    {/* 재처리 버튼 (오류인 경우) */}
                     {isError && (
-                      <button
-                        onClick={() => triggerProcess(doc.id)}
-                        style={retryBtn}
-                      >
-                        재처리
-                      </button>
+                      <button onClick={() => triggerProcess(doc.id)} style={retryBtn}>재처리</button>
                     )}
 
-                    {/* 삭제 */}
                     {isConfirm ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>삭제?</span>
-                        <button
-                          onClick={() => handleDelete(doc)}
-                          disabled={isPending}
-                          style={{ ...confirmDeleteBtn, opacity: isPending ? 0.5 : 1 }}
-                        >
+                        <button onClick={() => handleDelete(doc)} disabled={isPending}
+                          style={{ ...confirmDeleteBtn, opacity: isPending ? 0.5 : 1 }}>
                           {isPending ? '…' : '확인'}
                         </button>
-                        <button
-                          onClick={() => { setConfirmId(null); setDeleteError(''); }}
-                          disabled={isPending}
-                          style={cancelBtn}
-                        >
+                        <button onClick={() => { setConfirmId(null); setDeleteError(''); }} disabled={isPending} style={cancelBtn}>
                           취소
                         </button>
                       </span>
                     ) : (
-                      <button
-                        onClick={() => { setConfirmId(doc.id); setDeleteError(''); }}
-                        disabled={isRunning}
-                        style={{ ...deleteBtn, opacity: isRunning ? 0.4 : 1 }}
-                      >
+                      <button onClick={() => { setConfirmId(doc.id); setDeleteError(''); }}
+                        disabled={isRunning} style={{ ...deleteBtn, opacity: isRunning ? 0.4 : 1 }}>
                         삭제
                       </button>
                     )}
                   </div>
 
-                  {/* 오류 메시지 (에러인 경우에만 표시) */}
                   {isError && doc.error_message && (
-                    <p style={{
-                      margin: '0 0.9rem 0.3rem',
-                      fontSize: '0.74rem',
-                      color: '#fca5a5',
-                      lineHeight: 1.5,
-                      wordBreak: 'break-word',
-                    }}>
+                    <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#fca5a5', lineHeight: 1.5, wordBreak: 'break-word' }}>
                       ↳ {doc.error_message}
                     </p>
                   )}
@@ -461,101 +525,120 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
+        .folder-tab:hover { opacity: 0.8; }
       `}</style>
     </div>
   );
 }
 
-/* ── 스타일 상수 ─────────────────────────────────────────── */
+/* ── 스타일 ─────────────────────────────────────────────── */
 const sectionTitle: React.CSSProperties = {
-  fontSize: '1rem', fontWeight: 700,
-  marginBottom: '1rem',
+  fontSize: '1rem', fontWeight: 700, marginBottom: '1rem',
   background: 'linear-gradient(135deg, #ffffff 0%, #a8c4ff 100%)',
-  WebkitBackgroundClip: 'text',
-  WebkitTextFillColor: 'transparent',
-  backgroundClip: 'text',
+  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
   display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap',
 };
 
 const dropZone: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-  padding: '2rem 1rem',
-  borderRadius: '14px',
-  border: '1.5px dashed',
-  cursor: 'pointer',
-  transition: 'border-color 0.2s, background 0.2s, box-shadow 0.2s',
+  padding: '2rem 1rem', borderRadius: '14px', border: '1.5px dashed',
+  cursor: 'pointer', transition: 'border-color 0.2s, background 0.2s, box-shadow 0.2s',
   userSelect: 'none',
 };
 
 const selectedFileRow: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: '0.5rem',
   padding: '0.5rem 0.8rem',
-  background: 'rgba(255,255,255,0.03)',
-  border: '1px solid rgba(255,255,255,0.07)',
-  borderRadius: '8px',
+  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px',
 };
 
 const removeBtn: React.CSSProperties = {
-  flexShrink: 0, width: '20px', height: '20px',
-  borderRadius: '50%', border: '1px solid rgba(239,68,68,0.3)',
-  background: 'rgba(239,68,68,0.1)', color: '#fca5a5',
+  flexShrink: 0, width: '20px', height: '20px', borderRadius: '50%',
+  border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#fca5a5',
   fontSize: '0.85rem', cursor: 'pointer',
   display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
 };
 
+const selectStyle: React.CSSProperties = {
+  flex: 1, padding: '0.55rem 0.75rem', borderRadius: '10px',
+  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+  color: 'var(--text-primary)', fontSize: '0.85rem', fontFamily: 'inherit',
+  outline: 'none', cursor: 'pointer',
+};
+
+const newFolderBtn: React.CSSProperties = {
+  padding: '0.55rem 0.9rem', borderRadius: '10px', flexShrink: 0,
+  border: '1px solid rgba(79,142,247,0.3)', background: 'rgba(79,142,247,0.1)',
+  color: '#93c5fd', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+  whiteSpace: 'nowrap',
+};
+
+const cancelSmallBtn: React.CSSProperties = {
+  padding: '0.55rem 0.75rem', borderRadius: '10px', flexShrink: 0,
+  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)',
+  color: 'var(--text-muted)', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit',
+};
+
 const uploadBtn: React.CSSProperties = {
-  padding: '0.68rem 1.4rem', borderRadius: '10px',
-  border: 'none', fontFamily: 'inherit',
+  padding: '0.68rem 1.4rem', borderRadius: '10px', border: 'none', fontFamily: 'inherit',
   background: 'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
   color: '#fff', fontSize: '0.88rem', fontWeight: 600,
   display: 'flex', alignItems: 'center', gap: '0.5rem',
   flexShrink: 0, height: '40px', boxSizing: 'border-box',
 };
 
-const spinner: React.CSSProperties = {
+const spinnerStyle: React.CSSProperties = {
   width: '14px', height: '14px', flexShrink: 0,
-  border: '2px solid rgba(255,255,255,0.35)',
-  borderTopColor: '#fff', borderRadius: '50%',
-  display: 'inline-block',
-  animation: 'spin 0.7s linear infinite',
+  border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff',
+  borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite',
+};
+
+function tabStyle(active: boolean): React.CSSProperties {
+  return {
+    padding: '0.32rem 0.85rem', borderRadius: '100px', cursor: 'pointer',
+    fontSize: '0.78rem', fontWeight: active ? 700 : 500,
+    border: active ? '1px solid rgba(79,142,247,0.5)' : '1px solid rgba(255,255,255,0.09)',
+    background: active ? 'rgba(79,142,247,0.18)' : 'rgba(255,255,255,0.04)',
+    color: active ? '#93c5fd' : 'var(--text-muted)',
+    transition: 'background 0.15s, border-color 0.15s, color 0.15s',
+    fontFamily: 'inherit', whiteSpace: 'nowrap',
+  };
+}
+
+const folderBadge: React.CSSProperties = {
+  display: 'inline-block', padding: '2px 8px', borderRadius: '6px',
+  fontSize: '0.7rem', fontWeight: 500, cursor: 'pointer',
+  background: 'rgba(162,89,255,0.1)', border: '1px solid rgba(162,89,255,0.2)',
+  color: '#c084fc', whiteSpace: 'nowrap', flexShrink: 0,
 };
 
 const docRow: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: '0.6rem',
   padding: '0.7rem 0.9rem',
-  background: 'rgba(255,255,255,0.025)',
-  border: '1px solid rgba(255,255,255,0.06)',
+  background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)',
   borderRadius: '10px', flexWrap: 'wrap',
 };
 
 const retryBtn: React.CSSProperties = {
   padding: '0.28rem 0.7rem', borderRadius: '6px',
-  border: '1px solid rgba(251,191,36,0.3)',
-  background: 'rgba(251,191,36,0.1)', color: '#fde68a',
-  fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
-  fontFamily: 'inherit', flexShrink: 0,
+  border: '1px solid rgba(251,191,36,0.3)', background: 'rgba(251,191,36,0.1)', color: '#fde68a',
+  fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
 };
 
 const deleteBtn: React.CSSProperties = {
   padding: '0.28rem 0.7rem', borderRadius: '6px',
-  border: '1px solid rgba(239,68,68,0.22)',
-  background: 'rgba(239,68,68,0.09)', color: '#fca5a5',
-  fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
-  fontFamily: 'inherit', flexShrink: 0,
+  border: '1px solid rgba(239,68,68,0.22)', background: 'rgba(239,68,68,0.09)', color: '#fca5a5',
+  fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
 };
 
 const confirmDeleteBtn: React.CSSProperties = {
   padding: '0.28rem 0.65rem', borderRadius: '6px',
-  border: '1px solid rgba(239,68,68,0.3)',
-  background: 'rgba(239,68,68,0.18)', color: '#fca5a5',
-  fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
-  fontFamily: 'inherit',
+  border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.18)', color: '#fca5a5',
+  fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
 };
 
 const cancelBtn: React.CSSProperties = {
   padding: '0.28rem 0.65rem', borderRadius: '6px',
-  border: '1px solid rgba(255,255,255,0.1)',
-  background: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)',
-  fontSize: '0.74rem', fontWeight: 500, cursor: 'pointer',
-  fontFamily: 'inherit',
+  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)',
+  fontSize: '0.74rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
 };
