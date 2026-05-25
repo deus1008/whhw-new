@@ -10,7 +10,7 @@ import type { Document } from '@/app/documents/page';
 
 /* ── 허용 형식 ──────────────────────────────────────────── */
 const ALLOWED_EXTS = new Set(['pdf', 'docx', 'xlsx', 'xls']);
-const MAX_BYTES    = 50 * 1024 * 1024; // 50 MB
+const MAX_BYTES    = 200 * 1024 * 1024; // 200 MB
 
 const FILE_META: Record<string, { label: string; color: string; bg: string; bd: string }> = {
   pdf:  { label: 'PDF',  color: '#fca5a5', bg: 'rgba(239,68,68,0.12)',   bd: 'rgba(239,68,68,0.28)'   },
@@ -37,7 +37,7 @@ function validateFile(file: File): string | null {
     return `"${file.name}": PDF, DOCX, XLSX, XLS만 허용됩니다.`;
   }
   if (file.size > MAX_BYTES) {
-    return `"${file.name}": 50 MB 제한을 초과합니다 (${(file.size / 1024 / 1024).toFixed(1)} MB).`;
+    return `"${file.name}": 200 MB 제한을 초과합니다 (${(file.size / 1024 / 1024).toFixed(1)} MB).`;
   }
   return null;
 }
@@ -322,7 +322,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
         <h2 style={sectionTitle}>
           파일 업로드
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400, marginLeft: '0.4rem' }}>
-            PDF · DOCX · XLSX · XLS · 최대 50 MB
+            PDF · DOCX · XLSX · XLS · 최대 200 MB
           </span>
         </h2>
 
