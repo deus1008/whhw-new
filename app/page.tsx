@@ -14,6 +14,7 @@ const NAV_ITEMS = [
     color: '#93c5fd',
     bg:   'rgba(59,130,246,0.10)',
     bd:   'rgba(59,130,246,0.22)',
+    external: false,
   },
   {
     href: '/chat',
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
     color: '#67e8f9',
     bg:   'rgba(6,182,212,0.10)',
     bd:   'rgba(6,182,212,0.22)',
+    external: false,
   },
   {
     href: '/visits',
@@ -30,6 +32,7 @@ const NAV_ITEMS = [
     color: '#6ee7b7',
     bg:   'rgba(16,185,129,0.10)',
     bd:   'rgba(16,185,129,0.22)',
+    external: false,
   },
   {
     href: '/documents',
@@ -38,6 +41,16 @@ const NAV_ITEMS = [
     color: '#fde68a',
     bg:   'rgba(251,191,36,0.10)',
     bd:   'rgba(251,191,36,0.22)',
+    external: false,
+  },
+  {
+    href: 'https://ajupharm-news.web.app/',
+    icon: '📰',
+    label: '뉴스기사',
+    color: '#fda4af',
+    bg:   'rgba(244,63,94,0.10)',
+    bd:   'rgba(244,63,94,0.22)',
+    external: true,
   },
   {
     href: '/admin',
@@ -46,6 +59,7 @@ const NAV_ITEMS = [
     color: '#c084fc',
     bg:   'rgba(162,89,255,0.10)',
     bd:   'rgba(162,89,255,0.22)',
+    external: false,
   },
 ];
 
@@ -72,7 +86,11 @@ export default function Home() {
   }, []);
 
   /* ── 아이콘 클릭 핸들러 ─────────────────────────────────── */
-  function handleNav(href: string) {
+  function handleNav(href: string, external?: boolean) {
+    if (external) {
+      window.open(href, '_blank', 'noopener,noreferrer');
+      return;
+    }
     if (!isLoggedIn) {
       showToast('로그인이 필요한 페이지입니다.\n우측 상단의 로그인 버튼을 눌러주세요.');
       return;
@@ -160,10 +178,10 @@ export default function Home() {
           display: 'flex', justifyContent: 'center', gap: '0.75rem',
           flexWrap: 'wrap', margin: '1.4rem 0 0.4rem',
         }}>
-          {NAV_ITEMS.map(({ href, icon, label, color, bg, bd }) => (
+          {NAV_ITEMS.map(({ href, icon, label, color, bg, bd, external }) => (
             <button
               key={href}
-              onClick={() => handleNav(href)}
+              onClick={() => handleNav(href, external)}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.45rem',
                 padding: '1rem 1.1rem',
