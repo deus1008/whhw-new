@@ -111,15 +111,8 @@ export async function getPerformanceData(): Promise<{
     }
   }));
 
-  // 동일 period는 가장 최근 파일 하나만 유지
-  const periodMap = new Map<string, StoredReport>();
-  // reports는 created_at 내림차순이므로 앞쪽(최신)이 우선
-  for (const r of reports) {
-    if (!periodMap.has(r.period)) periodMap.set(r.period, r);
-  }
-
-  const sorted = [...periodMap.values()]
-    .sort((a, b) => b.period.localeCompare(a.period));
+  // created_at 내림차순 정렬 (최신 파일 먼저)
+  const sorted = reports.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 
   return { reports: sorted, errors };
 }

@@ -27,8 +27,8 @@ interface Props {
 }
 
 export default function PerformanceClient({ reports, errors, isAdmin }: Props) {
-  const [selectedPeriod, setSelectedPeriod] = useState<string>(
-    reports[0]?.period ?? '',
+  const [selectedDocId, setSelectedDocId] = useState<string>(
+    reports[0]?.doc_id ?? '',
   );
   const [isPending, startTransition] = useTransition();
   const [refreshError, setRefreshError] = useState('');
@@ -47,7 +47,7 @@ export default function PerformanceClient({ reports, errors, isAdmin }: Props) {
     });
   }
 
-  const selectedData = reports.find(r => r.period === selectedPeriod);
+  const selectedData = reports.find(r => r.doc_id === selectedDocId);
 
   /* ── 파일 없음 ── */
   if (reports.length === 0) {
@@ -118,35 +118,42 @@ export default function PerformanceClient({ reports, errors, isAdmin }: Props) {
           )}
         </div>
 
-        {/* 월 탭 */}
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginRight: '0.2rem' }}>실적월</span>
-          {reports.map(r => (
-            <button
-              key={r.period}
-              onClick={() => setSelectedPeriod(r.period)}
-              style={{
-                padding: '0.28rem 0.85rem', borderRadius: 7,
-                cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.8rem',
-                fontWeight: r.period === selectedPeriod ? 700 : 400,
-                background: r.period === selectedPeriod ? 'rgba(59,130,246,0.22)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${r.period === selectedPeriod ? 'rgba(59,130,246,0.45)' : 'rgba(255,255,255,0.1)'}`,
-                color: r.period === selectedPeriod ? '#93c5fd' : 'var(--text-muted)',
-                transition: 'all 0.15s',
-              }}
-            >
-              {r.period}
-            </button>
-          ))}
+        {/* 파일 선택 목록 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>파일 선택</span>
+          {reports.map(r => {
+            const isSelected = r.doc_id === selectedDocId;
+            return (
+              <button
+                key={r.doc_id}
+                onClick={() => setSelectedDocId(r.doc_id)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  gap: '0.6rem', padding: '0.55rem 0.9rem', borderRadius: 9,
+                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+                  background: isSelected ? 'rgba(59,130,246,0.14)' : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${isSelected ? 'rgba(59,130,246,0.42)' : 'rgba(255,255,255,0.08)'}`,
+                  transition: 'all 0.15s',
+                }}
+              >
+                <span style={{
+                  fontSize: '0.82rem', fontWeight: isSelected ? 600 : 400,
+                  color: isSelected ? '#93c5fd' : 'var(--text-primary)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  flex: 1,
+                }}>
+                  📄 {r.filename}
+                </span>
+                <span style={{
+                  fontSize: '0.72rem', color: 'var(--text-muted)',
+                  whiteSpace: 'nowrap', flexShrink: 0,
+                }}>
+                  {r.period} · {new Date(r.updated_at).toLocaleDateString('ko-KR')}
+                </span>
+              </button>
+            );
+          })}
         </div>
-
-        {/* 선택 월 파일 정보 */}
-        {selectedData && (
-          <p style={{ fontSize: '0.7rem', color: 'rgba(107,122,153,0.7)', margin: 0 }}>
-            📄 {selectedData.filename} ·
-            분석: {new Date(selectedData.updated_at).toLocaleString('ko-KR')}
-          </p>
-        )}
 
         {/* 오류 파일 목록 */}
         {errors.length > 0 && (
