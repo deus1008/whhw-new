@@ -26,6 +26,15 @@ const NAV_ITEMS = [
     external: true,
   },
   {
+    href: '/performance',
+    icon: '📊',
+    label: '마감분석',
+    color: '#86efac',
+    bg:   'rgba(16,185,129,0.10)',
+    bd:   'rgba(16,185,129,0.22)',
+    external: false,
+  },
+  {
     href: '/chat',
     icon: '💬',
     label: '챗봇',

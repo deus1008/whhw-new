@@ -146,8 +146,9 @@ export default async function DashboardPage() {
         </p>
         <div className="page-nav">
           <HomeButton />
-          <Link href="/visits"  style={navLink('#10b981', 'rgba(16,185,129,0.12)', 'rgba(16,185,129,0.28)')}>영업활동</Link>
-          <Link href="/chat"    style={navLink('#06b6d4', 'rgba(6,182,212,0.12)',  'rgba(6,182,212,0.28)')}>챗봇</Link>
+          <Link href="/visits"      style={navLink('#10b981', 'rgba(16,185,129,0.12)', 'rgba(16,185,129,0.28)')}>영업활동</Link>
+          <Link href="/chat"        style={navLink('#06b6d4', 'rgba(6,182,212,0.12)',  'rgba(6,182,212,0.28)')}>챗봇</Link>
+          <Link href="/performance" style={navLink('#4ade80', 'rgba(74,222,128,0.10)', 'rgba(74,222,128,0.25)')}>📊 마감분석</Link>
           <a href="https://ajupharm-news.web.app/" target="_blank" rel="noopener noreferrer" style={navLink('#fb7185', 'rgba(244,63,94,0.12)', 'rgba(244,63,94,0.28)')}>📰 뉴스</a>
           {canUpload && <Link href="/documents" style={navLink('#3b82f6', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.28)')}>문서</Link>}
           {isAdmin   && <Link href="/admin"     style={navLink('#a259ff', 'rgba(162,89,255,0.12)', 'rgba(162,89,255,0.28)')}>관리자</Link>}
