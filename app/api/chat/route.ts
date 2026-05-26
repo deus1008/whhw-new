@@ -73,35 +73,62 @@ export async function POST(request: Request) {
 
   // RAG: 최신 사용자 메시지로 관련 문서 검색
   const latestUserQuery = messages.filter(m => m.role === 'user').at(-1)?.content ?? '';
-  let systemPrompt =
-    '당신은 판매대행사업의 AI 어시스턴트입니다. 사용자의 질문에 친절하고 정확하게 답변해 주세요.';
+
+  const BASE_PROMPT =
+    `당신은 판매대행사업의 AI 어시스턴트입니다.\n` +
+    `[답변 원칙]\n` +
+    `1. 아래 참고 문서를 최우선으로 활용하여 답변하세요.\n` +
+    `2. 참고 문서 내용이 있으면 반드시 해당 내용을 먼저 정리·인용한 후 답변하세요.\n` +
+    `3. 문서 내용이 부분적으로 관련될 때는 관련 내용을 모두 정리하고, 추가로 일반 지식을 보완하세요.\n` +
+    `4. 문서에 전혀 관련 내용이 없을 때만 "업로드된 문서에는 관련 내용이 없어 일반 지식으로 답변합니다"라고 먼저 안내하세요.\n` +
+    `5. 출처 파일명은 괄호로 표기하세요. 예: (CSO동향_26.05.xlsx)\n`;
+
+  let systemPrompt = BASE_PROMPT + `\n업로드된 문서에 관련 내용이 없으면 일반 지식으로 친절하게 답변해 주세요.`;
 
   if (latestUserQuery) {
     try {
-      const chunks = await searchDocuments(latestUserQuery);
+      // 넓게 검색 후 문서별 다양성 보장 (문서당 최대 3청크, 최종 15개 유지)
+      const rawChunks = await searchDocuments(latestUserQuery);
 
-      if (chunks.length > 0) {
-        // 문서 ID → 파일명 매핑
-        const docIds = [...new Set(chunks.map(c => c.document_id))];
+      if (rawChunks.length > 0) {
+        // 문서 ID → 메타 정보 매핑 (파일명 + 폴더명)
+        const docIds = [...new Set(rawChunks.map(c => c.document_id))];
         const { data: docRows } = await supabase
           .from('documents')
-          .select('id, filename')
+          .select('id, filename, category')
           .in('id', docIds);
-        const filenameMap = Object.fromEntries(
-          (docRows ?? []).map(d => [d.id, d.filename as string])
+        const docMeta = Object.fromEntries(
+          (docRows ?? []).map(d => [
+            d.id,
+            {
+              filename: d.filename as string,
+              category: d.category as string | null,
+            },
+          ])
         );
 
-        const contextBlocks = chunks.map((c, i) => {
-          const name = filenameMap[c.document_id] ?? c.document_id;
-          return `[${i + 1}] 출처: ${name}\n${c.content}`;
+        // 문서별 청크 수 제한으로 다양성 보장 (동일 문서의 청크가 결과를 독점하지 않도록)
+        const chunkCountPerDoc: Record<string, number> = {};
+        const MAX_CHUNKS_PER_DOC = 3;
+        const MAX_TOTAL_CHUNKS   = 15;
+
+        const diverseChunks = rawChunks.filter(c => {
+          const cnt = chunkCountPerDoc[c.document_id] ?? 0;
+          if (cnt >= MAX_CHUNKS_PER_DOC) return false;
+          chunkCountPerDoc[c.document_id] = cnt + 1;
+          return true;
+        }).slice(0, MAX_TOTAL_CHUNKS);
+
+        const contextBlocks = diverseChunks.map((c, i) => {
+          const meta   = docMeta[c.document_id];
+          const name   = meta?.filename ?? c.document_id;
+          const folder = meta?.category ? ` [폴더: ${meta.category}]` : '';
+          return `[${i + 1}] 출처: ${name}${folder}\n${c.content}`;
         });
 
         systemPrompt =
-          `당신은 판매대행사업의 AI 어시스턴트입니다.\n` +
-          `아래 참고 문서를 바탕으로 사용자의 질문에 답하세요.\n` +
-          `문서에 관련 내용이 없으면, 일반 지식으로 답변하되 ` +
-          `"업로드된 문서에서는 관련 내용을 찾지 못했습니다"라고 먼저 안내해 주세요.\n\n` +
-          `=== 참고 문서 ===\n` +
+          BASE_PROMPT +
+          `\n=== 참고 문서 (${diverseChunks.length}건, ${docIds.length}개 파일) ===\n` +
           contextBlocks.join('\n\n');
       }
     } catch (err) {

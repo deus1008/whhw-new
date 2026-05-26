@@ -2,9 +2,9 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { embedTexts } from './embed';
 
 const DEFAULT_SIMILARITY_THRESHOLD =
-  Number(process.env.RAG_SIMILARITY_THRESHOLD ?? 0.15);
+  Number(process.env.RAG_SIMILARITY_THRESHOLD ?? 0.05); // 낮게 설정해 Excel 등 수치 데이터도 포함
 const DEFAULT_MATCH_COUNT =
-  Number(process.env.RAG_MATCH_COUNT ?? 15);
+  Number(process.env.RAG_MATCH_COUNT ?? 30); // 다양성 필터 적용 전 충분히 넓게 수집
 
 export type SearchResult = {
   document_id: string;
