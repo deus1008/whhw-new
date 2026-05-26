@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import PerformanceClient from '@/components/PerformanceClient';
-import { fetchPerformanceReports } from './actions';
+import { getPerformanceData } from './actions';
 import type { StoredReport } from './actions';
 
 export type { StoredReport };
@@ -23,7 +23,9 @@ export default async function PerformancePage() {
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
   const isAdmin = profile.role === 'admin';
-  const reports: StoredReport[] = await fetchPerformanceReports();
+
+  // 실적마감 폴더 파일 → 분석 결과 (캐시 활용)
+  const { reports, errors } = await getPerformanceData();
 
   return (
     <>
@@ -41,10 +43,17 @@ export default async function PerformancePage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
           <Link href="/dashboard" style={navLinkStyle}>← 대시보드</Link>
+          {isAdmin && (
+            <Link href="/documents" style={navLinkStyle}>📁 문서관리</Link>
+          )}
           <LogoutButton compact />
         </div>
 
-        <PerformanceClient reports={reports} isAdmin={isAdmin} />
+        <PerformanceClient
+          reports={reports}
+          errors={errors}
+          isAdmin={isAdmin}
+        />
       </div>
     </>
   );

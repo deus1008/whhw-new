@@ -7,108 +7,125 @@ import * as XLSX from 'xlsx';
 import { processRaw } from '@/lib/performance/process';
 import type { PerfData } from '@/lib/performance/process';
 
-const BUCKET = 'performance-data';
+const BUCKET_DOCS = 'documents';
+const BUCKET_CACHE = 'performance-data';
+const FOLDER_NAME = '실적마감';
 
 export interface StoredReport {
   period: string;
   filename: string;
   data: PerfData;
   updated_at: string;
+  doc_id: string;
 }
 
 function getSvc() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createServiceClient(url, key);
-}
-
-/* ── 이력 전체 조회 ─────────────────────────────────────────── */
-export async function fetchPerformanceReports(): Promise<StoredReport[]> {
-  const svc = getSvc();
-
-  const { data: files, error: listErr } = await svc.storage
-    .from(BUCKET)
-    .list('', { sortBy: { column: 'name', order: 'desc' } });
-
-  if (listErr || !files?.length) return [];
-
-  const jsonFiles = files.filter(f => f.name.endsWith('.json'));
-
-  const reports = await Promise.all(
-    jsonFiles.map(async f => {
-      const { data: blob } = await svc.storage.from(BUCKET).download(f.name);
-      if (!blob) return null;
-      const text = await blob.text();
-      return JSON.parse(text) as StoredReport;
-    }),
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
-
-  return reports
-    .filter((r): r is StoredReport => r !== null)
-    .sort((a, b) => b.period.localeCompare(a.period));
 }
 
-/* ── 업로드 (관리자 전용) ───────────────────────────────────── */
-export async function uploadPerformanceData(
-  formData: FormData,
-): Promise<{ period?: string; error?: string }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { error: '로그인이 필요합니다.' };
+/* ── 실적마감 폴더 파일 → 분석 결과 반환 ───────────────────── */
+export async function getPerformanceData(): Promise<{
+  reports: StoredReport[];
+  errors: { filename: string; message: string }[];
+}> {
+  const svc = getSvc();
 
-  const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single();
-  if (!profile || profile.role !== 'admin')
-    return { error: '관리자만 업로드할 수 있습니다.' };
+  // 실적마감 폴더의 xlsx/xls 파일 전체 조회 (RAG 상태 무관)
+  const { data: docs, error: dbErr } = await svc
+    .from('documents')
+    .select('id, filename, file_type, storage_path, created_at, category')
+    .eq('category', FOLDER_NAME)
+    .in('file_type', ['xlsx', 'xls'])
+    .order('created_at', { ascending: false });
 
-  const file = formData.get('file') as File | null;
-  if (!file) return { error: '파일이 없습니다.' };
-  if (!file.name.match(/\.(xlsx|xls)$/i))
-    return { error: 'xlsx / xls 파일만 지원합니다.' };
-
-  try {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const wb = XLSX.read(buffer, { type: 'buffer' });
-
-    if (!wb.SheetNames.includes('raw'))
-      return { error: '"raw" 시트를 찾을 수 없습니다.' };
-
-    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-      wb.Sheets['raw'], { defval: '' },
-    );
-    const data = processRaw(rows, file.name);
-
-    const report: StoredReport = {
-      period:     data.period,
-      filename:   file.name,
-      data,
-      updated_at: new Date().toISOString(),
-    };
-
-    const json    = JSON.stringify(report);
-    const blob    = new Blob([json], { type: 'application/json' });
-    const path    = `${data.period}.json`;
-    const svc     = getSvc();
-
-    // 동일 월이면 덮어쓰기, 신규면 추가
-    const { error: upErr } = await svc.storage
-      .from(BUCKET)
-      .upload(path, blob, { upsert: true, contentType: 'application/json' });
-
-    if (upErr) return { error: `저장 실패: ${upErr.message}` };
-
-    revalidatePath('/performance');
-    return { period: data.period };
-  } catch (e) {
-    console.error('[uploadPerformanceData]', e);
-    return { error: e instanceof Error ? e.message : '처리 중 오류가 발생했습니다.' };
+  if (dbErr) {
+    console.error('[getPerformanceData] db:', dbErr);
+    return { reports: [], errors: [{ filename: '', message: dbErr.message }] };
   }
+  if (!docs?.length) return { reports: [], errors: [] };
+
+  const reports: StoredReport[] = [];
+  const errors:  { filename: string; message: string }[] = [];
+
+  await Promise.all(docs.map(async doc => {
+    const cacheKey = `${doc.id}.json`;
+
+    // ── 캐시 확인 ──────────────────────────────────────────
+    try {
+      const { data: cacheBlob } = await svc.storage
+        .from(BUCKET_CACHE)
+        .download(cacheKey);
+      if (cacheBlob) {
+        const cached = JSON.parse(await cacheBlob.text()) as StoredReport;
+        reports.push(cached);
+        return;
+      }
+    } catch { /* 캐시 없음 → 원본 처리 */ }
+
+    // ── 원본 파일 다운로드 + 분석 ──────────────────────────
+    try {
+      const { data: fileBlob, error: dlErr } = await svc.storage
+        .from(BUCKET_DOCS)
+        .download(doc.storage_path);
+
+      if (dlErr || !fileBlob) {
+        errors.push({ filename: doc.filename, message: dlErr?.message ?? '파일 다운로드 실패' });
+        return;
+      }
+
+      const buffer = Buffer.from(await fileBlob.arrayBuffer());
+      const wb = XLSX.read(buffer, { type: 'buffer' });
+
+      if (!wb.SheetNames.includes('raw')) {
+        errors.push({ filename: doc.filename, message: '"raw" 시트를 찾을 수 없습니다.' });
+        return;
+      }
+
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+        wb.Sheets['raw'], { defval: '' },
+      );
+      const data = processRaw(rows, doc.filename);
+
+      const report: StoredReport = {
+        period:     data.period,
+        filename:   doc.filename,
+        data,
+        updated_at: doc.created_at as string,
+        doc_id:     doc.id as string,
+      };
+
+      // 캐시 저장
+      const blob = new Blob([JSON.stringify(report)], { type: 'application/json' });
+      await svc.storage.from(BUCKET_CACHE).upload(cacheKey, blob, { upsert: true });
+
+      reports.push(report);
+    } catch (e) {
+      console.error('[getPerformanceData] doc:', doc.id, e);
+      errors.push({
+        filename: doc.filename,
+        message:  e instanceof Error ? e.message : '분석 중 오류 발생',
+      });
+    }
+  }));
+
+  // 동일 period는 가장 최근 파일 하나만 유지
+  const periodMap = new Map<string, StoredReport>();
+  // reports는 created_at 내림차순이므로 앞쪽(최신)이 우선
+  for (const r of reports) {
+    if (!periodMap.has(r.period)) periodMap.set(r.period, r);
+  }
+
+  const sorted = [...periodMap.values()]
+    .sort((a, b) => b.period.localeCompare(a.period));
+
+  return { reports: sorted, errors };
 }
 
-/* ── 삭제 (관리자 전용) ─────────────────────────────────────── */
-export async function deletePerformanceReport(
-  period: string,
-): Promise<{ error?: string }> {
+/* ── 캐시 초기화 (강제 재분석) ─────────────────────────────── */
+export async function forceRefreshAnalysis(): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: '로그인이 필요합니다.' };
@@ -116,11 +133,21 @@ export async function deletePerformanceReport(
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single();
   if (!profile || profile.role !== 'admin')
-    return { error: '관리자만 삭제할 수 있습니다.' };
+    return { error: '관리자만 새로고침할 수 있습니다.' };
 
   const svc = getSvc();
-  const { error } = await svc.storage.from(BUCKET).remove([`${period}.json`]);
-  if (error) return { error: `삭제 실패: ${error.message}` };
+
+  // 실적마감 폴더 문서 ID 조회
+  const { data: docs } = await svc
+    .from('documents')
+    .select('id')
+    .eq('category', FOLDER_NAME)
+    .in('file_type', ['xlsx', 'xls']);
+
+  if (docs?.length) {
+    const keys = docs.map(d => `${d.id}.json`);
+    await svc.storage.from(BUCKET_CACHE).remove(keys);
+  }
 
   revalidatePath('/performance');
   return {};
