@@ -72,7 +72,7 @@ export default function DashboardClient({
             </p>
           </div>
           <Link href="/visits" style={primaryLink}>
-            방문기록 작성 →
+            영업활동 작성 →
           </Link>
         </div>
       </div>
@@ -204,7 +204,7 @@ export default function DashboardClient({
 
       {/* ── 빠른 이동 ── */}
       <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-        <Link href="/visits" style={quickLink('#10b981', 'rgba(16,185,129,0.1)', 'rgba(16,185,129,0.25)')}>📋 방문기록</Link>
+        <Link href="/visits" style={quickLink('#10b981', 'rgba(16,185,129,0.1)', 'rgba(16,185,129,0.25)')}>📋 영업활동</Link>
         <Link href="/chat"   style={quickLink('#67e8f9', 'rgba(6,182,212,0.1)',  'rgba(6,182,212,0.25)')}>💬 AI 챗봇</Link>
         {canUpload && <Link href="/documents" style={quickLink('#fde68a', 'rgba(251,191,36,0.1)', 'rgba(251,191,36,0.25)')}>📁 문서관리</Link>}
         {isAdmin   && <Link href="/admin"     style={quickLink('#c084fc', 'rgba(162,89,255,0.1)', 'rgba(162,89,255,0.25)')}>⚙️ 관리자</Link>}

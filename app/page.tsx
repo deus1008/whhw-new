@@ -37,7 +37,7 @@ const NAV_ITEMS = [
   {
     href: '/visits',
     icon: '📋',
-    label: '방문기록',
+    label: '영업활동',
     color: '#6ee7b7',
     bg:   'rgba(16,185,129,0.10)',
     bd:   'rgba(16,185,129,0.22)',
