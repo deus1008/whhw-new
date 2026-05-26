@@ -4,7 +4,7 @@ import { embedTexts } from './embed';
 const DEFAULT_SIMILARITY_THRESHOLD =
   Number(process.env.RAG_SIMILARITY_THRESHOLD ?? 0.15);
 const DEFAULT_MATCH_COUNT =
-  Number(process.env.RAG_MATCH_COUNT ?? 5);
+  Number(process.env.RAG_MATCH_COUNT ?? 15);
 
 export type SearchResult = {
   document_id: string;

@@ -86,6 +86,8 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
   const [deleteError, setDeleteError]     = useState('');
   const [isPending, startTransition]      = useTransition();
   const [processingIds, setProcessingIds]   = useState<Set<string>>(new Set());
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress]     = useState<{ current: number; total: number } | null>(null);
   // 폴더 이름 변경 상태
   const [renamingFolder, setRenamingFolder] = useState<string | null | undefined>(undefined); // undefined = 비활성
   const [renameValue, setRenameValue]       = useState('');
@@ -252,6 +254,27 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
         return next;
       });
     }
+  }
+
+  /* ── 오류 파일 전체 재처리 ───────────────────────────── */
+  async function handleBatchReprocess() {
+    const errorDocs = visibleDocs.filter(d => d.status === 'error' && !processingIds.has(d.id));
+    if (errorDocs.length === 0 || batchProcessing) return;
+
+    setBatchProcessing(true);
+    setBatchProgress({ current: 0, total: errorDocs.length });
+
+    for (let i = 0; i < errorDocs.length; i++) {
+      setBatchProgress({ current: i + 1, total: errorDocs.length });
+      await triggerProcess(errorDocs[i].id);
+      // 연속 요청 간 짧은 지연 (Rate-limit 방지)
+      if (i < errorDocs.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 800));
+      }
+    }
+
+    setBatchProcessing(false);
+    setBatchProgress(null);
   }
 
   /* ── 폴더 이름 변경 ──────────────────────────────────── */
@@ -461,6 +484,30 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
               {visibleDocs.length}{activeFolder !== null && `/${documents.length}`}
             </span>
           </h2>
+          {/* 오류 파일이 있을 때만 전체 재처리 버튼 표시 */}
+          {visibleDocs.some(d => d.status === 'error') && (
+            <button
+              onClick={handleBatchReprocess}
+              disabled={batchProcessing}
+              style={{
+                ...retryBtn,
+                fontSize: '0.78rem',
+                padding: '0.38rem 0.9rem',
+                opacity: batchProcessing ? 0.6 : 1,
+                cursor: batchProcessing ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+              }}
+            >
+              {batchProcessing ? (
+                <>
+                  <span style={{ ...spinnerStyle, width: '11px', height: '11px', borderWidth: '1.5px', borderColor: 'rgba(253,230,138,0.35)', borderTopColor: '#fde68a' }} />
+                  {batchProgress ? `재처리 중… ${batchProgress.current}/${batchProgress.total}` : '재처리 중…'}
+                </>
+              ) : (
+                `🔄 오류 ${visibleDocs.filter(d => d.status === 'error').length}개 전체 재처리`
+              )}
+            </button>
+          )}
         </div>
 
         {/* 폴더 탭 */}

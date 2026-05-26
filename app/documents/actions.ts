@@ -2,6 +2,15 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+
+/** RLS를 우회하는 서비스 롤 클라이언트 */
+function createServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error('Supabase 환경 변수가 누락되었습니다.');
+  return createSupabaseClient(url, key);
+}
 
 async function verifyUploaderOrAdmin() {
   const supabase = await createClient();
@@ -68,30 +77,59 @@ export async function deleteDocument(formData: FormData) {
 /* ── 폴더 이름 변경 ─────────────────────────────────────── */
 export async function renameFolder(oldName: string | null, newName: string): Promise<{ error?: string }> {
   try {
-    const { supabase, userId, role } = await verifyUploaderOrAdmin();
+    const { userId, role } = await verifyUploaderOrAdmin();
 
     const trimmed = newName.trim();
     if (!trimmed) return { error: '폴더 이름을 입력하세요.' };
 
-    let query = supabase.from('documents').update({ category: trimmed });
+    // RLS 우회: 서비스 롤 클라이언트 사용 (권한 검증은 위 verifyUploaderOrAdmin에서 완료)
+    const supabase = createServiceClient();
+
+    let dbError: { message: string } | null = null;
 
     if (role === 'admin') {
       // 관리자: 해당 폴더의 모든 문서 변경
-      query = oldName === null
-        ? (query as any).is('category', null)
-        : (query as any).eq('category', oldName);
+      if (oldName === null) {
+        const { error } = await supabase
+          .from('documents')
+          .update({ category: trimmed })
+          .is('category', null);
+        dbError = error;
+      } else {
+        const { error } = await supabase
+          .from('documents')
+          .update({ category: trimmed })
+          .eq('category', oldName);
+        dbError = error;
+      }
     } else {
       // uploader: 본인 문서만
-      query = oldName === null
-        ? (query as any).is('category', null).eq('uploaded_by', userId)
-        : (query as any).eq('category', oldName).eq('uploaded_by', userId);
+      if (oldName === null) {
+        const { error } = await supabase
+          .from('documents')
+          .update({ category: trimmed })
+          .is('category', null)
+          .eq('uploaded_by', userId);
+        dbError = error;
+      } else {
+        const { error } = await supabase
+          .from('documents')
+          .update({ category: trimmed })
+          .eq('category', oldName)
+          .eq('uploaded_by', userId);
+        dbError = error;
+      }
     }
 
-    const { error: dbErr } = await query;
-    if (dbErr) return { error: `변경 실패: ${dbErr.message}` };
+    if (dbError) {
+      console.error('[renameFolder dbError]', dbError);
+      return { error: `변경 실패: ${dbError.message}` };
+    }
 
+    revalidatePath('/documents');
     return {};
-  } catch {
-    return { error: '권한이 없습니다.' };
+  } catch (e) {
+    console.error('[renameFolder error]', e);
+    return { error: '저장 중 오류가 발생했습니다.' };
   }
 }

@@ -74,7 +74,7 @@ export async function POST(request: Request) {
   // RAG: 최신 사용자 메시지로 관련 문서 검색
   const latestUserQuery = messages.filter(m => m.role === 'user').at(-1)?.content ?? '';
   let systemPrompt =
-    '당신은 WHHW.co.kr의 AI 어시스턴트입니다. 사용자의 질문에 친절하고 정확하게 답변해 주세요.';
+    '당신은 판매대행사업의 AI 어시스턴트입니다. 사용자의 질문에 친절하고 정확하게 답변해 주세요.';
 
   if (latestUserQuery) {
     try {
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
         });
 
         systemPrompt =
-          `당신은 WHHW.co.kr의 AI 어시스턴트입니다.\n` +
+          `당신은 판매대행사업의 AI 어시스턴트입니다.\n` +
           `아래 참고 문서를 바탕으로 사용자의 질문에 답하세요.\n` +
           `문서에 관련 내용이 없으면, 일반 지식으로 답변하되 ` +
           `"업로드된 문서에서는 관련 내용을 찾지 못했습니다"라고 먼저 안내해 주세요.\n\n` +
