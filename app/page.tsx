@@ -17,6 +17,15 @@ const NAV_ITEMS = [
     external: false,
   },
   {
+    href: 'https://ajupharm-news.web.app/',
+    icon: '📰',
+    label: '뉴스기사',
+    color: '#fda4af',
+    bg:   'rgba(244,63,94,0.10)',
+    bd:   'rgba(244,63,94,0.22)',
+    external: true,
+  },
+  {
     href: '/chat',
     icon: '💬',
     label: '챗봇',
@@ -42,15 +51,6 @@ const NAV_ITEMS = [
     bg:   'rgba(251,191,36,0.10)',
     bd:   'rgba(251,191,36,0.22)',
     external: false,
-  },
-  {
-    href: 'https://ajupharm-news.web.app/',
-    icon: '📰',
-    label: '뉴스기사',
-    color: '#fda4af',
-    bg:   'rgba(244,63,94,0.10)',
-    bd:   'rgba(244,63,94,0.22)',
-    external: true,
   },
   {
     href: '/admin',
