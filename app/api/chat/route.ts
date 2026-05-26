@@ -80,12 +80,13 @@ export async function POST(request: Request) {
     `1. 아래 참고 문서를 최우선으로 활용하여 종합적으로 답변하세요.\n` +
     `2. 참고 문서 내용이 있으면 반드시 문서 내용을 먼저 정리·인용한 후 답변하세요.\n` +
     `3. 여러 문서에 관련 내용이 흩어져 있으면 모두 종합하여 하나의 답변으로 정리하세요.\n` +
-    `4. 문서 내용으로 부족한 부분은 일반 지식으로 보완하세요.\n` +
-    `5. 문서에 전혀 관련 내용이 없을 때만 "업로드된 문서에는 관련 내용이 없어 일반 지식으로 답변합니다"라고 먼저 안내하세요.\n` +
-    `6. 출처 파일명은 괄호로 표기하세요. 예: (CSO동향_26.05.xlsx)\n`;
+    `4. 문서 내용으로 부족하거나 최신 정보가 필요한 경우 웹 검색을 활용하여 보완하세요.\n` +
+    `5. 문서에 전혀 관련 내용이 없을 때는 웹 검색으로 최신 정보를 찾아 답변하세요.\n` +
+    `6. 출처 파일명은 괄호로 표기하세요. 예: (CSO동향_26.05.xlsx)\n` +
+    `7. 웹 검색 결과를 인용할 때는 출처 URL을 함께 표기하세요.\n`;
 
   let systemPrompt = BASE_PROMPT +
-    `\n업로드된 문서에 관련 내용이 없으면 일반 지식으로 친절하게 답변해 주세요.`;
+    `\n업로드된 문서에 관련 내용이 없으면 웹 검색을 활용하여 최신 정보를 찾아 친절하게 답변해 주세요.`;
 
   if (latestUserQuery) {
     try {
@@ -144,7 +145,8 @@ export async function POST(request: Request) {
         systemPrompt =
           BASE_PROMPT +
           `\n=== 참고 문서 (총 ${finalChunks.length}개 청크 / ${docIds.length}개 파일 참조) ===\n` +
-          contextBlocks.join('\n\n');
+          contextBlocks.join('\n\n') +
+          `\n\n참고 문서로 답변이 부족하거나 최신 정보가 필요하면 웹 검색을 적극 활용하세요.`;
       }
     } catch (err) {
       console.error('[api/chat RAG error]', err);
@@ -162,9 +164,11 @@ export async function POST(request: Request) {
       try {
         const anthropicStream = await anthropicClient.messages.stream({
           model: 'claude-opus-4-7',
-          max_tokens: 4096,
+          max_tokens: 8096,
           system: systemPrompt,
           messages: messages.map((m) => ({ role: m.role, content: m.content })),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          tools: [{ type: 'web_search_20250305', name: 'web_search' }] as any,
         });
 
         for await (const chunk of anthropicStream) {
