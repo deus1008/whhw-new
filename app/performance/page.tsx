@@ -24,7 +24,7 @@ export default async function PerformancePage() {
       <div className="orb orb-2" />
       <div className="orb orb-3" />
 
-      <div className="relative z-10 w-full px-4" style={{ maxWidth: '1160px', paddingTop: '2rem', paddingBottom: '3rem' }}>
+      <div className="relative z-10 w-full px-4" style={{ maxWidth: '1160px', paddingTop: '2.5rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}>
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem, 4vw, 1.8rem)' }}>
           판매대행사업
         </p>

@@ -138,7 +138,7 @@ export default async function DashboardPage() {
       <div className="orb orb-2" />
       <div className="orb orb-3" />
 
-      <div className="relative z-10 w-full px-4" style={{ maxWidth: '860px', paddingTop: '2rem', paddingBottom: '2rem' }}>
+      <div className="relative z-10 w-full px-4" style={{ maxWidth: '860px', paddingTop: '2rem', paddingBottom: '2rem', alignSelf: 'flex-start' }}>
 
         {/* 상단 타이틀 + 내비 */}
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem, 4vw, 1.8rem)' }}>
