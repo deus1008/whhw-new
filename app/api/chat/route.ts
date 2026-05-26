@@ -77,17 +77,19 @@ export async function POST(request: Request) {
   const BASE_PROMPT =
     `당신은 판매대행사업의 AI 어시스턴트입니다.\n` +
     `[답변 원칙]\n` +
-    `1. 아래 참고 문서를 최우선으로 활용하여 답변하세요.\n` +
-    `2. 참고 문서 내용이 있으면 반드시 해당 내용을 먼저 정리·인용한 후 답변하세요.\n` +
-    `3. 문서 내용이 부분적으로 관련될 때는 관련 내용을 모두 정리하고, 추가로 일반 지식을 보완하세요.\n` +
-    `4. 문서에 전혀 관련 내용이 없을 때만 "업로드된 문서에는 관련 내용이 없어 일반 지식으로 답변합니다"라고 먼저 안내하세요.\n` +
-    `5. 출처 파일명은 괄호로 표기하세요. 예: (CSO동향_26.05.xlsx)\n`;
+    `1. 아래 참고 문서를 최우선으로 활용하여 종합적으로 답변하세요.\n` +
+    `2. 참고 문서 내용이 있으면 반드시 문서 내용을 먼저 정리·인용한 후 답변하세요.\n` +
+    `3. 여러 문서에 관련 내용이 흩어져 있으면 모두 종합하여 하나의 답변으로 정리하세요.\n` +
+    `4. 문서 내용으로 부족한 부분은 일반 지식으로 보완하세요.\n` +
+    `5. 문서에 전혀 관련 내용이 없을 때만 "업로드된 문서에는 관련 내용이 없어 일반 지식으로 답변합니다"라고 먼저 안내하세요.\n` +
+    `6. 출처 파일명은 괄호로 표기하세요. 예: (CSO동향_26.05.xlsx)\n`;
 
-  let systemPrompt = BASE_PROMPT + `\n업로드된 문서에 관련 내용이 없으면 일반 지식으로 친절하게 답변해 주세요.`;
+  let systemPrompt = BASE_PROMPT +
+    `\n업로드된 문서에 관련 내용이 없으면 일반 지식으로 친절하게 답변해 주세요.`;
 
   if (latestUserQuery) {
     try {
-      // 넓게 검색 후 문서별 다양성 보장 (문서당 최대 3청크, 최종 15개 유지)
+      // 유사도 0.03 이상인 청크를 최대 200개 수집 (임의 상한 없음)
       const rawChunks = await searchDocuments(latestUserQuery);
 
       if (rawChunks.length > 0) {
@@ -107,28 +109,41 @@ export async function POST(request: Request) {
           ])
         );
 
-        // 문서별 청크 수 제한으로 다양성 보장 (동일 문서의 청크가 결과를 독점하지 않도록)
-        const chunkCountPerDoc: Record<string, number> = {};
-        const MAX_CHUNKS_PER_DOC = 3;
-        const MAX_TOTAL_CHUNKS   = 15;
+        // ── 전 문서 포함 전략 ──────────────────────────────────────────────
+        // rawChunks 는 유사도 내림차순 정렬 (DB 반환 기준)
+        //
+        // 규칙:
+        //  - 모든 문서에서 최소 1개 청크 반드시 포함 (best chunk per doc)
+        //  - 유사도 0.25 이상인 문서는 추가 청크 포함 (최대 5개/문서)
+        //  → 인위적인 총 개수 상한 없음 — 문서 수에 따라 자연스럽게 확장
+        const HIGH_RELEVANCE_THRESHOLD = 0.25;
+        const MAX_EXTRA_PER_DOC        = 5;   // 고관련 문서 추가 허용 청크
 
-        const diverseChunks = rawChunks.filter(c => {
-          const cnt = chunkCountPerDoc[c.document_id] ?? 0;
-          if (cnt >= MAX_CHUNKS_PER_DOC) return false;
-          chunkCountPerDoc[c.document_id] = cnt + 1;
-          return true;
-        }).slice(0, MAX_TOTAL_CHUNKS);
+        const docChunksSeen: Record<string, number> = {};
+        const finalChunks = rawChunks.filter(c => {
+          const seen    = docChunksSeen[c.document_id] ?? 0;
+          const isFirst = seen === 0; // 무조건 첫 청크(최고유사도) 포함
+          const isExtra = c.similarity >= HIGH_RELEVANCE_THRESHOLD
+                          && seen < MAX_EXTRA_PER_DOC;
 
-        const contextBlocks = diverseChunks.map((c, i) => {
+          if (isFirst || isExtra) {
+            docChunksSeen[c.document_id] = seen + 1;
+            return true;
+          }
+          return false;
+        });
+
+        const contextBlocks = finalChunks.map((c, i) => {
           const meta   = docMeta[c.document_id];
           const name   = meta?.filename ?? c.document_id;
           const folder = meta?.category ? ` [폴더: ${meta.category}]` : '';
-          return `[${i + 1}] 출처: ${name}${folder}\n${c.content}`;
+          const sim    = (c.similarity * 100).toFixed(0);
+          return `[${i + 1}] 출처: ${name}${folder} (관련도: ${sim}%)\n${c.content}`;
         });
 
         systemPrompt =
           BASE_PROMPT +
-          `\n=== 참고 문서 (${diverseChunks.length}건, ${docIds.length}개 파일) ===\n` +
+          `\n=== 참고 문서 (총 ${finalChunks.length}개 청크 / ${docIds.length}개 파일 참조) ===\n` +
           contextBlocks.join('\n\n');
       }
     } catch (err) {
