@@ -26,6 +26,15 @@ const NAV_ITEMS = [
     external: true,
   },
   {
+    href: '/drug-search',
+    icon: '💊',
+    label: '의약품검색',
+    color: '#6ee7b7',
+    bg:   'rgba(52,211,153,0.10)',
+    bd:   'rgba(52,211,153,0.22)',
+    external: false,
+  },
+  {
     href: '/performance',
     icon: '📊',
     label: '마감분석',
