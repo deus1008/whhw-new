@@ -55,6 +55,11 @@ export function chunkText(text: string): string[] {
     chunks.push(buffer);
   }
 
+  // 청크가 없지만 텍스트가 있으면(짧은 문서 등) 전체를 단일 청크로 보장
+  if (chunks.length === 0 && normalized.length > 0) {
+    chunks.push(normalized);
+  }
+
   return chunks;
 }
 

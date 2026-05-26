@@ -66,5 +66,6 @@ function extractExcel(buffer: Buffer): string {
     parts.push('');
   }
 
-  return parts.join('\n');
+  // 행을 \n\n으로 구분해 청커가 단락 단위로 분할할 수 있게 함
+  return parts.join('\n\n');
 }
