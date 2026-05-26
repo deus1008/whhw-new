@@ -238,8 +238,11 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
       const data = await res.json() as { ok?: boolean; error?: string; chunks?: number };
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
 
+      // 처리 완료 후 청크 수도 업데이트 (API가 반환한 chunks 값 사용)
       setDocuments(prev => prev.map(d =>
-        d.id === docId ? { ...d, status: 'ready', error_message: null } : d
+        d.id === docId
+          ? { ...d, status: 'ready', error_message: null, chunk_count: data.chunks ?? d.chunk_count }
+          : d
       ));
     } catch (err) {
       const msg = err instanceof Error ? err.message : '처리 실패';
@@ -593,12 +596,14 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {visibleDocs.map(doc => {
-              const fileMeta   = FILE_META[doc.file_type] ?? { label: doc.file_type.toUpperCase(), color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', bd: 'rgba(148,163,184,0.2)' };
-              const isRunning  = processingIds.has(doc.id);
-              const statusKey  = isRunning ? 'running' : doc.status;
-              const statusMeta = STATUS_META[statusKey] ?? STATUS_META['error'];
-              const isConfirm  = confirmId === doc.id;
-              const isError    = !isRunning && doc.status === 'error';
+              const fileMeta      = FILE_META[doc.file_type] ?? { label: doc.file_type.toUpperCase(), color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', bd: 'rgba(148,163,184,0.2)' };
+              const isRunning     = processingIds.has(doc.id);
+              const statusKey     = isRunning ? 'running' : doc.status;
+              const statusMeta    = STATUS_META[statusKey] ?? STATUS_META['error'];
+              const isConfirm     = confirmId === doc.id;
+              const isError       = !isRunning && doc.status === 'error';
+              // 완료 상태인데 청크가 없으면 학습 데이터 없음 → 재처리 필요
+              const isEmptyChunks = !isRunning && doc.status === 'ready' && doc.chunk_count === 0;
 
               return (
                 <div key={doc.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -623,13 +628,40 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                       {new Date(doc.created_at).toLocaleDateString('ko-KR')}
                     </span>
 
+                    {/* 상태 배지 + 청크 수 */}
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                       {isRunning && <span style={{ ...spinnerStyle, width: '10px', height: '10px', borderWidth: '1.5px', borderColor: 'rgba(147,197,253,0.35)', borderTopColor: '#93c5fd' }} />}
                       <Badge label={statusMeta.label} color={statusMeta.color} bg={statusMeta.bg} bd={statusMeta.bd} />
+                      {/* 실제 학습 청크 수 표시 */}
+                      {!isRunning && doc.status === 'ready' && (
+                        <span style={{
+                          fontSize: '0.66rem', padding: '1px 6px', borderRadius: '100px',
+                          background: doc.chunk_count > 0 ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.12)',
+                          border: `1px solid ${doc.chunk_count > 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.3)'}`,
+                          color: doc.chunk_count > 0 ? '#86efac' : '#fca5a5',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {doc.chunk_count > 0 ? `${doc.chunk_count}청크` : '학습없음'}
+                        </span>
+                      )}
                     </span>
 
+                    {/* 재처리 버튼:
+                        - 오류 파일: 노란색 "재처리"
+                        - 완료인데 청크 없음: 빨간색 "재처리 필요"
+                        - 완료이고 청크 있음: 작은 ↺ 아이콘 (선택적 강제 재처리) */}
                     {isError && (
-                      <button onClick={() => triggerProcess(doc.id)} style={retryBtn}>재처리</button>
+                      <button onClick={() => triggerProcess(doc.id)} disabled={isRunning} style={retryBtn}>재처리</button>
+                    )}
+                    {isEmptyChunks && (
+                      <button onClick={() => triggerProcess(doc.id)} disabled={isRunning} style={reprocessNeededBtn}>재처리 필요</button>
+                    )}
+                    {!isError && !isEmptyChunks && doc.status === 'ready' && !isRunning && (
+                      <button
+                        onClick={() => triggerProcess(doc.id)}
+                        style={reprocessIconBtn}
+                        title="강제 재처리 (학습 데이터 재생성)"
+                      >↺</button>
                     )}
 
                     {isConfirm ? (
@@ -654,6 +686,11 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                   {isError && doc.error_message && (
                     <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#fca5a5', lineHeight: 1.5, wordBreak: 'break-word' }}>
                       ↳ {doc.error_message}
+                    </p>
+                  )}
+                  {isEmptyChunks && (
+                    <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#fbbf24', lineHeight: 1.5 }}>
+                      ↳ 완료 상태이지만 학습 데이터가 없습니다. "재처리 필요" 버튼을 눌러주세요.
                     </p>
                   )}
                 </div>
@@ -763,6 +800,19 @@ const retryBtn: React.CSSProperties = {
   padding: '0.28rem 0.7rem', borderRadius: '6px',
   border: '1px solid rgba(251,191,36,0.3)', background: 'rgba(251,191,36,0.1)', color: '#fde68a',
   fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+};
+
+const reprocessNeededBtn: React.CSSProperties = {
+  padding: '0.28rem 0.7rem', borderRadius: '6px',
+  border: '1px solid rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.14)', color: '#fca5a5',
+  fontSize: '0.74rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+};
+
+const reprocessIconBtn: React.CSSProperties = {
+  padding: '0.18rem 0.4rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)',
+  fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+  lineHeight: 1, transition: 'opacity 0.15s',
 };
 
 const deleteBtn: React.CSSProperties = {

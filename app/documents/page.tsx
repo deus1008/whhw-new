@@ -17,6 +17,7 @@ export type Document = {
   status: DocStatus;
   error_message: string | null;
   created_at: string;
+  chunk_count: number; // document_chunks 테이블 실제 청크 수
 };
 
 export default async function DocumentsPage() {
@@ -44,6 +45,25 @@ export default async function DocumentsPage() {
 
   if (docsError) console.error('[documents:getDocs error]', docsError);
 
+  // 문서별 실제 청크 수 조회 (DB에 학습 데이터가 실제로 있는지 확인)
+  const docIds = (docs ?? []).map(d => d.id);
+  const chunkCountMap: Record<string, number> = {};
+  if (docIds.length > 0) {
+    const { data: chunkRows } = await supabase
+      .from('document_chunks')
+      .select('document_id')
+      .in('document_id', docIds);
+    for (const row of (chunkRows ?? [])) {
+      const id = row.document_id as string;
+      chunkCountMap[id] = (chunkCountMap[id] ?? 0) + 1;
+    }
+  }
+
+  const docsWithChunks: Document[] = (docs ?? []).map(d => ({
+    ...(d as Omit<Document, 'chunk_count'>),
+    chunk_count: chunkCountMap[d.id] ?? 0,
+  }));
+
   return (
     <>
       <div className="orb orb-1" />
@@ -68,7 +88,7 @@ export default async function DocumentsPage() {
         </div>
 
         <DocumentsClient
-          initialDocuments={(docs ?? []) as Document[]}
+          initialDocuments={docsWithChunks}
           userId={user.id}
         />
       </div>
