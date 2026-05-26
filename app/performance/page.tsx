@@ -4,14 +4,10 @@ import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import PerformanceClient from '@/components/PerformanceClient';
-import type { PerfData } from '@/lib/performance/process';
+import { fetchPerformanceReports } from './actions';
+import type { StoredReport } from './actions';
 
-export interface PerformanceReport {
-  period: string;
-  filename: string;
-  data: PerfData;
-  updated_at: string;
-}
+export type { StoredReport };
 
 export default async function PerformancePage() {
   const supabase = await createClient();
@@ -27,16 +23,7 @@ export default async function PerformancePage() {
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
   const isAdmin = profile.role === 'admin';
-
-  // DB에서 분석 이력 조회
-  const { data: rows, error } = await supabase
-    .from('performance_reports')
-    .select('period, filename, data, updated_at')
-    .order('period', { ascending: false });
-
-  if (error) console.error('[performance:fetch]', error);
-
-  const reports: PerformanceReport[] = (rows ?? []) as PerformanceReport[];
+  const reports: StoredReport[] = await fetchPerformanceReports();
 
   return (
     <>
@@ -51,7 +38,6 @@ export default async function PerformancePage() {
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem, 4vw, 1.8rem)' }}>
           판매대행사업
         </p>
-
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
           <Link href="/dashboard" style={navLinkStyle}>← 대시보드</Link>

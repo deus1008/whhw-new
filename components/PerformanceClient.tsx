@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef, useCallback } from 'react';
 import { uploadPerformanceData, deletePerformanceReport } from '@/app/performance/actions';
-import type { PerformanceReport } from '@/app/performance/page';
+import type { StoredReport } from '@/app/performance/actions';
 import type { PerfData, StaffStat, ItemStat, CatStat } from '@/lib/performance/process';
 
 /* ── 유틸 ──────────────────────────────────────────────────── */
@@ -20,7 +20,7 @@ function diffColor(v: number) { return v > 0 ? '#4ade80' : v < 0 ? '#f87171' : '
 
 /* ── 메인 컴포넌트 ───────────────────────────────────────────── */
 interface Props {
-  reports: PerformanceReport[];
+  reports: StoredReport[];
   isAdmin: boolean;
 }
 
