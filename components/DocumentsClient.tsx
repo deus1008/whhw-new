@@ -602,6 +602,8 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
               const statusMeta    = STATUS_META[statusKey] ?? STATUS_META['error'];
               const isConfirm     = confirmId === doc.id;
               const isError       = !isRunning && doc.status === 'error';
+              // 대기 상태로 멈춰있는 경우 (처리 중단) → 재처리 필요
+              const isStuck       = !isRunning && doc.status === 'processing';
               // 완료 상태인데 청크가 없으면 학습 데이터 없음 → 재처리 필요
               const isEmptyChunks = !isRunning && doc.status === 'ready' && doc.chunk_count === 0;
 
@@ -647,16 +649,20 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                     </span>
 
                     {/* 재처리 버튼:
+                        - 대기(중단): 노란색 "재처리"
                         - 오류 파일: 노란색 "재처리"
                         - 완료인데 청크 없음: 빨간색 "재처리 필요"
                         - 완료이고 청크 있음: 작은 ↺ 아이콘 (선택적 강제 재처리) */}
+                    {isStuck && (
+                      <button onClick={() => triggerProcess(doc.id)} disabled={isRunning} style={retryBtn}>재처리</button>
+                    )}
                     {isError && (
                       <button onClick={() => triggerProcess(doc.id)} disabled={isRunning} style={retryBtn}>재처리</button>
                     )}
                     {isEmptyChunks && (
                       <button onClick={() => triggerProcess(doc.id)} disabled={isRunning} style={reprocessNeededBtn}>재처리 필요</button>
                     )}
-                    {!isError && !isEmptyChunks && doc.status === 'ready' && !isRunning && (
+                    {!isStuck && !isError && !isEmptyChunks && doc.status === 'ready' && !isRunning && (
                       <button
                         onClick={() => triggerProcess(doc.id)}
                         style={reprocessIconBtn}
@@ -683,6 +689,11 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                     )}
                   </div>
 
+                  {isStuck && (
+                    <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#fde68a', lineHeight: 1.5 }}>
+                      ↳ 처리가 중단된 상태입니다. "재처리" 버튼을 눌러 학습을 다시 시작하세요.
+                    </p>
+                  )}
                   {isError && doc.error_message && (
                     <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#fca5a5', lineHeight: 1.5, wordBreak: 'break-word' }}>
                       ↳ {doc.error_message}
