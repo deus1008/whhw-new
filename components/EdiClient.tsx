@@ -182,7 +182,7 @@ function EdiDashboard({ data }: { data: EdiData }) {
         />
       )}
 
-      {/* ② CSO별 순위 (거래처 드릴다운 통합) */}
+      {/* ② CSO별 현황 (처방처 → 품목 드릴다운 통합) */}
       {hasCso && (
         <CsoAccordion
           stats={data.csoStats}
@@ -372,7 +372,7 @@ function SalesPersonAccordion({ stats, totalAmount, totalFinalAmount }: {
 }
 
 /* ════════════════════════════════════════════════════════════ */
-/*  ② CSO별 순위 + 처방처 → 품목 2단 드릴다운 (아코디언)       */
+/*  ② CSO별 현황 + 처방처 → 품목 2단 드릴다운 (아코디언)        */
 /* ════════════════════════════════════════════════════════════ */
 function CsoAccordion({ stats, totalAmount, totalFinalAmount }: {
   stats: CsoStat[];
