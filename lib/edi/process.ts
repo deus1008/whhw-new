@@ -75,7 +75,7 @@ const AMOUNT_KW      = ['처방금액','처방액','청구금액','약품금액'
 const FINAL_KW       = ['최종실적','지급금액','실적금액','최종금액'];
 const SALESPERSON_KW = ['담당자명','담당자이름','담당자성명','영업담당자명','영업담당자','담당영업','사원명','담당자'];
 const CSO_KW         = ['담당cso','cso명','cso'];
-const HOSPITAL_KW    = ['요양기관명','거래처명','기관명','병원명','의원명','약국명','거래처','기관명칭'];
+const HOSPITAL_KW    = ['처방처명','요양기관명','거래처명','기관명','병원명','처방처','의원명','약국명','거래처','기관명칭'];
 const ITEM_KW        = ['품목명','약품명','제품명','의약품명','품목'];
 const UNIT_PRICE_KW  = ['약가','단가','단위가격','단위금액'];
 const DATE_KW        = ['청구년월','처방년월','진료년월','청구월','처방월','청구일자','처방일','년월','기간'];
@@ -149,18 +149,19 @@ export function processEdi(
 
   const headers = Object.keys(normalized[0]);
 
-  // Z열(인덱스 25) = 처방금액 fallback, AA열(인덱스 26) = 최종실적 fallback
-  // I열(인덱스  8) = 담당자명 fallback (코드성 컬럼 감지 실패 대비)
+  // 위치 기반 fallback (키워드 감지 실패 대비)
+  // Z열(25) = 처방금액, AA열(26) = 최종실적, I열(8) = 담당자명, O열(14) = 처방처명
   const colZ  = headers.length > 25 ? headers[25] : undefined;
   const colAA = headers.length > 26 ? headers[26] : undefined;
   const colI  = headers.length > 8  ? headers[8]  : undefined;
+  const colO  = headers.length > 14 ? headers[14] : undefined;
 
   const cols: DetectedCols = {
     amount:      findCol(headers, AMOUNT_KW)               ?? colZ,
     finalAmount: findCol(headers, FINAL_KW)                ?? colAA,
     salesperson: findCol(headers, SALESPERSON_KW, true)    ?? colI,
     cso:         findCol(headers, CSO_KW,         true),
-    hospital:    findCol(headers, HOSPITAL_KW,    true),
+    hospital:    findCol(headers, HOSPITAL_KW,    true)    ?? colO,
     item:        findCol(headers, ITEM_KW,         true),
     unitPrice:   findCol(headers, UNIT_PRICE_KW),
     date:        findCol(headers, DATE_KW),
