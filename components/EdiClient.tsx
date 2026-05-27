@@ -405,7 +405,7 @@ function CsoAccordion({ stats, totalAmount, totalFinalAmount }: {
   }
 
   return (
-    <Section title="CSO별 순위">
+    <Section title="CSO별 현황">
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
