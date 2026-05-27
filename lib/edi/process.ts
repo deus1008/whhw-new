@@ -10,10 +10,17 @@ export interface DetectedCols {
   date?:        string;
 }
 
+export interface HospitalItemCsoStat {
+  name:        string;
+  amount:      number;
+  finalAmount: number;
+}
+
 export interface HospitalItemStat {
   name:        string;
   amount:      number;
   finalAmount: number;
+  csos:        HospitalItemCsoStat[];  // 처방처별 품목×CSO 드릴다운
 }
 
 export interface HospitalStat {
@@ -210,7 +217,8 @@ export function processEdi(
   const spMap   = new Map<string, Pair & { csos: Map<string, Pair & { hospitals: Map<string, Pair> }> }>();
   // CSO → 처방처 → 품목 3단 집계
   const csoMap  = new Map<string, Pair & { hospitals: Map<string, Pair & { items: Map<string, Pair> }> }>();
-  const hosMap  = new Map<string, Pair & { items: Map<string, Pair> }>();
+  // 처방처 → 품목 → CSO 3단 집계
+  const hosMap  = new Map<string, Pair & { items: Map<string, Pair & { csos: Map<string, Pair> }> }>();
   // 품목 → CSO → 처방처 3단 집계
   const itemMap = new Map<string, Pair & { csos: Map<string, Pair & { hospitals: Map<string, Pair> }> }>();
   const priceMap = new Map<string, number>(); // 품목 → 약가 (첫 번째 값)
@@ -262,15 +270,20 @@ export function processEdi(
       }
     }
 
-    /* 전체 처방처 집계 (품목 드릴다운 포함) */
+    /* 전체 처방처 집계 (품목 → CSO 2단 드릴다운) */
     if (hos !== null) {
       if (!hosMap.has(hos)) hosMap.set(hos, { amount: 0, finalAmount: 0, items: new Map() });
       const he = hosMap.get(hos)!;
       he.amount += amt; he.finalAmount += fin;
       if (item !== null) {
-        if (!he.items.has(item)) he.items.set(item, { amount: 0, finalAmount: 0 });
+        if (!he.items.has(item)) he.items.set(item, { amount: 0, finalAmount: 0, csos: new Map() });
         const ie = he.items.get(item)!;
         ie.amount += amt; ie.finalAmount += fin;
+        if (cso !== null) {
+          if (!ie.csos.has(cso)) ie.csos.set(cso, { amount: 0, finalAmount: 0 });
+          const ce = ie.csos.get(cso)!;
+          ce.amount += amt; ce.finalAmount += fin;
+        }
       }
     }
 
@@ -337,7 +350,14 @@ export function processEdi(
       amount:      v.amount,
       finalAmount: v.finalAmount,
       items: [...v.items.entries()]
-        .map(([n, it]) => ({ name: n, amount: it.amount, finalAmount: it.finalAmount }))
+        .map(([n, it]) => ({
+          name:        n,
+          amount:      it.amount,
+          finalAmount: it.finalAmount,
+          csos: [...it.csos.entries()]
+            .map(([cn, c]) => ({ name: cn, amount: c.amount, finalAmount: c.finalAmount }))
+            .sort((a, b) => b.amount - a.amount),
+        }))
         .sort((a, b) => b.amount - a.amount),
     }))
     .sort((a, b) => b.amount - a.amount)

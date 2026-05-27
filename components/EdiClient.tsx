@@ -516,22 +516,33 @@ function CsoAccordion({ stats, totalAmount, totalFinalAmount }: {
 }
 
 /* ════════════════════════════════════════════════════════════ */
-/*  ③ 처방처별 현황 + 품목 드릴다운 (아코디언 통합)             */
+/*  ③ 처방처별 현황 + 품목 → CSO 2단 드릴다운 (아코디언)       */
 /* ════════════════════════════════════════════════════════════ */
 function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
   stats: HospitalStat[];
   totalAmount: number;
   totalFinalAmount: number;
 }) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [showAll, setShowAll]   = useState(false);
+  // 1단: 처방처 열림 여부
+  const [expandedHos,   setExpandedHos]   = useState<Set<string>>(new Set());
+  // 2단: 처방처||품목 복합키로 품목 열림 여부
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [showAll, setShowAll] = useState(false);
   const display = showAll ? stats : stats.slice(0, 20);
 
-  function toggle(name: string) {
-    setExpanded(prev => {
+  function toggleHos(name: string) {
+    setExpandedHos(prev => {
       const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  }
+
+  function toggleItem(hosName: string, itemName: string) {
+    const key = `${hosName}||${itemName}`;
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   }
@@ -543,21 +554,22 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
           <thead>
             <tr>
               <th style={{ ...TH('left'), width: 36 }}>#</th>
-              <th style={{ ...TH('left'), minWidth: 180 }}>처방처</th>
-              <th style={{ ...TH('left'), minWidth: 200 }}>품목명</th>
+              <th style={{ ...TH('left'), minWidth: 160 }}>처방처</th>
+              <th style={{ ...TH('left'), minWidth: 180 }}>품목명</th>
+              <th style={{ ...TH('left'), minWidth: 140 }}>CSO명</th>
               <th style={TH('right')}>처방액</th>
               <th style={TH('right')}>최종실적</th>
             </tr>
           </thead>
           <tbody>
             {display.map((h, i) => {
-              const isOpen   = expanded.has(h.name);
-              const hasItems = h.items.length > 0;
+              const isHosOpen = expandedHos.has(h.name);
+              const hasItems  = h.items.length > 0;
               return (
                 <Fragment key={h.name}>
-                  {/* 처방처 요약 행 */}
+                  {/* ── 처방처 요약 행 ── */}
                   <tr
-                    onClick={() => hasItems && toggle(h.name)}
+                    onClick={() => hasItems && toggleHos(h.name)}
                     style={{
                       background: 'rgba(251,146,60,0.07)',
                       cursor: hasItems ? 'pointer' : 'default',
@@ -567,10 +579,10 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
                     <td style={{ ...TD_MUTED('left'), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                       {i + 1}
                     </td>
-                    <td colSpan={2} style={{ ...TD('left'), fontWeight: 600, color: '#fdba74', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#fdba74', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                       {hasItems && (
                         <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>
-                          {isOpen ? '▼' : '▶'}
+                          {isHosOpen ? '▼' : '▶'}
                         </span>
                       )}
                       {h.name}
@@ -582,23 +594,65 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
                       {fmt(h.finalAmount)}
                     </td>
                   </tr>
-                  {/* 품목 상세 (펼쳤을 때) */}
-                  {isOpen && h.items.map(it => (
-                    <tr key={it.name} style={{ background: 'rgba(255,255,255,0.015)' }}>
-                      <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.75rem' }}>└</td>
-                      <td style={{ ...TD_MUTED('left'), fontSize: '0.75rem' }} />
-                      <td style={{ ...TD('left'), fontSize: '0.78rem', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
-                        {it.name}
-                      </td>
-                      <td style={{ ...TD('right', true), fontSize: '0.78rem' }}>{fmt(it.amount)}</td>
-                      <td style={{ ...TD('right'), fontSize: '0.78rem' }}>{fmt(it.finalAmount)}</td>
-                    </tr>
-                  ))}
+
+                  {/* ── 품목 하위 행 (1단 펼침) ── */}
+                  {isHosOpen && h.items.map(it => {
+                    const itemKey    = `${h.name}||${it.name}`;
+                    const isItemOpen = expandedItems.has(itemKey);
+                    const hasCsos    = it.csos.length > 0;
+                    return (
+                      <Fragment key={it.name}>
+                        <tr
+                          onClick={() => hasCsos && toggleItem(h.name, it.name)}
+                          style={{
+                            background: 'rgba(59,130,246,0.05)',
+                            cursor: hasCsos ? 'pointer' : 'default',
+                            borderBottom: '1px solid rgba(255,255,255,0.04)',
+                          }}
+                        >
+                          <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.72rem' }}>└</td>
+                          <td colSpan={3} style={{
+                            ...TD('left'), fontSize: '0.78rem', color: '#93c5fd',
+                            maxWidth: 340, overflow: 'hidden', textOverflow: 'ellipsis',
+                          }} title={it.name}>
+                            {hasCsos && (
+                              <span style={{ marginRight: '0.35rem', fontSize: '0.6rem', opacity: 0.7 }}>
+                                {isItemOpen ? '▼' : '▶'}
+                              </span>
+                            )}
+                            {it.name}
+                          </td>
+                          <td style={{ ...TD('right', true), fontSize: '0.78rem' }}>{fmt(it.amount)}</td>
+                          <td style={{ ...TD('right'), fontSize: '0.78rem' }}>{fmt(it.finalAmount)}</td>
+                        </tr>
+
+                        {/* ── CSO 하위 행 (2단 펼침) ── */}
+                        {isItemOpen && it.csos.map(c => (
+                          <tr key={c.name} style={{
+                            background: 'rgba(255,255,255,0.01)',
+                            borderBottom: '1px solid rgba(255,255,255,0.03)',
+                          }}>
+                            <td style={{ ...TD_MUTED('left'), fontSize: '0.7rem' }} />
+                            <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.7rem' }}>└</td>
+                            <td style={{ ...TD_MUTED('left'), fontSize: '0.7rem' }} />
+                            <td style={{
+                              ...TD('left'), fontSize: '0.76rem',
+                              maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis',
+                            }} title={c.name}>
+                              {c.name}
+                            </td>
+                            <td style={{ ...TD('right', true), fontSize: '0.76rem' }}>{fmt(c.amount)}</td>
+                            <td style={{ ...TD('right'), fontSize: '0.76rem' }}>{fmt(c.finalAmount)}</td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    );
+                  })}
                 </Fragment>
               );
             })}
             <tr style={TR_TOTAL}>
-              <td colSpan={3} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
+              <td colSpan={4} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
               <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
               <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
             </tr>
