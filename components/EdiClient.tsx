@@ -551,7 +551,6 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
             <tr>
-              <th style={{ ...TH('left'), width: 36 }}>#</th>
               <th style={{ ...TH('left'), minWidth: 160 }}>처방처</th>
               <th style={{ ...TH('left'), minWidth: 180 }}>품목명</th>
               <th style={{ ...TH('left'), minWidth: 140 }}>CSO명</th>
@@ -560,7 +559,7 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
             </tr>
           </thead>
           <tbody>
-            {display.map((h, i) => {
+            {display.map((h) => {
               const isHosOpen = expandedHos.has(h.name);
               const hasItems  = h.items.length > 0;
               return (
@@ -574,9 +573,6 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
                       borderBottom: '1px solid rgba(255,255,255,0.06)',
                     }}
                   >
-                    <td style={{ ...TD_MUTED('left'), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                      {i + 1}
-                    </td>
                     <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#fdba74', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                       {hasItems && (
                         <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>
@@ -608,10 +604,9 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
                             borderBottom: '1px solid rgba(255,255,255,0.04)',
                           }}
                         >
-                          <td style={{ padding: '0.4rem 0.2rem', width: 24, borderBottom: '1px solid rgba(255,255,255,0.04)' }} />
                           <td colSpan={3} style={{
-                            ...TD('left'), paddingLeft: '0.8rem', fontSize: '0.78rem', color: '#93c5fd',
-                            maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis',
+                            ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#93c5fd',
+                            maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis',
                           }} title={it.name}>
                             <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                             {hasCsos && (
@@ -631,10 +626,9 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
                             background: 'rgba(255,255,255,0.01)',
                             borderBottom: '1px solid rgba(255,255,255,0.03)',
                           }}>
-                            <td style={{ padding: '0.4rem 0.2rem', width: 24 }} />
                             <td colSpan={3} style={{
-                              ...TD('left'), paddingLeft: '2.2rem', fontSize: '0.76rem',
-                              maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis',
+                              ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem',
+                              maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis',
                             }} title={c.name}>
                               <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                               {c.name}
@@ -650,7 +644,7 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
               );
             })}
             <tr style={TR_TOTAL}>
-              <td colSpan={4} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
+              <td colSpan={3} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
               <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
               <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
             </tr>
