@@ -84,17 +84,33 @@ const DATE_KW        = ['청구년월','처방년월','진료년월','청구월'
 const trim = (s: string) => s.replace(/[\s_\-\.]/g, '').toLowerCase();
 
 /**
+ * 코드·번호성 헤더 감지 (사람 이름 컬럼 탐색 시 제외)
+ * 예) '담당자코드', '담당자번호', '사원ID', '사번' 등
+ */
+function isCodeHeader(h: string): boolean {
+  const t = trim(h);
+  return (
+    t.endsWith('코드') || t.endsWith('번호') ||
+    t.endsWith('code') || t.endsWith('no')   ||
+    t.endsWith('id')   || t.endsWith('num')  || t.endsWith('cd') ||
+    t === '사번'
+  );
+}
+
+/**
  * 키워드 우선순위로 컬럼 탐색:
  *   1) kws 순서대로 완전 일치
  *   2) kws 순서대로 포함 관계
+ * skipCode=true 이면 코드·번호성 헤더를 후보에서 제외
  */
-function findCol(headers: string[], kws: string[]): string | undefined {
+function findCol(headers: string[], kws: string[], skipCode = false): string | undefined {
+  const pool = skipCode ? headers.filter(h => !isCodeHeader(h)) : headers;
   for (const k of kws) {
-    const found = headers.find(h => trim(h) === trim(k));
+    const found = pool.find(h => trim(h) === trim(k));
     if (found) return found;
   }
   for (const k of kws) {
-    const found = headers.find(h => trim(h).includes(trim(k)) || trim(k).includes(trim(h)));
+    const found = pool.find(h => trim(h).includes(trim(k)) || trim(k).includes(trim(h)));
     if (found) return found;
   }
   return undefined;
@@ -134,16 +150,18 @@ export function processEdi(
   const headers = Object.keys(normalized[0]);
 
   // Z열(인덱스 25) = 처방금액 fallback, AA열(인덱스 26) = 최종실적 fallback
+  // I열(인덱스  8) = 담당자명 fallback (코드성 컬럼 감지 실패 대비)
   const colZ  = headers.length > 25 ? headers[25] : undefined;
   const colAA = headers.length > 26 ? headers[26] : undefined;
+  const colI  = headers.length > 8  ? headers[8]  : undefined;
 
   const cols: DetectedCols = {
-    amount:      findCol(headers, AMOUNT_KW)      ?? colZ,
-    finalAmount: findCol(headers, FINAL_KW)       ?? colAA,
-    salesperson: findCol(headers, SALESPERSON_KW),
-    cso:         findCol(headers, CSO_KW),
-    hospital:    findCol(headers, HOSPITAL_KW),
-    item:        findCol(headers, ITEM_KW),
+    amount:      findCol(headers, AMOUNT_KW)               ?? colZ,
+    finalAmount: findCol(headers, FINAL_KW)                ?? colAA,
+    salesperson: findCol(headers, SALESPERSON_KW, true)    ?? colI,
+    cso:         findCol(headers, CSO_KW,         true),
+    hospital:    findCol(headers, HOSPITAL_KW,    true),
+    item:        findCol(headers, ITEM_KW,         true),
     unitPrice:   findCol(headers, UNIT_PRICE_KW),
     date:        findCol(headers, DATE_KW),
   };
