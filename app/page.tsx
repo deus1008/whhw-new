@@ -26,6 +26,15 @@ const NAV_ITEMS = [
     external: true,
   },
   {
+    href: '/edi',
+    icon: '🗂',
+    label: 'EDI',
+    color: '#d8b4fe',
+    bg:   'rgba(168,85,247,0.10)',
+    bd:   'rgba(168,85,247,0.22)',
+    external: false,
+  },
+  {
     href: '/drug-search',
     icon: '💊',
     label: '의약품검색',
