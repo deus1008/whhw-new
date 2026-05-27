@@ -43,10 +43,17 @@ export interface CsoStat {
   hospitals:   HospitalStat[];
 }
 
+export interface ItemCsoHospitalStat {
+  name:        string;
+  amount:      number;
+  finalAmount: number;
+}
+
 export interface ItemCsoStat {
   name:        string;
   amount:      number;
   finalAmount: number;
+  hospitals:   ItemCsoHospitalStat[];  // 품목×CSO별 처방처 드릴다운
 }
 
 export interface ItemStat {
@@ -69,7 +76,7 @@ export interface EdiData {
   salesPersonStats: SalesPersonStat[];
   csoStats:         CsoStat[];          // amount 내림차순
   hospitalRanking:  HospitalStat[];     // 전체 거래처 순위 + 품목 드릴다운
-  itemStats:        ItemStat[];         // 품목별 순위 + CSO 드릴다운
+  itemStats:        ItemStat[];         // 품목별 순위 + CSO → 처방처 2단 드릴다운
   drugPrices:       DrugPrice[];        // 약가 (원, 가나다 정렬)
   detectedCols:     DetectedCols;
   headers:          string[];
@@ -192,10 +199,11 @@ export function processEdi(
 
   /* ── 집계 맵 ── */
   type Pair = { amount: number; finalAmount: number };
-  const spMap    = new Map<string, Pair & { csos: Map<string, Pair> }>();
-  const csoMap   = new Map<string, Pair & { hospitals: Map<string, Pair> }>();
-  const hosMap   = new Map<string, Pair & { items: Map<string, Pair> }>();
-  const itemMap  = new Map<string, Pair & { csos: Map<string, Pair> }>();
+  const spMap   = new Map<string, Pair & { csos: Map<string, Pair> }>();
+  const csoMap  = new Map<string, Pair & { hospitals: Map<string, Pair> }>();
+  const hosMap  = new Map<string, Pair & { items: Map<string, Pair> }>();
+  // 품목 → CSO → 처방처 3단 집계
+  const itemMap = new Map<string, Pair & { csos: Map<string, Pair & { hospitals: Map<string, Pair> }> }>();
   const priceMap = new Map<string, number>(); // 품목 → 약가 (첫 번째 값)
 
   for (const r of normalized) {
@@ -247,15 +255,20 @@ export function processEdi(
       }
     }
 
-    /* 품목 집계 */
+    /* 품목 집계 (CSO → 처방처 2단 드릴다운) */
     if (item !== null) {
       if (!itemMap.has(item)) itemMap.set(item, { amount: 0, finalAmount: 0, csos: new Map() });
       const ie = itemMap.get(item)!;
       ie.amount += amt; ie.finalAmount += fin;
       if (cso !== null) {
-        if (!ie.csos.has(cso)) ie.csos.set(cso, { amount: 0, finalAmount: 0 });
+        if (!ie.csos.has(cso)) ie.csos.set(cso, { amount: 0, finalAmount: 0, hospitals: new Map() });
         const ce = ie.csos.get(cso)!;
         ce.amount += amt; ce.finalAmount += fin;
+        if (hos !== null) {
+          if (!ce.hospitals.has(hos)) ce.hospitals.set(hos, { amount: 0, finalAmount: 0 });
+          const he = ce.hospitals.get(hos)!;
+          he.amount += amt; he.finalAmount += fin;
+        }
       }
       // 약가: 첫 번째 유효값만 기록
       if (!priceMap.has(item) && price > 0) priceMap.set(item, price);
@@ -303,7 +316,14 @@ export function processEdi(
       amount:      v.amount,
       finalAmount: v.finalAmount,
       csos: [...v.csos.entries()]
-        .map(([n, c]) => ({ name: n, amount: c.amount, finalAmount: c.finalAmount }))
+        .map(([n, c]) => ({
+          name:        n,
+          amount:      c.amount,
+          finalAmount: c.finalAmount,
+          hospitals: [...c.hospitals.entries()]
+            .map(([hn, h]) => ({ name: hn, amount: h.amount, finalAmount: h.finalAmount }))
+            .sort((a, b) => b.amount - a.amount),
+        }))
         .sort((a, b) => b.amount - a.amount),
     }))
     .sort((a, b) => b.amount - a.amount)
