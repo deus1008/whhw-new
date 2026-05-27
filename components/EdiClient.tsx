@@ -323,10 +323,10 @@ function SalesPersonAccordion({ stats, totalAmount, totalFinalAmount }: {
                             borderBottom: '1px solid rgba(255,255,255,0.04)',
                           }}
                         >
-                          <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.72rem' }}>└</td>
-                          <td colSpan={2} style={{ ...TD('left'), fontSize: '0.78rem', color: '#6ee7b7' }}>
+                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#6ee7b7' }}>
+                            <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                             {hasHos && (
-                              <span style={{ marginRight: '0.35rem', fontSize: '0.6rem', opacity: 0.7 }}>
+                              <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>
                                 {isCsoOpen ? '▼' : '▶'}
                               </span>
                             )}
@@ -342,12 +342,11 @@ function SalesPersonAccordion({ stats, totalAmount, totalFinalAmount }: {
                             background: 'rgba(255,255,255,0.01)',
                             borderBottom: '1px solid rgba(255,255,255,0.03)',
                           }}>
-                            <td style={{ ...TD_MUTED('left'), fontSize: '0.7rem' }} />
-                            <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.7rem' }}>└</td>
-                            <td style={{
-                              ...TD('left'), fontSize: '0.76rem',
-                              maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis',
+                            <td colSpan={3} style={{
+                              ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem',
+                              maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis',
                             }} title={h.name}>
+                              <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                               {h.name}
                             </td>
                             <td style={{ ...TD('right', true), fontSize: '0.76rem' }}>{fmt(h.amount)}</td>
@@ -463,10 +462,10 @@ function CsoAccordion({ stats, totalAmount, totalFinalAmount }: {
                             borderBottom: '1px solid rgba(255,255,255,0.04)',
                           }}
                         >
-                          <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.72rem' }}>└</td>
-                          <td colSpan={2} style={{ ...TD('left'), fontSize: '0.78rem', color: '#fdba74' }}>
+                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#fdba74' }}>
+                            <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                             {hasItems && (
-                              <span style={{ marginRight: '0.35rem', fontSize: '0.6rem', opacity: 0.7 }}>
+                              <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>
                                 {isHosOpen ? '▼' : '▶'}
                               </span>
                             )}
@@ -482,12 +481,11 @@ function CsoAccordion({ stats, totalAmount, totalFinalAmount }: {
                             background: 'rgba(255,255,255,0.01)',
                             borderBottom: '1px solid rgba(255,255,255,0.03)',
                           }}>
-                            <td style={{ ...TD_MUTED('left'), fontSize: '0.7rem' }} />
-                            <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.7rem' }}>└</td>
-                            <td style={{
-                              ...TD('left'), fontSize: '0.76rem',
-                              maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis',
+                            <td colSpan={3} style={{
+                              ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem',
+                              maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis',
                             }} title={it.name}>
+                              <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                               {it.name}
                             </td>
                             <td style={{ ...TD('right', true), fontSize: '0.76rem' }}>{fmt(it.amount)}</td>
@@ -610,13 +608,14 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
                             borderBottom: '1px solid rgba(255,255,255,0.04)',
                           }}
                         >
-                          <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.72rem' }}>└</td>
+                          <td style={{ padding: '0.4rem 0.2rem', width: 24, borderBottom: '1px solid rgba(255,255,255,0.04)' }} />
                           <td colSpan={3} style={{
-                            ...TD('left'), fontSize: '0.78rem', color: '#93c5fd',
-                            maxWidth: 340, overflow: 'hidden', textOverflow: 'ellipsis',
+                            ...TD('left'), paddingLeft: '0.8rem', fontSize: '0.78rem', color: '#93c5fd',
+                            maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis',
                           }} title={it.name}>
+                            <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                             {hasCsos && (
-                              <span style={{ marginRight: '0.35rem', fontSize: '0.6rem', opacity: 0.7 }}>
+                              <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>
                                 {isItemOpen ? '▼' : '▶'}
                               </span>
                             )}
@@ -632,13 +631,12 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
                             background: 'rgba(255,255,255,0.01)',
                             borderBottom: '1px solid rgba(255,255,255,0.03)',
                           }}>
-                            <td style={{ ...TD_MUTED('left'), fontSize: '0.7rem' }} />
-                            <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.7rem' }}>└</td>
-                            <td style={{ ...TD_MUTED('left'), fontSize: '0.7rem' }} />
-                            <td style={{
-                              ...TD('left'), fontSize: '0.76rem',
-                              maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis',
+                            <td style={{ padding: '0.4rem 0.2rem', width: 24 }} />
+                            <td colSpan={3} style={{
+                              ...TD('left'), paddingLeft: '2.2rem', fontSize: '0.76rem',
+                              maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis',
                             }} title={c.name}>
+                              <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                               {c.name}
                             </td>
                             <td style={{ ...TD('right', true), fontSize: '0.76rem' }}>{fmt(c.amount)}</td>
@@ -761,10 +759,10 @@ function ItemAccordion({ stats, totalAmount, totalFinalAmount }: {
                             borderBottom: '1px solid rgba(255,255,255,0.04)',
                           }}
                         >
-                          <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.72rem' }}>└</td>
-                          <td colSpan={2} style={{ ...TD('left'), fontSize: '0.78rem', color: '#6ee7b7' }}>
+                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#6ee7b7' }}>
+                            <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                             {hasHos && (
-                              <span style={{ marginRight: '0.35rem', fontSize: '0.6rem', opacity: 0.7 }}>
+                              <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>
                                 {isCsoOpen ? '▼' : '▶'}
                               </span>
                             )}
@@ -780,12 +778,11 @@ function ItemAccordion({ stats, totalAmount, totalFinalAmount }: {
                             background: 'rgba(255,255,255,0.01)',
                             borderBottom: '1px solid rgba(255,255,255,0.03)',
                           }}>
-                            <td style={{ ...TD_MUTED('left'), fontSize: '0.7rem' }} />
-                            <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.7rem' }}>└</td>
-                            <td style={{
-                              ...TD('left'), fontSize: '0.76rem',
-                              maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis',
+                            <td colSpan={3} style={{
+                              ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem',
+                              maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis',
                             }} title={h.name}>
+                              <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                               {h.name}
                             </td>
                             <td style={{ ...TD('right', true), fontSize: '0.76rem' }}>{fmt(h.amount)}</td>
