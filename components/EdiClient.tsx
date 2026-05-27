@@ -346,7 +346,7 @@ function CsoAccordion({ stats, totalAmount, totalFinalAmount }: {
           <thead>
             <tr>
               <th style={{ ...TH('left'), minWidth: 180 }}>CSO명</th>
-              <th style={{ ...TH('left'), minWidth: 160 }}>거래처</th>
+              <th style={{ ...TH('left'), minWidth: 160 }}>처방처</th>
               <th style={TH('right')}>처방액</th>
               <th style={TH('right')}>최종실적</th>
             </tr>
