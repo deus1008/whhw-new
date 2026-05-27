@@ -161,13 +161,11 @@ export default function EdiClient({ reports, errors, isAdmin }: Props) {
 /*  대시보드 본문 (5개 테이블)                                  */
 /* ════════════════════════════════════════════════════════════ */
 function EdiDashboard({ data }: { data: EdiData }) {
-  const hasSP      = data.salesPersonStats.length > 0;
-  const hasCso     = data.csoStats.length > 0;
-  const hasHos     = data.hospitalRanking.length > 0;
-  const hasDetail  = hasCso && data.csoStats.some(c => c.hospitals.length > 0);
-  const hasItem    = data.itemStats.length > 0;
-  const hasItemCso = hasItem && data.itemStats.some(it => it.csos.length > 0);
-  const hasPrice   = data.drugPrices.length > 0;
+  const hasSP    = data.salesPersonStats.length > 0;
+  const hasCso   = data.csoStats.length > 0;
+  const hasHos   = data.hospitalRanking.length > 0;
+  const hasItem  = data.itemStats.length > 0;
+  const hasPrice = data.drugPrices.length > 0;
 
   const { totalAmount, totalFinalAmount } = data;
 
@@ -183,25 +181,16 @@ function EdiDashboard({ data }: { data: EdiData }) {
         />
       )}
 
-      {/* ③ CSO별 순위 */}
+      {/* ② CSO별 순위 (거래처 드릴다운 통합) */}
       {hasCso && (
-        <CsoRankTable
+        <CsoAccordion
           stats={data.csoStats}
           totalAmount={totalAmount}
           totalFinalAmount={totalFinalAmount}
         />
       )}
 
-      {/* ④ CSO × 거래처 상세 */}
-      {hasDetail && (
-        <CsoDetailTable
-          stats={data.csoStats}
-          totalAmount={totalAmount}
-          totalFinalAmount={totalFinalAmount}
-        />
-      )}
-
-      {/* ⑤ 처방처별 현황 */}
+      {/* ③ 처방처별 현황 */}
       {hasHos && (
         <HospitalRankTable
           stats={data.hospitalRanking}
@@ -210,25 +199,16 @@ function EdiDashboard({ data }: { data: EdiData }) {
         />
       )}
 
-      {/* ⑥ 품목별 현황 */}
+      {/* ④ 품목별 현황 (CSO 드릴다운 통합) */}
       {hasItem && (
-        <ItemRankTable
+        <ItemAccordion
           stats={data.itemStats}
           totalAmount={totalAmount}
           totalFinalAmount={totalFinalAmount}
         />
       )}
 
-      {/* ⑦ 품목/CSO 드릴다운 */}
-      {hasItemCso && (
-        <ItemCsoTable
-          stats={data.itemStats}
-          totalAmount={totalAmount}
-          totalFinalAmount={totalFinalAmount}
-        />
-      )}
-
-      {/* ⑧ 약가 */}
+      {/* ⑤ 약가 */}
       {hasPrice && (
         <DrugPriceTable prices={data.drugPrices} />
       )}
@@ -339,63 +319,16 @@ function SalesPersonAccordion({ stats, totalAmount, totalFinalAmount }: {
 }
 
 /* ════════════════════════════════════════════════════════════ */
-/*  ③ CSO별 순위                                               */
+/*  ② CSO별 순위 + 거래처 드릴다운 (아코디언 통합)             */
 /* ════════════════════════════════════════════════════════════ */
-function CsoRankTable({ stats, totalAmount, totalFinalAmount }: {
-  stats: CsoStat[];
-  totalAmount: number;
-  totalFinalAmount: number;
-}) {
-  const [showAll, setShowAll] = useState(false);
-  const display = showAll ? stats : stats.slice(0, 20);
-
-  return (
-    <Section title="CSO별 순위">
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-          <thead>
-            <tr>
-              <th style={{ ...TH('left'), width: 36 }}>#</th>
-              <th style={{ ...TH('left'), minWidth: 180 }}>CSO명</th>
-              <th style={TH('right')}>처방액</th>
-              <th style={TH('right')}>최종실적</th>
-            </tr>
-          </thead>
-          <tbody>
-            {display.map((cso, i) => (
-              <tr key={cso.name}>
-                <td style={TD_MUTED('left')}>{i + 1}</td>
-                <td style={TD('left')}>{cso.name}</td>
-                <td style={TD('right', true)}>{fmt(cso.amount)}</td>
-                <td style={TD('right')}>{fmt(cso.finalAmount)}</td>
-              </tr>
-            ))}
-            <tr style={TR_TOTAL}>
-              <td colSpan={2} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
-              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
-              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      {stats.length > 20 && (
-        <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
-      )}
-    </Section>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════ */
-/*  ④ CSO × 거래처 상세 (아코디언)                             */
-/* ════════════════════════════════════════════════════════════ */
-function CsoDetailTable({ stats, totalAmount, totalFinalAmount }: {
+function CsoAccordion({ stats, totalAmount, totalFinalAmount }: {
   stats: CsoStat[];
   totalAmount: number;
   totalFinalAmount: number;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showAll, setShowAll]   = useState(false);
-  const display = showAll ? stats : stats.slice(0, 15);
+  const display = showAll ? stats : stats.slice(0, 20);
 
   function toggle(name: string) {
     setExpanded(prev => {
@@ -407,7 +340,7 @@ function CsoDetailTable({ stats, totalAmount, totalFinalAmount }: {
   }
 
   return (
-    <Section title="CSO × 거래처 상세">
+    <Section title="CSO별 순위">
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
@@ -420,20 +353,19 @@ function CsoDetailTable({ stats, totalAmount, totalFinalAmount }: {
           </thead>
           <tbody>
             {display.map(cso => {
-              const isOpen = expanded.has(cso.name);
+              const isOpen      = expanded.has(cso.name);
               const hasHospitals = cso.hospitals.length > 0;
               return (
                 <Fragment key={cso.name}>
-                  {/* CSO 요약 행 */}
                   <tr
                     onClick={() => hasHospitals && toggle(cso.name)}
                     style={{
-                      background: 'rgba(168,85,247,0.07)',
+                      background: 'rgba(52,211,153,0.07)',
                       cursor: hasHospitals ? 'pointer' : 'default',
                       borderBottom: '1px solid rgba(255,255,255,0.06)',
                     }}
                   >
-                    <td colSpan={2} style={{ ...TD('left'), fontWeight: 600, color: '#d8b4fe', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <td colSpan={2} style={{ ...TD('left'), fontWeight: 600, color: '#6ee7b7', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                       {hasHospitals && (
                         <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>
                           {isOpen ? '▼' : '▶'}
@@ -448,7 +380,6 @@ function CsoDetailTable({ stats, totalAmount, totalFinalAmount }: {
                       {fmt(cso.finalAmount)}
                     </td>
                   </tr>
-                  {/* 거래처 상세 (펼쳤을 때) */}
                   {isOpen && cso.hospitals.map(h => (
                     <tr key={h.name} style={{ background: 'rgba(255,255,255,0.015)' }}>
                       <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.75rem' }}>└</td>
@@ -468,7 +399,7 @@ function CsoDetailTable({ stats, totalAmount, totalFinalAmount }: {
           </tbody>
         </table>
       </div>
-      {stats.length > 15 && (
+      {stats.length > 20 && (
         <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
       )}
     </Section>
@@ -523,65 +454,16 @@ function HospitalRankTable({ stats, totalAmount, totalFinalAmount }: {
 }
 
 /* ════════════════════════════════════════════════════════════ */
-/*  ⑥ 품목별 현황                                               */
+/*  ④ 품목별 현황 + CSO 드릴다운 (아코디언 통합)               */
 /* ════════════════════════════════════════════════════════════ */
-function ItemRankTable({ stats, totalAmount, totalFinalAmount }: {
-  stats: ItemStat[];
-  totalAmount: number;
-  totalFinalAmount: number;
-}) {
-  const [showAll, setShowAll] = useState(false);
-  const display = showAll ? stats : stats.slice(0, 20);
-
-  return (
-    <Section title="품목별 현황">
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-          <thead>
-            <tr>
-              <th style={{ ...TH('left'), width: 36 }}>#</th>
-              <th style={{ ...TH('left'), minWidth: 200 }}>품목</th>
-              <th style={TH('right')}>처방액</th>
-              <th style={TH('right')}>최종실적</th>
-            </tr>
-          </thead>
-          <tbody>
-            {display.map((it, i) => (
-              <tr key={it.name}>
-                <td style={TD_MUTED('left')}>{i + 1}</td>
-                <td style={{ ...TD('left'), maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
-                  {it.name}
-                </td>
-                <td style={TD('right', true)}>{fmt(it.amount)}</td>
-                <td style={TD('right')}>{fmt(it.finalAmount)}</td>
-              </tr>
-            ))}
-            <tr style={TR_TOTAL}>
-              <td colSpan={2} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
-              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
-              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      {stats.length > 20 && (
-        <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
-      )}
-    </Section>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════ */
-/*  ⑦ 품목/CSO 드릴다운 (아코디언)                             */
-/* ════════════════════════════════════════════════════════════ */
-function ItemCsoTable({ stats, totalAmount, totalFinalAmount }: {
+function ItemAccordion({ stats, totalAmount, totalFinalAmount }: {
   stats: ItemStat[];
   totalAmount: number;
   totalFinalAmount: number;
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [showAll, setShowAll]   = useState(false);
-  const display = showAll ? stats : stats.slice(0, 15);
+  const display = showAll ? stats : stats.slice(0, 20);
 
   function toggle(name: string) {
     setExpanded(prev => {
@@ -593,12 +475,12 @@ function ItemCsoTable({ stats, totalAmount, totalFinalAmount }: {
   }
 
   return (
-    <Section title="품목/CSO 드릴다운">
+    <Section title="품목별 현황">
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
             <tr>
-              <th style={{ ...TH('left'), minWidth: 200 }}>품목/CSO</th>
+              <th style={{ ...TH('left'), minWidth: 220 }}>품목명</th>
               <th style={{ ...TH('left'), minWidth: 160 }}>담당CSO</th>
               <th style={TH('right')}>처방액</th>
               <th style={TH('right')}>최종실적</th>
@@ -606,11 +488,10 @@ function ItemCsoTable({ stats, totalAmount, totalFinalAmount }: {
           </thead>
           <tbody>
             {display.map(it => {
-              const isOpen = expanded.has(it.name);
+              const isOpen  = expanded.has(it.name);
               const hasCsos = it.csos.length > 0;
               return (
                 <Fragment key={it.name}>
-                  {/* 품목 요약 행 */}
                   <tr
                     onClick={() => hasCsos && toggle(it.name)}
                     style={{
@@ -619,7 +500,7 @@ function ItemCsoTable({ stats, totalAmount, totalFinalAmount }: {
                       borderBottom: '1px solid rgba(255,255,255,0.06)',
                     }}
                   >
-                    <td colSpan={2} style={{ ...TD('left'), fontWeight: 600, color: '#93c5fd', borderBottom: '1px solid rgba(255,255,255,0.06)', maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
+                    <td colSpan={2} style={{ ...TD('left'), fontWeight: 600, color: '#93c5fd', borderBottom: '1px solid rgba(255,255,255,0.06)', maxWidth: 380, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
                       {hasCsos && (
                         <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>
                           {isOpen ? '▼' : '▶'}
@@ -634,7 +515,6 @@ function ItemCsoTable({ stats, totalAmount, totalFinalAmount }: {
                       {fmt(it.finalAmount)}
                     </td>
                   </tr>
-                  {/* CSO 상세 (펼쳤을 때) */}
                   {isOpen && it.csos.map(c => (
                     <tr key={c.name} style={{ background: 'rgba(255,255,255,0.015)' }}>
                       <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.75rem' }}>└</td>
@@ -654,7 +534,7 @@ function ItemCsoTable({ stats, totalAmount, totalFinalAmount }: {
           </tbody>
         </table>
       </div>
-      {stats.length > 15 && (
+      {stats.length > 20 && (
         <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
       )}
     </Section>
