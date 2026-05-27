@@ -175,33 +175,6 @@ function EdiDashboard({ data }: { data: EdiData }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
-      {/* 요약 바 */}
-      <div style={{
-        display: 'flex', flexWrap: 'wrap', gap: '1.2rem',
-        padding: '0.75rem 1rem',
-        background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
-        borderRadius: 10, fontSize: '0.82rem',
-      }}>
-        {data.period && (
-          <span style={{ color: 'var(--text-muted)' }}>
-            기간&nbsp;<strong style={{ color: 'var(--text-primary)' }}>{data.period}</strong>
-          </span>
-        )}
-        {totalAmount > 0 && (
-          <span style={{ color: 'var(--text-muted)' }}>
-            총 처방액&nbsp;<strong style={{ color: '#d8b4fe' }}>{fmt(totalAmount)}</strong>
-            <span style={{ fontSize: '0.68rem' }}>&nbsp;천원</span>
-          </span>
-        )}
-        {totalFinalAmount > 0 && (
-          <span style={{ color: 'var(--text-muted)' }}>
-            총 최종실적&nbsp;<strong style={{ color: '#6ee7b7' }}>{fmt(totalFinalAmount)}</strong>
-            <span style={{ fontSize: '0.68rem' }}>&nbsp;천원</span>
-          </span>
-        )}
-        <ColChips cols={data.detectedCols} />
-      </div>
-
       {/* ① 담당자별 현황 */}
       {hasSP && (
         <SalesPersonTable
@@ -795,27 +768,6 @@ function MoreButton({ showAll, total, onClick }: { showAll: boolean; total: numb
   );
 }
 
-function ColChips({ cols }: { cols: EdiData['detectedCols'] }) {
-  const labelMap: Record<string, string> = {
-    amount: '처방액', finalAmount: '최종실적',
-    salesperson: '담당자', cso: 'CSO', hospital: '거래처', date: '날짜',
-  };
-  const detected = Object.entries(cols).filter(([, v]) => v);
-  if (!detected.length) return null;
-  return (
-    <>
-      {detected.map(([k, v]) => (
-        <span key={k} style={{
-          padding: '0.18rem 0.55rem', borderRadius: 5, fontSize: '0.68rem',
-          background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.22)',
-          color: '#d8b4fe', whiteSpace: 'nowrap',
-        }}>
-          {labelMap[k] ?? k}:{' '}<span style={{ opacity: 0.75 }}>{v}</span>
-        </span>
-      ))}
-    </>
-  );
-}
 
 function EmptyState({ errors }: { errors: { filename: string; message: string }[] }) {
   return (
