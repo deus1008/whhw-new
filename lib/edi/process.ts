@@ -73,7 +73,7 @@ export interface EdiData {
 // trim()이 소문자 변환하므로 CSO_KW는 소문자 표기
 const AMOUNT_KW      = ['처방금액','처방액','청구금액','약품금액','총금액','청구액','금액','amount'];
 const FINAL_KW       = ['최종실적','지급금액','실적금액','최종금액'];
-const SALESPERSON_KW = ['담당자','영업담당자','담당영업','사원명'];
+const SALESPERSON_KW = ['담당자명','담당자이름','담당자성명','영업담당자명','영업담당자','담당영업','사원명','담당자'];
 const CSO_KW         = ['담당cso','cso명','cso'];
 const HOSPITAL_KW    = ['요양기관명','거래처명','기관명','병원명','의원명','약국명','거래처','기관명칭'];
 const ITEM_KW        = ['품목명','약품명','제품명','의약품명','품목'];
