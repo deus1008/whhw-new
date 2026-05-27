@@ -10,10 +10,17 @@ export interface DetectedCols {
   date?:        string;
 }
 
+export interface HospitalItemStat {
+  name:        string;
+  amount:      number;
+  finalAmount: number;
+}
+
 export interface HospitalStat {
   name:        string;
   amount:      number;
   finalAmount: number;
+  items:       HospitalItemStat[];  // 처방처별 품목 드릴다운
 }
 
 export interface SalesPersonCsoStat {
@@ -61,7 +68,7 @@ export interface EdiData {
   totalFinalAmount: number;
   salesPersonStats: SalesPersonStat[];
   csoStats:         CsoStat[];          // amount 내림차순
-  hospitalRanking:  HospitalStat[];     // 전체 거래처 순위
+  hospitalRanking:  HospitalStat[];     // 전체 거래처 순위 + 품목 드릴다운
   itemStats:        ItemStat[];         // 품목별 순위 + CSO 드릴다운
   drugPrices:       DrugPrice[];        // 약가 (원, 가나다 정렬)
   detectedCols:     DetectedCols;
@@ -187,7 +194,7 @@ export function processEdi(
   type Pair = { amount: number; finalAmount: number };
   const spMap    = new Map<string, Pair & { csos: Map<string, Pair> }>();
   const csoMap   = new Map<string, Pair & { hospitals: Map<string, Pair> }>();
-  const hosMap   = new Map<string, Pair>();
+  const hosMap   = new Map<string, Pair & { items: Map<string, Pair> }>();
   const itemMap  = new Map<string, Pair & { csos: Map<string, Pair> }>();
   const priceMap = new Map<string, number>(); // 품목 → 약가 (첫 번째 값)
 
@@ -228,11 +235,16 @@ export function processEdi(
       }
     }
 
-    /* 전체 거래처 집계 */
+    /* 전체 처방처 집계 (품목 드릴다운 포함) */
     if (hos !== null) {
-      if (!hosMap.has(hos)) hosMap.set(hos, { amount: 0, finalAmount: 0 });
+      if (!hosMap.has(hos)) hosMap.set(hos, { amount: 0, finalAmount: 0, items: new Map() });
       const he = hosMap.get(hos)!;
       he.amount += amt; he.finalAmount += fin;
+      if (item !== null) {
+        if (!he.items.has(item)) he.items.set(item, { amount: 0, finalAmount: 0 });
+        const ie = he.items.get(item)!;
+        ie.amount += amt; ie.finalAmount += fin;
+      }
     }
 
     /* 품목 집계 */
@@ -268,13 +280,20 @@ export function processEdi(
       amount:      v.amount,
       finalAmount: v.finalAmount,
       hospitals: [...v.hospitals.entries()]
-        .map(([n, h]) => ({ name: n, amount: h.amount, finalAmount: h.finalAmount }))
+        .map(([n, h]) => ({ name: n, amount: h.amount, finalAmount: h.finalAmount, items: [] }))
         .sort((a, b) => b.amount - a.amount),
     }))
     .sort((a, b) => b.amount - a.amount);
 
   const hospitalRanking: HospitalStat[] = [...hosMap.entries()]
-    .map(([name, v]) => ({ name, amount: v.amount, finalAmount: v.finalAmount }))
+    .map(([name, v]) => ({
+      name,
+      amount:      v.amount,
+      finalAmount: v.finalAmount,
+      items: [...v.items.entries()]
+        .map(([n, it]) => ({ name: n, amount: it.amount, finalAmount: it.finalAmount }))
+        .sort((a, b) => b.amount - a.amount),
+    }))
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 1000);
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { forceRefreshEdi } from '@/app/edi/actions';
 import type { EdiReport } from '@/app/edi/actions';
 import type { EdiData, SalesPersonStat, CsoStat, HospitalStat, ItemStat, DrugPrice } from '@/lib/edi/process';
+// HospitalStat now carries .items (품목 드릴다운)
 
 /* ── 포맷 유틸 ──────────────────────────────────────────────── */
 /** 원 → 천원 변환 후 쉼표 포맷 (예: 6,946,420,000원 → "6,946,420") */
@@ -190,9 +191,9 @@ function EdiDashboard({ data }: { data: EdiData }) {
         />
       )}
 
-      {/* ③ 처방처별 현황 */}
+      {/* ③ 처방처별 현황 (품목 드릴다운 통합) */}
       {hasHos && (
-        <HospitalRankTable
+        <HospitalAccordion
           stats={data.hospitalRanking}
           totalAmount={totalAmount}
           totalFinalAmount={totalFinalAmount}
@@ -407,15 +408,25 @@ function CsoAccordion({ stats, totalAmount, totalFinalAmount }: {
 }
 
 /* ════════════════════════════════════════════════════════════ */
-/*  ⑤ 처방처별 현황                                             */
+/*  ③ 처방처별 현황 + 품목 드릴다운 (아코디언 통합)             */
 /* ════════════════════════════════════════════════════════════ */
-function HospitalRankTable({ stats, totalAmount, totalFinalAmount }: {
+function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
   stats: HospitalStat[];
   totalAmount: number;
   totalFinalAmount: number;
 }) {
-  const [showAll, setShowAll] = useState(false);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [showAll, setShowAll]   = useState(false);
   const display = showAll ? stats : stats.slice(0, 20);
+
+  function toggle(name: string) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
 
   return (
     <Section title="처방처별 현황">
@@ -425,21 +436,61 @@ function HospitalRankTable({ stats, totalAmount, totalFinalAmount }: {
             <tr>
               <th style={{ ...TH('left'), width: 36 }}>#</th>
               <th style={{ ...TH('left'), minWidth: 180 }}>처방처</th>
+              <th style={{ ...TH('left'), minWidth: 200 }}>품목명</th>
               <th style={TH('right')}>처방액</th>
               <th style={TH('right')}>최종실적</th>
             </tr>
           </thead>
           <tbody>
-            {display.map((h, i) => (
-              <tr key={h.name}>
-                <td style={TD_MUTED('left')}>{i + 1}</td>
-                <td style={TD('left')}>{h.name}</td>
-                <td style={TD('right', true)}>{fmt(h.amount)}</td>
-                <td style={TD('right')}>{fmt(h.finalAmount)}</td>
-              </tr>
-            ))}
+            {display.map((h, i) => {
+              const isOpen   = expanded.has(h.name);
+              const hasItems = h.items.length > 0;
+              return (
+                <Fragment key={h.name}>
+                  {/* 처방처 요약 행 */}
+                  <tr
+                    onClick={() => hasItems && toggle(h.name)}
+                    style={{
+                      background: 'rgba(251,146,60,0.07)',
+                      cursor: hasItems ? 'pointer' : 'default',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <td style={{ ...TD_MUTED('left'), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {i + 1}
+                    </td>
+                    <td colSpan={2} style={{ ...TD('left'), fontWeight: 600, color: '#fdba74', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {hasItems && (
+                        <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>
+                          {isOpen ? '▼' : '▶'}
+                        </span>
+                      )}
+                      {h.name}
+                    </td>
+                    <td style={{ ...TD('right', true), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {fmt(h.amount)}
+                    </td>
+                    <td style={{ ...TD('right'), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {fmt(h.finalAmount)}
+                    </td>
+                  </tr>
+                  {/* 품목 상세 (펼쳤을 때) */}
+                  {isOpen && h.items.map(it => (
+                    <tr key={it.name} style={{ background: 'rgba(255,255,255,0.015)' }}>
+                      <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.75rem' }}>└</td>
+                      <td style={{ ...TD_MUTED('left'), fontSize: '0.75rem' }} />
+                      <td style={{ ...TD('left'), fontSize: '0.78rem', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
+                        {it.name}
+                      </td>
+                      <td style={{ ...TD('right', true), fontSize: '0.78rem' }}>{fmt(it.amount)}</td>
+                      <td style={{ ...TD('right'), fontSize: '0.78rem' }}>{fmt(it.finalAmount)}</td>
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
             <tr style={TR_TOTAL}>
-              <td colSpan={2} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
+              <td colSpan={3} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
               <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
               <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
             </tr>
