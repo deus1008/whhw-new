@@ -164,7 +164,6 @@ function EdiDashboard({ data }: { data: EdiData }) {
   const hasSP      = data.salesPersonStats.length > 0;
   const hasCso     = data.csoStats.length > 0;
   const hasHos     = data.hospitalRanking.length > 0;
-  const hasDrill   = hasSP && data.salesPersonStats.some(sp => sp.csos.length > 0);
   const hasDetail  = hasCso && data.csoStats.some(c => c.hospitals.length > 0);
   const hasItem    = data.itemStats.length > 0;
   const hasItemCso = hasItem && data.itemStats.some(it => it.csos.length > 0);
@@ -175,18 +174,9 @@ function EdiDashboard({ data }: { data: EdiData }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
-      {/* ① 담당자별 현황 */}
+      {/* ① 담당자별 현황 (CSO 드릴다운 통합) */}
       {hasSP && (
-        <SalesPersonTable
-          stats={data.salesPersonStats}
-          totalAmount={totalAmount}
-          totalFinalAmount={totalFinalAmount}
-        />
-      )}
-
-      {/* ② 담당자 × CSO 드릴다운 */}
-      {hasDrill && (
-        <SalesPersonCsoTable
+        <SalesPersonAccordion
           stats={data.salesPersonStats}
           totalAmount={totalAmount}
           totalFinalAmount={totalFinalAmount}
@@ -264,98 +254,78 @@ function EdiDashboard({ data }: { data: EdiData }) {
 }
 
 /* ════════════════════════════════════════════════════════════ */
-/*  ① 담당자별 현황                                             */
+/*  ① 담당자별 현황 + CSO 드릴다운 (아코디언 통합)              */
 /* ════════════════════════════════════════════════════════════ */
-function SalesPersonTable({ stats, totalAmount, totalFinalAmount }: {
+function SalesPersonAccordion({ stats, totalAmount, totalFinalAmount }: {
   stats: SalesPersonStat[];
   totalAmount: number;
   totalFinalAmount: number;
 }) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggle(name: string) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
+
   return (
     <Section title="담당자별 현황">
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
             <tr>
-              <th style={TH('left')}>담당자</th>
+              <th style={{ ...TH('left'), minWidth: 120 }}>담당자</th>
+              <th style={{ ...TH('left'), minWidth: 180 }}>담당CSO</th>
               <th style={TH('right')}>처방액</th>
               <th style={TH('right')}>최종실적</th>
             </tr>
           </thead>
           <tbody>
-            {stats.map(sp => (
-              <tr key={sp.name}>
-                <td style={TD('left')}>{sp.name}</td>
-                <td style={TD('right', true)}>{fmt(sp.amount)}</td>
-                <td style={TD('right')}>{fmt(sp.finalAmount)}</td>
-              </tr>
-            ))}
-            <tr style={TR_TOTAL}>
-              <td style={{ ...TD('left'), fontWeight: 700, color: 'var(--text-muted)' }}>총합계</td>
-              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
-              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </Section>
-  );
-}
-
-/* ════════════════════════════════════════════════════════════ */
-/*  ② 담당자 × CSO 드릴다운                                     */
-/* ════════════════════════════════════════════════════════════ */
-function SalesPersonCsoTable({ stats, totalAmount, totalFinalAmount }: {
-  stats: SalesPersonStat[];
-  totalAmount: number;
-  totalFinalAmount: number;
-}) {
-  // CSO 정보가 있는 담당자만
-  const filtered = stats.filter(sp => sp.csos.length > 0);
-  if (!filtered.length) return null;
-
-  return (
-    <Section title="담당자 × CSO 드릴다운">
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-          <thead>
-            <tr>
-              <th style={{ ...TH('left'), minWidth: 80 }}>담당자</th>
-              <th style={{ ...TH('left'), minWidth: 160 }}>담당CSO</th>
-              <th style={TH('right')}>처방액</th>
-              <th style={TH('right')}>최종실적</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(sp => (
-              <Fragment key={sp.name}>
-                {sp.csos.map((cso, ci) => (
-                  <tr key={cso.name}>
-                    <td style={{ ...TD('left'), color: ci === 0 ? 'var(--text-primary)' : 'transparent', userSelect: ci === 0 ? undefined : 'none' }}>
+            {stats.map(sp => {
+              const isOpen   = expanded.has(sp.name);
+              const hasCsos  = sp.csos.length > 0;
+              return (
+                <Fragment key={sp.name}>
+                  {/* 담당자 요약 행 */}
+                  <tr
+                    onClick={() => hasCsos && toggle(sp.name)}
+                    style={{
+                      background: 'rgba(168,85,247,0.07)',
+                      cursor: hasCsos ? 'pointer' : 'default',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <td colSpan={2} style={{ ...TD('left'), fontWeight: 600, color: '#d8b4fe', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {hasCsos && (
+                        <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>
+                          {isOpen ? '▼' : '▶'}
+                        </span>
+                      )}
                       {sp.name}
                     </td>
-                    <td style={TD('left')}>{cso.name}</td>
-                    <td style={TD('right', true)}>{fmt(cso.amount)}</td>
-                    <td style={TD('right')}>{fmt(cso.finalAmount)}</td>
+                    <td style={{ ...TD('right', true), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {fmt(sp.amount)}
+                    </td>
+                    <td style={{ ...TD('right'), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {fmt(sp.finalAmount)}
+                    </td>
                   </tr>
-                ))}
-                {/* 소계 */}
-                <tr style={TR_SUBTOTAL}>
-                  <td
-                    colSpan={2}
-                    style={{ ...TD_MUTED('right'), fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
-                  >
-                    소계
-                  </td>
-                  <td style={{ ...TD('right', true), borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                    {fmt(sp.amount)}
-                  </td>
-                  <td style={{ ...TD('right'), fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                    {fmt(sp.finalAmount)}
-                  </td>
-                </tr>
-              </Fragment>
-            ))}
+                  {/* CSO 상세 (펼쳤을 때) */}
+                  {isOpen && sp.csos.map(cso => (
+                    <tr key={cso.name} style={{ background: 'rgba(255,255,255,0.015)' }}>
+                      <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.75rem' }}>└</td>
+                      <td style={{ ...TD('left'), fontSize: '0.78rem' }}>{cso.name}</td>
+                      <td style={{ ...TD('right', true), fontSize: '0.78rem' }}>{fmt(cso.amount)}</td>
+                      <td style={{ ...TD('right'), fontSize: '0.78rem' }}>{fmt(cso.finalAmount)}</td>
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
             <tr style={TR_TOTAL}>
               <td colSpan={2} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
               <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
