@@ -74,6 +74,16 @@ export async function POST(request: Request) {
     return Response.json({ error: message }, { status: 500 });
   }
 
+  // ── 3.5 처리 시작 – running 상태 설정 ────────────────────────────────
+  // 클라이언트가 연결을 끊어도 DB에 running 상태가 남아 UI에서 감지 가능
+  const { error: runningErr } = await supabase
+    .from('documents')
+    .update({ status: 'running', error_message: null })
+    .eq('id', documentId);
+  if (runningErr) {
+    console.warn(`[process:${documentId}] running 상태 업데이트 실패 (계속 진행)`, runningErr);
+  }
+
   // ── 4. Storage에서 원본 파일 다운로드 ────────────────────────────────
   const { data: blob, error: downloadErr } = await supabase.storage
     .from('documents')

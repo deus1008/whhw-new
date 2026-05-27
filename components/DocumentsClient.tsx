@@ -105,6 +105,18 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
     }
   }, [folders, activeFolder]);
 
+  // 페이지 로드 시 '처리 대기(processing)' 상태로 중단된 문서 자동 재시작
+  useEffect(() => {
+    const stuckDocs = initialDocuments.filter(d => d.status === 'processing');
+    if (stuckDocs.length === 0) return;
+    console.log(`[DocumentsClient] 처리 대기 문서 ${stuckDocs.length}개 자동 재개`);
+    stuckDocs.forEach((doc, i) => {
+      // 서버 부하 분산을 위해 1.5초 간격으로 순차 처리
+      setTimeout(() => { triggerProcess(doc.id); }, i * 1500);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // 현재 탭에 표시할 문서
   const visibleDocs = activeFolder === null
     ? documents
@@ -261,7 +273,9 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
 
   /* ── 오류 파일 전체 재처리 ───────────────────────────── */
   async function handleBatchReprocess() {
-    const errorDocs = visibleDocs.filter(d => d.status === 'error' && !processingIds.has(d.id));
+    const errorDocs = visibleDocs.filter(
+      d => (d.status === 'error' || d.status === 'running') && !processingIds.has(d.id)
+    );
     if (errorDocs.length === 0 || batchProcessing) return;
 
     setBatchProcessing(true);
@@ -487,8 +501,8 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
               {visibleDocs.length}{activeFolder !== null && `/${documents.length}`}
             </span>
           </h2>
-          {/* 오류 파일이 있을 때만 전체 재처리 버튼 표시 */}
-          {visibleDocs.some(d => d.status === 'error') && (
+          {/* 오류/중단 파일이 있을 때 전체 재처리 버튼 표시 */}
+          {visibleDocs.some(d => d.status === 'error' || d.status === 'running') && (
             <button
               onClick={handleBatchReprocess}
               disabled={batchProcessing}
@@ -507,7 +521,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                   {batchProgress ? `재처리 중… ${batchProgress.current}/${batchProgress.total}` : '재처리 중…'}
                 </>
               ) : (
-                `🔄 오류 ${visibleDocs.filter(d => d.status === 'error').length}개 전체 재처리`
+                `🔄 ${visibleDocs.filter(d => d.status === 'error' || d.status === 'running').length}개 전체 재처리`
               )}
             </button>
           )}
@@ -604,6 +618,8 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
               const isError       = !isRunning && doc.status === 'error';
               // 대기 상태로 멈춰있는 경우 (처리 중단) → 재처리 필요
               const isStuck       = !isRunning && doc.status === 'processing';
+              // running 상태인데 클라이언트에서 처리 중 아님 → 이전 세션 crash 감지
+              const isStuckRunning = !isRunning && doc.status === 'running';
               // 완료 상태인데 청크가 없으면 학습 데이터 없음 → 재처리 필요
               const isEmptyChunks = !isRunning && doc.status === 'ready' && doc.chunk_count === 0;
 
@@ -656,13 +672,16 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                     {isStuck && (
                       <button onClick={() => triggerProcess(doc.id)} disabled={isRunning} style={retryBtn}>재처리</button>
                     )}
+                    {isStuckRunning && (
+                      <button onClick={() => triggerProcess(doc.id)} disabled={isRunning} style={retryBtn}>재처리</button>
+                    )}
                     {isError && (
                       <button onClick={() => triggerProcess(doc.id)} disabled={isRunning} style={retryBtn}>재처리</button>
                     )}
                     {isEmptyChunks && (
                       <button onClick={() => triggerProcess(doc.id)} disabled={isRunning} style={reprocessNeededBtn}>재처리 필요</button>
                     )}
-                    {!isStuck && !isError && !isEmptyChunks && doc.status === 'ready' && !isRunning && (
+                    {!isStuck && !isStuckRunning && !isError && !isEmptyChunks && doc.status === 'ready' && !isRunning && (
                       <button
                         onClick={() => triggerProcess(doc.id)}
                         style={reprocessIconBtn}
@@ -692,6 +711,11 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                   {isStuck && (
                     <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#fde68a', lineHeight: 1.5 }}>
                       ↳ 처리가 중단된 상태입니다. "재처리" 버튼을 눌러 학습을 다시 시작하세요.
+                    </p>
+                  )}
+                  {isStuckRunning && (
+                    <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#93c5fd', lineHeight: 1.5 }}>
+                      ↳ 처리 중 서버가 중단된 것 같습니다. "재처리" 버튼을 눌러 다시 시작하세요.
                     </p>
                   )}
                   {isError && doc.error_message && (

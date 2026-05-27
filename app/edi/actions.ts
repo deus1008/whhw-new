@@ -61,10 +61,16 @@ export async function getEdiData(): Promise<{
     try {
       const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
       if (blob) {
-        reports.push(JSON.parse(await blob.text()) as EdiReport);
+        const cached = JSON.parse(await blob.text()) as EdiReport;
+        // 구버전 캐시 감지: 필수 필드 없으면 재처리
+        const d = cached.data as unknown as Record<string, unknown>;
+        if (!Array.isArray(d.salesPersonStats) || !Array.isArray(d.itemStats)) {
+          throw new Error('cache outdated – reprocess');
+        }
+        reports.push(cached);
         continue;
       }
-    } catch { /* 캐시 없음 */ }
+    } catch { /* 캐시 없음 또는 구버전 */ }
 
     /* ── 원본 파일 처리 ── */
     try {

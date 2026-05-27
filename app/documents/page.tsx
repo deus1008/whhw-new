@@ -5,7 +5,7 @@ import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import DocumentsClient from '@/components/DocumentsClient';
 
-type DocStatus = 'processing' | 'ready' | 'error';
+type DocStatus = 'processing' | 'running' | 'ready' | 'error';
 
 export type Document = {
   id: string;

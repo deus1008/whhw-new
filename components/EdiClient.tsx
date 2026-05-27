@@ -1,29 +1,58 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { forceRefreshEdi } from '@/app/edi/actions';
 import type { EdiReport } from '@/app/edi/actions';
-import type { HospitalStat, ItemStat, EdiData } from '@/lib/edi/process';
+import type { EdiData, SalesPersonStat, CsoStat, HospitalStat, ItemStat, DrugPrice } from '@/lib/edi/process';
 
-/* ── 유틸 ──────────────────────────────────────────────────── */
-function fmtAmt(v: number): string {
-  const abs = Math.abs(v), sign = v < 0 ? '-' : '';
-  if (abs >= 100_000_000) return sign + (abs / 100_000_000).toFixed(1) + '억';
-  if (abs >= 10_000)      return sign + Math.round(abs / 10_000).toLocaleString() + '만';
-  return sign + Math.round(abs).toLocaleString();
-}
-function fmtNum(v: number) { return v.toLocaleString(); }
+/* ── 포맷 유틸 ──────────────────────────────────────────────── */
+/** 원 → 천원 변환 후 쉼표 포맷 (예: 6,946,420,000원 → "6,946,420") */
+const fmt = (v: number) => Math.round(v / 1000).toLocaleString();
 
-type SortKey = 'amount' | 'count';
+/* ── 테이블 셀 스타일 헬퍼 ──────────────────────────────────── */
+import type { CSSProperties } from 'react';
 
-/* ── 메인 컴포넌트 ───────────────────────────────────────────── */
+const TH = (align: 'left' | 'right' = 'left'): CSSProperties => ({
+  padding: '0.45rem 0.7rem',
+  textAlign: align,
+  color: 'var(--text-muted)',
+  fontWeight: 500,
+  whiteSpace: 'nowrap',
+  borderBottom: '1px solid rgba(255,255,255,0.10)',
+  background: 'rgba(255,255,255,0.02)',
+});
+
+const TD = (align: 'left' | 'right' = 'left', bold?: boolean): CSSProperties => ({
+  padding: '0.5rem 0.7rem',
+  textAlign: align,
+  color: 'var(--text-primary)',
+  fontWeight: bold ? 600 : undefined,
+  whiteSpace: 'nowrap',
+  borderBottom: '1px solid rgba(255,255,255,0.04)',
+});
+
+const TD_MUTED = (align: 'left' | 'right' = 'left'): CSSProperties => ({
+  padding: '0.5rem 0.7rem',
+  textAlign: align,
+  color: 'var(--text-muted)',
+  whiteSpace: 'nowrap',
+  borderBottom: '1px solid rgba(255,255,255,0.04)',
+});
+
+const TR_SUBTOTAL: CSSProperties = { background: 'rgba(255,255,255,0.035)' };
+const TR_TOTAL:    CSSProperties = { background: 'rgba(168,85,247,0.12)', fontWeight: 700 };
+
+/* ── Props ──────────────────────────────────────────────────── */
 interface Props {
   reports: EdiReport[];
   errors:  { filename: string; message: string }[];
   isAdmin: boolean;
 }
 
+/* ════════════════════════════════════════════════════════════ */
+/*  메인 컴포넌트                                               */
+/* ════════════════════════════════════════════════════════════ */
 export default function EdiClient({ reports, errors, isAdmin }: Props) {
   const [selectedDocId, setSelectedDocId] = useState(reports[0]?.doc_id ?? '');
   const [isPending, startTransition] = useTransition();
@@ -41,37 +70,15 @@ export default function EdiClient({ reports, errors, isAdmin }: Props) {
 
   const selected = reports.find(r => r.doc_id === selectedDocId);
 
-  /* ── 파일 없음 ── */
   if (reports.length === 0) {
-    return (
-      <div style={{
-        maxWidth: 560, margin: '0 auto', padding: '3rem 1rem', textAlign: 'center',
-        background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
-        borderRadius: 16,
-      }}>
-        <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🗂</div>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.6rem' }}>
-          EDI 분석 대시보드
-        </h2>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-          <strong style={{ color: '#fbbf24' }}>문서관리 → EDI</strong> 폴더에<br />
-          Excel·CSV·TXT 파일을 업로드하면<br />
-          이 화면에 자동으로 분석 결과가 표시됩니다.
-        </p>
-        {errors.length > 0 && (
-          <div style={{ marginTop: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-            {errors.map((e, i) => <ErrorMsg key={i} msg={`${e.filename}: ${e.message}`} />)}
-          </div>
-        )}
-      </div>
-    );
+    return <EmptyState errors={errors} />;
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
       {isPending && <LoadingOverlay />}
 
-      {/* 헤더 */}
+      {/* 파일 선택 헤더 */}
       <div style={{
         background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
         borderRadius: 14, padding: '1rem 1.2rem',
@@ -102,7 +109,6 @@ export default function EdiClient({ reports, errors, isAdmin }: Props) {
           )}
         </div>
 
-        {/* 파일 선택 */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>파일 선택</span>
           {reports.map(r => {
@@ -135,7 +141,6 @@ export default function EdiClient({ reports, errors, isAdmin }: Props) {
           })}
         </div>
 
-        {/* 오류 */}
         {errors.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
             {errors.map((e, i) => <ErrorMsg key={i} msg={`⚠ ${e.filename}: ${e.message}`} />)}
@@ -152,97 +157,132 @@ export default function EdiClient({ reports, errors, isAdmin }: Props) {
   );
 }
 
-/* ── 대시보드 본문 ────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════ */
+/*  대시보드 본문 (5개 테이블)                                  */
+/* ════════════════════════════════════════════════════════════ */
 function EdiDashboard({ data }: { data: EdiData }) {
-  const [hospSort, setHospSort] = useState<SortKey>('amount');
-  const [itemSort, setItemSort] = useState<SortKey>('amount');
+  const hasSP      = data.salesPersonStats.length > 0;
+  const hasCso     = data.csoStats.length > 0;
+  const hasHos     = data.hospitalRanking.length > 0;
+  const hasDrill   = hasSP && data.salesPersonStats.some(sp => sp.csos.length > 0);
+  const hasDetail  = hasCso && data.csoStats.some(c => c.hospitals.length > 0);
+  const hasItem    = data.itemStats.length > 0;
+  const hasItemCso = hasItem && data.itemStats.some(it => it.csos.length > 0);
+  const hasPrice   = data.drugPrices.length > 0;
 
-  const hasAmount   = !!data.detectedCols.amount;
-  const hasCount    = !!data.detectedCols.count;
-  const hasHospital = data.hospitalStats.length > 0;
-  const hasItem     = data.itemStats.length > 0;
-
-  const hospList = [...data.hospitalStats].sort((a, b) => b[hospSort] - a[hospSort]);
-  const itemList = [...data.itemStats].sort((a, b) => b[itemSort] - a[itemSort]);
+  const { totalAmount, totalFinalAmount } = data;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
-      {/* 감지 컬럼 안내 */}
-      <ColChip cols={data.detectedCols} />
-
-      {/* KPI */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-        {hasAmount && (
-          <KpiCard label="총 청구금액" value={fmtAmt(data.totalAmount)} sub={data.detectedCols.amount!} color="#d8b4fe" />
+      {/* 요약 바 */}
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: '1.2rem',
+        padding: '0.75rem 1rem',
+        background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+        borderRadius: 10, fontSize: '0.82rem',
+      }}>
+        {data.period && (
+          <span style={{ color: 'var(--text-muted)' }}>
+            기간&nbsp;<strong style={{ color: 'var(--text-primary)' }}>{data.period}</strong>
+          </span>
         )}
-        <KpiCard
-          label={hasCount ? '총 건수' : '총 행 수'}
-          value={fmtNum(data.totalCount)}
-          sub={data.detectedCols.count ?? '전체 레코드 수'}
-          color="#93c5fd"
-        />
-        {hasHospital && (
-          <KpiCard label="거래처 수" value={fmtNum(data.uniqueHospitals)} sub="중복 제거" color="#6ee7b7" />
+        {totalAmount > 0 && (
+          <span style={{ color: 'var(--text-muted)' }}>
+            총 처방액&nbsp;<strong style={{ color: '#d8b4fe' }}>{fmt(totalAmount)}</strong>
+            <span style={{ fontSize: '0.68rem' }}>&nbsp;천원</span>
+          </span>
         )}
-        {hasItem && (
-          <KpiCard label="품목 수" value={fmtNum(data.uniqueItems)} sub="중복 제거" color="#fde68a" />
+        {totalFinalAmount > 0 && (
+          <span style={{ color: 'var(--text-muted)' }}>
+            총 최종실적&nbsp;<strong style={{ color: '#6ee7b7' }}>{fmt(totalFinalAmount)}</strong>
+            <span style={{ fontSize: '0.68rem' }}>&nbsp;천원</span>
+          </span>
         )}
+        <ColChips cols={data.detectedCols} />
       </div>
 
-      {/* 거래처/병원별 현황 */}
-      {hasHospital && (
-        <Section
-          title="거래처 / 병원별 현황"
-          sortKey={hospSort}
-          onSort={setHospSort}
-          hasAmount={hasAmount}
-          hasCount={hasCount || !hasAmount}
-        >
-          <StatsTable
-            rows={hospList}
-            sortKey={hospSort}
-            total={data.totalAmount || data.totalCount}
-            useAmount={hasAmount}
-            color="#a78bfa"
-          />
-        </Section>
+      {/* ① 담당자별 현황 */}
+      {hasSP && (
+        <SalesPersonTable
+          stats={data.salesPersonStats}
+          totalAmount={totalAmount}
+          totalFinalAmount={totalFinalAmount}
+        />
       )}
 
-      {/* 품목별 현황 */}
+      {/* ② 담당자 × CSO 드릴다운 */}
+      {hasDrill && (
+        <SalesPersonCsoTable
+          stats={data.salesPersonStats}
+          totalAmount={totalAmount}
+          totalFinalAmount={totalFinalAmount}
+        />
+      )}
+
+      {/* ③ CSO별 순위 */}
+      {hasCso && (
+        <CsoRankTable
+          stats={data.csoStats}
+          totalAmount={totalAmount}
+          totalFinalAmount={totalFinalAmount}
+        />
+      )}
+
+      {/* ④ CSO × 거래처 상세 */}
+      {hasDetail && (
+        <CsoDetailTable
+          stats={data.csoStats}
+          totalAmount={totalAmount}
+          totalFinalAmount={totalFinalAmount}
+        />
+      )}
+
+      {/* ⑤ 처방처별 현황 */}
+      {hasHos && (
+        <HospitalRankTable
+          stats={data.hospitalRanking}
+          totalAmount={totalAmount}
+          totalFinalAmount={totalFinalAmount}
+        />
+      )}
+
+      {/* ⑥ 품목별 현황 */}
       {hasItem && (
-        <Section
-          title="품목별 처방 현황"
-          sortKey={itemSort}
-          onSort={setItemSort}
-          hasAmount={hasAmount}
-          hasCount={hasCount || !hasAmount}
-        >
-          <StatsTable
-            rows={itemList}
-            sortKey={itemSort}
-            total={data.totalAmount || data.totalCount}
-            useAmount={hasAmount}
-            color="#34d399"
-          />
-        </Section>
+        <ItemRankTable
+          stats={data.itemStats}
+          totalAmount={totalAmount}
+          totalFinalAmount={totalFinalAmount}
+        />
       )}
 
-      {/* 분석 불가 안내 */}
-      {!hasHospital && !hasItem && (
+      {/* ⑦ 품목/CSO 드릴다운 */}
+      {hasItemCso && (
+        <ItemCsoTable
+          stats={data.itemStats}
+          totalAmount={totalAmount}
+          totalFinalAmount={totalFinalAmount}
+        />
+      )}
+
+      {/* ⑧ 약가 */}
+      {hasPrice && (
+        <DrugPriceTable prices={data.drugPrices} />
+      )}
+
+      {/* 컬럼 미감지 안내 */}
+      {!hasSP && !hasCso && !hasHos && !hasItem && (
         <div style={{
           padding: '2rem', textAlign: 'center', borderRadius: 14,
           background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
           color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: 1.7,
         }}>
-          <p>거래처·품목 컬럼을 자동으로 감지하지 못했습니다.</p>
+          <p>담당자·CSO·거래처 컬럼을 자동으로 감지하지 못했습니다.</p>
           <p style={{ marginTop: '0.5rem', fontSize: '0.78rem' }}>
-            감지된 컬럼: <code style={{ background: 'rgba(255,255,255,0.07)', padding: '2px 6px', borderRadius: 4 }}>
-              {data.headers.join(', ') || '없음'}
+            감지된 헤더:{' '}
+            <code style={{ background: 'rgba(255,255,255,0.07)', padding: '2px 6px', borderRadius: 4 }}>
+              {data.headers.slice(0, 20).join(', ')}{data.headers.length > 20 ? ' …' : ''}
             </code>
-          </p>
-          <p style={{ marginTop: '0.4rem', fontSize: '0.75rem' }}>
-            거래처 컬럼명 예시: 거래처명, 기관명, 요양기관명 / 품목 컬럼명 예시: 품목명, 약품명
           </p>
         </div>
       )}
@@ -250,147 +290,554 @@ function EdiDashboard({ data }: { data: EdiData }) {
   );
 }
 
-/* ── 감지 컬럼 배지 ─────────────────────────────────────────── */
-function ColChip({ cols }: { cols: EdiData['detectedCols'] }) {
-  const detected = Object.entries(cols).filter(([, v]) => v);
-  if (!detected.length) return null;
+/* ════════════════════════════════════════════════════════════ */
+/*  ① 담당자별 현황                                             */
+/* ════════════════════════════════════════════════════════════ */
+function SalesPersonTable({ stats, totalAmount, totalFinalAmount }: {
+  stats: SalesPersonStat[];
+  totalAmount: number;
+  totalFinalAmount: number;
+}) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', alignItems: 'center' }}>
-      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>감지된 컬럼</span>
-      {detected.map(([k, v]) => (
-        <span key={k} style={{
-          padding: '0.2rem 0.6rem', borderRadius: 6, fontSize: '0.7rem',
-          background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.22)',
-          color: '#d8b4fe',
-        }}>
-          {k === 'amount' ? '금액' : k === 'count' ? '건수' : k === 'hospital' ? '거래처' : k === 'item' ? '품목' : '날짜'}: {v}
-        </span>
-      ))}
+    <Section title="담당자별 현황">
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+          <thead>
+            <tr>
+              <th style={TH('left')}>담당자</th>
+              <th style={TH('right')}>처방액</th>
+              <th style={TH('right')}>최종실적</th>
+            </tr>
+          </thead>
+          <tbody>
+            {stats.map(sp => (
+              <tr key={sp.name}>
+                <td style={TD('left')}>{sp.name}</td>
+                <td style={TD('right', true)}>{fmt(sp.amount)}</td>
+                <td style={TD('right')}>{fmt(sp.finalAmount)}</td>
+              </tr>
+            ))}
+            <tr style={TR_TOTAL}>
+              <td style={{ ...TD('left'), fontWeight: 700, color: 'var(--text-muted)' }}>총합계</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════ */
+/*  ② 담당자 × CSO 드릴다운                                     */
+/* ════════════════════════════════════════════════════════════ */
+function SalesPersonCsoTable({ stats, totalAmount, totalFinalAmount }: {
+  stats: SalesPersonStat[];
+  totalAmount: number;
+  totalFinalAmount: number;
+}) {
+  // CSO 정보가 있는 담당자만
+  const filtered = stats.filter(sp => sp.csos.length > 0);
+  if (!filtered.length) return null;
+
+  return (
+    <Section title="담당자 × CSO 드릴다운">
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+          <thead>
+            <tr>
+              <th style={{ ...TH('left'), minWidth: 80 }}>담당자</th>
+              <th style={{ ...TH('left'), minWidth: 160 }}>담당CSO</th>
+              <th style={TH('right')}>처방액</th>
+              <th style={TH('right')}>최종실적</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(sp => (
+              <Fragment key={sp.name}>
+                {sp.csos.map((cso, ci) => (
+                  <tr key={cso.name}>
+                    <td style={{ ...TD('left'), color: ci === 0 ? 'var(--text-primary)' : 'transparent', userSelect: ci === 0 ? undefined : 'none' }}>
+                      {sp.name}
+                    </td>
+                    <td style={TD('left')}>{cso.name}</td>
+                    <td style={TD('right', true)}>{fmt(cso.amount)}</td>
+                    <td style={TD('right')}>{fmt(cso.finalAmount)}</td>
+                  </tr>
+                ))}
+                {/* 소계 */}
+                <tr style={TR_SUBTOTAL}>
+                  <td
+                    colSpan={2}
+                    style={{ ...TD_MUTED('right'), fontSize: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+                  >
+                    소계
+                  </td>
+                  <td style={{ ...TD('right', true), borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    {fmt(sp.amount)}
+                  </td>
+                  <td style={{ ...TD('right'), fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    {fmt(sp.finalAmount)}
+                  </td>
+                </tr>
+              </Fragment>
+            ))}
+            <tr style={TR_TOTAL}>
+              <td colSpan={2} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════ */
+/*  ③ CSO별 순위                                               */
+/* ════════════════════════════════════════════════════════════ */
+function CsoRankTable({ stats, totalAmount, totalFinalAmount }: {
+  stats: CsoStat[];
+  totalAmount: number;
+  totalFinalAmount: number;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const display = showAll ? stats : stats.slice(0, 20);
+
+  return (
+    <Section title="CSO별 순위">
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+          <thead>
+            <tr>
+              <th style={{ ...TH('left'), width: 36 }}>#</th>
+              <th style={{ ...TH('left'), minWidth: 180 }}>CSO명</th>
+              <th style={TH('right')}>처방액</th>
+              <th style={TH('right')}>최종실적</th>
+            </tr>
+          </thead>
+          <tbody>
+            {display.map((cso, i) => (
+              <tr key={cso.name}>
+                <td style={TD_MUTED('left')}>{i + 1}</td>
+                <td style={TD('left')}>{cso.name}</td>
+                <td style={TD('right', true)}>{fmt(cso.amount)}</td>
+                <td style={TD('right')}>{fmt(cso.finalAmount)}</td>
+              </tr>
+            ))}
+            <tr style={TR_TOTAL}>
+              <td colSpan={2} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {stats.length > 20 && (
+        <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
+      )}
+    </Section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════ */
+/*  ④ CSO × 거래처 상세 (아코디언)                             */
+/* ════════════════════════════════════════════════════════════ */
+function CsoDetailTable({ stats, totalAmount, totalFinalAmount }: {
+  stats: CsoStat[];
+  totalAmount: number;
+  totalFinalAmount: number;
+}) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [showAll, setShowAll]   = useState(false);
+  const display = showAll ? stats : stats.slice(0, 15);
+
+  function toggle(name: string) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
+
+  return (
+    <Section title="CSO × 거래처 상세">
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+          <thead>
+            <tr>
+              <th style={{ ...TH('left'), minWidth: 180 }}>CSO명</th>
+              <th style={{ ...TH('left'), minWidth: 160 }}>거래처</th>
+              <th style={TH('right')}>처방액</th>
+              <th style={TH('right')}>최종실적</th>
+            </tr>
+          </thead>
+          <tbody>
+            {display.map(cso => {
+              const isOpen = expanded.has(cso.name);
+              const hasHospitals = cso.hospitals.length > 0;
+              return (
+                <Fragment key={cso.name}>
+                  {/* CSO 요약 행 */}
+                  <tr
+                    onClick={() => hasHospitals && toggle(cso.name)}
+                    style={{
+                      background: 'rgba(168,85,247,0.07)',
+                      cursor: hasHospitals ? 'pointer' : 'default',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <td colSpan={2} style={{ ...TD('left'), fontWeight: 600, color: '#d8b4fe', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {hasHospitals && (
+                        <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>
+                          {isOpen ? '▼' : '▶'}
+                        </span>
+                      )}
+                      {cso.name}
+                    </td>
+                    <td style={{ ...TD('right', true), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {fmt(cso.amount)}
+                    </td>
+                    <td style={{ ...TD('right'), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {fmt(cso.finalAmount)}
+                    </td>
+                  </tr>
+                  {/* 거래처 상세 (펼쳤을 때) */}
+                  {isOpen && cso.hospitals.map(h => (
+                    <tr key={h.name} style={{ background: 'rgba(255,255,255,0.015)' }}>
+                      <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.75rem' }}>└</td>
+                      <td style={{ ...TD('left'), fontSize: '0.78rem' }}>{h.name}</td>
+                      <td style={{ ...TD('right', true), fontSize: '0.78rem' }}>{fmt(h.amount)}</td>
+                      <td style={{ ...TD('right'), fontSize: '0.78rem' }}>{fmt(h.finalAmount)}</td>
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
+            <tr style={TR_TOTAL}>
+              <td colSpan={2} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {stats.length > 15 && (
+        <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
+      )}
+    </Section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════ */
+/*  ⑤ 처방처별 현황                                             */
+/* ════════════════════════════════════════════════════════════ */
+function HospitalRankTable({ stats, totalAmount, totalFinalAmount }: {
+  stats: HospitalStat[];
+  totalAmount: number;
+  totalFinalAmount: number;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const display = showAll ? stats : stats.slice(0, 20);
+
+  return (
+    <Section title="처방처별 현황">
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+          <thead>
+            <tr>
+              <th style={{ ...TH('left'), width: 36 }}>#</th>
+              <th style={{ ...TH('left'), minWidth: 180 }}>처방처</th>
+              <th style={TH('right')}>처방액</th>
+              <th style={TH('right')}>최종실적</th>
+            </tr>
+          </thead>
+          <tbody>
+            {display.map((h, i) => (
+              <tr key={h.name}>
+                <td style={TD_MUTED('left')}>{i + 1}</td>
+                <td style={TD('left')}>{h.name}</td>
+                <td style={TD('right', true)}>{fmt(h.amount)}</td>
+                <td style={TD('right')}>{fmt(h.finalAmount)}</td>
+              </tr>
+            ))}
+            <tr style={TR_TOTAL}>
+              <td colSpan={2} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {stats.length > 20 && (
+        <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
+      )}
+    </Section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════ */
+/*  ⑥ 품목별 현황                                               */
+/* ════════════════════════════════════════════════════════════ */
+function ItemRankTable({ stats, totalAmount, totalFinalAmount }: {
+  stats: ItemStat[];
+  totalAmount: number;
+  totalFinalAmount: number;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const display = showAll ? stats : stats.slice(0, 20);
+
+  return (
+    <Section title="품목별 현황">
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+          <thead>
+            <tr>
+              <th style={{ ...TH('left'), width: 36 }}>#</th>
+              <th style={{ ...TH('left'), minWidth: 200 }}>품목</th>
+              <th style={TH('right')}>처방액</th>
+              <th style={TH('right')}>최종실적</th>
+            </tr>
+          </thead>
+          <tbody>
+            {display.map((it, i) => (
+              <tr key={it.name}>
+                <td style={TD_MUTED('left')}>{i + 1}</td>
+                <td style={{ ...TD('left'), maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
+                  {it.name}
+                </td>
+                <td style={TD('right', true)}>{fmt(it.amount)}</td>
+                <td style={TD('right')}>{fmt(it.finalAmount)}</td>
+              </tr>
+            ))}
+            <tr style={TR_TOTAL}>
+              <td colSpan={2} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {stats.length > 20 && (
+        <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
+      )}
+    </Section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════ */
+/*  ⑦ 품목/CSO 드릴다운 (아코디언)                             */
+/* ════════════════════════════════════════════════════════════ */
+function ItemCsoTable({ stats, totalAmount, totalFinalAmount }: {
+  stats: ItemStat[];
+  totalAmount: number;
+  totalFinalAmount: number;
+}) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [showAll, setShowAll]   = useState(false);
+  const display = showAll ? stats : stats.slice(0, 15);
+
+  function toggle(name: string) {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }
+
+  return (
+    <Section title="품목/CSO 드릴다운">
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+          <thead>
+            <tr>
+              <th style={{ ...TH('left'), minWidth: 200 }}>품목/CSO</th>
+              <th style={{ ...TH('left'), minWidth: 160 }}>담당CSO</th>
+              <th style={TH('right')}>처방액</th>
+              <th style={TH('right')}>최종실적</th>
+            </tr>
+          </thead>
+          <tbody>
+            {display.map(it => {
+              const isOpen = expanded.has(it.name);
+              const hasCsos = it.csos.length > 0;
+              return (
+                <Fragment key={it.name}>
+                  {/* 품목 요약 행 */}
+                  <tr
+                    onClick={() => hasCsos && toggle(it.name)}
+                    style={{
+                      background: 'rgba(59,130,246,0.07)',
+                      cursor: hasCsos ? 'pointer' : 'default',
+                      borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <td colSpan={2} style={{ ...TD('left'), fontWeight: 600, color: '#93c5fd', borderBottom: '1px solid rgba(255,255,255,0.06)', maxWidth: 360, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
+                      {hasCsos && (
+                        <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>
+                          {isOpen ? '▼' : '▶'}
+                        </span>
+                      )}
+                      {it.name}
+                    </td>
+                    <td style={{ ...TD('right', true), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {fmt(it.amount)}
+                    </td>
+                    <td style={{ ...TD('right'), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                      {fmt(it.finalAmount)}
+                    </td>
+                  </tr>
+                  {/* CSO 상세 (펼쳤을 때) */}
+                  {isOpen && it.csos.map(c => (
+                    <tr key={c.name} style={{ background: 'rgba(255,255,255,0.015)' }}>
+                      <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.75rem' }}>└</td>
+                      <td style={{ ...TD('left'), fontSize: '0.78rem' }}>{c.name}</td>
+                      <td style={{ ...TD('right', true), fontSize: '0.78rem' }}>{fmt(c.amount)}</td>
+                      <td style={{ ...TD('right'), fontSize: '0.78rem' }}>{fmt(c.finalAmount)}</td>
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
+            <tr style={TR_TOTAL}>
+              <td colSpan={2} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {stats.length > 15 && (
+        <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
+      )}
+    </Section>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════ */
+/*  ⑧ 약가 (단위: 원, 1000으로 나누지 않음)                    */
+/* ════════════════════════════════════════════════════════════ */
+function DrugPriceTable({ prices }: { prices: DrugPrice[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const display = showAll ? prices : prices.slice(0, 30);
+
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+      borderRadius: 14, padding: '1.1rem 1.2rem',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+        <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>약가</h3>
+        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0 }}>(단위: 원)</span>
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+          <thead>
+            <tr>
+              <th style={{ ...TH('left'), minWidth: 200 }}>품목</th>
+              <th style={TH('right')}>약가</th>
+            </tr>
+          </thead>
+          <tbody>
+            {display.map(p => (
+              <tr key={p.name}>
+                <td style={{ ...TD('left'), maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis' }} title={p.name}>
+                  {p.name}
+                </td>
+                <td style={{ ...TD('right', true) }}>{p.unitPrice.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {prices.length > 30 && (
+        <MoreButton showAll={showAll} total={prices.length} onClick={() => setShowAll(v => !v)} />
+      )}
     </div>
   );
 }
 
-/* ── 섹션 헤더 (정렬 버튼 포함) ─────────────────────────────── */
-function Section({
-  title, sortKey, onSort, hasAmount, hasCount, children
-}: {
-  title: string; sortKey: SortKey; onSort: (k: SortKey) => void;
-  hasAmount: boolean; hasCount: boolean; children: React.ReactNode;
-}) {
+/* ════════════════════════════════════════════════════════════ */
+/*  공용 UI                                                     */
+/* ════════════════════════════════════════════════════════════ */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1.1rem 1.2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.9rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', margin: 0 }}>{title}</h3>
-        <div style={{ display: 'flex', gap: '0.35rem' }}>
-          {hasAmount && (
-            <SortBtn label="금액순" active={sortKey === 'amount'} onClick={() => onSort('amount')} />
-          )}
-          {hasCount && (
-            <SortBtn label="건수순" active={sortKey === 'count'} onClick={() => onSort('count')} />
-          )}
-        </div>
+    <div style={{
+      background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+      borderRadius: 14, padding: '1.1rem 1.2rem',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+        <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{title}</h3>
+        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0 }}>(단위: 천원)</span>
       </div>
       {children}
     </div>
   );
 }
 
-function SortBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+function MoreButton({ showAll, total, onClick }: { showAll: boolean; total: number; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{
-      padding: '0.25rem 0.65rem', borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit',
-      fontSize: '0.72rem', fontWeight: active ? 600 : 400,
-      background: active ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.04)',
-      border: `1px solid ${active ? 'rgba(168,85,247,0.4)' : 'rgba(255,255,255,0.08)'}`,
-      color: active ? '#d8b4fe' : 'var(--text-muted)',
-    }}>{label}</button>
+    <button
+      onClick={onClick}
+      style={{
+        marginTop: '0.6rem', width: '100%', padding: '0.4rem', borderRadius: 8,
+        cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.75rem',
+        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+        color: 'var(--text-muted)',
+      }}
+    >
+      {showAll ? '▲ 접기' : `▼ 더보기 (전체 ${total}건)`}
+    </button>
   );
 }
 
-/* ── 통계 테이블 ─────────────────────────────────────────────── */
-function StatsTable({
-  rows, sortKey, total, useAmount, color,
-}: {
-  rows: (HospitalStat | ItemStat)[]; sortKey: SortKey;
-  total: number; useAmount: boolean; color: string;
-}) {
-  const [showAll, setShowAll] = useState(false);
-  const display = showAll ? rows : rows.slice(0, 20);
-  const maxVal  = rows[0] ? rows[0][sortKey] : 1;
-
+function ColChips({ cols }: { cols: EdiData['detectedCols'] }) {
+  const labelMap: Record<string, string> = {
+    amount: '처방액', finalAmount: '최종실적',
+    salesperson: '담당자', cso: 'CSO', hospital: '거래처', date: '날짜',
+  };
+  const detected = Object.entries(cols).filter(([, v]) => v);
+  if (!detected.length) return null;
   return (
-    <div>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <th style={{ padding: '0.45rem 0.7rem', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>명칭</th>
-              {useAmount && <th style={{ padding: '0.45rem 0.7rem', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>금액</th>}
-              <th style={{ padding: '0.45rem 0.7rem', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>건수</th>
-              <th style={{ padding: '0.45rem 0.7rem', color: 'var(--text-muted)', fontWeight: 500, minWidth: 120 }}>비중</th>
-            </tr>
-          </thead>
-          <tbody>
-            {display.map((row, i) => {
-              const val   = row[sortKey];
-              const share = total > 0 ? (val / total * 100) : 0;
-              const pct   = maxVal  > 0 ? (val / maxVal * 100) : 0;
-              return (
-                <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <td style={{ padding: '0.5rem 0.7rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.name}>
-                    {row.name}
-                  </td>
-                  {useAmount && (
-                    <td style={{ padding: '0.5rem 0.7rem', textAlign: 'right', color: 'var(--text-primary)', fontWeight: 600 }}>
-                      {fmtAmt(row.amount)}
-                    </td>
-                  )}
-                  <td style={{ padding: '0.5rem 0.7rem', textAlign: 'right', color: 'var(--text-muted)' }}>
-                    {fmtNum(row.count)}
-                  </td>
-                  <td style={{ padding: '0.5rem 0.7rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.06)' }}>
-                        <div style={{
-                          height: '100%', borderRadius: 3, background: color,
-                          width: `${pct.toFixed(1)}%`, opacity: 0.75,
-                        }} />
-                      </div>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', minWidth: 38, textAlign: 'right' }}>
-                        {share.toFixed(1)}%
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-      {rows.length > 20 && (
-        <button
-          onClick={() => setShowAll(v => !v)}
-          style={{
-            marginTop: '0.6rem', width: '100%', padding: '0.4rem', borderRadius: 8,
-            cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.75rem',
-            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
-            color: 'var(--text-muted)',
-          }}
-        >
-          {showAll ? '▲ 접기' : `▼ 전체 보기 (${rows.length}건)`}
-        </button>
+    <>
+      {detected.map(([k, v]) => (
+        <span key={k} style={{
+          padding: '0.18rem 0.55rem', borderRadius: 5, fontSize: '0.68rem',
+          background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.22)',
+          color: '#d8b4fe', whiteSpace: 'nowrap',
+        }}>
+          {labelMap[k] ?? k}:{' '}<span style={{ opacity: 0.75 }}>{v}</span>
+        </span>
+      ))}
+    </>
+  );
+}
+
+function EmptyState({ errors }: { errors: { filename: string; message: string }[] }) {
+  return (
+    <div style={{
+      maxWidth: 560, margin: '0 auto', padding: '3rem 1rem', textAlign: 'center',
+      background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+      borderRadius: 16,
+    }}>
+      <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🗂</div>
+      <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.6rem' }}>
+        EDI 분석 대시보드
+      </h2>
+      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+        <strong style={{ color: '#fbbf24' }}>문서관리 → EDI</strong> 폴더에<br />
+        Excel·CSV·TXT 파일을 업로드하면<br />
+        이 화면에 자동으로 분석 결과가 표시됩니다.
+      </p>
+      {errors.length > 0 && (
+        <div style={{ marginTop: '1.2rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+          {errors.map((e, i) => <ErrorMsg key={i} msg={`${e.filename}: ${e.message}`} />)}
+        </div>
       )}
-    </div>
-  );
-}
-
-/* ── 공용 컴포넌트 ───────────────────────────────────────────── */
-function KpiCard({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {
-  return (
-    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1.1rem 1.2rem' }}>
-      <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 500 }}>{label}</p>
-      <p style={{ fontSize: '1.45rem', fontWeight: 700, color, lineHeight: 1.1, marginBottom: '0.3rem' }}>{value}</p>
-      <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{sub}</p>
     </div>
   );
 }
