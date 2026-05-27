@@ -121,7 +121,8 @@ export function processEdi(
   }
   const hospitalStats: HospitalStat[] = [...hospMap.entries()]
     .map(([name, v]) => ({ name, ...v }))
-    .sort((a, b) => (b.amount || b.count) - (a.amount || a.count));
+    .sort((a, b) => (b.amount || b.count) - (a.amount || a.count))
+    .slice(0, 500);   // 상위 500개 제한
 
   /* ── 품목별 집계 ── */
   const itemMap = new Map<string, { amount: number; count: number }>();
@@ -136,7 +137,8 @@ export function processEdi(
   }
   const itemStats: ItemStat[] = [...itemMap.entries()]
     .map(([name, v]) => ({ name, ...v }))
-    .sort((a, b) => (b.amount || b.count) - (a.amount || a.count));
+    .sort((a, b) => (b.amount || b.count) - (a.amount || a.count))
+    .slice(0, 500);   // 상위 500개 제한
 
   return {
     filename, period, totalAmount, totalCount,

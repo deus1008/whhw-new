@@ -8,9 +8,12 @@ import { processEdi } from '@/lib/edi/process';
 import type { EdiData } from '@/lib/edi/process';
 
 const BUCKET_DOCS  = 'documents';
-const BUCKET_CACHE = 'performance-data';   // 기존 캐시 버킷 공용
+const BUCKET_CACHE = 'performance-data';
 const FOLDER_NAME  = 'EDI';
-const CACHE_PREFIX = 'edi-';               // performance 캐시와 구분
+const CACHE_PREFIX = 'edi-';
+
+/** 한 파일에서 처리할 최대 행 수 (메모리 보호) */
+const MAX_ROWS = 100_000;
 
 export interface EdiReport {
   period:     string;
@@ -50,7 +53,8 @@ export async function getEdiData(): Promise<{
   const reports: EdiReport[] = [];
   const errors:  { filename: string; message: string }[] = [];
 
-  await Promise.all(docs.map(async doc => {
+  // ⚠ 순차 처리 — 병렬 처리 시 메모리 폭증 방지
+  for (const doc of docs) {
     const cacheKey = `${CACHE_PREFIX}${doc.id}.json`;
 
     /* ── 캐시 확인 ── */
@@ -58,7 +62,7 @@ export async function getEdiData(): Promise<{
       const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
       if (blob) {
         reports.push(JSON.parse(await blob.text()) as EdiReport);
-        return;
+        continue;
       }
     } catch { /* 캐시 없음 */ }
 
@@ -70,14 +74,13 @@ export async function getEdiData(): Promise<{
 
       if (dlErr || !fileBlob) {
         errors.push({ filename: doc.filename, message: dlErr?.message ?? '파일 다운로드 실패' });
-        return;
+        continue;
       }
 
       const buffer = Buffer.from(await fileBlob.arrayBuffer());
       let wb: XLSX.WorkBook;
 
       if (doc.file_type === 'csv' || doc.file_type === 'txt') {
-        // CP949 → UTF-8 시도 (한글 깨짐 방지)
         let text: string;
         try {
           text = new TextDecoder('euc-kr').decode(buffer);
@@ -100,13 +103,19 @@ export async function getEdiData(): Promise<{
         if (rowCount > bestRows) { bestRows = rowCount; bestSheet = name; }
       }
 
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+      let rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
         wb.Sheets[bestSheet], { defval: '' },
       );
 
       if (!rows.length) {
         errors.push({ filename: doc.filename, message: '데이터 행이 없습니다.' });
-        return;
+        continue;
+      }
+
+      // 행 수 제한
+      if (rows.length > MAX_ROWS) {
+        console.warn(`[getEdiData] ${doc.filename}: ${rows.length}행 → ${MAX_ROWS}행으로 제한`);
+        rows = rows.slice(0, MAX_ROWS);
       }
 
       const data = processEdi(rows, doc.filename);
@@ -118,9 +127,13 @@ export async function getEdiData(): Promise<{
         doc_id:     doc.id as string,
       };
 
-      // 캐시 저장
-      const cacheBlob = new Blob([JSON.stringify(report)], { type: 'application/json' });
-      await svc.storage.from(BUCKET_CACHE).upload(cacheKey, cacheBlob, { upsert: true });
+      // 캐시 저장 (실패해도 무시)
+      try {
+        const cacheBlob = new Blob([JSON.stringify(report)], { type: 'application/json' });
+        await svc.storage.from(BUCKET_CACHE).upload(cacheKey, cacheBlob, { upsert: true });
+      } catch (cacheErr) {
+        console.warn('[getEdiData] cache write failed:', cacheErr);
+      }
 
       reports.push(report);
     } catch (e) {
@@ -130,7 +143,7 @@ export async function getEdiData(): Promise<{
         message:  e instanceof Error ? e.message : '분석 중 오류 발생',
       });
     }
-  }));
+  }
 
   return {
     reports: reports.sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
