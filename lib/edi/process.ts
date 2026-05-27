@@ -23,10 +23,17 @@ export interface HospitalStat {
   items:       HospitalItemStat[];  // 처방처별 품목 드릴다운
 }
 
+export interface SalesPersonCsoHospitalStat {
+  name:        string;
+  amount:      number;
+  finalAmount: number;
+}
+
 export interface SalesPersonCsoStat {
   name:        string;
   amount:      number;
   finalAmount: number;
+  hospitals:   SalesPersonCsoHospitalStat[];  // 담당자×CSO별 처방처 드릴다운
 }
 
 export interface SalesPersonStat {
@@ -199,7 +206,8 @@ export function processEdi(
 
   /* ── 집계 맵 ── */
   type Pair = { amount: number; finalAmount: number };
-  const spMap   = new Map<string, Pair & { csos: Map<string, Pair> }>();
+  // 담당자 → CSO → 처방처 3단 집계
+  const spMap   = new Map<string, Pair & { csos: Map<string, Pair & { hospitals: Map<string, Pair> }> }>();
   const csoMap  = new Map<string, Pair & { hospitals: Map<string, Pair> }>();
   const hosMap  = new Map<string, Pair & { items: Map<string, Pair> }>();
   // 품목 → CSO → 처방처 3단 집계
@@ -219,15 +227,20 @@ export function processEdi(
     const hos  = cols.hospital    ? (String(r[cols.hospital]    ?? '').trim() || '(미상)') : null;
     const item = cols.item        ? (String(r[cols.item]        ?? '').trim() || '(미상)') : null;
 
-    /* 담당자 집계 */
+    /* 담당자 집계 (CSO → 처방처 2단 드릴다운) */
     if (sp !== null) {
       if (!spMap.has(sp)) spMap.set(sp, { amount: 0, finalAmount: 0, csos: new Map() });
       const se = spMap.get(sp)!;
       se.amount += amt; se.finalAmount += fin;
       if (cso !== null) {
-        if (!se.csos.has(cso)) se.csos.set(cso, { amount: 0, finalAmount: 0 });
+        if (!se.csos.has(cso)) se.csos.set(cso, { amount: 0, finalAmount: 0, hospitals: new Map() });
         const ce = se.csos.get(cso)!;
         ce.amount += amt; ce.finalAmount += fin;
+        if (hos !== null) {
+          if (!ce.hospitals.has(hos)) ce.hospitals.set(hos, { amount: 0, finalAmount: 0 });
+          const he = ce.hospitals.get(hos)!;
+          he.amount += amt; he.finalAmount += fin;
+        }
       }
     }
 
@@ -282,7 +295,14 @@ export function processEdi(
       amount:      v.amount,
       finalAmount: v.finalAmount,
       csos: [...v.csos.entries()]
-        .map(([n, c]) => ({ name: n, amount: c.amount, finalAmount: c.finalAmount }))
+        .map(([n, c]) => ({
+          name:        n,
+          amount:      c.amount,
+          finalAmount: c.finalAmount,
+          hospitals: [...c.hospitals.entries()]
+            .map(([hn, h]) => ({ name: hn, amount: h.amount, finalAmount: h.finalAmount }))
+            .sort((a, b) => b.amount - a.amount),
+        }))
         .sort((a, b) => b.amount - a.amount),
     }))
     .sort((a, b) => b.amount - a.amount);

@@ -235,20 +235,31 @@ function EdiDashboard({ data }: { data: EdiData }) {
 }
 
 /* ════════════════════════════════════════════════════════════ */
-/*  ① 담당자별 현황 + CSO 드릴다운 (아코디언 통합)              */
+/*  ① 담당자별 현황 + CSO → 처방처 2단 드릴다운 (아코디언)     */
 /* ════════════════════════════════════════════════════════════ */
 function SalesPersonAccordion({ stats, totalAmount, totalFinalAmount }: {
   stats: SalesPersonStat[];
   totalAmount: number;
   totalFinalAmount: number;
 }) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // 1단: 담당자 열림 여부
+  const [expandedSp,   setExpandedSp]   = useState<Set<string>>(new Set());
+  // 2단: 담당자||CSO 복합키로 CSO 열림 여부
+  const [expandedCsos, setExpandedCsos] = useState<Set<string>>(new Set());
 
-  function toggle(name: string) {
-    setExpanded(prev => {
+  function toggleSp(name: string) {
+    setExpandedSp(prev => {
       const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  }
+
+  function toggleCso(spName: string, csoName: string) {
+    const key = `${spName}||${csoName}`;
+    setExpandedCsos(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   }
@@ -260,30 +271,31 @@ function SalesPersonAccordion({ stats, totalAmount, totalFinalAmount }: {
           <thead>
             <tr>
               <th style={{ ...TH('left'), minWidth: 120 }}>담당자</th>
-              <th style={{ ...TH('left'), minWidth: 180 }}>담당CSO</th>
+              <th style={{ ...TH('left'), minWidth: 160 }}>담당CSO</th>
+              <th style={{ ...TH('left'), minWidth: 150 }}>처방처</th>
               <th style={TH('right')}>처방액</th>
               <th style={TH('right')}>최종실적</th>
             </tr>
           </thead>
           <tbody>
             {stats.map(sp => {
-              const isOpen   = expanded.has(sp.name);
+              const isSpOpen = expandedSp.has(sp.name);
               const hasCsos  = sp.csos.length > 0;
               return (
                 <Fragment key={sp.name}>
-                  {/* 담당자 요약 행 */}
+                  {/* ── 담당자 요약 행 ── */}
                   <tr
-                    onClick={() => hasCsos && toggle(sp.name)}
+                    onClick={() => hasCsos && toggleSp(sp.name)}
                     style={{
                       background: 'rgba(168,85,247,0.07)',
                       cursor: hasCsos ? 'pointer' : 'default',
                       borderBottom: '1px solid rgba(255,255,255,0.06)',
                     }}
                   >
-                    <td colSpan={2} style={{ ...TD('left'), fontWeight: 600, color: '#d8b4fe', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#d8b4fe', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
                       {hasCsos && (
                         <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>
-                          {isOpen ? '▼' : '▶'}
+                          {isSpOpen ? '▼' : '▶'}
                         </span>
                       )}
                       {sp.name}
@@ -295,20 +307,61 @@ function SalesPersonAccordion({ stats, totalAmount, totalFinalAmount }: {
                       {fmt(sp.finalAmount)}
                     </td>
                   </tr>
-                  {/* CSO 상세 (펼쳤을 때) */}
-                  {isOpen && sp.csos.map(cso => (
-                    <tr key={cso.name} style={{ background: 'rgba(255,255,255,0.015)' }}>
-                      <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.75rem' }}>└</td>
-                      <td style={{ ...TD('left'), fontSize: '0.78rem' }}>{cso.name}</td>
-                      <td style={{ ...TD('right', true), fontSize: '0.78rem' }}>{fmt(cso.amount)}</td>
-                      <td style={{ ...TD('right'), fontSize: '0.78rem' }}>{fmt(cso.finalAmount)}</td>
-                    </tr>
-                  ))}
+
+                  {/* ── CSO 하위 행 (1단 펼침) ── */}
+                  {isSpOpen && sp.csos.map(cso => {
+                    const csoKey    = `${sp.name}||${cso.name}`;
+                    const isCsoOpen = expandedCsos.has(csoKey);
+                    const hasHos    = cso.hospitals.length > 0;
+                    return (
+                      <Fragment key={cso.name}>
+                        <tr
+                          onClick={() => hasHos && toggleCso(sp.name, cso.name)}
+                          style={{
+                            background: 'rgba(52,211,153,0.05)',
+                            cursor: hasHos ? 'pointer' : 'default',
+                            borderBottom: '1px solid rgba(255,255,255,0.04)',
+                          }}
+                        >
+                          <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.72rem' }}>└</td>
+                          <td colSpan={2} style={{ ...TD('left'), fontSize: '0.78rem', color: '#6ee7b7' }}>
+                            {hasHos && (
+                              <span style={{ marginRight: '0.35rem', fontSize: '0.6rem', opacity: 0.7 }}>
+                                {isCsoOpen ? '▼' : '▶'}
+                              </span>
+                            )}
+                            {cso.name}
+                          </td>
+                          <td style={{ ...TD('right', true), fontSize: '0.78rem' }}>{fmt(cso.amount)}</td>
+                          <td style={{ ...TD('right'), fontSize: '0.78rem' }}>{fmt(cso.finalAmount)}</td>
+                        </tr>
+
+                        {/* ── 처방처 하위 행 (2단 펼침) ── */}
+                        {isCsoOpen && cso.hospitals.map(h => (
+                          <tr key={h.name} style={{
+                            background: 'rgba(255,255,255,0.01)',
+                            borderBottom: '1px solid rgba(255,255,255,0.03)',
+                          }}>
+                            <td style={{ ...TD_MUTED('left'), fontSize: '0.7rem' }} />
+                            <td style={{ ...TD_MUTED('left'), paddingLeft: '1.4rem', fontSize: '0.7rem' }}>└</td>
+                            <td style={{
+                              ...TD('left'), fontSize: '0.76rem',
+                              maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis',
+                            }} title={h.name}>
+                              {h.name}
+                            </td>
+                            <td style={{ ...TD('right', true), fontSize: '0.76rem' }}>{fmt(h.amount)}</td>
+                            <td style={{ ...TD('right'), fontSize: '0.76rem' }}>{fmt(h.finalAmount)}</td>
+                          </tr>
+                        ))}
+                      </Fragment>
+                    );
+                  })}
                 </Fragment>
               );
             })}
             <tr style={TR_TOTAL}>
-              <td colSpan={2} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
+              <td colSpan={3} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
               <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
               <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
             </tr>

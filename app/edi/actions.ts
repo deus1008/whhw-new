@@ -63,7 +63,7 @@ export async function getEdiData(): Promise<{
       if (blob) {
         const cached = JSON.parse(await blob.text()) as EdiReport;
         // 구버전 캐시 감지: 필수 필드 없거나 캐시 버전 불일치 시 재처리
-        const CACHE_VERSION = 7; // 품목×CSO별 처방처 2단 드릴다운 추가
+        const CACHE_VERSION = 8; // 담당자×CSO별 처방처 2단 드릴다운 추가
         const d = cached.data as unknown as Record<string, unknown>;
         if (
           !Array.isArray(d.salesPersonStats) ||
@@ -136,7 +136,7 @@ export async function getEdiData(): Promise<{
         data,
         updated_at:   doc.created_at as string,
         doc_id:       doc.id as string,
-        cacheVersion: 7,
+        cacheVersion: 8,
       };
 
       // 캐시 저장 (실패해도 무시)
