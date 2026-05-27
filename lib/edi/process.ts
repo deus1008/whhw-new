@@ -208,7 +208,8 @@ export function processEdi(
   type Pair = { amount: number; finalAmount: number };
   // 담당자 → CSO → 처방처 3단 집계
   const spMap   = new Map<string, Pair & { csos: Map<string, Pair & { hospitals: Map<string, Pair> }> }>();
-  const csoMap  = new Map<string, Pair & { hospitals: Map<string, Pair> }>();
+  // CSO → 처방처 → 품목 3단 집계
+  const csoMap  = new Map<string, Pair & { hospitals: Map<string, Pair & { items: Map<string, Pair> }> }>();
   const hosMap  = new Map<string, Pair & { items: Map<string, Pair> }>();
   // 품목 → CSO → 처방처 3단 집계
   const itemMap = new Map<string, Pair & { csos: Map<string, Pair & { hospitals: Map<string, Pair> }> }>();
@@ -244,15 +245,20 @@ export function processEdi(
       }
     }
 
-    /* CSO 집계 */
+    /* CSO 집계 (처방처 → 품목 2단 드릴다운) */
     if (cso !== null) {
       if (!csoMap.has(cso)) csoMap.set(cso, { amount: 0, finalAmount: 0, hospitals: new Map() });
       const ce = csoMap.get(cso)!;
       ce.amount += amt; ce.finalAmount += fin;
       if (hos !== null) {
-        if (!ce.hospitals.has(hos)) ce.hospitals.set(hos, { amount: 0, finalAmount: 0 });
+        if (!ce.hospitals.has(hos)) ce.hospitals.set(hos, { amount: 0, finalAmount: 0, items: new Map() });
         const he = ce.hospitals.get(hos)!;
         he.amount += amt; he.finalAmount += fin;
+        if (item !== null) {
+          if (!he.items.has(item)) he.items.set(item, { amount: 0, finalAmount: 0 });
+          const ie = he.items.get(item)!;
+          ie.amount += amt; ie.finalAmount += fin;
+        }
       }
     }
 
@@ -313,7 +319,14 @@ export function processEdi(
       amount:      v.amount,
       finalAmount: v.finalAmount,
       hospitals: [...v.hospitals.entries()]
-        .map(([n, h]) => ({ name: n, amount: h.amount, finalAmount: h.finalAmount, items: [] }))
+        .map(([n, h]) => ({
+          name:        n,
+          amount:      h.amount,
+          finalAmount: h.finalAmount,
+          items: [...h.items.entries()]
+            .map(([in_, it]) => ({ name: in_, amount: it.amount, finalAmount: it.finalAmount }))
+            .sort((a, b) => b.amount - a.amount),
+        }))
         .sort((a, b) => b.amount - a.amount),
     }))
     .sort((a, b) => b.amount - a.amount);
