@@ -61,7 +61,7 @@ export async function createSchedule(
     .single();
 
   if (error) return { error: `저장 실패: ${error.message}` };
-  revalidatePath('/marketing');
+  revalidatePath('/calendar');
   return { data: data as MarketingSchedule };
 }
 
@@ -91,7 +91,7 @@ export async function updateSchedule(
     .single();
 
   if (error) return { error: `수정 실패: ${error.message}` };
-  revalidatePath('/marketing');
+  revalidatePath('/calendar');
   return { data: data as MarketingSchedule };
 }
 
@@ -113,6 +113,6 @@ export async function deleteSchedule(id: string): Promise<Result> {
     .eq('id', id);
 
   if (error) return { error: `삭제 실패: ${error.message}` };
-  revalidatePath('/marketing');
+  revalidatePath('/calendar');
   return {};
 }

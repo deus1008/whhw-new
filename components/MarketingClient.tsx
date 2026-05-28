@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import type { MarketingSchedule } from '@/app/marketing/page';
+import type { MarketingSchedule } from '@/app/calendar/page';
 import {
   createSchedule,
   updateSchedule,
   deleteSchedule,
   type ScheduleInput,
-} from '@/app/marketing/actions';
+} from '@/app/calendar/actions';
 
 /* ── 카테고리 정의 ─────────────────────────────────────────── */
 const CATEGORIES = ['학술대회', '심포지엄', '제품설명회', '영업관리', '영업미팅', '기타'];

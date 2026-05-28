@@ -62,7 +62,7 @@ const NAV_ITEMS = [
     external: false,
   },
   {
-    href: '/marketing',
+    href: '/calendar',
     icon: '📅',
     label: '주요일정',
     color: '#fdba74',
