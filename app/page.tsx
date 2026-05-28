@@ -62,6 +62,15 @@ const NAV_ITEMS = [
     external: false,
   },
   {
+    href: '/marketing',
+    icon: '📅',
+    label: '마케팅일정',
+    color: '#fdba74',
+    bg:   'rgba(251,146,60,0.10)',
+    bd:   'rgba(251,146,60,0.22)',
+    external: false,
+  },
+  {
     href: '/chat',
     icon: '💬',
     label: '챗봇',
