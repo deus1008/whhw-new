@@ -1,7 +1,8 @@
 import OpenAI from 'openai';
 
-const BATCH_SIZE   = 100; // OpenAI 권장 상한
-const MAX_RETRIES  = 6;
+const BATCH_SIZE          = 20;    // TPM 한도 분산: 100 → 20 (배치당 ~13K 토큰)
+const INTER_BATCH_DELAY   = 3_000; // 배치 간 대기(ms): TPM 과부하 방지
+const MAX_RETRIES         = 6;
 
 let _client: OpenAI | null = null;
 function getClient() {
@@ -59,6 +60,11 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
     const batch  = texts.slice(i, i + BATCH_SIZE);
     const result = await embedBatchWithRetry(client, batch);
     embeddings.push(...result);
+
+    // 배치 간 대기: 연속 요청으로 인한 TPM(분당 토큰) 한도 초과 방지
+    if (i + BATCH_SIZE < texts.length) {
+      await new Promise(r => setTimeout(r, INTER_BATCH_DELAY));
+    }
   }
 
   return embeddings;

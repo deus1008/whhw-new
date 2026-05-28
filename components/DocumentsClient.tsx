@@ -105,14 +105,16 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
     }
   }, [folders, activeFolder]);
 
-  // 페이지 로드 시 '처리 대기(processing)' 상태로 중단된 문서 자동 재시작
+  // 페이지 로드 시 '처리 대기(processing)' 또는 '완료인데 청크 없음' 문서 자동 재시작
   useEffect(() => {
-    const stuckDocs = initialDocuments.filter(d => d.status === 'processing');
+    const stuckDocs = initialDocuments.filter(
+      d => d.status === 'processing' || (d.status === 'ready' && d.chunk_count === 0),
+    );
     if (stuckDocs.length === 0) return;
-    console.log(`[DocumentsClient] 처리 대기 문서 ${stuckDocs.length}개 자동 재개`);
+    console.log(`[DocumentsClient] 처리 필요 문서 ${stuckDocs.length}개 자동 재개`);
     stuckDocs.forEach((doc, i) => {
-      // 서버 부하 분산을 위해 1.5초 간격으로 순차 처리
-      setTimeout(() => { triggerProcess(doc.id); }, i * 1500);
+      // 서버 부하 분산 및 TPM 한도 보호를 위해 5초 간격으로 순차 처리
+      setTimeout(() => { triggerProcess(doc.id); }, i * 5_000);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -271,10 +273,14 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
     }
   }
 
-  /* ── 오류 파일 전체 재처리 ───────────────────────────── */
+  /* ── 오류/학습없음 파일 전체 재처리 ─────────────────── */
   async function handleBatchReprocess() {
     const errorDocs = visibleDocs.filter(
-      d => (d.status === 'error' || d.status === 'running') && !processingIds.has(d.id)
+      d =>
+        (d.status === 'error' ||
+          d.status === 'running' ||
+          (d.status === 'ready' && d.chunk_count === 0)) &&
+        !processingIds.has(d.id),
     );
     if (errorDocs.length === 0 || batchProcessing) return;
 
@@ -284,9 +290,9 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
     for (let i = 0; i < errorDocs.length; i++) {
       setBatchProgress({ current: i + 1, total: errorDocs.length });
       await triggerProcess(errorDocs[i].id);
-      // 연속 요청 간 짧은 지연 (Rate-limit 방지)
+      // TPM 한도 보호: 파일 간 5초 대기
       if (i < errorDocs.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 800));
+        await new Promise(resolve => setTimeout(resolve, 5_000));
       }
     }
 
@@ -501,8 +507,10 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
               {visibleDocs.length}{activeFolder !== null && `/${documents.length}`}
             </span>
           </h2>
-          {/* 오류/중단 파일이 있을 때 전체 재처리 버튼 표시 */}
-          {visibleDocs.some(d => d.status === 'error' || d.status === 'running') && (
+          {/* 오류/중단/학습없음 파일이 있을 때 전체 재처리 버튼 표시 */}
+          {visibleDocs.some(
+            d => d.status === 'error' || d.status === 'running' || (d.status === 'ready' && d.chunk_count === 0),
+          ) && (
             <button
               onClick={handleBatchReprocess}
               disabled={batchProcessing}
@@ -521,7 +529,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                   {batchProgress ? `재처리 중… ${batchProgress.current}/${batchProgress.total}` : '재처리 중…'}
                 </>
               ) : (
-                `🔄 ${visibleDocs.filter(d => d.status === 'error' || d.status === 'running').length}개 전체 재처리`
+                `🔄 ${visibleDocs.filter(d => d.status === 'error' || d.status === 'running' || (d.status === 'ready' && d.chunk_count === 0)).length}개 전체 재처리`
               )}
             </button>
           )}
