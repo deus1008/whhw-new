@@ -2,31 +2,31 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import type { UpcomingProduct } from './page';
+import type { UpcomingProduct, DateEntry } from './page';
 
 export type ProductInput = {
-  year_label:    string;
-  launch_timing: string;
-  product_name:  string;
-  category:      string;
-  ingredient:    string;
-  is_priority:   boolean;
-  memo:          string;
+  ingredient:     string;
+  product_name:   string;
+  approval_dates: DateEntry[];
+  launch_dates:   DateEntry[];
+  product_type:   string;
+  contractor:     string;
+  indication:     string;
+  expected_price: string;
+  status:         string;
+  memo:           string;
+  is_priority:    boolean;
 };
 
 type Result<T = void> = { data?: T; error?: string };
 
-/* ── 공통: 승인된 멤버 인증 ─────────────────────────────────── */
 async function getApproved() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: '인증이 필요합니다.' };
 
   const { data: profile } = await supabase
-    .from('profiles')
-    .select('role, status')
-    .eq('id', user.id)
-    .single();
+    .from('profiles').select('role, status').eq('id', user.id).single();
 
   if (!profile || profile.status !== 'approved')
     return { error: '승인된 계정이 아닙니다.' };
@@ -34,7 +34,6 @@ async function getApproved() {
   return { supabase, user, role: profile.role as string };
 }
 
-/* ── 공통: 관리자 인증 ─────────────────────────────────────── */
 async function getAdmin() {
   const auth = await getApproved();
   if (auth.error || !auth.supabase) return auth;
@@ -44,31 +43,30 @@ async function getAdmin() {
 
 function clean(input: ProductInput) {
   return {
-    year_label:    input.year_label.trim(),
-    launch_timing: input.launch_timing.trim(),
-    product_name:  input.product_name.trim(),
-    category:      input.category.trim()   || null,
-    ingredient:    input.ingredient.trim() || null,
-    is_priority:   input.is_priority,
-    memo:          input.memo.trim()       || null,
+    ingredient:     input.ingredient.trim(),
+    product_name:   input.product_name.trim()   || null,
+    approval_dates: input.approval_dates.filter(d => d.date),
+    launch_dates:   input.launch_dates.filter(d => d.date),
+    product_type:   input.product_type || '자사',
+    contractor:     input.product_type === '위탁' ? (input.contractor.trim() || null) : null,
+    indication:     input.indication.trim()     || null,
+    expected_price: input.expected_price.trim() || null,
+    status:         input.status                || null,
+    memo:           input.memo.trim()           || null,
+    is_priority:    input.is_priority,
   };
 }
 
 /* ── 생성 (승인된 멤버) ─────────────────────────────────────── */
-export async function createProduct(
-  input: ProductInput,
-): Promise<Result<UpcomingProduct>> {
+export async function createProduct(input: ProductInput): Promise<Result<UpcomingProduct>> {
   const auth = await getApproved();
   if (auth.error || !auth.supabase) return { error: auth.error };
-  if (!input.product_name)  return { error: '제품명을 입력하세요.' };
-  if (!input.year_label)    return { error: '연도를 입력하세요.' };
-  if (!input.launch_timing) return { error: '발매예정 시기를 입력하세요.' };
+  if (!input.ingredient.trim()) return { error: '성분명을 입력하세요.' };
 
   const { data, error } = await auth.supabase
     .from('upcoming_products')
     .insert({ ...clean(input), user_id: auth.user!.id })
-    .select()
-    .single();
+    .select().single();
 
   if (error) return { error: `저장 실패: ${error.message}` };
   revalidatePath('/products');
@@ -76,22 +74,16 @@ export async function createProduct(
 }
 
 /* ── 수정 (승인된 멤버) ─────────────────────────────────────── */
-export async function updateProduct(
-  id: string,
-  input: ProductInput,
-): Promise<Result<UpcomingProduct>> {
+export async function updateProduct(id: string, input: ProductInput): Promise<Result<UpcomingProduct>> {
   const auth = await getApproved();
   if (auth.error || !auth.supabase) return { error: auth.error };
-  if (!input.product_name)  return { error: '제품명을 입력하세요.' };
-  if (!input.year_label)    return { error: '연도를 입력하세요.' };
-  if (!input.launch_timing) return { error: '발매예정 시기를 입력하세요.' };
+  if (!input.ingredient.trim()) return { error: '성분명을 입력하세요.' };
 
   const { data, error } = await auth.supabase
     .from('upcoming_products')
     .update(clean(input))
     .eq('id', id)
-    .select()
-    .single();
+    .select().single();
 
   if (error) return { error: `수정 실패: ${error.message}` };
   revalidatePath('/products');
@@ -104,9 +96,7 @@ export async function deleteProduct(id: string): Promise<Result> {
   if (auth.error || !auth.supabase) return { error: auth.error };
 
   const { error } = await auth.supabase
-    .from('upcoming_products')
-    .delete()
-    .eq('id', id);
+    .from('upcoming_products').delete().eq('id', id);
 
   if (error) return { error: `삭제 실패: ${error.message}` };
   revalidatePath('/products');
