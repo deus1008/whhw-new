@@ -10,15 +10,15 @@ import {
 } from '@/app/marketing/actions';
 
 /* ── 카테고리 정의 ─────────────────────────────────────────── */
-const CATEGORIES = ['전시회', '학술대회', '설명회', '광고/홍보', '심포지엄', '기타'];
+const CATEGORIES = ['학술대회', '심포지엄', '제품설명회', '영업관리', '영업미팅', '기타'];
 
 const CAT_COLORS: Record<string, { dot: string; bg: string; text: string }> = {
-  '전시회':   { dot: '#60a5fa', bg: 'rgba(59,130,246,0.15)',  text: '#93c5fd' },
-  '학술대회': { dot: '#a78bfa', bg: 'rgba(139,92,246,0.15)',  text: '#c4b5fd' },
-  '설명회':   { dot: '#34d399', bg: 'rgba(52,211,153,0.15)',  text: '#6ee7b7' },
-  '광고/홍보':{ dot: '#fb923c', bg: 'rgba(251,146,60,0.15)',  text: '#fdba74' },
-  '심포지엄': { dot: '#22d3ee', bg: 'rgba(6,182,212,0.15)',   text: '#67e8f9' },
-  '기타':     { dot: '#94a3b8', bg: 'rgba(148,163,184,0.15)', text: '#cbd5e1' },
+  '학술대회':   { dot: '#a78bfa', bg: 'rgba(139,92,246,0.15)',  text: '#c4b5fd' },
+  '심포지엄':   { dot: '#22d3ee', bg: 'rgba(6,182,212,0.15)',   text: '#67e8f9' },
+  '제품설명회': { dot: '#34d399', bg: 'rgba(52,211,153,0.15)',  text: '#6ee7b7' },
+  '영업관리':   { dot: '#fb923c', bg: 'rgba(251,146,60,0.15)',  text: '#fdba74' },
+  '영업미팅':   { dot: '#60a5fa', bg: 'rgba(59,130,246,0.15)',  text: '#93c5fd' },
+  '기타':       { dot: '#94a3b8', bg: 'rgba(148,163,184,0.15)', text: '#cbd5e1' },
 };
 function catColor(cat: string | null) {
   return CAT_COLORS[cat ?? ''] ?? CAT_COLORS['기타'];
