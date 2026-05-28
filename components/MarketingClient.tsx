@@ -170,7 +170,7 @@ export default function MarketingClient({ initialSchedules, userId, isAdmin }: P
       {/* ── 제목 + 추가 버튼 ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.8rem' }}>
         <h1 style={{ fontSize: 'clamp(1.2rem, 3vw, 1.6rem)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-          📅 마케팅 일정
+          📅 주요 일정
         </h1>
         <button onClick={() => openCreate()} style={addBtn}>+ 일정 등록</button>
       </div>

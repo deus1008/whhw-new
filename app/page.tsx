@@ -64,7 +64,7 @@ const NAV_ITEMS = [
   {
     href: '/marketing',
     icon: '📅',
-    label: '마케팅일정',
+    label: '주요일정',
     color: '#fdba74',
     bg:   'rgba(251,146,60,0.10)',
     bd:   'rgba(251,146,60,0.22)',
