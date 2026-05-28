@@ -5,19 +5,19 @@ import { createClient } from '@/lib/supabase/server';
 import type { UpcomingProduct } from './page';
 
 export type ProductInput = {
-  title:           string;
-  launch_date:     string;
-  manufacturer:    string;
-  indication:      string;
-  insurance_price: string;
-  insurance_code:  string;
-  status:          string;
-  memo:            string;
+  year_label:    string;
+  launch_timing: string;
+  product_name:  string;
+  category:      string;
+  ingredient:    string;
+  is_priority:   boolean;
+  memo:          string;
 };
 
 type Result<T = void> = { data?: T; error?: string };
 
-async function getAdmin() {
+/* ── 공통: 승인된 멤버 인증 ─────────────────────────────────── */
+async function getApproved() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: '인증이 필요합니다.' };
@@ -31,36 +31,42 @@ async function getAdmin() {
   if (!profile || profile.status !== 'approved')
     return { error: '승인된 계정이 아닙니다.' };
 
-  if (profile.role !== 'admin')
-    return { error: '관리자만 수정할 수 있습니다.' };
+  return { supabase, user, role: profile.role as string };
+}
 
-  return { supabase, user };
+/* ── 공통: 관리자 인증 ─────────────────────────────────────── */
+async function getAdmin() {
+  const auth = await getApproved();
+  if (auth.error || !auth.supabase) return auth;
+  if (auth.role !== 'admin') return { error: '관리자만 삭제할 수 있습니다.' };
+  return auth;
 }
 
 function clean(input: ProductInput) {
   return {
-    title:           input.title.trim(),
-    launch_date:     input.launch_date     || null,
-    manufacturer:    input.manufacturer.trim()    || null,
-    indication:      input.indication.trim()      || null,
-    insurance_price: input.insurance_price.trim() || null,
-    insurance_code:  input.insurance_code.trim()  || null,
-    status:          input.status.trim()          || null,
-    memo:            input.memo.trim()            || null,
+    year_label:    input.year_label.trim(),
+    launch_timing: input.launch_timing.trim(),
+    product_name:  input.product_name.trim(),
+    category:      input.category.trim()   || null,
+    ingredient:    input.ingredient.trim() || null,
+    is_priority:   input.is_priority,
+    memo:          input.memo.trim()       || null,
   };
 }
 
-/* ── 생성 ─────────────────────────────────────────────────── */
+/* ── 생성 (승인된 멤버) ─────────────────────────────────────── */
 export async function createProduct(
   input: ProductInput,
 ): Promise<Result<UpcomingProduct>> {
-  const auth = await getAdmin();
+  const auth = await getApproved();
   if (auth.error || !auth.supabase) return { error: auth.error };
-  if (!input.title) return { error: '품목명을 입력하세요.' };
+  if (!input.product_name)  return { error: '제품명을 입력하세요.' };
+  if (!input.year_label)    return { error: '연도를 입력하세요.' };
+  if (!input.launch_timing) return { error: '발매예정 시기를 입력하세요.' };
 
   const { data, error } = await auth.supabase
     .from('upcoming_products')
-    .insert(clean(input))
+    .insert({ ...clean(input), user_id: auth.user!.id })
     .select()
     .single();
 
@@ -69,14 +75,16 @@ export async function createProduct(
   return { data: data as UpcomingProduct };
 }
 
-/* ── 수정 ─────────────────────────────────────────────────── */
+/* ── 수정 (승인된 멤버) ─────────────────────────────────────── */
 export async function updateProduct(
   id: string,
   input: ProductInput,
 ): Promise<Result<UpcomingProduct>> {
-  const auth = await getAdmin();
+  const auth = await getApproved();
   if (auth.error || !auth.supabase) return { error: auth.error };
-  if (!input.title) return { error: '품목명을 입력하세요.' };
+  if (!input.product_name)  return { error: '제품명을 입력하세요.' };
+  if (!input.year_label)    return { error: '연도를 입력하세요.' };
+  if (!input.launch_timing) return { error: '발매예정 시기를 입력하세요.' };
 
   const { data, error } = await auth.supabase
     .from('upcoming_products')
@@ -90,7 +98,7 @@ export async function updateProduct(
   return { data: data as UpcomingProduct };
 }
 
-/* ── 삭제 ─────────────────────────────────────────────────── */
+/* ── 삭제 (관리자 전용) ─────────────────────────────────────── */
 export async function deleteProduct(id: string): Promise<Result> {
   const auth = await getAdmin();
   if (auth.error || !auth.supabase) return { error: auth.error };

@@ -5,83 +5,83 @@ import type { UpcomingProduct } from '@/app/products/page';
 import type { ProductInput } from '@/app/products/actions';
 import { createProduct, updateProduct, deleteProduct } from '@/app/products/actions';
 
-const STATUS_LIST = ['검토중', '협의중', '계약완료', '발매확정', '발매완료', '보류'];
-
-const STATUS_COLORS: Record<string, { bg: string; bd: string; color: string }> = {
-  '검토중':  { bg: 'rgba(148,163,184,0.15)', bd: 'rgba(148,163,184,0.35)', color: '#94a3b8' },
-  '협의중':  { bg: 'rgba(251,191,36,0.15)',  bd: 'rgba(251,191,36,0.35)',  color: '#fbbf24' },
-  '계약완료': { bg: 'rgba(59,130,246,0.15)', bd: 'rgba(59,130,246,0.35)', color: '#60a5fa' },
-  '발매확정': { bg: 'rgba(16,185,129,0.15)', bd: 'rgba(16,185,129,0.35)', color: '#34d399' },
-  '발매완료': { bg: 'rgba(52,211,153,0.15)', bd: 'rgba(52,211,153,0.35)', color: '#6ee7b7' },
-  '보류':    { bg: 'rgba(239,68,68,0.15)',   bd: 'rgba(239,68,68,0.35)',   color: '#f87171' },
-};
-
 const EMPTY: ProductInput = {
-  title: '', launch_date: '', manufacturer: '', indication: '',
-  insurance_price: '', insurance_code: '', status: '', memo: '',
+  year_label: '', launch_timing: '', product_name: '',
+  category: '', ingredient: '', is_priority: false, memo: '',
 };
 
 interface Props {
   initialProducts: UpcomingProduct[];
   isAdmin: boolean;
+  userId: string;
 }
 
 export default function ProductsClient({ initialProducts, isAdmin }: Props) {
-  const [products, setProducts] = useState<UpcomingProduct[]>(initialProducts);
+  const [products, setProducts]     = useState<UpcomingProduct[]>(initialProducts);
   const [modalOpen, setModalOpen]   = useState(false);
   const [editing, setEditing]       = useState<UpcomingProduct | null>(null);
   const [form, setForm]             = useState<ProductInput>(EMPTY);
-  const [error, setError]           = useState('');
+  const [formError, setFormError]   = useState('');
   const [isPending, startTransition] = useTransition();
-  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterYear, setFilterYear] = useState('');
   const [search, setSearch]         = useState('');
 
-  /* ── form helpers ─────────────────────────────────────────── */
+  /* ── 연도 목록 ───────────────────────────────────────────── */
+  const years = Array.from(new Set(products.map(p => p.year_label))).sort();
+
+  /* ── 필터된 목록 ─────────────────────────────────────────── */
+  const filtered = products.filter(p => {
+    const matchYear = !filterYear || p.year_label === filterYear;
+    const q = search.trim().toLowerCase();
+    const matchSearch = !q
+      || p.product_name.toLowerCase().includes(q)
+      || (p.category ?? '').toLowerCase().includes(q)
+      || (p.ingredient ?? '').toLowerCase().includes(q)
+      || p.launch_timing.toLowerCase().includes(q);
+    return matchYear && matchSearch;
+  });
+
+  /* ── 연도별 그룹 ─────────────────────────────────────────── */
+  const grouped: { year: string; rows: UpcomingProduct[] }[] = [];
+  for (const p of filtered) {
+    const g = grouped.find(g => g.year === p.year_label);
+    if (g) g.rows.push(p);
+    else grouped.push({ year: p.year_label, rows: [p] });
+  }
+
+  /* ── 모달 helpers ────────────────────────────────────────── */
   function openCreate() {
-    setEditing(null);
-    setForm(EMPTY);
-    setError('');
-    setModalOpen(true);
+    setEditing(null); setForm(EMPTY); setFormError(''); setModalOpen(true);
   }
   function openEdit(p: UpcomingProduct) {
     setEditing(p);
     setForm({
-      title:           p.title,
-      launch_date:     p.launch_date    ?? '',
-      manufacturer:    p.manufacturer   ?? '',
-      indication:      p.indication     ?? '',
-      insurance_price: p.insurance_price ?? '',
-      insurance_code:  p.insurance_code  ?? '',
-      status:          p.status         ?? '',
-      memo:            p.memo           ?? '',
+      year_label:    p.year_label,
+      launch_timing: p.launch_timing,
+      product_name:  p.product_name,
+      category:      p.category    ?? '',
+      ingredient:    p.ingredient  ?? '',
+      is_priority:   p.is_priority,
+      memo:          p.memo        ?? '',
     });
-    setError('');
-    setModalOpen(true);
+    setFormError(''); setModalOpen(true);
   }
   function closeModal() { setModalOpen(false); setEditing(null); }
 
   /* ── submit ───────────────────────────────────────────────── */
   function handleSubmit() {
-    setError('');
+    setFormError('');
     startTransition(async () => {
       const result = editing
         ? await updateProduct(editing.id, form)
         : await createProduct(form);
 
-      if (result.error) { setError(result.error); return; }
+      if (result.error) { setFormError(result.error); return; }
 
       if (editing) {
         setProducts(prev => prev.map(p => p.id === editing.id ? result.data! : p));
       } else {
-        setProducts(prev => {
-          const next = [result.data!, ...prev];
-          return next.sort((a, b) => {
-            if (!a.launch_date && !b.launch_date) return 0;
-            if (!a.launch_date) return 1;
-            if (!b.launch_date) return -1;
-            return a.launch_date.localeCompare(b.launch_date);
-          });
-        });
+        setProducts(prev => sortProducts([...prev, result.data!]));
       }
       closeModal();
     });
@@ -97,18 +97,6 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
     });
   }
 
-  /* ── filter ───────────────────────────────────────────────── */
-  const filtered = products.filter(p => {
-    const matchStatus = !filterStatus || p.status === filterStatus;
-    const q = search.trim().toLowerCase();
-    const matchSearch = !q
-      || p.title.toLowerCase().includes(q)
-      || (p.manufacturer ?? '').toLowerCase().includes(q)
-      || (p.indication ?? '').toLowerCase().includes(q)
-      || (p.insurance_code ?? '').toLowerCase().includes(q);
-    return matchStatus && matchSearch;
-  });
-
   return (
     <>
       {/* ── 헤더 ─────────────────────────────────────────────── */}
@@ -117,7 +105,7 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
           🚀 발매예정품목
         </h2>
         <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.3rem' }}>
-          파이프라인 관리 — 계약 검토부터 발매 완료까지
+          ★ 표시 항목은 우선 관리 품목입니다.
         </p>
       </div>
 
@@ -125,72 +113,41 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
       <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1.2rem' }}>
         <input
           type="text"
-          placeholder="품목명 / 제조사 / 적응증 / 보험코드 검색"
+          placeholder="제품명 / 계열 / 성분명 검색"
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{
-            flex: '1 1 220px', padding: '0.5rem 0.9rem', borderRadius: '8px',
+            flex: '1 1 200px', padding: '0.5rem 0.9rem', borderRadius: '8px',
             background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
             color: '#e2e8f0', fontSize: '0.82rem', outline: 'none',
           }}
         />
 
         <select
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}
+          value={filterYear}
+          onChange={e => setFilterYear(e.target.value)}
           style={{
             padding: '0.5rem 0.75rem', borderRadius: '8px',
             background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
             color: '#e2e8f0', fontSize: '0.82rem', cursor: 'pointer',
           }}
         >
-          <option value="">전체 상태</option>
-          {STATUS_LIST.map(s => <option key={s} value={s}>{s}</option>)}
+          <option value="">전체 연도</option>
+          {years.map(y => <option key={y} value={y}>{y}</option>)}
         </select>
 
-        {isAdmin && (
-          <button
-            onClick={openCreate}
-            style={{
-              padding: '0.5rem 1.1rem', borderRadius: '8px',
-              background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.4)',
-              color: '#a5b4fc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
-              fontFamily: 'inherit', whiteSpace: 'nowrap',
-            }}
-          >
-            + 품목 추가
-          </button>
-        )}
+        <button
+          onClick={openCreate}
+          style={{
+            padding: '0.5rem 1.1rem', borderRadius: '8px',
+            background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.4)',
+            color: '#a5b4fc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer',
+            fontFamily: 'inherit', whiteSpace: 'nowrap',
+          }}
+        >
+          + 품목 추가
+        </button>
       </div>
-
-      {/* ── 상태 범례 ─────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1.2rem' }}>
-        {STATUS_LIST.map(s => {
-          const c = STATUS_COLORS[s] ?? STATUS_COLORS['검토중'];
-          return (
-            <button
-              key={s}
-              onClick={() => setFilterStatus(filterStatus === s ? '' : s)}
-              style={{
-                padding: '0.2rem 0.65rem', borderRadius: '20px',
-                background: filterStatus === s ? c.bg : 'transparent',
-                border: `1px solid ${c.bd}`,
-                color: c.color, fontSize: '0.72rem', fontWeight: 600,
-                cursor: 'pointer', fontFamily: 'inherit',
-                opacity: filterStatus && filterStatus !== s ? 0.45 : 1,
-                transition: 'opacity 0.15s',
-              }}
-            >
-              {s}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── 카운트 ───────────────────────────────────────────── */}
-      <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '0.8rem' }}>
-        {filtered.length}개 품목
-      </p>
 
       {/* ── 테이블 ───────────────────────────────────────────── */}
       {filtered.length === 0 ? (
@@ -199,91 +156,100 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
           background: 'rgba(255,255,255,0.02)', borderRadius: '16px',
           border: '1px solid rgba(255,255,255,0.06)', color: '#475569',
         }}>
-          {search || filterStatus ? '검색 결과가 없습니다.' : '등록된 품목이 없습니다.'}
+          {search || filterYear ? '검색 결과가 없습니다.' : '등록된 품목이 없습니다.'}
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+          <table style={{
+            width: '100%', borderCollapse: 'collapse',
+            fontSize: '0.85rem',
+            background: 'rgba(255,255,255,0.02)',
+            borderRadius: '12px',
+            overflow: 'hidden',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                {['품목명', '발매예정일', '제조사/공급사', '적응증/효능효과', '약가', '보험코드', '상태', '비고', ...(isAdmin ? [''] : [])].map(h => (
-                  <th key={h} style={{
-                    padding: '0.6rem 0.75rem', textAlign: 'left',
-                    color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap',
-                  }}>{h}</th>
-                ))}
+              <tr style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                <Th>구분</Th>
+                <Th>발매예정</Th>
+                <Th>제품명</Th>
+                <Th>계열</Th>
+                <Th>성분명</Th>
+                <Th></Th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((p, i) => {
-                const sc = STATUS_COLORS[p.status ?? ''] ?? STATUS_COLORS['검토중'];
-                return (
+              {grouped.map(({ year, rows }) =>
+                rows.map((p, i) => (
                   <tr
                     key={p.id}
                     style={{
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
+                      borderBottom: '1px solid rgba(255,255,255,0.05)',
+                      background: p.is_priority
+                        ? 'rgba(239,68,68,0.06)'
+                        : i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent',
+                      outline: p.is_priority ? '1px solid rgba(239,68,68,0.25)' : 'none',
                       transition: 'background 0.15s',
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent')}
+                    onMouseEnter={e => (e.currentTarget.style.background = p.is_priority ? 'rgba(239,68,68,0.1)' : 'rgba(255,255,255,0.04)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = p.is_priority ? 'rgba(239,68,68,0.06)' : i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent')}
                   >
-                    <td style={{ padding: '0.65rem 0.75rem', color: '#e2e8f0', fontWeight: 600, minWidth: '120px' }}>
-                      {p.title}
+                    {/* 구분: 해당 연도 첫 행에만 표시 */}
+                    {i === 0 ? (
+                      <td
+                        rowSpan={rows.length}
+                        style={{
+                          padding: '0.7rem 1rem', textAlign: 'center',
+                          color: '#94a3b8', fontWeight: 700,
+                          borderRight: '1px solid rgba(255,255,255,0.07)',
+                          verticalAlign: 'middle', whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {year}
+                      </td>
+                    ) : null}
+                    <td style={{ padding: '0.7rem 1rem', color: '#cbd5e1', fontWeight: 600, whiteSpace: 'nowrap', textAlign: 'center' }}>
+                      {p.is_priority && <span style={{ color: '#f87171', marginRight: '0.3rem' }}>★</span>}
+                      {p.launch_timing}
                     </td>
-                    <td style={{ padding: '0.65rem 0.75rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                      {p.launch_date ? new Date(p.launch_date + 'T00:00:00').toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' }) : '—'}
+                    <td style={{ padding: '0.7rem 1rem', color: '#e2e8f0', fontWeight: 600 }}>
+                      {p.product_name}
                     </td>
-                    <td style={{ padding: '0.65rem 0.75rem', color: '#94a3b8', minWidth: '100px' }}>
-                      {p.manufacturer ?? '—'}
+                    <td style={{ padding: '0.7rem 1rem', color: '#94a3b8', textAlign: 'center' }}>
+                      {p.category
+                        ? p.category.split('\n').map((line, idx) => (
+                            <span key={idx} style={{ display: 'block', lineHeight: 1.4 }}>{line}</span>
+                          ))
+                        : '—'}
                     </td>
-                    <td style={{ padding: '0.65rem 0.75rem', color: '#94a3b8', maxWidth: '220px' }}>
-                      <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {p.indication ?? '—'}
-                      </span>
+                    <td style={{ padding: '0.7rem 1rem', color: '#94a3b8' }}>
+                      {p.ingredient ?? '—'}
                     </td>
-                    <td style={{ padding: '0.65rem 0.75rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                      {p.insurance_price ?? '—'}
-                    </td>
-                    <td style={{ padding: '0.65rem 0.75rem', color: '#94a3b8', fontFamily: 'monospace', fontSize: '0.78rem' }}>
-                      {p.insurance_code ?? '—'}
-                    </td>
-                    <td style={{ padding: '0.65rem 0.75rem', whiteSpace: 'nowrap' }}>
-                      {p.status ? (
-                        <span style={{
-                          display: 'inline-block', padding: '0.15rem 0.55rem',
-                          borderRadius: '20px', background: sc.bg, border: `1px solid ${sc.bd}`,
-                          color: sc.color, fontSize: '0.7rem', fontWeight: 600,
-                        }}>
-                          {p.status}
-                        </span>
-                      ) : '—'}
-                    </td>
-                    <td style={{ padding: '0.65rem 0.75rem', color: '#64748b', maxWidth: '180px', fontSize: '0.78rem' }}>
-                      <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {p.memo ?? ''}
-                      </span>
-                    </td>
-                    {isAdmin && (
-                      <td style={{ padding: '0.65rem 0.75rem', whiteSpace: 'nowrap' }}>
-                        <button
-                          onClick={() => openEdit(p)}
-                          style={actionBtn('#60a5fa', 'rgba(59,130,246,0.15)', 'rgba(59,130,246,0.35)')}
-                        >수정</button>
+                    <td style={{ padding: '0.7rem 0.75rem', whiteSpace: 'nowrap', textAlign: 'right' }}>
+                      <button
+                        onClick={() => openEdit(p)}
+                        style={actionBtn('#60a5fa', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.3)')}
+                      >수정</button>
+                      {isAdmin && (
                         <button
                           onClick={() => handleDelete(p.id)}
-                          style={{ ...actionBtn('#f87171', 'rgba(239,68,68,0.1)', 'rgba(239,68,68,0.3)'), marginLeft: '0.35rem' }}
                           disabled={isPending}
+                          style={{ ...actionBtn('#f87171', 'rgba(239,68,68,0.1)', 'rgba(239,68,68,0.3)'), marginLeft: '0.35rem' }}
                         >삭제</button>
-                      </td>
-                    )}
+                      )}
+                    </td>
                   </tr>
-                );
-              })}
+                ))
+              )}
             </tbody>
           </table>
         </div>
       )}
+
+      {/* ── 총 건수 ────────────────────────────────────────── */}
+      <p style={{ fontSize: '0.73rem', color: '#475569', marginTop: '0.75rem', textAlign: 'right' }}>
+        총 {filtered.length}건
+      </p>
 
       {/* ── 등록/수정 모달 ────────────────────────────────────── */}
       {modalOpen && (
@@ -291,14 +257,13 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
           style={{
             position: 'fixed', inset: 0, zIndex: 100,
             background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '1rem',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
           }}
           onClick={e => { if (e.target === e.currentTarget) closeModal(); }}
         >
           <div style={{
             background: '#111827', border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '20px', padding: '2rem', width: '100%', maxWidth: '540px',
+            borderRadius: '20px', padding: '2rem', width: '100%', maxWidth: '500px',
             maxHeight: '90vh', overflowY: 'auto',
             boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
           }}>
@@ -306,71 +271,99 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
               {editing ? '품목 수정' : '신규 품목 등록'}
             </h3>
 
-            {/* 품목명 */}
-            <FieldRow label="품목명 *">
-              <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="예) 오젬픽 주(세마글루타이드)" style={inputStyle} />
-            </FieldRow>
-
-            {/* 발매예정일 */}
-            <FieldRow label="발매예정일">
-              <input type="month" value={form.launch_date?.slice(0, 7) ?? ''}
-                onChange={e => setForm(f => ({ ...f, launch_date: e.target.value ? e.target.value + '-01' : '' }))}
-                style={inputStyle} />
-            </FieldRow>
-
-            {/* 제조사/공급사 */}
-            <FieldRow label="제조사/공급사">
-              <input value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))}
-                placeholder="예) 노보노디스크" style={inputStyle} />
-            </FieldRow>
-
-            {/* 적응증/효능효과 */}
-            <FieldRow label="적응증/효능효과">
-              <textarea value={form.indication} onChange={e => setForm(f => ({ ...f, indication: e.target.value }))}
-                placeholder="예) 제2형 당뇨병 치료, 체중 감량" rows={2}
-                style={{ ...inputStyle, resize: 'vertical', minHeight: '60px' }} />
-            </FieldRow>
-
-            {/* 약가 / 보험코드 */}
+            {/* 연도 / 발매예정 */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.85rem' }}>
               <div>
-                <label style={labelStyle}>약가(보험가)</label>
-                <input value={form.insurance_price} onChange={e => setForm(f => ({ ...f, insurance_price: e.target.value }))}
-                  placeholder="예) 12,500원" style={inputStyle} />
+                <label style={labelStyle}>구분(연도) *</label>
+                <input
+                  value={form.year_label}
+                  onChange={e => setForm(f => ({ ...f, year_label: e.target.value }))}
+                  placeholder="예) 26년, 27년"
+                  style={inputStyle}
+                />
               </div>
               <div>
-                <label style={labelStyle}>보험코드</label>
-                <input value={form.insurance_code} onChange={e => setForm(f => ({ ...f, insurance_code: e.target.value }))}
-                  placeholder="예) 651900020" style={{ ...inputStyle, fontFamily: 'monospace' }} />
+                <label style={labelStyle}>발매예정 *</label>
+                <input
+                  value={form.launch_timing}
+                  onChange={e => setForm(f => ({ ...f, launch_timing: e.target.value }))}
+                  placeholder="예) 6월, 2분기"
+                  style={inputStyle}
+                />
               </div>
             </div>
 
-            {/* 진행상태 */}
-            <FieldRow label="진행상태">
-              <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                style={{ ...inputStyle, cursor: 'pointer' }}>
-                <option value="">선택</option>
-                {STATUS_LIST.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </FieldRow>
+            {/* 제품명 */}
+            <div style={{ marginBottom: '0.85rem' }}>
+              <label style={labelStyle}>제품명 *</label>
+              <input
+                value={form.product_name}
+                onChange={e => setForm(f => ({ ...f, product_name: e.target.value }))}
+                placeholder="예) 폴미케어분무용현탁액"
+                style={inputStyle}
+              />
+            </div>
+
+            {/* 계열 */}
+            <div style={{ marginBottom: '0.85rem' }}>
+              <label style={labelStyle}>계열</label>
+              <input
+                value={form.category}
+                onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+                placeholder="예) 기관지천식 치료제(흡입제)"
+                style={inputStyle}
+              />
+            </div>
+
+            {/* 성분명 */}
+            <div style={{ marginBottom: '0.85rem' }}>
+              <label style={labelStyle}>성분명</label>
+              <input
+                value={form.ingredient}
+                onChange={e => setForm(f => ({ ...f, ingredient: e.target.value }))}
+                placeholder="예) 부데소니드미분화 0.5mg/2mL"
+                style={inputStyle}
+              />
+            </div>
 
             {/* 비고 */}
-            <FieldRow label="비고">
-              <textarea value={form.memo} onChange={e => setForm(f => ({ ...f, memo: e.target.value }))}
-                placeholder="특이사항, 담당자 메모 등" rows={2}
-                style={{ ...inputStyle, resize: 'vertical', minHeight: '60px' }} />
-            </FieldRow>
+            <div style={{ marginBottom: '0.85rem' }}>
+              <label style={labelStyle}>비고</label>
+              <textarea
+                value={form.memo}
+                onChange={e => setForm(f => ({ ...f, memo: e.target.value }))}
+                placeholder="특이사항 등"
+                rows={2}
+                style={{ ...inputStyle, resize: 'vertical', minHeight: '60px' }}
+              />
+            </div>
 
-            {error && (
-              <p style={{ color: '#fca5a5', fontSize: '0.8rem', margin: '0.5rem 0 0.8rem',
+            {/* 우선관리 체크 */}
+            <label style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              cursor: 'pointer', marginBottom: '1.2rem',
+              fontSize: '0.82rem', color: '#94a3b8',
+            }}>
+              <input
+                type="checkbox"
+                checked={form.is_priority}
+                onChange={e => setForm(f => ({ ...f, is_priority: e.target.checked }))}
+                style={{ width: '15px', height: '15px', cursor: 'pointer', accentColor: '#f87171' }}
+              />
+              <span>★ 우선 관리 품목으로 표시</span>
+            </label>
+
+            {formError && (
+              <p style={{
+                color: '#fca5a5', fontSize: '0.8rem', margin: '0 0 0.8rem',
                 background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-                borderRadius: '8px', padding: '0.5rem 0.8rem' }}>
-                {error}
+                borderRadius: '8px', padding: '0.5rem 0.8rem',
+              }}>
+                {formError}
               </p>
             )}
 
-            <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end', marginTop: '1.2rem' }}>
+            <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
               <button onClick={closeModal} style={cancelBtn} disabled={isPending}>취소</button>
               <button onClick={handleSubmit} style={submitBtn} disabled={isPending}>
                 {isPending ? '처리 중…' : editing ? '저장' : '등록'}
@@ -383,13 +376,24 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
   );
 }
 
-/* ── 스타일 helpers ─────────────────────────────────────────── */
-function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
+/* ── helpers ─────────────────────────────────────────────────── */
+function sortProducts(arr: UpcomingProduct[]) {
+  return [...arr].sort((a, b) => {
+    const yc = a.year_label.localeCompare(b.year_label);
+    if (yc !== 0) return yc;
+    return a.launch_timing.localeCompare(b.launch_timing);
+  });
+}
+
+function Th({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ marginBottom: '0.85rem' }}>
-      <label style={labelStyle}>{label}</label>
+    <th style={{
+      padding: '0.65rem 1rem', textAlign: 'center',
+      color: '#94a3b8', fontWeight: 700, fontSize: '0.82rem',
+      whiteSpace: 'nowrap', letterSpacing: '0.03em',
+    }}>
       {children}
-    </div>
+    </th>
   );
 }
 

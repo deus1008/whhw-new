@@ -6,17 +6,17 @@ import HomeButton from '@/components/HomeButton';
 import ProductsClient from '@/components/ProductsClient';
 
 export type UpcomingProduct = {
-  id:             string;
-  title:          string;           // 품목명
-  launch_date:    string | null;    // 발매예정일
-  manufacturer:   string | null;   // 제조사/공급사
-  indication:     string | null;   // 적응증/효능효과
-  insurance_price: string | null;  // 약가(보험가)
-  insurance_code:  string | null;  // 보험코드
-  status:         string | null;   // 진행상태
-  memo:           string | null;   // 비고
-  created_at:     string;
-  updated_at:     string;
+  id:            string;
+  user_id:       string;
+  year_label:    string;     // 예) 26년, 27년
+  launch_timing: string;     // 예) 6월, 2분기
+  product_name:  string;     // 제품명
+  category:      string | null;   // 계열
+  ingredient:    string | null;   // 성분명
+  is_priority:   boolean;         // 우선관리 표시
+  memo:          string | null;
+  created_at:    string;
+  updated_at:    string;
 };
 
 export default async function ProductsPage() {
@@ -39,7 +39,8 @@ export default async function ProductsPage() {
   const { data } = await supabase
     .from('upcoming_products')
     .select('*')
-    .order('launch_date', { ascending: true, nullsFirst: false });
+    .order('year_label', { ascending: true })
+    .order('launch_timing', { ascending: true });
 
   const products: UpcomingProduct[] = (data ?? []) as UpcomingProduct[];
 
@@ -49,7 +50,7 @@ export default async function ProductsPage() {
       <div className="orb orb-2" />
       <div className="orb orb-3" />
 
-      <div className="relative z-10 w-full" style={{ maxWidth: '1100px', padding: '2.5rem 1rem', minHeight: '100vh' }}>
+      <div className="relative z-10 w-full" style={{ maxWidth: '1000px', padding: '2.5rem 1rem', minHeight: '100vh' }}>
         <p
           className="domain"
           style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}
@@ -67,6 +68,7 @@ export default async function ProductsPage() {
         <ProductsClient
           initialProducts={products}
           isAdmin={isAdmin}
+          userId={user.id}
         />
       </div>
     </>
