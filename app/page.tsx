@@ -71,6 +71,15 @@ const NAV_ITEMS = [
     external: false,
   },
   {
+    href: '/products',
+    icon: '🚀',
+    label: '발매예정',
+    color: '#a5b4fc',
+    bg:   'rgba(99,102,241,0.10)',
+    bd:   'rgba(99,102,241,0.22)',
+    external: false,
+  },
+  {
     href: '/chat',
     icon: '💬',
     label: '챗봇',
