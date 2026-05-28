@@ -337,7 +337,7 @@ export function processEdi(
           amount:      h.amount,
           finalAmount: h.finalAmount,
           items: [...h.items.entries()]
-            .map(([in_, it]) => ({ name: in_, amount: it.amount, finalAmount: it.finalAmount }))
+            .map(([in_, it]) => ({ name: in_, amount: it.amount, finalAmount: it.finalAmount, csos: [] }))
             .sort((a, b) => b.amount - a.amount),
         }))
         .sort((a, b) => b.amount - a.amount),
