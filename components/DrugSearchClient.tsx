@@ -12,19 +12,21 @@ const NEDRUG_SEARCH = (q: string) =>
 const hasApiKey: boolean = !!process.env.NEXT_PUBLIC_DRUG_API_CONFIGURED;
 
 export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boolean }) {
-  const [query, setQuery]         = useState('');
-  const [items, setItems]         = useState<DrugItem[]>([]);
-  const [total, setTotal]         = useState(0);
-  const [page, setPage]           = useState(1);
-  const [error, setError]         = useState('');
-  const [searched, setSearched]   = useState('');
-  const [expanded, setExpanded]   = useState<string | null>(null);
+  const [query, setQuery]           = useState('');
+  const [items, setItems]           = useState<DrugItem[]>([]);
+  const [total, setTotal]           = useState(0);
+  const [page, setPage]             = useState(1);
+  const [error, setError]           = useState('');
+  const [searched, setSearched]     = useState('');
+  const [searchNote, setSearchNote] = useState('');   // 업체명 검색 시 안내
+  const [notInEasyDb, setNotInEasyDb] = useState(false); // 미등재 품목 안내
+  const [expanded, setExpanded]     = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function doSearch(q: string, pg = 1) {
     if (!q.trim()) return;
-    setError('');
+    setError(''); setSearchNote(''); setNotInEasyDb(false);
     startTransition(async () => {
       try {
         const res  = await fetch(`/api/drug-search?q=${encodeURIComponent(q)}&page=${pg}`);
@@ -35,6 +37,8 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
         setPage(pg);
         setSearched(q);
         setExpanded(null);
+        setSearchNote(data.searchNote ?? '');
+        setNotInEasyDb(!!data.notInEasyDb);
       } catch {
         setError('검색 중 오류가 발생했습니다.');
       }
@@ -172,9 +176,12 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
       {/* 검색 결과 */}
       {!isPending && items.length > 0 && (
         <>
-          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+            {searchNote ? (
+              <span style={{ color: '#fbbf24' }}>ℹ {searchNote}&nbsp;&nbsp;</span>
+            ) : null}
             &ldquo;{searched}&rdquo; 검색 결과 {total.toLocaleString()}건 (페이지 {page}/{totalPages})
-          </p>
+          </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
             {items.map(item => (
@@ -203,18 +210,33 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
 
       {/* 결과 없음 */}
       {!isPending && searched && items.length === 0 && !error && (
-        <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
+        <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-muted)' }}>
           <div style={{ fontSize: '2rem', marginBottom: '0.6rem' }}>🔍</div>
-          <p style={{ fontSize: '0.88rem' }}>&ldquo;{searched}&rdquo;에 해당하는 의약품이 없습니다.</p>
+          <p style={{ fontSize: '0.88rem', marginBottom: '0.5rem' }}>
+            &ldquo;{searched}&rdquo;에 해당하는 의약품이 없습니다.
+          </p>
+          {notInEasyDb && (
+            <div style={{
+              margin: '0.8rem auto', maxWidth: 480, padding: '0.75rem 1rem', borderRadius: 10,
+              background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.22)',
+              fontSize: '0.78rem', color: '#fde68a', lineHeight: 1.7, textAlign: 'left',
+            }}>
+              <strong>⚠ 이 API에 등재되지 않은 품목입니다.</strong><br />
+              공공데이터포털의 "쉬운 의약품 정보" API는 전체 의약품의 일부만 포함합니다.<br />
+              아래 의약품안전나라에서 직접 검색하거나, 성분명·업체명으로 다시 검색해 보세요.
+            </div>
+          )}
           <a
             href={NEDRUG_SEARCH(searched)}
             target="_blank" rel="noopener noreferrer"
             style={{
-              marginTop: '0.8rem', display: 'inline-block',
-              color: '#6ee7b7', fontSize: '0.82rem', textDecoration: 'underline',
+              marginTop: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+              padding: '0.5rem 1.2rem', borderRadius: 10,
+              background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.28)',
+              color: '#6ee7b7', fontSize: '0.82rem', fontWeight: 600, textDecoration: 'none',
             }}
           >
-            의약품안전나라에서 직접 검색 →
+            🌐 의약품안전나라에서 &ldquo;{searched}&rdquo; 검색 →
           </a>
         </div>
       )}
