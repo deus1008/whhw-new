@@ -197,6 +197,28 @@ async function fetchDmf(apiKey: string, ingrName: string): Promise<DmfItem[]> {
   return results.flatMap(r => r.status === 'fulfilled' ? r.value : []);
 }
 
+/* ── 용량 정렬용 숫자 추출 (단위 정규화: g > mg > mcg 스케일) ── */
+function extractDosageValue(ingrName: string | null | undefined): number {
+  if (!ingrName) return -1;
+  // "아토르바스타틴칼슘 10mg", "chloral hydrate 9.5g(0.1g/mL)", "에제티미브 10mg/로수바스타틴 5mg" 등
+  const match = ingrName.match(/(\d+(?:\.\d+)?)\s*(g|mg|mcg|μg|ug|ml|mL|L|IU|만IU)/i);
+  if (!match) {
+    // 단위 없이 숫자만 있는 경우 (예: "10")
+    const num = ingrName.match(/(\d+(?:\.\d+)?)/);
+    return num ? parseFloat(num[1]) : -1;
+  }
+  const value = parseFloat(match[1]);
+  const unit  = match[2].toLowerCase();
+  switch (unit) {
+    case 'g':   return value * 1_000_000;
+    case 'mg':  return value * 1_000;
+    case 'mcg':
+    case 'μg':
+    case 'ug':  return value;
+    default:    return value * 1_000; // mL, IU 등은 mg 스케일로 취급
+  }
+}
+
 /* ── GET 핸들러 ── */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -220,6 +242,9 @@ export async function GET(req: NextRequest) {
       fetchBioEq(apiKey, itemName),
       ingrName ? fetchDmf(apiKey, ingrName) : Promise.resolve([] as DmfItem[]),
     ]);
+
+    // 약가 용량 높은 순 정렬 (ingrName에서 숫자+단위 추출 후 정규화)
+    prices.sort((a, b) => extractDosageValue(b.ingrName) - extractDosageValue(a.ingrName));
 
     console.log(`[drug-info] → prices=${prices.length} bioEq=${bioEq.length} dmf=${dmf.length}`);
     return NextResponse.json({ prices, bioEq, dmf } satisfies DrugInfoResponse);
