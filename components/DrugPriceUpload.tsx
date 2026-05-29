@@ -1,21 +1,48 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 type UploadState = 'idle' | 'uploading' | 'done' | 'error';
 
+type FileEntry = {
+  source_file: string;
+  row_count:   number;
+  uploaded_at: string;
+};
+
 export default function DrugPriceUpload() {
-  const [state, setState]       = useState<UploadState>('idle');
-  const [message, setMessage]   = useState('');
-  const [fileName, setFileName] = useState('');
-  const [count, setCount]       = useState<{ inserted: number; total: number } | null>(null);
+  const [uploadState, setUploadState] = useState<UploadState>('idle');
+  const [uploadMsg,   setUploadMsg]   = useState('');
+  const [uploadCount, setUploadCount] = useState<{ inserted: number; total: number } | null>(null);
+
+  const [files,        setFiles]        = useState<FileEntry[]>([]);
+  const [loadingFiles, setLoadingFiles] = useState(true);
+  const [confirmFile,  setConfirmFile]  = useState<string | null>(null); // 삭제 확인 대상
+  const [deletingFile, setDeletingFile] = useState<string | null>(null);
+
   const inputRef = useRef<HTMLInputElement>(null);
 
+  /* ── 파일 목록 로드 ── */
+  const fetchFiles = useCallback(async () => {
+    setLoadingFiles(true);
+    try {
+      const res  = await fetch('/api/drug-prices');
+      const data = await res.json();
+      setFiles(data.files ?? []);
+    } catch {
+      // 무시
+    } finally {
+      setLoadingFiles(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchFiles(); }, [fetchFiles]);
+
+  /* ── 업로드 ── */
   async function handleFile(file: File) {
-    setFileName(file.name);
-    setState('uploading');
-    setMessage('');
-    setCount(null);
+    setUploadState('uploading');
+    setUploadMsg('');
+    setUploadCount(null);
 
     const form = new FormData();
     form.append('file', file);
@@ -25,16 +52,17 @@ export default function DrugPriceUpload() {
       const data = await res.json();
 
       if (!res.ok || data.error) {
-        setState('error');
-        setMessage(data.error ?? '업로드 실패');
+        setUploadState('error');
+        setUploadMsg(data.error ?? '업로드 실패');
       } else {
-        setState('done');
-        setCount({ inserted: data.inserted, total: data.total });
-        setMessage(`"${data.fileName}" 업로드 완료`);
+        setUploadState('done');
+        setUploadCount({ inserted: data.inserted, total: data.total });
+        setUploadMsg(`"${data.fileName}" 업로드 완료`);
+        fetchFiles();
       }
     } catch {
-      setState('error');
-      setMessage('서버 오류가 발생했습니다.');
+      setUploadState('error');
+      setUploadMsg('서버 오류가 발생했습니다.');
     }
   }
 
@@ -50,9 +78,29 @@ export default function DrugPriceUpload() {
     if (file) handleFile(file);
   }
 
-  const color    = state === 'done' ? '#6ee7b7' : state === 'error' ? '#f87171' : '#93c5fd';
-  const bgColor  = state === 'done' ? 'rgba(52,211,153,0.06)' : state === 'error' ? 'rgba(239,68,68,0.06)' : 'rgba(59,130,246,0.06)';
-  const bdColor  = state === 'done' ? 'rgba(52,211,153,0.22)' : state === 'error' ? 'rgba(239,68,68,0.2)' : 'rgba(59,130,246,0.2)';
+  /* ── 삭제 ── */
+  async function handleDelete(fileName: string) {
+    setDeletingFile(fileName);
+    setConfirmFile(null);
+    try {
+      const res  = await fetch(`/api/drug-prices?file=${encodeURIComponent(fileName)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        alert(data.error ?? '삭제 실패');
+      } else {
+        fetchFiles();
+      }
+    } catch {
+      alert('서버 오류가 발생했습니다.');
+    } finally {
+      setDeletingFile(null);
+    }
+  }
+
+  /* ── 색상 ── */
+  const uColor  = uploadState === 'done' ? '#6ee7b7' : uploadState === 'error' ? '#f87171' : '#93c5fd';
+  const uBg     = uploadState === 'done' ? 'rgba(52,211,153,0.06)' : uploadState === 'error' ? 'rgba(239,68,68,0.06)' : 'rgba(59,130,246,0.06)';
+  const uBorder = uploadState === 'done' ? 'rgba(52,211,153,0.22)' : uploadState === 'error' ? 'rgba(239,68,68,0.2)' : 'rgba(59,130,246,0.2)';
 
   return (
     <div style={{
@@ -64,28 +112,94 @@ export default function DrugPriceUpload() {
     }}>
       <h2 style={{
         fontSize: '1rem', fontWeight: 700, color: '#93c5fd',
-        marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
+        marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem',
       }}>
         💊 약가 파일 관리
       </h2>
-      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1rem', lineHeight: 1.6 }}>
-        HIRA 약가목록조회 API에서 다운로드한 Excel 파일(xlsx/csv)을 업로드하면<br />
-        의약품 검색 시 업로드 파일 데이터를 우선 조회합니다.<br />
-        지원 컬럼: <code style={{ fontSize: '0.7rem', opacity: 0.8 }}>품목명, 상한가, 급여구분, 규격, 단위, 시행일, 제조업체</code>
+
+      {/* ── 업로드된 파일 목록 ── */}
+      <div style={{ marginBottom: '1.2rem' }}>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 600 }}>
+          업로드된 파일
+        </p>
+
+        {loadingFiles ? (
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>⏳ 불러오는 중…</p>
+        ) : files.length === 0 ? (
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+            업로드된 파일이 없습니다.
+          </p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            {files.map(f => (
+              <div key={f.source_file} style={{
+                display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: 8,
+                padding: '0.55rem 0.8rem',
+              }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-primary)', flex: 1, wordBreak: 'break-all', minWidth: '160px' }}>
+                  📄 {f.source_file}
+                </span>
+                <span style={{ fontSize: '0.72rem', color: '#6ee7b7', whiteSpace: 'nowrap' }}>
+                  {f.row_count.toLocaleString()}건
+                </span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                  {new Date(f.uploaded_at).toLocaleDateString('ko-KR')}
+                </span>
+
+                {/* 삭제 확인 UI */}
+                {confirmFile === f.source_file ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                    <span style={{ fontSize: '0.72rem', color: '#fca5a5' }}>삭제할까요?</span>
+                    <button
+                      onClick={() => handleDelete(f.source_file)}
+                      disabled={deletingFile === f.source_file}
+                      style={btnStyle('danger')}
+                    >
+                      {deletingFile === f.source_file ? '삭제 중…' : '확인'}
+                    </button>
+                    <button onClick={() => setConfirmFile(null)} style={btnStyle('muted')}>
+                      취소
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmFile(f.source_file)}
+                    disabled={!!deletingFile}
+                    style={btnStyle('danger')}
+                  >
+                    삭제
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── 구분선 ── */}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginBottom: '1rem' }} />
+
+      {/* ── 업로드 설명 ── */}
+      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.8rem', lineHeight: 1.6 }}>
+        HIRA 약제급여목록 Excel(xlsx/csv)을 업로드하면 의약품 검색 시 우선 조회됩니다.<br />
+        같은 파일명으로 재업로드하면 기존 데이터가 자동으로 교체됩니다.
       </p>
 
-      {/* 드롭존 */}
+      {/* ── 드롭존 ── */}
       <div
         onDrop={handleDrop}
         onDragOver={e => e.preventDefault()}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => uploadState !== 'uploading' && inputRef.current?.click()}
         style={{
-          border: `2px dashed ${bdColor}`,
+          border: `2px dashed ${uBorder}`,
           borderRadius: 10,
-          padding: '1.4rem',
+          padding: '1.2rem',
           textAlign: 'center',
-          cursor: state === 'uploading' ? 'not-allowed' : 'pointer',
-          background: bgColor,
+          cursor: uploadState === 'uploading' ? 'not-allowed' : 'pointer',
+          background: uBg,
           transition: 'all 0.15s',
         }}
       >
@@ -95,52 +209,62 @@ export default function DrugPriceUpload() {
           accept=".xlsx,.xls,.csv"
           style={{ display: 'none' }}
           onChange={handleChange}
-          disabled={state === 'uploading'}
+          disabled={uploadState === 'uploading'}
         />
-
-        {state === 'uploading' ? (
-          <p style={{ color: '#93c5fd', fontSize: '0.88rem' }}>⏳ 업로드 중…</p>
+        {uploadState === 'uploading' ? (
+          <p style={{ color: '#93c5fd', fontSize: '0.88rem', margin: 0 }}>⏳ 업로드 중… (대용량 파일은 시간이 걸릴 수 있습니다)</p>
         ) : (
           <>
-            <p style={{ fontSize: '1.5rem', marginBottom: '0.4rem' }}>📂</p>
-            <p style={{ fontSize: '0.85rem', color, fontWeight: 600 }}>
-              {fileName || '파일을 드래그하거나 클릭하여 선택'}
+            <p style={{ fontSize: '1.4rem', margin: '0 0 0.3rem' }}>📂</p>
+            <p style={{ fontSize: '0.85rem', color: uColor, fontWeight: 600, margin: '0 0 0.2rem' }}>
+              파일을 드래그하거나 클릭하여 선택
             </p>
-            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              xlsx / xls / csv
-            </p>
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: 0 }}>xlsx / xls / csv</p>
           </>
         )}
       </div>
 
-      {/* 결과 메시지 */}
-      {message && (
+      {/* ── 업로드 결과 ── */}
+      {uploadMsg && (
         <div style={{
-          marginTop: '0.75rem', padding: '0.6rem 0.9rem', borderRadius: 8,
-          background: bgColor, border: `1px solid ${bdColor}`,
-          fontSize: '0.8rem', color,
+          marginTop: '0.7rem', padding: '0.55rem 0.85rem', borderRadius: 8,
+          background: uBg, border: `1px solid ${uBorder}`,
+          fontSize: '0.8rem', color: uColor,
         }}>
-          {state === 'done' ? '✓' : '⚠'} {message}
-          {count && (
+          {uploadState === 'done' ? '✓' : '⚠'} {uploadMsg}
+          {uploadCount && (
             <span style={{ marginLeft: '0.5rem', opacity: 0.8 }}>
-              ({count.inserted.toLocaleString()}건 저장 / 전체 {count.total.toLocaleString()}행)
+              ({uploadCount.inserted.toLocaleString()}건 저장 / 전체 {uploadCount.total.toLocaleString()}행)
             </span>
           )}
         </div>
       )}
-
-      {/* 안내 */}
-      <div style={{
-        marginTop: '0.8rem', padding: '0.6rem 0.9rem', borderRadius: 8,
-        background: 'rgba(251,191,36,0.05)', border: '1px solid rgba(251,191,36,0.18)',
-        fontSize: '0.73rem', color: '#fde68a', lineHeight: 1.7,
-      }}>
-        <strong>⚠ 사전 준비:</strong> Supabase SQL Editor에서
-        <code style={{ margin: '0 4px', background: 'rgba(0,0,0,0.25)', padding: '0 4px', borderRadius: 3 }}>
-          supabase/migrations/20260529_drug_prices.sql
-        </code>
-        을 먼저 실행해야 합니다.
-      </div>
     </div>
   );
+}
+
+/* ── 버튼 스타일 헬퍼 ── */
+function btnStyle(variant: 'danger' | 'muted'): React.CSSProperties {
+  if (variant === 'danger') return {
+    padding: '0.28rem 0.65rem',
+    borderRadius: 6,
+    fontSize: '0.72rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    border: '1px solid rgba(239,68,68,0.28)',
+    background: 'rgba(239,68,68,0.1)',
+    color: '#fca5a5',
+    flexShrink: 0,
+  };
+  return {
+    padding: '0.28rem 0.65rem',
+    borderRadius: 6,
+    fontSize: '0.72rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    border: '1px solid rgba(255,255,255,0.1)',
+    background: 'rgba(255,255,255,0.05)',
+    color: 'var(--text-muted)',
+    flexShrink: 0,
+  };
 }
