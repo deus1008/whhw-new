@@ -27,6 +27,7 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
   const [searchType, setSearchType] = useState<SearchType>('hospital');
   const [items, setItems]           = useState<MedicalItem[]>([]);
   const [total, setTotal]           = useState(0);
+  const [scanned, setScanned]       = useState(0);   // 약국 전용: 스캔한 레코드 수
   const [page, setPage]             = useState(1);
   const [error, setError]           = useState('');
   const [searched, setSearched]     = useState('');
@@ -44,6 +45,7 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
         if (data.error) { setError(data.error); setItems([]); setTotal(0); return; }
         setItems(data.items ?? []);
         setTotal(data.total ?? 0);
+        setScanned(data.scanned ?? 0);
         setPage(pg);
         setSearched(q);
         setSearchedType(type);
@@ -181,6 +183,11 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
             &ldquo;{searched}&rdquo; {searchedType === 'hospital' ? '병원·의원' : '약국'} 검색 결과{' '}
             {total.toLocaleString()}건 (페이지 {page}/{totalPages})
+            {searchedType === 'pharmacy' && scanned > 0 && (
+              <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', opacity: 0.6 }}>
+                · {scanned.toLocaleString()}건 샘플 스캔
+              </span>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.75rem' }}>
@@ -212,6 +219,9 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
           </p>
           <p style={{ fontSize: '0.78rem', marginTop: '0.4rem', opacity: 0.6 }}>
             기관명 일부만 입력하거나 다른 검색어를 시도해 보세요.
+            {searchedType === 'pharmacy' && (
+              <><br />약국 검색은 전국 샘플 데이터 기반이며 일부 결과가 누락될 수 있습니다.</>
+            )}
           </p>
         </div>
       )}
