@@ -392,6 +392,16 @@ function DrugCard({ item, expanded, drugInfo, onToggle }: {
                 / {firstPrice.unit ?? firstPrice.nomNm}
               </span>
             )}
+            {firstPrice.ingrName && (
+              <span style={{
+                fontSize: '0.68rem', color: 'rgba(196,181,253,0.8)',
+                padding: '0.08rem 0.38rem', borderRadius: 4,
+                background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)',
+                maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }} title={firstPrice.ingrName}>
+                {firstPrice.ingrName}
+              </span>
+            )}
             {firstPrice.mnfEntpNm && (
               <span style={{ fontSize: '0.69rem', color: 'rgba(165,180,252,0.75)', marginLeft: 'auto' }}>
                 {firstPrice.mnfEntpNm}
@@ -500,6 +510,15 @@ function DrugInfoPanel({ data, ingrName }: {
                   {(p.unit || p.nomNm) && (
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                       / {p.unit ?? p.nomNm}
+                    </span>
+                  )}
+                  {p.ingrName && (
+                    <span style={{
+                      fontSize: '0.68rem', color: 'rgba(196,181,253,0.8)',
+                      padding: '0.08rem 0.38rem', borderRadius: 4,
+                      background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)',
+                    }}>
+                      {p.ingrName}
                     </span>
                   )}
                   {p.mnfEntpNm && (

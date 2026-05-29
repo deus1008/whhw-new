@@ -25,6 +25,7 @@ export interface PriceItem {
   unit:      string | null;  // 단위
   adtStaDd:  string | null;  // 시행년월일 YYYYMMDD
   mnfEntpNm: string | null;  // 제조업체명
+  ingrName:  string | null;  // 성분명·용량 (주성분명)
 }
 
 export interface BioEqItem {
@@ -126,6 +127,7 @@ async function fetchPricesFromAPI(apiKey: string, itemName: string): Promise<Pri
       unit:      item.unit      || null,
       adtStaDd:  item.adtStaDd  || null,
       mnfEntpNm: item.mnfEntpNm || null,
+      ingrName:  null,
     }));
   } catch (e) {
     console.warn('[drug-info] 약가 API fetch error:', e);
