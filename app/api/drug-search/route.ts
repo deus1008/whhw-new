@@ -25,6 +25,7 @@ export interface DrugItem {
   entpName:            string;
   itemImage:           string | null;
   ingrName:            string | null;  // 성분명
+  bioeqYn:             string | null;  // 생동성 시험 여부 (Y/N) — 허가정보 API
   efcyQesitm:          string | null;
   useMethodQesitm:     string | null;
   atpnWarnQesitm:      string | null;
@@ -148,6 +149,7 @@ async function fetchFromEasyDrug(
     entpName:            String(item.entpName ?? ''),
     itemImage:           item.itemImage           ? String(item.itemImage)           : null,
     ingrName:            null,
+    bioeqYn:             null,
     efcyQesitm:          item.efcyQesitm          ? String(item.efcyQesitm)          : null,
     useMethodQesitm:     item.useMethodQesitm     ? String(item.useMethodQesitm)     : null,
     atpnWarnQesitm:      item.atpnWarnQesitm      ? String(item.atpnWarnQesitm)      : null,
@@ -183,6 +185,7 @@ function prmsnMapper(item: Record<string, unknown>): DrugItem {
     entpName:            String(item.ENTP_NAME         ?? ''),
     itemImage:           null,
     ingrName:            item.ITEM_INGR_NAME ? String(item.ITEM_INGR_NAME) : null,
+    bioeqYn:             item.BIOEQ_YN       ? String(item.BIOEQ_YN).trim().toUpperCase() : null,
     efcyQesitm:          extractXmlText(item.EE_DOC_DATA),
     useMethodQesitm:     extractXmlText(item.UD_DOC_DATA),
     atpnWarnQesitm:      null,
@@ -247,6 +250,7 @@ async function fetchFromNedrug(
       entpName:            String(item.ENTP_NAME  ?? item.entpName  ?? ''),
       itemImage:           (item.BIG_PRDT_IMG_URL ?? item.itemImage) ? String(item.BIG_PRDT_IMG_URL ?? item.itemImage) : null,
       ingrName:            (item.INGR_NAME ?? item.ITEM_INGR_NAME)  ? String(item.INGR_NAME ?? item.ITEM_INGR_NAME)  : null,
+      bioeqYn:             item.BIOEQ_YN ? String(item.BIOEQ_YN).trim().toUpperCase() : null,
       efcyQesitm:          null,
       useMethodQesitm:     null,
       atpnWarnQesitm:      null,

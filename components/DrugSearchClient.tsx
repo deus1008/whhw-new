@@ -349,7 +349,7 @@ function DrugCard({ item, drugInfo }: {
           <p style={{ color: '#f87171', fontSize: '0.78rem', margin: 0 }}>⚠ {drugInfo.error}</p>
         )}
         {drugInfo?.data && (
-          <DrugInfoPanel data={drugInfo.data} ingrName={displayIngrName} />
+          <DrugInfoPanel data={drugInfo.data} ingrName={displayIngrName} bioeqYn={item.bioeqYn} />
         )}
       </div>
 
@@ -379,9 +379,10 @@ function DrugCard({ item, drugInfo }: {
 /* ════════════════════════════════════════
    약가·생동·DMF 패널
 ════════════════════════════════════════ */
-function DrugInfoPanel({ data, ingrName }: {
+function DrugInfoPanel({ data, ingrName, bioeqYn }: {
   data:      DrugInfoResponse;
   ingrName?: string | null;
+  bioeqYn?:  string | null;
 }) {
   const { prices, bioEq, dmf } = data;
 
@@ -408,11 +409,42 @@ function DrugInfoPanel({ data, ingrName }: {
 
       {/* 생동 */}
       <InfoSection title="🔬 자사 생동 여부">
-        {bioEq.length === 0 ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <span style={{ color: '#f87171', fontSize: '1rem' }}>✗</span>
-            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>생동 등재 이력 없음</span>
+        {/* 허가등록 API BIOEQ_YN 우선 표시 */}
+        {bioeqYn && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+            padding: '0.3rem 0.7rem', borderRadius: 7, marginBottom: '0.5rem',
+            background: bioeqYn === 'Y' ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.08)',
+            border: `1px solid ${bioeqYn === 'Y' ? 'rgba(52,211,153,0.3)' : 'rgba(239,68,68,0.25)'}`,
+          }}>
+            <span style={{ fontSize: '1rem', lineHeight: 1 }}>
+              {bioeqYn === 'Y' ? '✓' : '✗'}
+            </span>
+            <span style={{
+              fontSize: '0.8rem', fontWeight: 700,
+              color: bioeqYn === 'Y' ? '#6ee7b7' : '#fca5a5',
+            }}>
+              생동성 시험 {bioeqYn === 'Y' ? '완료' : '미실시'}
+            </span>
+            <span style={{
+              fontSize: '0.65rem', fontWeight: 600,
+              padding: '0.08rem 0.35rem', borderRadius: 4,
+              background: bioeqYn === 'Y' ? 'rgba(52,211,153,0.2)' : 'rgba(239,68,68,0.15)',
+              color: bioeqYn === 'Y' ? '#6ee7b7' : '#fca5a5',
+            }}>
+              {bioeqYn}
+            </span>
           </div>
+        )}
+
+        {/* MdcBioEqInfoService 인정 품목 목록 */}
+        {bioEq.length === 0 ? (
+          !bioeqYn && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ color: '#f87171', fontSize: '1rem' }}>✗</span>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>생동 등재 이력 없음</span>
+            </div>
+          )
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             {bioEq.slice(0, 3).map((b, i) => (
