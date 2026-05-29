@@ -175,34 +175,67 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
       {/* ── 병원 결과 ────────────────────────────────────── */}
       {!isPending && items.length > 0 && (
         <>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            &ldquo;{searched}&rdquo; 검색 결과 {total.toLocaleString()}건 (페이지 {page}/{totalPages})
-            <span style={{ marginLeft: '0.6rem', fontSize: '0.72rem', opacity: 0.55 }}>
-              · 병원 카드를 클릭하면 주변 약국을 볼 수 있습니다
-            </span>
-          </div>
+          {/* 병원 미선택: 전체 그리드 */}
+          {!selectedHosp && (
+            <>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                &ldquo;{searched}&rdquo; 검색 결과 {total.toLocaleString()}건 (페이지 {page}/{totalPages})
+                <span style={{ marginLeft: '0.6rem', fontSize: '0.72rem', opacity: 0.55 }}>
+                  · 병원 카드를 클릭하면 주변 약국을 볼 수 있습니다
+                </span>
+              </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.75rem' }}>
-            {items.map((item, idx) => (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.75rem' }}>
+                {items.map((item, idx) => (
+                  <HospitalCard
+                    key={item.ykiho || idx}
+                    item={item}
+                    selected={false}
+                    onClick={() => handleHospSelect(item)}
+                  />
+                ))}
+              </div>
+
+              {/* 페이지네이션 */}
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  <PageBtn label="◀" disabled={page <= 1} onClick={() => doSearch(searched, page - 1)} />
+                  {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1).map(pg => (
+                    <PageBtn key={pg} label={String(pg)} active={pg === page} onClick={() => doSearch(searched, pg)} />
+                  ))}
+                  {totalPages > 10 && <span style={{ color: 'var(--text-muted)', padding: '0 4px', lineHeight: '2rem' }}>…</span>}
+                  <PageBtn label="▶" disabled={page >= totalPages} onClick={() => doSearch(searched, page + 1)} />
+                </div>
+              )}
+            </>
+          )}
+
+          {/* 병원 선택됨: 선택된 카드 하나만 표시 + 목록 복귀 버튼 */}
+          {selectedHosp && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <button
+                  onClick={() => { setSelectedHosp(null); setNearbyPharms([]); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '0.3rem',
+                    padding: '0.3rem 0.75rem', borderRadius: 8,
+                    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  ← 목록으로
+                </button>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', opacity: 0.55 }}>
+                  다른 병원을 선택하려면 목록으로 돌아가세요
+                </span>
+              </div>
               <HospitalCard
-                key={item.ykiho || idx}
-                item={item}
-                selected={selectedHosp?.ykiho === item.ykiho}
-                onClick={() => handleHospSelect(item)}
+                item={selectedHosp}
+                selected={true}
+                onClick={() => { setSelectedHosp(null); setNearbyPharms([]); }}
               />
-            ))}
-          </div>
-
-          {/* 페이지네이션 */}
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-              <PageBtn label="◀" disabled={page <= 1} onClick={() => doSearch(searched, page - 1)} />
-              {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1).map(pg => (
-                <PageBtn key={pg} label={String(pg)} active={pg === page} onClick={() => doSearch(searched, pg)} />
-              ))}
-              {totalPages > 10 && <span style={{ color: 'var(--text-muted)', padding: '0 4px', lineHeight: '2rem' }}>…</span>}
-              <PageBtn label="▶" disabled={page >= totalPages} onClick={() => doSearch(searched, page + 1)} />
-            </div>
+            </>
           )}
         </>
       )}
@@ -233,16 +266,6 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', opacity: 0.65 }}>
               전국 약국 샘플 기반 조회
             </span>
-            <button
-              onClick={() => { setSelectedHosp(null); setNearbyPharms([]); }}
-              style={{
-                marginLeft: 'auto', padding: '0.2rem 0.6rem', borderRadius: 6,
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
-                color: 'var(--text-muted)', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >
-              닫기
-            </button>
           </div>
 
           {nearbyLoading && (
