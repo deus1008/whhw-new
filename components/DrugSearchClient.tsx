@@ -1,13 +1,23 @@
 'use client';
 
-import { useState, useRef, useTransition } from 'react';
-import Image from 'next/image';
+import { useState, useTransition } from 'react';
 import type { DrugItem } from '@/app/api/drug-search/route';
+import type { DrugInfoResponse } from '@/app/api/drug-info/route';
 
 const NEDRUG_DETAIL = (seq: string) =>
   `https://nedrug.mfds.go.kr/pbp/CCBBB01/getItemDetail?itemSeq=${seq}`;
 const NEDRUG_SEARCH = (q: string) =>
   `https://nedrug.mfds.go.kr/pbp/CCBBB01/getItemDetail?searchYearly=&opYes=&division=all&search1=&text1=${encodeURIComponent(q)}&search2=&search3=&page=1`;
+
+type DrugInfoState = { loading: boolean; data?: DrugInfoResponse; error?: string };
+
+/* ── 날짜 포맷 헬퍼 (YYYYMMDD 또는 YYYY-MM-DD → YYYY.MM.DD) ── */
+function fmtDate(d: string | null | undefined): string {
+  if (!d) return '-';
+  const c = d.replace(/-/g, '');
+  if (c.length < 8) return d;
+  return `${c.slice(0, 4)}.${c.slice(4, 6)}.${c.slice(6, 8)}`;
+}
 
 export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boolean }) {
   const [query, setQuery]             = useState('');
@@ -20,12 +30,13 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
   const [notInAnyDb, setNotInAnyDb]   = useState(false);
   const [source, setSource]           = useState<'easyDrug' | 'prmsn' | 'nedrug' | ''>('');
   const [expanded, setExpanded]       = useState<string | null>(null);
+  const [drugInfoMap, setDrugInfoMap] = useState<Record<string, DrugInfoState>>({});
   const [isPending, startTransition]  = useTransition();
-  const inputRef = useRef<HTMLInputElement>(null);
 
   async function doSearch(q: string, pg = 1) {
     if (!q.trim()) return;
     setError(''); setSearchNote(''); setNotInAnyDb(false); setSource('');
+    setExpanded(null); setDrugInfoMap({});
     startTransition(async () => {
       try {
         const res  = await fetch(`/api/drug-search?q=${encodeURIComponent(q)}&page=${pg}`);
@@ -35,7 +46,6 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
         setTotal(data.total ?? 0);
         setPage(pg);
         setSearched(q);
-        setExpanded(null);
         setSearchNote(data.searchNote ?? '');
         setNotInAnyDb(!!data.notInAnyDb);
         setSource(data.source ?? '');
@@ -43,6 +53,35 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
         setError('검색 중 오류가 발생했습니다.');
       }
     });
+  }
+
+  async function loadDrugInfo(item: DrugItem) {
+    const key = item.itemSeq;
+    if (drugInfoMap[key]) return;  // already loading or loaded
+
+    setDrugInfoMap(prev => ({ ...prev, [key]: { loading: true } }));
+    try {
+      const params = new URLSearchParams({ item: item.itemName });
+      if (item.ingrName) params.set('ingr', item.ingrName);
+      const res  = await fetch(`/api/drug-info?${params}`);
+      const data = await res.json() as DrugInfoResponse & { error?: string };
+      if (data.error) {
+        setDrugInfoMap(prev => ({ ...prev, [key]: { loading: false, error: data.error } }));
+      } else {
+        setDrugInfoMap(prev => ({ ...prev, [key]: { loading: false, data } }));
+      }
+    } catch {
+      setDrugInfoMap(prev => ({ ...prev, [key]: { loading: false, error: '상세 조회 실패' } }));
+    }
+  }
+
+  function handleToggle(item: DrugItem) {
+    if (expanded === item.itemSeq) {
+      setExpanded(null);
+    } else {
+      setExpanded(item.itemSeq);
+      loadDrugInfo(item);
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -55,18 +94,21 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
-      {/* 검색 헤더 */}
+      {/* ── 검색 헤더 ── */}
       <div style={{
         background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
         borderRadius: 14, padding: '1.2rem 1.4rem',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.6rem', marginBottom: '1rem' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          flexWrap: 'wrap', gap: '0.6rem', marginBottom: '1rem',
+        }}>
           <div>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
               💊 의약품 검색
             </h2>
             <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              식품의약품안전처 공공데이터 기반 · 일반의약품·전문의약품 통합 조회
+              제품명 · 성분명 · 약가 · 생동여부 · 원료DMF 통합조회
             </p>
           </div>
           <a
@@ -82,13 +124,11 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
           </a>
         </div>
 
-        {/* 검색창 */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.6rem' }}>
           <input
-            ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="의약품명 또는 성분명을 입력하세요 (예: 크레트롤, 아스피린)"
+            placeholder="의약품명을 입력하세요 (예: 크레트롤, 아스피린)"
             style={{
               flex: 1, padding: '0.65rem 1rem', borderRadius: 10,
               background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
@@ -105,30 +145,26 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
               background: isPending ? 'rgba(52,211,153,0.08)' : 'rgba(52,211,153,0.18)',
               border: '1px solid rgba(52,211,153,0.35)', color: '#6ee7b7',
               fontSize: '0.88rem', fontWeight: 600, fontFamily: 'inherit', whiteSpace: 'nowrap',
-              opacity: (!query.trim()) ? 0.45 : 1,
+              opacity: !query.trim() ? 0.45 : 1,
             }}
           >
             {isPending ? '검색 중…' : '검색'}
           </button>
         </form>
 
-        {/* API 미설정 안내 */}
         {!apiConfigured && (
           <div style={{
             marginTop: '0.9rem', padding: '0.7rem 1rem', borderRadius: 10,
             background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.22)',
             fontSize: '0.78rem', color: '#fde68a', lineHeight: 1.6,
           }}>
-            <strong>⚠ API 키 미설정</strong> — 검색 결과를 앱 내에서 보려면 환경변수{' '}
-            <code style={{ background: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: 4 }}>DRUG_API_KEY</code>를 설정해야 합니다.{' '}
-            <a href="https://www.data.go.kr/data/15075057/openapi.do" target="_blank" rel="noopener noreferrer"
-              style={{ color: '#fbbf24', textDecoration: 'underline' }}>data.go.kr에서 키 발급 →</a>
-            <br />지금은 아래에서 직접 의약품안전나라로 이동해 검색할 수 있습니다.
+            <strong>⚠ API 키 미설정</strong> — 환경변수{' '}
+            <code style={{ background: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: 4 }}>DRUG_API_KEY</code>를 설정해야 검색이 가능합니다.
           </div>
         )}
       </div>
 
-      {/* 오류 메시지 */}
+      {/* ── 오류 ── */}
       {error && (
         <div style={{
           padding: '0.8rem 1rem', borderRadius: 10,
@@ -136,52 +172,28 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
           color: '#f87171', fontSize: '0.82rem',
         }}>
           ⚠ {error}
-          {error.includes('API 키') && (
-            <span> — <a href="https://www.data.go.kr/data/15075057/openapi.do" target="_blank" rel="noopener noreferrer"
-              style={{ color: '#fbbf24', textDecoration: 'underline' }}>API 키 발급 방법</a></span>
-          )}
         </div>
       )}
 
-      {/* API 미설정 시 사이트 직접 검색 */}
-      {!apiConfigured && query.trim() && (
-        <div style={{ textAlign: 'center' }}>
-          <a
-            href={NEDRUG_SEARCH(query)}
-            target="_blank" rel="noopener noreferrer"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-              padding: '0.75rem 1.8rem', borderRadius: 12,
-              background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.32)',
-              color: '#6ee7b7', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none',
-            }}
-          >
-            🌐 의약품안전나라에서 &quot;{query}&quot; 검색하기
-          </a>
-        </div>
-      )}
-
-      {/* 검색 중 스켈레톤 */}
+      {/* ── 로딩 스켈레톤 ── */}
       {isPending && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.75rem' }}>
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} style={{
-              borderRadius: 12, padding: '1rem',
-              background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
-              height: 160, opacity: 0.5,
+              borderRadius: 12, height: 130, opacity: 0.4,
+              background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
             }} />
           ))}
         </div>
       )}
 
-      {/* 검색 결과 */}
+      {/* ── 검색 결과 ── */}
       {!isPending && items.length > 0 && (
         <>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
-            {searchNote ? (
-              <span style={{ color: '#fbbf24' }}>ℹ {searchNote}&nbsp;&nbsp;</span>
-            ) : null}
-            &ldquo;{searched}&rdquo; 검색 결과 {total.toLocaleString()}건 (페이지 {page}/{totalPages})
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+            {searchNote && <span style={{ color: '#fbbf24' }}>ℹ {searchNote}&nbsp;&nbsp;</span>}
+            &ldquo;{searched}&rdquo; 검색 결과 {total.toLocaleString()}건
+            {totalPages > 1 && <span> (페이지 {page}/{totalPages})</span>}
             {source === 'prmsn' && (
               <span style={{
                 marginLeft: '0.5rem', padding: '0.15rem 0.5rem', borderRadius: 5,
@@ -189,41 +201,36 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
                 color: '#a5b4fc', fontSize: '0.7rem',
               }}>허가정보 DB</span>
             )}
-            {source === 'nedrug' && (
-              <span style={{
-                marginLeft: '0.5rem', padding: '0.15rem 0.5rem', borderRadius: 5,
-                background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.28)',
-                color: '#86efac', fontSize: '0.7rem',
-              }}>식약처 DB</span>
-            )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.75rem' }}>
             {items.map(item => (
               <DrugCard
                 key={item.itemSeq}
                 item={item}
                 expanded={expanded === item.itemSeq}
-                onToggle={() => setExpanded(prev => prev === item.itemSeq ? null : item.itemSeq)}
+                drugInfo={drugInfoMap[item.itemSeq]}
+                onToggle={() => handleToggle(item)}
               />
             ))}
           </div>
 
-          {/* 페이지네이션 */}
           {totalPages > 1 && (
             <div style={{ display: 'flex', justifyContent: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
               <PageBtn label="◀" disabled={page <= 1} onClick={() => doSearch(searched, page - 1)} />
               {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1).map(pg => (
                 <PageBtn key={pg} label={String(pg)} active={pg === page} onClick={() => doSearch(searched, pg)} />
               ))}
-              {totalPages > 10 && <span style={{ color: 'var(--text-muted)', padding: '0 4px', lineHeight: '2rem' }}>…</span>}
+              {totalPages > 10 && (
+                <span style={{ color: 'var(--text-muted)', padding: '0 4px', lineHeight: '2rem' }}>…</span>
+              )}
               <PageBtn label="▶" disabled={page >= totalPages} onClick={() => doSearch(searched, page + 1)} />
             </div>
           )}
         </>
       )}
 
-      {/* 결과 없음 */}
+      {/* ── 결과 없음 ── */}
       {!isPending && searched && items.length === 0 && !error && (
         <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-muted)' }}>
           <div style={{ fontSize: '2rem', marginBottom: '0.6rem' }}>🔍</div>
@@ -236,11 +243,8 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
               background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.22)',
               fontSize: '0.78rem', color: '#fde68a', lineHeight: 1.7, textAlign: 'left',
             }}>
-              <strong>⚠ 데이터베이스에 등재되지 않은 품목입니다.</strong><br />
-              검색 결과가 없을 경우 아래를 시도해 보세요:<br />
-              • 약품명 앞뒤 글자 일부만 입력<br />
-              • 성분명 또는 업체명으로 검색<br />
-              • 의약품안전나라에서 직접 검색
+              <strong>⚠ 검색 결과가 없습니다.</strong><br />
+              약품명 앞뒤 글자 일부만 입력하거나 성분명으로 검색해 보세요.
             </div>
           )}
           <a
@@ -261,11 +265,14 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
   );
 }
 
-/* ── 의약품 카드 ────────────────────────────────────────────── */
-function DrugCard({ item, expanded, onToggle }: {
-  item: DrugItem;
-  expanded: boolean;
-  onToggle: () => void;
+/* ════════════════════════════════════════
+   의약품 카드
+════════════════════════════════════════ */
+function DrugCard({ item, expanded, drugInfo, onToggle }: {
+  item:      DrugItem;
+  expanded:  boolean;
+  drugInfo?: DrugInfoState;
+  onToggle:  () => void;
 }) {
   const isPrescription = item.etcOtcCode?.includes('전문');
   const isOtc          = item.etcOtcCode?.includes('일반');
@@ -273,26 +280,12 @@ function DrugCard({ item, expanded, onToggle }: {
   return (
     <div style={{
       borderRadius: 12, overflow: 'hidden',
-      background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)',
+      background: 'rgba(255,255,255,0.02)',
+      border: `1px solid ${expanded ? 'rgba(52,211,153,0.35)' : 'rgba(255,255,255,0.08)'}`,
       transition: 'border-color 0.15s',
-    }}
-      onMouseEnter={e => (e.currentTarget.style.borderColor = 'rgba(52,211,153,0.3)')}
-      onMouseLeave={e => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)')}
-    >
-      {/* 이미지 */}
-      {item.itemImage && (
-        <div style={{ background: 'rgba(255,255,255,0.04)', height: 110, position: 'relative', overflow: 'hidden' }}>
-          <Image
-            src={item.itemImage}
-            alt={item.itemName}
-            fill
-            style={{ objectFit: 'contain', padding: '6px' }}
-            unoptimized
-          />
-        </div>
-      )}
-
+    }}>
       <div style={{ padding: '0.9rem 1rem' }}>
+
         {/* 전문/일반 배지 */}
         {(isPrescription || isOtc) && (
           <span style={{
@@ -306,101 +299,280 @@ function DrugCard({ item, expanded, onToggle }: {
           </span>
         )}
 
-        {/* 이름 + 업체 */}
-        <p style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.2rem', lineHeight: 1.35 }}>
+        {/* 제품명 */}
+        <p style={{
+          fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)',
+          marginBottom: '0.22rem', lineHeight: 1.35,
+        }}>
           {item.itemName}
         </p>
-        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
+
+        {/* 성분명 */}
+        {item.ingrName && (
+          <p style={{
+            fontSize: '0.73rem', color: 'rgba(165,180,252,0.85)',
+            marginBottom: '0.22rem', lineHeight: 1.4,
+          }}>
+            🧪 {item.ingrName}
+          </p>
+        )}
+
+        {/* 판매사(업체명) + 허가일 */}
+        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
           {item.entpName}
           {item.updateDe && item.updateDe.length >= 8 && (
             <span style={{ marginLeft: '0.5rem', opacity: 0.6 }}>
-              · {item.updateDe.slice(0, 4)}.{item.updateDe.slice(4, 6)}.{item.updateDe.slice(6, 8)}
+              · {fmtDate(item.updateDe)}
             </span>
           )}
         </p>
 
-        {/* 약효분류명 (허가정보 DB) */}
-        {item.className && (
-          <p style={{
-            fontSize: '0.71rem', color: 'rgba(165,180,252,0.85)',
-            marginBottom: '0.5rem', lineHeight: 1.4,
-          }}>
-            📂 {item.className}
-          </p>
-        )}
-
-        {/* 효능효과 미리보기 */}
-        {item.efcyQesitm && (
-          <p style={{
-            fontSize: '0.76rem', color: 'rgba(240,244,255,0.65)', lineHeight: 1.55,
-            marginBottom: '0.7rem',
-            display: '-webkit-box', WebkitLineClamp: expanded ? undefined : 2,
-            WebkitBoxOrient: 'vertical', overflow: expanded ? 'visible' : 'hidden',
-          }}>
-            {item.efcyQesitm}
-          </p>
-        )}
-
-        {/* 상세 펼치기 */}
-        {expanded && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', marginBottom: '0.7rem' }}>
-            {item.useMethodQesitm  && <Detail label="용법·용량" text={item.useMethodQesitm} />}
-            {item.atpnWarnQesitm   && <Detail label="⚠ 주의사항 경고" text={item.atpnWarnQesitm} warn />}
-            {item.atpnQesitm       && <Detail label="주의사항" text={item.atpnQesitm} />}
-            {item.intrcQesitm      && <Detail label="상호작용" text={item.intrcQesitm} />}
-            {item.seQesitm         && <Detail label="부작용" text={item.seQesitm} />}
-            {item.depositMethodQesitm && <Detail label="보관방법" text={item.depositMethodQesitm} />}
-          </div>
-        )}
-
-        {/* 버튼 영역 */}
+        {/* 버튼 */}
         <div style={{ display: 'flex', gap: '0.4rem' }}>
-          {(item.efcyQesitm || item.useMethodQesitm) && (
-            <button
-              onClick={onToggle}
-              style={{
-                flex: 1, padding: '0.42rem 0', borderRadius: 8, cursor: 'pointer',
-                background: expanded ? 'rgba(52,211,153,0.14)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${expanded ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.08)'}`,
-                color: expanded ? '#6ee7b7' : 'var(--text-muted)',
-                fontSize: '0.75rem', fontFamily: 'inherit', fontWeight: 500,
-              }}
-            >
-              {expanded ? '접기 ▲' : '상세보기 ▼'}
-            </button>
-          )}
+          <button
+            onClick={onToggle}
+            style={{
+              flex: 1, padding: '0.42rem 0', borderRadius: 8, cursor: 'pointer',
+              background: expanded ? 'rgba(52,211,153,0.14)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${expanded ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.08)'}`,
+              color: expanded ? '#6ee7b7' : 'var(--text-muted)',
+              fontSize: '0.75rem', fontFamily: 'inherit', fontWeight: 500,
+            }}
+          >
+            {expanded ? '접기 ▲' : '약가·생동·DMF ▼'}
+          </button>
           <a
             href={NEDRUG_DETAIL(item.itemSeq)}
             target="_blank" rel="noopener noreferrer"
             style={{
-              flex: 1, padding: '0.42rem 0', borderRadius: 8, textAlign: 'center',
+              padding: '0.42rem 0.75rem', borderRadius: 8, textAlign: 'center',
               background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.22)',
               color: '#6ee7b7', fontSize: '0.75rem', fontWeight: 500, textDecoration: 'none',
+              whiteSpace: 'nowrap',
             }}
           >
             안전나라 ↗
           </a>
         </div>
       </div>
+
+      {/* 상세 패널 */}
+      {expanded && (
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          padding: '0.85rem 1rem',
+          background: 'rgba(0,0,0,0.15)',
+        }}>
+          {drugInfo?.loading && (
+            <div style={{ textAlign: 'center', padding: '0.8rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+              ⏳ 약가·생동·DMF 조회 중…
+            </div>
+          )}
+          {drugInfo?.error && (
+            <p style={{ color: '#f87171', fontSize: '0.78rem' }}>⚠ {drugInfo.error}</p>
+          )}
+          {drugInfo?.data && (
+            <DrugInfoPanel data={drugInfo.data} ingrName={item.ingrName} />
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-/* ── 상세 항목 ──────────────────────────────────────────────── */
-function Detail({ label, text, warn }: { label: string; text: string; warn?: boolean }) {
+/* ════════════════════════════════════════
+   약가·생동·DMF 패널
+════════════════════════════════════════ */
+function DrugInfoPanel({ data, ingrName }: {
+  data:      DrugInfoResponse;
+  ingrName?: string | null;
+}) {
+  const { prices, bioEq, dmf } = data;
+
   return (
-    <div style={{
-      padding: '0.5rem 0.7rem', borderRadius: 8,
-      background: warn ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.03)',
-      border: `1px solid ${warn ? 'rgba(239,68,68,0.18)' : 'rgba(255,255,255,0.06)'}`,
-    }}>
-      <p style={{ fontSize: '0.68rem', fontWeight: 600, color: warn ? '#fca5a5' : 'var(--text-muted)', marginBottom: '0.25rem' }}>{label}</p>
-      <p style={{ fontSize: '0.74rem', color: 'rgba(240,244,255,0.7)', lineHeight: 1.55, margin: 0 }}>{text}</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+
+      {/* 약가 */}
+      <InfoSection title="💰 약가">
+        {prices.length === 0 ? (
+          <NoData text="약가 정보가 없습니다." />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            {prices.slice(0, 5).map((p, i) => (
+              <div key={i} style={{
+                padding: '0.45rem 0.65rem', borderRadius: 7,
+                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
+              }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem' }}>
+                  {p.payTpNm && (
+                    <span style={{
+                      padding: '0.1rem 0.45rem', borderRadius: 4, fontSize: '0.65rem', fontWeight: 600,
+                      background: p.payTpNm.includes('급여') ? 'rgba(52,211,153,0.12)' : 'rgba(251,191,36,0.12)',
+                      border: `1px solid ${p.payTpNm.includes('급여') ? 'rgba(52,211,153,0.3)' : 'rgba(251,191,36,0.3)'}`,
+                      color: p.payTpNm.includes('급여') ? '#6ee7b7' : '#fde68a',
+                    }}>
+                      {p.payTpNm}
+                    </span>
+                  )}
+                  {p.mxCprc != null && (
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {p.mxCprc.toLocaleString()}원
+                    </span>
+                  )}
+                  {(p.unit || p.nomNm) && (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      / {p.unit ?? p.nomNm}
+                    </span>
+                  )}
+                  {p.mnfEntpNm && (
+                    <span style={{
+                      marginLeft: 'auto', fontSize: '0.7rem', color: 'rgba(165,180,252,0.8)',
+                    }}>
+                      {p.mnfEntpNm}
+                    </span>
+                  )}
+                </div>
+                {p.adtStaDd && (
+                  <p style={{ fontSize: '0.67rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
+                    시행일: {fmtDate(p.adtStaDd)}
+                  </p>
+                )}
+                {p.itmNm && p.itmNm !== '' && (
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0.1rem 0 0', opacity: 0.75 }}>
+                    {p.itmNm}
+                  </p>
+                )}
+              </div>
+            ))}
+            {prices.length > 5 && (
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+                외 {prices.length - 5}건 더 있음
+              </p>
+            )}
+          </div>
+        )}
+      </InfoSection>
+
+      {/* 생동 */}
+      <InfoSection title="🔬 자사 생동 여부">
+        {bioEq.length === 0 ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <span style={{ color: '#f87171', fontSize: '1rem' }}>✗</span>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>생동 등재 이력 없음</span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            {bioEq.slice(0, 3).map((b, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
+                <span style={{ color: '#6ee7b7', fontSize: '1rem', flexShrink: 0 }}>✓</span>
+                <div>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                    {b.itemName || '생동 인정'}
+                  </span>
+                  {b.noticeDate && (
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '0.4rem' }}>
+                      ({fmtDate(b.noticeDate)})
+                    </span>
+                  )}
+                  {b.entpName && (
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '0.4rem' }}>
+                      · {b.entpName}
+                    </span>
+                  )}
+                  {b.ingrName && (
+                    <p style={{ fontSize: '0.68rem', color: 'var(--text-muted)', margin: '0.1rem 0 0' }}>
+                      {b.ingrName}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+            {bioEq.length > 3 && (
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', paddingLeft: '1.4rem' }}>
+                외 {bioEq.length - 3}건 더 있음
+              </p>
+            )}
+          </div>
+        )}
+      </InfoSection>
+
+      {/* DMF */}
+      <InfoSection title="🏭 원료 DMF 현황">
+        {!ingrName ? (
+          <NoData text="성분명 정보 없음 — 약가·생동 데이터에서 성분명이 확인되면 자동 조회됩니다." />
+        ) : dmf.length === 0 ? (
+          <NoData text="등록된 원료 DMF 이력이 없습니다." />
+        ) : (
+          <>
+            <div style={{ overflowX: 'auto', borderRadius: 7, border: '1px solid rgba(255,255,255,0.06)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
+                    {['성분명', '등록업체', '국가', '등록일'].map(h => (
+                      <th key={h} style={{
+                        padding: '0.35rem 0.55rem', textAlign: 'left', fontWeight: 600,
+                        color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.06)',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dmf.slice(0, 10).map((d, i) => (
+                    <tr key={i} style={{ borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                      <td style={tdStyle}>{d.ingrName}</td>
+                      <td style={tdStyle}>{d.entpName ?? '-'}</td>
+                      <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{d.country ?? '-'}</td>
+                      <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{fmtDate(d.permitDate)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {dmf.length > 10 && (
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.3rem', textAlign: 'right' }}>
+                외 {dmf.length - 10}건 더 있음
+              </p>
+            )}
+          </>
+        )}
+      </InfoSection>
     </div>
   );
 }
 
-/* ── 페이지 버튼 ────────────────────────────────────────────── */
+const tdStyle: React.CSSProperties = {
+  padding: '0.35rem 0.55rem',
+  color: 'rgba(240,244,255,0.75)',
+  verticalAlign: 'top',
+};
+
+/* ── 섹션 레이블 ── */
+function InfoSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p style={{
+        fontSize: '0.72rem', fontWeight: 700, color: 'rgba(165,180,252,0.9)',
+        marginBottom: '0.4rem', letterSpacing: '0.02em',
+      }}>
+        {title}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+function NoData({ text }: { text: string }) {
+  return (
+    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0.1rem 0' }}>
+      {text}
+    </p>
+  );
+}
+
+/* ── 페이지 버튼 ── */
 function PageBtn({ label, active, disabled, onClick }: {
   label: string; active?: boolean; disabled?: boolean; onClick: () => void;
 }) {
@@ -409,7 +581,8 @@ function PageBtn({ label, active, disabled, onClick }: {
       onClick={onClick}
       disabled={disabled}
       style={{
-        minWidth: 36, height: 36, borderRadius: 8, cursor: disabled ? 'not-allowed' : 'pointer',
+        minWidth: 36, height: 36, borderRadius: 8,
+        cursor: disabled ? 'not-allowed' : 'pointer',
         fontFamily: 'inherit', fontSize: '0.8rem', fontWeight: active ? 700 : 400,
         background: active ? 'rgba(52,211,153,0.18)' : 'rgba(255,255,255,0.04)',
         border: `1px solid ${active ? 'rgba(52,211,153,0.4)' : 'rgba(255,255,255,0.08)'}`,
