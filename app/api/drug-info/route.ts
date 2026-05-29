@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 /**
  * 의약품 상세정보 API — 약가 · 생동 · DMF 통합 조회
  *
- * 약가  : HIRA  B551182/dgamtCrtrInfoService1.2/getDgamtList  (ServiceKey 대문자)
- * 생동  : MFDS  1471000/MdcBioEqInfoService01/getMdcBioEqList01  (serviceKey 소문자)
- * DMF   : MFDS  1471000/MdcDmfInfoService01/getMdcDmfList01      (serviceKey 소문자)
+ * 약가 조회 순서:
+ *   1) drug_prices 테이블 (업로드 파일 기반) — 있으면 우선 사용
+ *   2) HIRA dgamtCrtrInfoService1.2 API — 테이블이 비어있거나 없으면 폴백
  *
- * 파라미터:
- *   item  — 제품명 (약가·생동 검색용)
- *   ingr  — 성분명 (DMF 검색용, 선택)
+ * 생동 : MFDS MdcBioEqInfoService01  (serviceKey 소문자)
+ * DMF  : MFDS MdcDmfInfoService01    (serviceKey 소문자)
  */
 
 const PRICE_URL = 'https://apis.data.go.kr/B551182/dgamtCrtrInfoService1.2/getDgamtList';
@@ -71,12 +71,51 @@ function parseXmlItems(xml: string): Record<string, string>[] {
   return items;
 }
 
-/* ── 약가 (HIRA) ── */
-async function fetchPrices(apiKey: string, itemName: string): Promise<PriceItem[]> {
+/* ── 약가 1순위: 업로드 파일(drug_prices 테이블) ── */
+async function fetchPricesFromDB(itemName: string): Promise<PriceItem[]> {
+  const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return [];
+
+  try {
+    const sb = createSupabaseClient(url, key);
+    // 앞부분 한글 최대 6자로 부분일치 검색
+    const m      = itemName.match(/^([가-힣A-Za-z]+)/);
+    const search = m ? m[1].slice(0, 6) : itemName.slice(0, 6);
+
+    const { data, error } = await sb
+      .from('drug_prices')
+      .select('*')
+      .ilike('item_name', `%${search}%`)
+      .order('effective_date', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      if (error.code !== '42P01') console.warn('[drug-info] DB 약가 오류:', error.message);
+      return [];
+    }
+
+    return (data ?? []).map((row: Record<string, unknown>) => ({
+      itmNm:     String(row.item_name     ?? ''),
+      mxCprc:    row.max_price            ? Number(row.max_price)           : null,
+      payTpNm:   row.pay_type             ? String(row.pay_type)            : null,
+      nomNm:     row.standard             ? String(row.standard)            : null,
+      unit:      row.unit                 ? String(row.unit)                : null,
+      adtStaDd:  row.effective_date       ? String(row.effective_date)      : null,
+      mnfEntpNm: row.manufacturer         ? String(row.manufacturer)        : null,
+    }));
+  } catch (e) {
+    console.warn('[drug-info] fetchPricesFromDB error:', e);
+    return [];
+  }
+}
+
+/* ── 약가 2순위: HIRA API 폴백 ── */
+async function fetchPricesFromAPI(apiKey: string, itemName: string): Promise<PriceItem[]> {
   const url = `${PRICE_URL}?ServiceKey=${encodeURIComponent(apiKey)}&itmNm=${encodeURIComponent(itemName)}&numOfRows=20&pageNo=1`;
   try {
     const res = await fetch(url, { next: { revalidate: 300 } });
-    if (!res.ok) { console.warn('[drug-info] 약가 HTTP', res.status); return []; }
+    if (!res.ok) { console.warn('[drug-info] 약가 API HTTP', res.status); return []; }
     const xml = await res.text();
     return parseXmlItems(xml).map(item => ({
       itmNm:     item.itmNm     || '',
@@ -88,9 +127,20 @@ async function fetchPrices(apiKey: string, itemName: string): Promise<PriceItem[
       mnfEntpNm: item.mnfEntpNm || null,
     }));
   } catch (e) {
-    console.warn('[drug-info] 약가 fetch error:', e);
+    console.warn('[drug-info] 약가 API fetch error:', e);
     return [];
   }
+}
+
+/* ── 약가 통합 (DB 우선 → API 폴백) ── */
+async function fetchPrices(apiKey: string, itemName: string): Promise<PriceItem[]> {
+  const dbPrices = await fetchPricesFromDB(itemName);
+  if (dbPrices.length > 0) {
+    console.log(`[drug-info] 약가 DB 조회: ${dbPrices.length}건`);
+    return dbPrices;
+  }
+  console.log('[drug-info] 약가 DB 없음 → HIRA API 폴백');
+  return fetchPricesFromAPI(apiKey, itemName);
 }
 
 /* ── 생동성인정품목 (MFDS) ── */
