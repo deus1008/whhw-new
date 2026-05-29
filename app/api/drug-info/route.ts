@@ -74,6 +74,20 @@ function parseXmlItems(xml: string): Record<string, string>[] {
   return items;
 }
 
+/* ── DB 행 → PriceItem 변환 ── */
+function mapDbRows(rows: Record<string, unknown>[]): PriceItem[] {
+  return rows.map(row => ({
+    itmNm:     String(row.item_name      ?? ''),
+    mxCprc:    row.max_price             ? Number(row.max_price)      : null,
+    payTpNm:   row.pay_type              ? String(row.pay_type)       : null,
+    nomNm:     row.standard              ? String(row.standard)       : null,
+    unit:      row.unit                  ? String(row.unit)           : null,
+    adtStaDd:  row.effective_date        ? String(row.effective_date) : null,
+    mnfEntpNm: row.manufacturer          ? String(row.manufacturer)   : null,
+    ingrName:  row.ingredient_name       ? String(row.ingredient_name): null,
+  }));
+}
+
 /* ── 약가 1순위: 업로드 파일(drug_prices 테이블) ── */
 async function fetchPricesFromDB(itemName: string): Promise<PriceItem[]> {
   const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -82,7 +96,22 @@ async function fetchPricesFromDB(itemName: string): Promise<PriceItem[]> {
 
   try {
     const sb = createSupabaseClient(url, key);
-    // 앞부분 한글 최대 6자로 부분일치 검색
+
+    // ① 정밀 검색: 제품명 전체로 부분일치 (용량·규격이 다른 동일계열 제품 오염 방지)
+    //   "글리젠타듀오정2.5/500밀리그램" → DB에서 해당 용량 제품만 매칭
+    const { data: exact, error: exactErr } = await sb
+      .from('drug_prices')
+      .select('*')
+      .ilike('item_name', `%${itemName}%`)
+      .order('effective_date', { ascending: false })
+      .limit(20);
+
+    if (!exactErr && exact && exact.length > 0) {
+      console.log(`[drug-info] 약가 DB 정밀조회: ${exact.length}건 ("${itemName}")`);
+      return mapDbRows(exact as Record<string, unknown>[]);
+    }
+
+    // ② 폴백: 앞부분 한글 최대 6자로 광역 검색 (DB에 완전히 일치하는 제품명이 없는 경우)
     const m      = itemName.match(/^([가-힣A-Za-z]+)/);
     const search = m ? m[1].slice(0, 6) : itemName.slice(0, 6);
 
@@ -98,16 +127,8 @@ async function fetchPricesFromDB(itemName: string): Promise<PriceItem[]> {
       return [];
     }
 
-    return (data ?? []).map((row: Record<string, unknown>) => ({
-      itmNm:     String(row.item_name      ?? ''),
-      mxCprc:    row.max_price             ? Number(row.max_price)      : null,
-      payTpNm:   row.pay_type              ? String(row.pay_type)       : null,
-      nomNm:     row.standard              ? String(row.standard)       : null,
-      unit:      row.unit                  ? String(row.unit)           : null,
-      adtStaDd:  row.effective_date        ? String(row.effective_date) : null,
-      mnfEntpNm: row.manufacturer          ? String(row.manufacturer)   : null,
-      ingrName:  row.ingredient_name       ? String(row.ingredient_name): null,
-    }));
+    console.log(`[drug-info] 약가 DB 광역조회 폴백: ${(data ?? []).length}건 ("${search}")`);
+    return mapDbRows((data ?? []) as Record<string, unknown>[]);
   } catch (e) {
     console.warn('[drug-info] fetchPricesFromDB error:', e);
     return [];
