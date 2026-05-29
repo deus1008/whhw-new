@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import DocumentsClient from '@/components/DocumentsClient';
+import DrugPriceUpload from '@/components/DrugPriceUpload';
 
 type DocStatus = 'processing' | 'running' | 'ready' | 'error';
 
@@ -86,6 +87,8 @@ export default async function DocumentsPage() {
           )}
           <LogoutButton compact />
         </div>
+
+        {role === 'admin' && <DrugPriceUpload />}
 
         <DocumentsClient
           initialDocuments={docsWithChunks}

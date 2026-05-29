@@ -5,7 +5,6 @@ import { updateStatus, updateRole } from './actions';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
-import DrugPriceUpload from '@/components/DrugPriceUpload';
 
 type Status = 'pending' | 'approved' | 'rejected';
 type Role   = 'admin' | 'uploader' | 'member';
@@ -242,8 +241,6 @@ export default async function AdminPage() {
           </Link>
           <LogoutButton compact />
         </div>
-
-        <DrugPriceUpload />
 
         <Section title="승인 대기" profiles={pending}  status="pending"  />
         <Section title="승인됨"   profiles={approved} status="approved" />
