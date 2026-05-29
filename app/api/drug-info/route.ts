@@ -36,11 +36,13 @@ export interface BioEqItem {
 }
 
 export interface DmfItem {
-  ingrName:   string;
-  entpName:   string | null;
-  country:    string | null;
-  permitDate: string | null;  // 등록일 YYYYMMDD
-  dmfNo:      string | null;
+  ingrName:    string;
+  entpName:    string | null;   // 국내 등록업체
+  mnfctrName:  string | null;   // 실제 제조업체명
+  mnfctrPlace: string | null;   // 제조소 주소
+  country:     string | null;   // 제조국
+  permitDate:  string | null;   // 등록일 YYYY-MM-DD
+  dmfNo:       string | null;   // DMF 허가번호 (DMF_PERMIT_NO)
 }
 
 export interface DrugInfoResponse {
@@ -181,11 +183,13 @@ async function fetchDmf(apiKey: string, ingrName: string): Promise<DmfItem[]> {
       if (!res.ok) { console.warn('[drug-info] DMF HTTP', res.status, ingr); return [] as DmfItem[]; }
       const xml = await res.text();
       return parseXmlItems(xml).map(item => ({
-        ingrName:   item.INGR_KOR_NAME || ingr,
-        entpName:   item.ENTP_NAME     || null,
-        country:    item.MANUF_COUNTRY_CODE_NM || null,
-        permitDate: item.DMF_PERMIT_DATE || null,
-        dmfNo:      item.DMF_NO         || null,
+        ingrName:    item.INGR_KOR_NAME          || ingr,
+        entpName:    item.ENTP_NAME              || null,
+        mnfctrName:  item.MNFCTR_NAME            || null,
+        mnfctrPlace: item.MNFCTR_PLACE           || null,
+        country:     item.MANUF_COUNTRY_CODE_NM  || null,
+        permitDate:  item.DMF_PERMIT_DATE        || null,
+        dmfNo:       item.DMF_PERMIT_NO          || null,  // 실제 필드명 DMF_PERMIT_NO
       }));
     })
   );

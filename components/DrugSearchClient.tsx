@@ -493,7 +493,7 @@ function DrugInfoPanel({ data, ingrName, bioeqYn }: {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
                 <thead>
                   <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
-                    {['성분명', '등록업체', '국가', '등록일'].map(h => (
+                    {['성분명', '국내 등록업체', '제조업체', '제조국', '등록일', 'DMF번호'].map(h => (
                       <th key={h} style={{
                         padding: '0.35rem 0.55rem', textAlign: 'left', fontWeight: 600,
                         color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.06)',
@@ -509,8 +509,19 @@ function DrugInfoPanel({ data, ingrName, bioeqYn }: {
                     <tr key={i} style={{ borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                       <td style={tdStyle}>{d.ingrName}</td>
                       <td style={tdStyle}>{d.entpName ?? '-'}</td>
+                      <td style={tdStyle}>
+                        <span>{d.mnfctrName ?? '-'}</span>
+                        {d.mnfctrPlace && (
+                          <p style={{ fontSize: '0.62rem', color: 'var(--text-muted)', margin: '0.1rem 0 0', opacity: 0.7 }}>
+                            {d.mnfctrPlace}
+                          </p>
+                        )}
+                      </td>
                       <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{d.country ?? '-'}</td>
                       <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>{fmtDate(d.permitDate)}</td>
+                      <td style={{ ...tdStyle, whiteSpace: 'nowrap', fontSize: '0.65rem', opacity: 0.8 }}>
+                        {d.dmfNo ?? '-'}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
