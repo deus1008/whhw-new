@@ -538,6 +538,7 @@ const inputStyle: React.CSSProperties = {
 
 const selectStyle: React.CSSProperties = {
   ...inputStyle, cursor: 'pointer',
+  background: '#1e293b',
 };
 
 const primaryBtn: React.CSSProperties = {

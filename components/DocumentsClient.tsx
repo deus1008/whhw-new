@@ -781,7 +781,7 @@ const removeBtn: React.CSSProperties = {
 
 const selectStyle: React.CSSProperties = {
   flex: 1, padding: '0.55rem 0.75rem', borderRadius: '10px',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+  background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)',
   color: 'var(--text-primary)', fontSize: '0.85rem', fontFamily: 'inherit',
   outline: 'none', cursor: 'pointer',
 };

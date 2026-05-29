@@ -301,6 +301,14 @@ body::before {
 
 .auth-input:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* ── 드롭다운 option 가독성 (어두운 배경 + 밝은 글자) ────────── */
+select { background-color: #1e293b; }
+select option {
+  background-color: #1e293b;
+  color: #e2e8f0;
+}
+select.auth-input { background-color: #1e293b; }
+
 .auth-btn {
   width: 100%;
   margin-top: 0.5rem;

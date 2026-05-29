@@ -407,11 +407,11 @@ export default function MarketingClient({ initialSchedules, userId, isAdmin }: P
             </div>
 
             <Field label="카테고리">
-              <select className="auth-input" style={{ marginBottom: 0 }}
+              <select className="auth-input" style={{ marginBottom: 0, background: '#1e293b' }}
                 value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                 disabled={isPending}>
-                <option value="">— 선택 안함 —</option>
-                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                <option value="" style={{ background: '#1e293b', color: '#e2e8f0' }}>— 선택 안함 —</option>
+                {CATEGORIES.map(c => <option key={c} value={c} style={{ background: '#1e293b', color: '#e2e8f0' }}>{c}</option>)}
               </select>
             </Field>
 
