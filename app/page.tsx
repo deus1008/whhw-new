@@ -37,7 +37,7 @@ const NAV_ITEMS = [
   {
     href: '/medical-search',
     icon: '🏥',
-    label: '기관검색',
+    label: '병원검색',
     color: '#67e8f9',
     bg:   'rgba(34,211,238,0.10)',
     bd:   'rgba(34,211,238,0.22)',
