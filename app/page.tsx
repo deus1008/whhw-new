@@ -35,6 +35,15 @@ const NAV_ITEMS = [
     external: false,
   },
   {
+    href: '/medical-search',
+    icon: '🏥',
+    label: '기관검색',
+    color: '#67e8f9',
+    bg:   'rgba(34,211,238,0.10)',
+    bd:   'rgba(34,211,238,0.22)',
+    external: false,
+  },
+  {
     href: '/edi',
     icon: '🗂',
     label: 'EDI',
