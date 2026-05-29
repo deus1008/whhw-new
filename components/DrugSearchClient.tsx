@@ -9,24 +9,23 @@ const NEDRUG_DETAIL = (seq: string) =>
 const NEDRUG_SEARCH = (q: string) =>
   `https://nedrug.mfds.go.kr/pbp/CCBBB01/getItemDetail?searchYearly=&opYes=&division=all&search1=&text1=${encodeURIComponent(q)}&search2=&search3=&page=1`;
 
-const hasApiKey: boolean = !!process.env.NEXT_PUBLIC_DRUG_API_CONFIGURED;
-
 export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boolean }) {
-  const [query, setQuery]           = useState('');
-  const [items, setItems]           = useState<DrugItem[]>([]);
-  const [total, setTotal]           = useState(0);
-  const [page, setPage]             = useState(1);
-  const [error, setError]           = useState('');
-  const [searched, setSearched]     = useState('');
-  const [searchNote, setSearchNote] = useState('');   // 업체명 검색 시 안내
-  const [notInEasyDb, setNotInEasyDb] = useState(false); // 미등재 품목 안내
-  const [expanded, setExpanded]     = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [query, setQuery]             = useState('');
+  const [items, setItems]             = useState<DrugItem[]>([]);
+  const [total, setTotal]             = useState(0);
+  const [page, setPage]               = useState(1);
+  const [error, setError]             = useState('');
+  const [searched, setSearched]       = useState('');
+  const [searchNote, setSearchNote]   = useState('');
+  const [notInAnyDb, setNotInAnyDb]   = useState(false);
+  const [source, setSource]           = useState<'easyDrug' | 'prmsn' | 'nedrug' | ''>('');
+  const [expanded, setExpanded]       = useState<string | null>(null);
+  const [isPending, startTransition]  = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function doSearch(q: string, pg = 1) {
     if (!q.trim()) return;
-    setError(''); setSearchNote(''); setNotInEasyDb(false);
+    setError(''); setSearchNote(''); setNotInAnyDb(false); setSource('');
     startTransition(async () => {
       try {
         const res  = await fetch(`/api/drug-search?q=${encodeURIComponent(q)}&page=${pg}`);
@@ -38,7 +37,8 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
         setSearched(q);
         setExpanded(null);
         setSearchNote(data.searchNote ?? '');
-        setNotInEasyDb(!!data.notInEasyDb);
+        setNotInAnyDb(!!data.notInAnyDb);
+        setSource(data.source ?? '');
       } catch {
         setError('검색 중 오류가 발생했습니다.');
       }
@@ -66,7 +66,7 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
               💊 의약품 검색
             </h2>
             <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              식품의약품안전처 공공데이터 기반 · 의약품 효능·용법·주의사항 조회
+              식품의약품안전처 공공데이터 기반 · 일반의약품·전문의약품 통합 조회
             </p>
           </div>
           <a
@@ -88,7 +88,7 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
             ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="의약품명을 입력하세요 (예: 타이레놀, 아스피린)"
+            placeholder="의약품명 또는 성분명을 입력하세요 (예: 크레트롤, 아스피린)"
             style={{
               flex: 1, padding: '0.65rem 1rem', borderRadius: 10,
               background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
@@ -119,8 +119,9 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
             background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.22)',
             fontSize: '0.78rem', color: '#fde68a', lineHeight: 1.6,
           }}>
-            <strong>⚠ API 키 미설정</strong> — 검색 결과를 앱 내에서 보려면 환경변수 <code style={{ background: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: 4 }}>DRUG_API_KEY</code>를 설정해야 합니다.
-            {' '}<a href="https://www.data.go.kr/data/15075057/openapi.do" target="_blank" rel="noopener noreferrer"
+            <strong>⚠ API 키 미설정</strong> — 검색 결과를 앱 내에서 보려면 환경변수{' '}
+            <code style={{ background: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: 4 }}>DRUG_API_KEY</code>를 설정해야 합니다.{' '}
+            <a href="https://www.data.go.kr/data/15075057/openapi.do" target="_blank" rel="noopener noreferrer"
               style={{ color: '#fbbf24', textDecoration: 'underline' }}>data.go.kr에서 키 발급 →</a>
             <br />지금은 아래에서 직접 의약품안전나라로 이동해 검색할 수 있습니다.
           </div>
@@ -181,6 +182,20 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
               <span style={{ color: '#fbbf24' }}>ℹ {searchNote}&nbsp;&nbsp;</span>
             ) : null}
             &ldquo;{searched}&rdquo; 검색 결과 {total.toLocaleString()}건 (페이지 {page}/{totalPages})
+            {source === 'prmsn' && (
+              <span style={{
+                marginLeft: '0.5rem', padding: '0.15rem 0.5rem', borderRadius: 5,
+                background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
+                color: '#a5b4fc', fontSize: '0.7rem',
+              }}>허가정보 DB</span>
+            )}
+            {source === 'nedrug' && (
+              <span style={{
+                marginLeft: '0.5rem', padding: '0.15rem 0.5rem', borderRadius: 5,
+                background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.28)',
+                color: '#86efac', fontSize: '0.7rem',
+              }}>식약처 DB</span>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
@@ -215,15 +230,17 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
           <p style={{ fontSize: '0.88rem', marginBottom: '0.5rem' }}>
             &ldquo;{searched}&rdquo;에 해당하는 의약품이 없습니다.
           </p>
-          {notInEasyDb && (
+          {notInAnyDb && (
             <div style={{
               margin: '0.8rem auto', maxWidth: 480, padding: '0.75rem 1rem', borderRadius: 10,
               background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.22)',
               fontSize: '0.78rem', color: '#fde68a', lineHeight: 1.7, textAlign: 'left',
             }}>
-              <strong>⚠ 이 API에 등재되지 않은 품목입니다.</strong><br />
-              공공데이터포털의 "쉬운 의약품 정보" API는 전체 의약품의 일부만 포함합니다.<br />
-              아래 의약품안전나라에서 직접 검색하거나, 성분명·업체명으로 다시 검색해 보세요.
+              <strong>⚠ 데이터베이스에 등재되지 않은 품목입니다.</strong><br />
+              검색 결과가 없을 경우 아래를 시도해 보세요:<br />
+              • 약품명 앞뒤 글자 일부만 입력<br />
+              • 성분명 또는 업체명으로 검색<br />
+              • 의약품안전나라에서 직접 검색
             </div>
           )}
           <a
@@ -250,6 +267,9 @@ function DrugCard({ item, expanded, onToggle }: {
   expanded: boolean;
   onToggle: () => void;
 }) {
+  const isPrescription = item.etcOtcCode?.includes('전문');
+  const isOtc          = item.etcOtcCode?.includes('일반');
+
   return (
     <div style={{
       borderRadius: 12, overflow: 'hidden',
@@ -273,14 +293,41 @@ function DrugCard({ item, expanded, onToggle }: {
       )}
 
       <div style={{ padding: '0.9rem 1rem' }}>
+        {/* 전문/일반 배지 */}
+        {(isPrescription || isOtc) && (
+          <span style={{
+            display: 'inline-block', marginBottom: '0.4rem',
+            padding: '0.12rem 0.5rem', borderRadius: 5, fontSize: '0.67rem', fontWeight: 600,
+            background: isPrescription ? 'rgba(239,68,68,0.12)' : 'rgba(52,211,153,0.10)',
+            border: `1px solid ${isPrescription ? 'rgba(239,68,68,0.28)' : 'rgba(52,211,153,0.24)'}`,
+            color: isPrescription ? '#fca5a5' : '#6ee7b7',
+          }}>
+            {isPrescription ? '전문의약품' : '일반의약품'}
+          </span>
+        )}
+
         {/* 이름 + 업체 */}
         <p style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.2rem', lineHeight: 1.35 }}>
           {item.itemName}
         </p>
-        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
           {item.entpName}
-          {item.updateDe && <span style={{ marginLeft: '0.5rem', opacity: 0.6 }}>· {item.updateDe.slice(0, 4)}.{item.updateDe.slice(4, 6)}.{item.updateDe.slice(6, 8)}</span>}
+          {item.updateDe && item.updateDe.length >= 8 && (
+            <span style={{ marginLeft: '0.5rem', opacity: 0.6 }}>
+              · {item.updateDe.slice(0, 4)}.{item.updateDe.slice(4, 6)}.{item.updateDe.slice(6, 8)}
+            </span>
+          )}
         </p>
+
+        {/* 약효분류명 (허가정보 DB) */}
+        {item.className && (
+          <p style={{
+            fontSize: '0.71rem', color: 'rgba(165,180,252,0.85)',
+            marginBottom: '0.5rem', lineHeight: 1.4,
+          }}>
+            📂 {item.className}
+          </p>
+        )}
 
         {/* 효능효과 미리보기 */}
         {item.efcyQesitm && (
