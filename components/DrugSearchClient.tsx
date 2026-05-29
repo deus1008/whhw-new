@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useRef, useTransition } from 'react';
 import type { DrugItem } from '@/app/api/drug-search/route';
-import type { DrugInfoResponse } from '@/app/api/drug-info/route';
+import type { DrugInfoResponse, PriceItem } from '@/app/api/drug-info/route';
 
 const NEDRUG_DETAIL = (seq: string) =>
   `https://nedrug.mfds.go.kr/pbp/CCBBB01/getItemDetail?itemSeq=${seq}`;
@@ -11,7 +11,6 @@ const NEDRUG_SEARCH = (q: string) =>
 
 type DrugInfoState = { loading: boolean; data?: DrugInfoResponse; error?: string };
 
-/* ── 날짜 포맷 헬퍼 (YYYYMMDD 또는 YYYY-MM-DD → YYYY.MM.DD) ── */
 function fmtDate(d: string | null | undefined): string {
   if (!d) return '-';
   const c = d.replace(/-/g, '');
@@ -33,31 +32,14 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
   const [drugInfoMap, setDrugInfoMap] = useState<Record<string, DrugInfoState>>({});
   const [isPending, startTransition]  = useTransition();
 
-  async function doSearch(q: string, pg = 1) {
-    if (!q.trim()) return;
-    setError(''); setSearchNote(''); setNotInAnyDb(false); setSource('');
-    setExpanded(null); setDrugInfoMap({});
-    startTransition(async () => {
-      try {
-        const res  = await fetch(`/api/drug-search?q=${encodeURIComponent(q)}&page=${pg}`);
-        const data = await res.json();
-        if (data.error) { setError(data.error); setItems([]); setTotal(0); return; }
-        setItems(data.items ?? []);
-        setTotal(data.total ?? 0);
-        setPage(pg);
-        setSearched(q);
-        setSearchNote(data.searchNote ?? '');
-        setNotInAnyDb(!!data.notInAnyDb);
-        setSource(data.source ?? '');
-      } catch {
-        setError('검색 중 오류가 발생했습니다.');
-      }
-    });
-  }
+  /** 중복 요청 방지용 Set (ref = 렌더 사이에 유지) */
+  const loadingKeysRef = useRef(new Set<string>());
 
+  /* ── 약가·생동·DMF 단건 로드 ── */
   async function loadDrugInfo(item: DrugItem) {
     const key = item.itemSeq;
-    if (drugInfoMap[key]) return;  // already loading or loaded
+    if (loadingKeysRef.current.has(key)) return;
+    loadingKeysRef.current.add(key);
 
     setDrugInfoMap(prev => ({ ...prev, [key]: { loading: true } }));
     try {
@@ -66,13 +48,44 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
       const res  = await fetch(`/api/drug-info?${params}`);
       const data = await res.json() as DrugInfoResponse & { error?: string };
       if (data.error) {
+        loadingKeysRef.current.delete(key);
         setDrugInfoMap(prev => ({ ...prev, [key]: { loading: false, error: data.error } }));
       } else {
         setDrugInfoMap(prev => ({ ...prev, [key]: { loading: false, data } }));
       }
     } catch {
-      setDrugInfoMap(prev => ({ ...prev, [key]: { loading: false, error: '상세 조회 실패' } }));
+      loadingKeysRef.current.delete(key);
+      setDrugInfoMap(prev => ({ ...prev, [key]: { loading: false, error: '조회 실패' } }));
     }
+  }
+
+  /* ── 검색 ── */
+  async function doSearch(q: string, pg = 1) {
+    if (!q.trim()) return;
+    setError(''); setSearchNote(''); setNotInAnyDb(false); setSource('');
+    setExpanded(null);
+    setDrugInfoMap({});
+    loadingKeysRef.current.clear();
+
+    startTransition(async () => {
+      try {
+        const res  = await fetch(`/api/drug-search?q=${encodeURIComponent(q)}&page=${pg}`);
+        const data = await res.json();
+        if (data.error) { setError(data.error); setItems([]); setTotal(0); return; }
+        const newItems: DrugItem[] = data.items ?? [];
+        setItems(newItems);
+        setTotal(data.total ?? 0);
+        setPage(pg);
+        setSearched(q);
+        setSearchNote(data.searchNote ?? '');
+        setNotInAnyDb(!!data.notInAnyDb);
+        setSource(data.source ?? '');
+        // 검색 결과 전체 자동 조회 (성분명·약가·생동·DMF)
+        newItems.forEach(item => loadDrugInfo(item));
+      } catch {
+        setError('검색 중 오류가 발생했습니다.');
+      }
+    });
   }
 
   function handleToggle(item: DrugItem) {
@@ -80,7 +93,7 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
       setExpanded(null);
     } else {
       setExpanded(item.itemSeq);
-      loadDrugInfo(item);
+      loadDrugInfo(item); // 이미 로드됐으면 즉시 리턴
     }
   }
 
@@ -170,9 +183,7 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
           padding: '0.8rem 1rem', borderRadius: 10,
           background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)',
           color: '#f87171', fontSize: '0.82rem',
-        }}>
-          ⚠ {error}
-        </div>
+        }}>⚠ {error}</div>
       )}
 
       {/* ── 로딩 스켈레톤 ── */}
@@ -180,7 +191,7 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.75rem' }}>
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} style={{
-              borderRadius: 12, height: 130, opacity: 0.4,
+              borderRadius: 12, height: 150, opacity: 0.4,
               background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
             }} />
           ))}
@@ -277,6 +288,16 @@ function DrugCard({ item, expanded, drugInfo, onToggle }: {
   const isPrescription = item.etcOtcCode?.includes('전문');
   const isOtc          = item.etcOtcCode?.includes('일반');
 
+  // 성분명: 검색 결과 우선, 없으면 생동 정보에서 보완
+  const displayIngrName =
+    item.ingrName ||
+    drugInfo?.data?.bioEq?.[0]?.ingrName ||
+    null;
+
+  // 약가 첫 번째 항목 (인라인 표시용)
+  const firstPrice: PriceItem | undefined = drugInfo?.data?.prices?.[0];
+  const priceCount = drugInfo?.data?.prices?.length ?? 0;
+
   return (
     <div style={{
       borderRadius: 12, overflow: 'hidden',
@@ -308,17 +329,24 @@ function DrugCard({ item, expanded, drugInfo, onToggle }: {
         </p>
 
         {/* 성분명 */}
-        {item.ingrName && (
+        {displayIngrName ? (
           <p style={{
             fontSize: '0.73rem', color: 'rgba(165,180,252,0.85)',
             marginBottom: '0.22rem', lineHeight: 1.4,
           }}>
-            🧪 {item.ingrName}
+            🧪 {displayIngrName}
           </p>
-        )}
+        ) : drugInfo?.loading ? (
+          <p style={{
+            fontSize: '0.71rem', color: 'var(--text-muted)',
+            marginBottom: '0.22rem', opacity: 0.5,
+          }}>
+            🧪 성분명 조회 중…
+          </p>
+        ) : null}
 
-        {/* 판매사(업체명) + 허가일 */}
-        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+        {/* 판매사 + 허가일 */}
+        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
           {item.entpName}
           {item.updateDe && item.updateDe.length >= 8 && (
             <span style={{ marginLeft: '0.5rem', opacity: 0.6 }}>
@@ -326,6 +354,56 @@ function DrugCard({ item, expanded, drugInfo, onToggle }: {
             </span>
           )}
         </p>
+
+        {/* 약가 인라인 표시 */}
+        {drugInfo?.loading && !firstPrice && (
+          <p style={{
+            fontSize: '0.71rem', color: 'var(--text-muted)',
+            marginBottom: '0.55rem', opacity: 0.55,
+          }}>
+            💰 약가 조회 중…
+          </p>
+        )}
+        {firstPrice && (
+          <div style={{
+            display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem',
+            marginBottom: '0.6rem',
+            padding: '0.38rem 0.55rem', borderRadius: 7,
+            background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)',
+          }}>
+            {firstPrice.payTpNm && (
+              <span style={{
+                padding: '0.1rem 0.42rem', borderRadius: 4, fontSize: '0.65rem', fontWeight: 600,
+                background: firstPrice.payTpNm.includes('급여') ? 'rgba(52,211,153,0.12)' : 'rgba(251,191,36,0.12)',
+                border: `1px solid ${firstPrice.payTpNm.includes('급여') ? 'rgba(52,211,153,0.3)' : 'rgba(251,191,36,0.3)'}`,
+                color: firstPrice.payTpNm.includes('급여') ? '#6ee7b7' : '#fde68a',
+              }}>
+                {firstPrice.payTpNm}
+              </span>
+            )}
+            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              💰{' '}
+              {firstPrice.mxCprc != null
+                ? `${firstPrice.mxCprc.toLocaleString()}원`
+                : '가격 정보 없음'}
+            </span>
+            {(firstPrice.unit || firstPrice.nomNm) && (
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                / {firstPrice.unit ?? firstPrice.nomNm}
+              </span>
+            )}
+            {firstPrice.mnfEntpNm && (
+              <span style={{ fontSize: '0.69rem', color: 'rgba(165,180,252,0.75)', marginLeft: 'auto' }}>
+                {firstPrice.mnfEntpNm}
+              </span>
+            )}
+            {priceCount > 1 && (
+              <span style={{ fontSize: '0.67rem', color: 'var(--text-muted)' }}>
+                외 {priceCount - 1}건
+              </span>
+            )}
+          </div>
+        )}
 
         {/* 버튼 */}
         <div style={{ display: 'flex', gap: '0.4rem' }}>
@@ -339,7 +417,7 @@ function DrugCard({ item, expanded, drugInfo, onToggle }: {
               fontSize: '0.75rem', fontFamily: 'inherit', fontWeight: 500,
             }}
           >
-            {expanded ? '접기 ▲' : '약가·생동·DMF ▼'}
+            {expanded ? '접기 ▲' : '상세보기 ▼'}
           </button>
           <a
             href={NEDRUG_DETAIL(item.itemSeq)}
@@ -365,14 +443,14 @@ function DrugCard({ item, expanded, drugInfo, onToggle }: {
         }}>
           {drugInfo?.loading && (
             <div style={{ textAlign: 'center', padding: '0.8rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-              ⏳ 약가·생동·DMF 조회 중…
+              ⏳ 상세 정보 조회 중…
             </div>
           )}
           {drugInfo?.error && (
             <p style={{ color: '#f87171', fontSize: '0.78rem' }}>⚠ {drugInfo.error}</p>
           )}
           {drugInfo?.data && (
-            <DrugInfoPanel data={drugInfo.data} ingrName={item.ingrName} />
+            <DrugInfoPanel data={drugInfo.data} ingrName={displayIngrName} />
           )}
         </div>
       )}
@@ -381,7 +459,7 @@ function DrugCard({ item, expanded, drugInfo, onToggle }: {
 }
 
 /* ════════════════════════════════════════
-   약가·생동·DMF 패널
+   약가·생동·DMF 상세 패널
 ════════════════════════════════════════ */
 function DrugInfoPanel({ data, ingrName }: {
   data:      DrugInfoResponse;
@@ -392,8 +470,8 @@ function DrugInfoPanel({ data, ingrName }: {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
 
-      {/* 약가 */}
-      <InfoSection title="💰 약가">
+      {/* 약가 전체 목록 */}
+      <InfoSection title="💰 약가 전체">
         {prices.length === 0 ? (
           <NoData text="약가 정보가 없습니다." />
         ) : (
@@ -406,7 +484,7 @@ function DrugInfoPanel({ data, ingrName }: {
                 <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem' }}>
                   {p.payTpNm && (
                     <span style={{
-                      padding: '0.1rem 0.45rem', borderRadius: 4, fontSize: '0.65rem', fontWeight: 600,
+                      padding: '0.1rem 0.42rem', borderRadius: 4, fontSize: '0.65rem', fontWeight: 600,
                       background: p.payTpNm.includes('급여') ? 'rgba(52,211,153,0.12)' : 'rgba(251,191,36,0.12)',
                       border: `1px solid ${p.payTpNm.includes('급여') ? 'rgba(52,211,153,0.3)' : 'rgba(251,191,36,0.3)'}`,
                       color: p.payTpNm.includes('급여') ? '#6ee7b7' : '#fde68a',
@@ -425,21 +503,15 @@ function DrugInfoPanel({ data, ingrName }: {
                     </span>
                   )}
                   {p.mnfEntpNm && (
-                    <span style={{
-                      marginLeft: 'auto', fontSize: '0.7rem', color: 'rgba(165,180,252,0.8)',
-                    }}>
+                    <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'rgba(165,180,252,0.8)' }}>
                       {p.mnfEntpNm}
                     </span>
                   )}
                 </div>
                 {p.adtStaDd && (
-                  <p style={{ fontSize: '0.67rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
+                  <p style={{ fontSize: '0.67rem', color: 'var(--text-muted)', margin: '0.18rem 0 0' }}>
                     시행일: {fmtDate(p.adtStaDd)}
-                  </p>
-                )}
-                {p.itmNm && p.itmNm !== '' && (
-                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0.1rem 0 0', opacity: 0.75 }}>
-                    {p.itmNm}
+                    {p.itmNm && <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>· {p.itmNm}</span>}
                   </p>
                 )}
               </div>
@@ -499,7 +571,7 @@ function DrugInfoPanel({ data, ingrName }: {
       {/* DMF */}
       <InfoSection title="🏭 원료 DMF 현황">
         {!ingrName ? (
-          <NoData text="성분명 정보 없음 — 약가·생동 데이터에서 성분명이 확인되면 자동 조회됩니다." />
+          <NoData text="성분명 정보 없음 — DMF를 조회할 수 없습니다." />
         ) : dmf.length === 0 ? (
           <NoData text="등록된 원료 DMF 이력이 없습니다." />
         ) : (
@@ -549,7 +621,6 @@ const tdStyle: React.CSSProperties = {
   verticalAlign: 'top',
 };
 
-/* ── 섹션 레이블 ── */
 function InfoSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
@@ -565,14 +636,9 @@ function InfoSection({ title, children }: { title: string; children: React.React
 }
 
 function NoData({ text }: { text: string }) {
-  return (
-    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0.1rem 0' }}>
-      {text}
-    </p>
-  );
+  return <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0.1rem 0' }}>{text}</p>;
 }
 
-/* ── 페이지 버튼 ── */
 function PageBtn({ label, active, disabled, onClick }: {
   label: string; active?: boolean; disabled?: boolean; onClick: () => void;
 }) {
