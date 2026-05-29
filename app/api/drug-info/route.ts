@@ -97,38 +97,45 @@ async function fetchPricesFromDB(itemName: string): Promise<PriceItem[]> {
   try {
     const sb = createSupabaseClient(url, key);
 
-    // ① 정밀 검색: 제품명 전체로 부분일치 (용량·규격이 다른 동일계열 제품 오염 방지)
-    //   "글리젠타듀오정2.5/500밀리그램" → DB에서 해당 용량 제품만 매칭
-    const { data: exact, error: exactErr } = await sb
+    // ① 전체 제품명 정밀 검색
+    //   "글리젠타듀오정2.5/500밀리그램" → 해당 용량만 매칭, 1000mg/850mg 오염 없음
+    const { data: exact, error: e1 } = await sb
       .from('drug_prices')
       .select('*')
       .ilike('item_name', `%${itemName}%`)
       .order('effective_date', { ascending: false })
       .limit(20);
 
-    if (!exactErr && exact && exact.length > 0) {
-      console.log(`[drug-info] 약가 DB 정밀조회: ${exact.length}건 ("${itemName}")`);
+    if (e1?.code === '42P01') return [];
+    if (e1) console.warn('[drug-info] DB 약가 오류①:', e1.message);
+    if (exact && exact.length > 0) {
+      console.log(`[drug-info] DB ① 정밀: ${exact.length}건 ("${itemName}")`);
       return mapDbRows(exact as Record<string, unknown>[]);
     }
 
-    // ② 폴백: 앞부분 한글 최대 6자로 광역 검색 (DB에 완전히 일치하는 제품명이 없는 경우)
-    const m      = itemName.match(/^([가-힣A-Za-z]+)/);
-    const search = m ? m[1].slice(0, 6) : itemName.slice(0, 6);
+    // ② 괄호 앞 기본명으로 재검색
+    //   API명 "글리젠타정5밀리그램(리나글립틴)" vs DB명 "글리젠타정5밀리그램(리나글립틴)_(5mg/1정)"
+    //   → "글리젠타정5밀리그램" 으로 검색해 수용
+    const baseName = itemName.replace(/\s*[(\（（].*$/, '').trim();
+    if (baseName.length >= 4 && baseName !== itemName) {
+      const { data: base, error: e2 } = await sb
+        .from('drug_prices')
+        .select('*')
+        .ilike('item_name', `%${baseName}%`)
+        .order('effective_date', { ascending: false })
+        .limit(20);
 
-    const { data, error } = await sb
-      .from('drug_prices')
-      .select('*')
-      .ilike('item_name', `%${search}%`)
-      .order('effective_date', { ascending: false })
-      .limit(20);
-
-    if (error) {
-      if (error.code !== '42P01') console.warn('[drug-info] DB 약가 오류:', error.message);
-      return [];
+      if (e2) console.warn('[drug-info] DB 약가 오류②:', e2.message);
+      if (base && base.length > 0) {
+        console.log(`[drug-info] DB ② 기본명: ${base.length}건 ("${baseName}")`);
+        return mapDbRows(base as Record<string, unknown>[]);
+      }
     }
 
-    console.log(`[drug-info] 약가 DB 광역조회 폴백: ${(data ?? []).length}건 ("${search}")`);
-    return mapDbRows((data ?? []) as Record<string, unknown>[]);
+    // ③ DB에 없음 → 빈 배열 반환, HIRA API가 처리
+    //   ※ 6자 광역 폴백 제거: 동일계열 다른 용량 제품의 약가가 잘못 표시되는 문제 방지
+    console.log(`[drug-info] DB 조회 없음 → HIRA API 폴백 ("${itemName}")`);
+    return [];
   } catch (e) {
     console.warn('[drug-info] fetchPricesFromDB error:', e);
     return [];
