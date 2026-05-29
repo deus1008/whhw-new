@@ -96,13 +96,14 @@ async function fetchPricesFromDB(itemName: string): Promise<PriceItem[]> {
     }
 
     return (data ?? []).map((row: Record<string, unknown>) => ({
-      itmNm:     String(row.item_name     ?? ''),
-      mxCprc:    row.max_price            ? Number(row.max_price)           : null,
-      payTpNm:   row.pay_type             ? String(row.pay_type)            : null,
-      nomNm:     row.standard             ? String(row.standard)            : null,
-      unit:      row.unit                 ? String(row.unit)                : null,
-      adtStaDd:  row.effective_date       ? String(row.effective_date)      : null,
-      mnfEntpNm: row.manufacturer         ? String(row.manufacturer)        : null,
+      itmNm:     String(row.item_name      ?? ''),
+      mxCprc:    row.max_price             ? Number(row.max_price)      : null,
+      payTpNm:   row.pay_type              ? String(row.pay_type)       : null,
+      nomNm:     row.standard              ? String(row.standard)       : null,
+      unit:      row.unit                  ? String(row.unit)           : null,
+      adtStaDd:  row.effective_date        ? String(row.effective_date) : null,
+      mnfEntpNm: row.manufacturer          ? String(row.manufacturer)   : null,
+      ingrName:  row.ingredient_name       ? String(row.ingredient_name): null,
     }));
   } catch (e) {
     console.warn('[drug-info] fetchPricesFromDB error:', e);

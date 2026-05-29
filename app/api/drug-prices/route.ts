@@ -10,14 +10,15 @@ import { createClient } from '@/lib/supabase/server';
  * POST multipart(file=...)  — Excel/CSV 파일 업로드 → drug_prices 테이블에 저장
  *
  * 지원 Excel 컬럼명 (한글/영문 자동 감지):
- *   품목명·품명·itmNm          → item_name
- *   상한가·최고상한가·mxCprc   → max_price
- *   급여구분·급여유형·payTpNm  → pay_type
- *   규격·규격명·nomNm          → standard
- *   단위·unit                  → unit
- *   시행일·시행년월일·adtStaDd → effective_date
- *   제조업체·제조업체명·mnfEntpNm → manufacturer
- *   코드·품목코드              → item_code
+ *   품목명·품명·제품명·itmNm         → item_name
+ *   상한가·상한금액표 금액·mxCprc    → max_price
+ *   급여구분·전일·payTpNm            → pay_type
+ *   규격·규격명·nomNm                → standard
+ *   단위·unit                        → unit
+ *   시행일·시행년월일·adtStaDd       → effective_date
+ *   제조업체·업체명·mnfEntpNm        → manufacturer
+ *   코드·품목코드·제품코드·주성분코드 → item_code
+ *   주성분명·성분명·주성분코드_동일제형 → ingredient_name (DB 컬럼 추가 필요)
  */
 
 /* ── 서비스 롤 클라이언트 (RLS 우회) ── */
@@ -28,15 +29,23 @@ function serviceClient() {
   );
 }
 
+/* ── 컬럼명 정규화: 개행·다중공백 → 단일공백, trim ── */
+function normalizeKey(k: string): string {
+  return String(k).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 /* ── 컬럼명 매핑 ── */
 const COL_MAP: Record<string, string> = {
-  // item_name
-  '품목명': 'item_name', '품명': 'item_name', 'itmNm': 'item_name', 'ITEM_NAME': 'item_name',
-  // max_price
+  // item_name — 기존 API형 + HIRA 급여목록(제품명) + 기타
+  '품목명': 'item_name', '품명': 'item_name', '제품명': 'item_name',
+  'itmNm': 'item_name', 'ITEM_NAME': 'item_name',
+  // max_price — HIRA 급여목록(상한금액표 금액) + 기존
   '상한가': 'max_price', '최고상한가': 'max_price', '최고상한금액': 'max_price',
+  '상한금액': 'max_price', '상한금액표 금액': 'max_price',
   'mxCprc': 'max_price', 'MX_CPRC': 'max_price',
-  // pay_type
+  // pay_type — 기존 + HIRA 급여목록(전일: 전문/일반)
   '급여구분': 'pay_type', '급여유형': 'pay_type', '급여구분명': 'pay_type',
+  '전일': 'pay_type', '전문일반': 'pay_type',
   'payTpNm': 'pay_type', 'PAY_TP_NM': 'pay_type',
   // standard
   '규격': 'standard', '규격명': 'standard', '제형규격명': 'standard',
@@ -46,12 +55,16 @@ const COL_MAP: Record<string, string> = {
   // effective_date
   '시행일': 'effective_date', '시행년월일': 'effective_date', '적용시작일': 'effective_date',
   '적용일자': 'effective_date', 'adtStaDd': 'effective_date', 'ADT_STA_DD': 'effective_date',
-  // manufacturer
+  // manufacturer — HIRA 급여목록(업체명) + 기존
   '제조업체': 'manufacturer', '제조업체명': 'manufacturer', '제조사': 'manufacturer',
+  '업체명': 'manufacturer', '제약사': 'manufacturer',
   'mnfEntpNm': 'manufacturer', 'MNF_ENTP_NM': 'manufacturer',
-  // item_code
+  // item_code — HIRA 급여목록(제품코드, 주성분코드) + 기존
   '코드': 'item_code', '품목코드': 'item_code', '품목번호': 'item_code',
-  '주성분코드': 'item_code',
+  '제품코드': 'item_code', '주성분코드': 'item_code',
+  // ingredient_name — HIRA 급여목록(주성분명)
+  '주성분명': 'ingredient_name', '성분명': 'ingredient_name',
+  'ingrName': 'ingredient_name', 'INGR_NAME': 'ingredient_name',
 };
 
 /* ── GET: 품목명으로 약가 검색 ── */
@@ -122,16 +135,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '데이터가 없습니다.' }, { status: 400 });
   }
 
-  /* 컬럼 매핑 */
+  /* 컬럼 매핑 (개행·다중공백 정규화 후 매칭) */
   const colMapping: Record<string, string> = {};
   for (const rawKey of Object.keys(rawRows[0])) {
-    const trimmed = String(rawKey).trim();
-    if (COL_MAP[trimmed]) colMapping[rawKey] = COL_MAP[trimmed];
+    const normalized = normalizeKey(rawKey);
+    if (COL_MAP[normalized]) colMapping[rawKey] = COL_MAP[normalized];
   }
 
   if (!Object.values(colMapping).includes('item_name')) {
+    const detectedCols = Object.keys(rawRows[0]).map(normalizeKey).join(', ');
     return NextResponse.json({
-      error: '품목명 컬럼을 찾을 수 없습니다. 컬럼명(품목명/품명/itmNm)을 확인하세요.',
+      error: `품목명 컬럼을 찾을 수 없습니다. 감지된 컬럼: [${detectedCols}]`,
     }, { status: 400 });
   }
 

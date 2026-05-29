@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS drug_prices (
   id              uuid        DEFAULT gen_random_uuid() PRIMARY KEY,
   item_name       text        NOT NULL,
   item_code       text,
+  ingredient_name text,
   max_price       integer,
   pay_type        text,
   standard        text,
@@ -14,6 +15,12 @@ CREATE TABLE IF NOT EXISTS drug_prices (
   source_file     text,
   created_at      timestamptz DEFAULT now()
 );
+
+-- ingredient_name 컬럼 추가 (이미 테이블이 있는 경우)
+DO $$ BEGIN
+  ALTER TABLE drug_prices ADD COLUMN IF NOT EXISTS ingredient_name text;
+EXCEPTION WHEN duplicate_column THEN NULL;
+END $$;
 
 -- 품목명 부분일치 검색용 인덱스
 CREATE INDEX IF NOT EXISTS idx_drug_prices_item_name
