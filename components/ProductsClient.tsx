@@ -174,9 +174,9 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
           style={{ flex: '1 1 200px', ...inputStyle }}
         />
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', fontSize: '0.82rem', cursor: 'pointer' }}>
-          <option value="">전체 상태</option>
-          {STATUS_LIST.map(s => <option key={s} value={s}>{s}</option>)}
+          style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', fontSize: '0.82rem', cursor: 'pointer' }}>
+          <option value="" style={{ background: '#1e293b', color: '#e2e8f0' }}>전체 상태</option>
+          {STATUS_LIST.map(s => <option key={s} value={s} style={{ background: '#1e293b', color: '#e2e8f0' }}>{s}</option>)}
         </select>
         <button onClick={openCreate}
           style={{ padding: '0.5rem 1.1rem', borderRadius: '8px', background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
