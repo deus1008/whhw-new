@@ -28,14 +28,12 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
   const [searchNote, setSearchNote]   = useState('');
   const [notInAnyDb, setNotInAnyDb]   = useState(false);
   const [source, setSource]           = useState<'easyDrug' | 'prmsn' | 'nedrug' | ''>('');
-  const [expanded, setExpanded]       = useState<string | null>(null);
   const [drugInfoMap, setDrugInfoMap] = useState<Record<string, DrugInfoState>>({});
   const [isPending, startTransition]  = useTransition();
 
-  /** 중복 요청 방지용 Set (ref = 렌더 사이에 유지) */
   const loadingKeysRef = useRef(new Set<string>());
 
-  /* ── 약가·생동·DMF 단건 로드 ── */
+  /* ── 약가·생동·DMF 로드 ── */
   async function loadDrugInfo(item: DrugItem) {
     const key = item.itemSeq;
     if (loadingKeysRef.current.has(key)) return;
@@ -63,7 +61,6 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
   async function doSearch(q: string, pg = 1) {
     if (!q.trim()) return;
     setError(''); setSearchNote(''); setNotInAnyDb(false); setSource('');
-    setExpanded(null);
     setDrugInfoMap({});
     loadingKeysRef.current.clear();
 
@@ -80,21 +77,11 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
         setSearchNote(data.searchNote ?? '');
         setNotInAnyDb(!!data.notInAnyDb);
         setSource(data.source ?? '');
-        // 검색 결과 전체 자동 조회 (성분명·약가·생동·DMF)
         newItems.forEach(item => loadDrugInfo(item));
       } catch {
         setError('검색 중 오류가 발생했습니다.');
       }
     });
-  }
-
-  function handleToggle(item: DrugItem) {
-    if (expanded === item.itemSeq) {
-      setExpanded(null);
-    } else {
-      setExpanded(item.itemSeq);
-      loadDrugInfo(item); // 이미 로드됐으면 즉시 리턴
-    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -188,10 +175,10 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
 
       {/* ── 로딩 스켈레톤 ── */}
       {isPending && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.75rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '0.75rem' }}>
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} style={{
-              borderRadius: 12, height: 150, opacity: 0.4,
+              borderRadius: 12, height: 200, opacity: 0.4,
               background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
             }} />
           ))}
@@ -214,14 +201,12 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '0.75rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '0.75rem' }}>
             {items.map(item => (
               <DrugCard
                 key={item.itemSeq}
                 item={item}
-                expanded={expanded === item.itemSeq}
                 drugInfo={drugInfoMap[item.itemSeq]}
-                onToggle={() => handleToggle(item)}
               />
             ))}
           </div>
@@ -279,33 +264,26 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
 /* ════════════════════════════════════════
    의약품 카드
 ════════════════════════════════════════ */
-function DrugCard({ item, expanded, drugInfo, onToggle }: {
+function DrugCard({ item, drugInfo }: {
   item:      DrugItem;
-  expanded:  boolean;
   drugInfo?: DrugInfoState;
-  onToggle:  () => void;
 }) {
   const isPrescription = item.etcOtcCode?.includes('전문');
   const isOtc          = item.etcOtcCode?.includes('일반');
 
-  // 성분명: 검색 결과 우선, 없으면 생동 정보에서 보완
   const displayIngrName =
     item.ingrName ||
     drugInfo?.data?.bioEq?.[0]?.ingrName ||
     null;
 
-  // 약가 첫 번째 항목 (인라인 표시용)
-  const firstPrice: PriceItem | undefined = drugInfo?.data?.prices?.[0];
-  const priceCount = drugInfo?.data?.prices?.length ?? 0;
-
   return (
     <div style={{
       borderRadius: 12, overflow: 'hidden',
       background: 'rgba(255,255,255,0.02)',
-      border: `1px solid ${expanded ? 'rgba(52,211,153,0.35)' : 'rgba(255,255,255,0.08)'}`,
-      transition: 'border-color 0.15s',
+      border: '1px solid rgba(255,255,255,0.08)',
     }}>
-      <div style={{ padding: '0.9rem 1rem' }}>
+      {/* ── 상단: 기본 정보 ── */}
+      <div style={{ padding: '0.9rem 1rem 0.75rem' }}>
 
         {/* 전문/일반 배지 */}
         {(isPrescription || isOtc) && (
@@ -346,7 +324,7 @@ function DrugCard({ item, expanded, drugInfo, onToggle }: {
         ) : null}
 
         {/* 판매사 + 허가일 */}
-        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+        <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', margin: 0 }}>
           {item.entpName}
           {item.updateDe && item.updateDe.length >= 8 && (
             <span style={{ marginLeft: '0.5rem', opacity: 0.6 }}>
@@ -354,122 +332,52 @@ function DrugCard({ item, expanded, drugInfo, onToggle }: {
             </span>
           )}
         </p>
-
-        {/* 약가 인라인 표시 */}
-        {drugInfo?.loading && !firstPrice && (
-          <p style={{
-            fontSize: '0.71rem', color: 'var(--text-muted)',
-            marginBottom: '0.55rem', opacity: 0.55,
-          }}>
-            💰 약가 조회 중…
-          </p>
-        )}
-        {firstPrice && (
-          <div style={{
-            display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.35rem',
-            marginBottom: '0.6rem',
-            padding: '0.38rem 0.55rem', borderRadius: 7,
-            background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)',
-          }}>
-            {firstPrice.payTpNm && (
-              <span style={{
-                padding: '0.1rem 0.42rem', borderRadius: 4, fontSize: '0.65rem', fontWeight: 600,
-                background: firstPrice.payTpNm.includes('급여') ? 'rgba(52,211,153,0.12)' : 'rgba(251,191,36,0.12)',
-                border: `1px solid ${firstPrice.payTpNm.includes('급여') ? 'rgba(52,211,153,0.3)' : 'rgba(251,191,36,0.3)'}`,
-                color: firstPrice.payTpNm.includes('급여') ? '#6ee7b7' : '#fde68a',
-              }}>
-                {firstPrice.payTpNm}
-              </span>
-            )}
-            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              💰{' '}
-              {firstPrice.mxCprc != null
-                ? `${firstPrice.mxCprc.toLocaleString()}원`
-                : '가격 정보 없음'}
-            </span>
-            {(firstPrice.unit || firstPrice.nomNm) && (
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                / {firstPrice.unit ?? firstPrice.nomNm}
-              </span>
-            )}
-            {firstPrice.ingrName && (
-              <span style={{
-                fontSize: '0.68rem', color: 'rgba(196,181,253,0.8)',
-                padding: '0.08rem 0.38rem', borderRadius: 4,
-                background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)',
-                maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }} title={firstPrice.ingrName}>
-                {firstPrice.ingrName}
-              </span>
-            )}
-            {firstPrice.mnfEntpNm && (
-              <span style={{ fontSize: '0.69rem', color: 'rgba(165,180,252,0.75)', marginLeft: 'auto' }}>
-                {firstPrice.mnfEntpNm}
-              </span>
-            )}
-            {priceCount > 1 && (
-              <span style={{ fontSize: '0.67rem', color: 'var(--text-muted)' }}>
-                외 {priceCount - 1}건
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* 버튼 */}
-        <div style={{ display: 'flex', gap: '0.4rem' }}>
-          <button
-            onClick={onToggle}
-            style={{
-              flex: 1, padding: '0.42rem 0', borderRadius: 8, cursor: 'pointer',
-              background: expanded ? 'rgba(52,211,153,0.14)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${expanded ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.08)'}`,
-              color: expanded ? '#6ee7b7' : 'var(--text-muted)',
-              fontSize: '0.75rem', fontFamily: 'inherit', fontWeight: 500,
-            }}
-          >
-            {expanded ? '접기 ▲' : '상세보기 ▼'}
-          </button>
-          <a
-            href={NEDRUG_DETAIL(item.itemSeq)}
-            target="_blank" rel="noopener noreferrer"
-            style={{
-              padding: '0.42rem 0.75rem', borderRadius: 8, textAlign: 'center',
-              background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.22)',
-              color: '#6ee7b7', fontSize: '0.75rem', fontWeight: 500, textDecoration: 'none',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            안전나라 ↗
-          </a>
-        </div>
       </div>
 
-      {/* 상세 패널 */}
-      {expanded && (
-        <div style={{
-          borderTop: '1px solid rgba(255,255,255,0.06)',
-          padding: '0.85rem 1rem',
-          background: 'rgba(0,0,0,0.15)',
-        }}>
-          {drugInfo?.loading && (
-            <div style={{ textAlign: 'center', padding: '0.8rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-              ⏳ 상세 정보 조회 중…
-            </div>
-          )}
-          {drugInfo?.error && (
-            <p style={{ color: '#f87171', fontSize: '0.78rem' }}>⚠ {drugInfo.error}</p>
-          )}
-          {drugInfo?.data && (
-            <DrugInfoPanel data={drugInfo.data} ingrName={displayIngrName} />
-          )}
-        </div>
-      )}
+      {/* ── 상세 정보: 약가·생동·DMF ── */}
+      <div style={{
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        padding: '0.75rem 1rem',
+        background: 'rgba(0,0,0,0.12)',
+      }}>
+        {drugInfo?.loading && (
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.6, margin: 0 }}>
+            ⏳ 약가·생동·DMF 조회 중…
+          </p>
+        )}
+        {drugInfo?.error && (
+          <p style={{ color: '#f87171', fontSize: '0.78rem', margin: 0 }}>⚠ {drugInfo.error}</p>
+        )}
+        {drugInfo?.data && (
+          <DrugInfoPanel data={drugInfo.data} ingrName={displayIngrName} />
+        )}
+      </div>
+
+      {/* ── 하단: 안전나라 링크 ── */}
+      <div style={{
+        borderTop: '1px solid rgba(255,255,255,0.05)',
+        padding: '0.55rem 1rem',
+      }}>
+        <a
+          href={NEDRUG_DETAIL(item.itemSeq)}
+          target="_blank" rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+            padding: '0.32rem 0.75rem', borderRadius: 7,
+            background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.22)',
+            color: '#6ee7b7', fontSize: '0.75rem', fontWeight: 500, textDecoration: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          🌐 의약품안전나라 ↗
+        </a>
+      </div>
     </div>
   );
 }
 
 /* ════════════════════════════════════════
-   약가·생동·DMF 상세 패널
+   약가·생동·DMF 패널
 ════════════════════════════════════════ */
 function DrugInfoPanel({ data, ingrName }: {
   data:      DrugInfoResponse;
@@ -478,65 +386,19 @@ function DrugInfoPanel({ data, ingrName }: {
   const { prices, bioEq, dmf } = data;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
 
-      {/* 약가 전체 목록 */}
-      <InfoSection title="💰 약가 전체">
+      {/* 약가 */}
+      <InfoSection title="💰 약가">
         {prices.length === 0 ? (
           <NoData text="약가 정보가 없습니다." />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             {prices.slice(0, 5).map((p, i) => (
-              <div key={i} style={{
-                padding: '0.45rem 0.65rem', borderRadius: 7,
-                background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
-              }}>
-                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem' }}>
-                  {p.payTpNm && (
-                    <span style={{
-                      padding: '0.1rem 0.42rem', borderRadius: 4, fontSize: '0.65rem', fontWeight: 600,
-                      background: p.payTpNm.includes('급여') ? 'rgba(52,211,153,0.12)' : 'rgba(251,191,36,0.12)',
-                      border: `1px solid ${p.payTpNm.includes('급여') ? 'rgba(52,211,153,0.3)' : 'rgba(251,191,36,0.3)'}`,
-                      color: p.payTpNm.includes('급여') ? '#6ee7b7' : '#fde68a',
-                    }}>
-                      {p.payTpNm}
-                    </span>
-                  )}
-                  {p.mxCprc != null && (
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {p.mxCprc.toLocaleString()}원
-                    </span>
-                  )}
-                  {(p.unit || p.nomNm) && (
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                      / {p.unit ?? p.nomNm}
-                    </span>
-                  )}
-                  {p.ingrName && (
-                    <span style={{
-                      fontSize: '0.68rem', color: 'rgba(196,181,253,0.8)',
-                      padding: '0.08rem 0.38rem', borderRadius: 4,
-                      background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)',
-                    }}>
-                      {p.ingrName}
-                    </span>
-                  )}
-                  {p.mnfEntpNm && (
-                    <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'rgba(165,180,252,0.8)' }}>
-                      {p.mnfEntpNm}
-                    </span>
-                  )}
-                </div>
-                {p.adtStaDd && (
-                  <p style={{ fontSize: '0.67rem', color: 'var(--text-muted)', margin: '0.18rem 0 0' }}>
-                    시행일: {fmtDate(p.adtStaDd)}
-                    {p.itmNm && <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>· {p.itmNm}</span>}
-                  </p>
-                )}
-              </div>
+              <PriceRow key={i} p={p} />
             ))}
             {prices.length > 5 && (
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'right' }}>
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'right', margin: 0 }}>
                 외 {prices.length - 5}건 더 있음
               </p>
             )}
@@ -579,7 +441,7 @@ function DrugInfoPanel({ data, ingrName }: {
               </div>
             ))}
             {bioEq.length > 3 && (
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', paddingLeft: '1.4rem' }}>
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', paddingLeft: '1.4rem', margin: 0 }}>
                 외 {bioEq.length - 3}건 더 있음
               </p>
             )}
@@ -634,6 +496,59 @@ function DrugInfoPanel({ data, ingrName }: {
   );
 }
 
+/* ── 약가 행 ── */
+function PriceRow({ p }: { p: PriceItem }) {
+  return (
+    <div style={{
+      padding: '0.45rem 0.65rem', borderRadius: 7,
+      background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
+    }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem' }}>
+        {p.payTpNm && (
+          <span style={{
+            padding: '0.1rem 0.42rem', borderRadius: 4, fontSize: '0.65rem', fontWeight: 600,
+            background: p.payTpNm.includes('급여') ? 'rgba(52,211,153,0.12)' : 'rgba(251,191,36,0.12)',
+            border: `1px solid ${p.payTpNm.includes('급여') ? 'rgba(52,211,153,0.3)' : 'rgba(251,191,36,0.3)'}`,
+            color: p.payTpNm.includes('급여') ? '#6ee7b7' : '#fde68a',
+          }}>
+            {p.payTpNm}
+          </span>
+        )}
+        {p.mxCprc != null && (
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+            {p.mxCprc.toLocaleString()}원
+          </span>
+        )}
+        {(p.unit || p.nomNm) && (
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+            / {p.unit ?? p.nomNm}
+          </span>
+        )}
+        {p.ingrName && (
+          <span style={{
+            fontSize: '0.68rem', color: 'rgba(196,181,253,0.8)',
+            padding: '0.08rem 0.38rem', borderRadius: 4,
+            background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.2)',
+          }}>
+            {p.ingrName}
+          </span>
+        )}
+        {p.mnfEntpNm && (
+          <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'rgba(165,180,252,0.8)' }}>
+            {p.mnfEntpNm}
+          </span>
+        )}
+      </div>
+      {p.adtStaDd && (
+        <p style={{ fontSize: '0.67rem', color: 'var(--text-muted)', margin: '0.18rem 0 0' }}>
+          시행일: {fmtDate(p.adtStaDd)}
+          {p.itmNm && <span style={{ marginLeft: '0.5rem', opacity: 0.7 }}>· {p.itmNm}</span>}
+        </p>
+      )}
+    </div>
+  );
+}
+
 const tdStyle: React.CSSProperties = {
   padding: '0.35rem 0.55rem',
   color: 'rgba(240,244,255,0.75)',
@@ -645,7 +560,7 @@ function InfoSection({ title, children }: { title: string; children: React.React
     <div>
       <p style={{
         fontSize: '0.72rem', fontWeight: 700, color: 'rgba(165,180,252,0.9)',
-        marginBottom: '0.4rem', letterSpacing: '0.02em',
+        marginBottom: '0.4rem', letterSpacing: '0.02em', margin: '0 0 0.4rem',
       }}>
         {title}
       </p>
@@ -655,7 +570,7 @@ function InfoSection({ title, children }: { title: string; children: React.React
 }
 
 function NoData({ text }: { text: string }) {
-  return <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '0.1rem 0' }}>{text}</p>;
+  return <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>{text}</p>;
 }
 
 function PageBtn({ label, active, disabled, onClick }: {
