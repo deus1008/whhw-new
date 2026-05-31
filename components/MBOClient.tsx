@@ -230,32 +230,6 @@ export default function MBOClient({
                   />
                 ))}
               </tbody>
-              {/* 합계 행 — 숫자 항목만 합산 */}
-              {targets.length > 1 && numericTargets.length > 0 && (
-                <tfoot>
-                  <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', background: 'rgba(99,102,241,0.05)' }}>
-                    <td style={{ ...tdStyle, fontWeight: 700, color: 'rgba(165,180,252,0.9)' }}>
-                      합계 {numericTargets.length < targets.length && (
-                        <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>
-                          (숫자 {numericTargets.length}건)
-                        </span>
-                      )}
-                    </td>
-                    <td style={tdStyle}></td>
-                    <td style={{ ...tdStyle, fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {numericTargets.reduce((s, t) => s + Number(t.target_value), 0).toLocaleString()}
-                    </td>
-                    <td style={{ ...tdStyle, fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {numericTargets.reduce((s, t) => s + Number(t.actual_value), 0).toLocaleString()}
-                    </td>
-                    <td style={{ ...tdStyle, fontWeight: 700, color: avgRate !== null ? rateColor(avgRate) : 'var(--text-muted)' }}>
-                      {avgRate !== null ? `${avgRate}%` : '-'}
-                    </td>
-                    <td style={tdStyle}></td>
-                    {isAdmin && <td style={tdStyle}></td>}
-                  </tr>
-                </tfoot>
-              )}
             </table>
           </div>
         )}
