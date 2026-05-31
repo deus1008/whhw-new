@@ -76,9 +76,14 @@ export default function MBOClient({
   /* ── 데이터 로드 ── */
   const reload = useCallback(async () => {
     setLoading(true);
-    const data = await getMboTargets(selectedId, year, effectiveMonth);
-    setTargets(data);
-    setLoading(false);
+    try {
+      const data = await getMboTargets(selectedId, year, effectiveMonth);
+      setTargets(data);
+    } catch (e) {
+      console.error('[MBO] reload error:', e);
+    } finally {
+      setLoading(false);
+    }
   }, [selectedId, year, effectiveMonth]);
 
   useEffect(() => { reload(); }, [reload]);
@@ -228,14 +233,8 @@ export default function MBOClient({
                     isOdd={i % 2 === 1}
                     isFirst={i === 0}
                     isLast={i === targets.length - 1}
-                    onMoveUp={() => {
-                      const prev = targets[i - 1];
-                      swapSortOrders(t.id, t.sort_order, prev.id, prev.sort_order).then(reload);
-                    }}
-                    onMoveDown={() => {
-                      const next = targets[i + 1];
-                      swapSortOrders(t.id, t.sort_order, next.id, next.sort_order).then(reload);
-                    }}
+                    prevTarget={targets[i - 1] ?? null}
+                    nextTarget={targets[i + 1] ?? null}
                     onUpdated={reload}
                     onToast={showToast}
                   />
@@ -278,15 +277,15 @@ export default function MBOClient({
    목표 행 (수정 + 실적 입력 인라인)
 ════════════════════════════════════════════ */
 function TargetRow({
-  target, isAdmin, isOdd, isFirst, isLast, onMoveUp, onMoveDown, onUpdated, onToast,
+  target, isAdmin, isOdd, isFirst, isLast, prevTarget, nextTarget, onUpdated, onToast,
 }: {
   target:      MboTarget;
   isAdmin:     boolean;
   isOdd:       boolean;
   isFirst:     boolean;
   isLast:      boolean;
-  onMoveUp:    () => void;
-  onMoveDown:  () => void;
+  prevTarget:  MboTarget | null;
+  nextTarget:  MboTarget | null;
   onUpdated:   () => void;
   onToast:     (msg: string) => void;
 }) {
@@ -305,37 +304,65 @@ function TargetRow({
 
   const rate = calcRate(target.actual_value, target.target_value);
 
+  function handleMove(adjacent: MboTarget) {
+    startTransition(async () => {
+      try {
+        const res = await swapSortOrders(target.id, target.sort_order, adjacent.id, adjacent.sort_order);
+        if (res.error) { onToast('⚠ ' + res.error); return; }
+        onUpdated();
+      } catch (e) {
+        onToast('⚠ 순서 변경 중 오류가 발생했습니다.');
+        console.error('[MBO] handleMove error:', e);
+      }
+    });
+  }
+
   function handleSaveEdit() {
     startTransition(async () => {
-      const res = await updateMboTarget(target.id, {
-        item_name:    editName.trim(),
-        target_value: editTarget.trim(),
-        unit:         editUnit.trim(),
-      });
-      if (res.error) { onToast('⚠ ' + res.error); return; }
-      onToast('✓ 목표가 수정되었습니다.');
-      setEditMode(false);
-      onUpdated();
+      try {
+        const res = await updateMboTarget(target.id, {
+          item_name:    editName.trim(),
+          target_value: editTarget.trim(),
+          unit:         editUnit.trim(),
+        });
+        if (res.error) { onToast('⚠ ' + res.error); return; }
+        onToast('✓ 목표가 수정되었습니다.');
+        setEditMode(false);
+        onUpdated();
+      } catch (e) {
+        onToast('⚠ 수정 중 오류가 발생했습니다.');
+        console.error('[MBO] handleSaveEdit error:', e);
+      }
     });
   }
 
   function handleDelete() {
     if (!confirm(`"${target.item_name}" 목표를 삭제할까요?`)) return;
     startTransition(async () => {
-      const res = await deleteMboTarget(target.id);
-      if (res.error) { onToast('⚠ ' + res.error); return; }
-      onToast('✓ 삭제되었습니다.');
-      onUpdated();
+      try {
+        const res = await deleteMboTarget(target.id);
+        if (res.error) { onToast('⚠ ' + res.error); return; }
+        onToast('✓ 삭제되었습니다.');
+        onUpdated();
+      } catch (e) {
+        onToast('⚠ 삭제 중 오류가 발생했습니다.');
+        console.error('[MBO] handleDelete error:', e);
+      }
     });
   }
 
   function handleSaveActual() {
     startTransition(async () => {
-      const res = await updateMboActual(target.id, actualVal.trim(), actualNote);
-      if (res.error) { onToast('⚠ ' + res.error); return; }
-      onToast('✓ 실적이 저장되었습니다.');
-      setActualMode(false);
-      onUpdated();
+      try {
+        const res = await updateMboActual(target.id, actualVal.trim(), actualNote);
+        if (res.error) { onToast('⚠ ' + res.error); return; }
+        onToast('✓ 실적이 저장되었습니다.');
+        setActualMode(false);
+        onUpdated();
+      } catch (e) {
+        onToast('⚠ 실적 저장 중 오류가 발생했습니다.');
+        console.error('[MBO] handleSaveActual error:', e);
+      }
     });
   }
 
@@ -448,7 +475,7 @@ function TargetRow({
             <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                 <button
-                  onClick={onMoveUp}
+                  onClick={() => prevTarget && handleMove(prevTarget)}
                   disabled={isFirst || isPending}
                   title="위로"
                   style={{
@@ -459,7 +486,7 @@ function TargetRow({
                   }}
                 >▲</button>
                 <button
-                  onClick={onMoveDown}
+                  onClick={() => nextTarget && handleMove(nextTarget)}
                   disabled={isLast || isPending}
                   title="아래로"
                   style={{
