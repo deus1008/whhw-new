@@ -62,6 +62,15 @@ const NAV_ITEMS = [
     external: false,
   },
   {
+    href: '/mbo',
+    icon: '🎯',
+    label: 'MBO',
+    color: '#fcd34d',
+    bg:   'rgba(245,158,11,0.10)',
+    bd:   'rgba(245,158,11,0.22)',
+    external: false,
+  },
+  {
     href: '/visits',
     icon: '📋',
     label: '영업활동',
