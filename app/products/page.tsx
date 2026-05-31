@@ -5,24 +5,18 @@ import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import ProductsClient from '@/components/ProductsClient';
 
-export type DateEntry = { date: string; note: string };
-
 export type UpcomingProduct = {
-  id:             string;
-  user_id:        string;
-  ingredient:     string;           // 성분명 (필수)
-  product_name:   string | null;    // 품목명
-  approval_dates: DateEntry[];      // 허가(예정)일 이력
-  launch_dates:   DateEntry[];      // 발매(예정)일 이력
-  product_type:   string;           // 자사 / 위탁
-  contractor:     string | null;    // 위탁사
-  indication:     string | null;    // 적응증/효능효과
-  expected_price: string | null;    // (예상)약가
-  status:         string | null;    // 진행상태
-  memo:           string | null;
-  is_priority:    boolean;
-  created_at:     string;
-  updated_at:     string;
+  id:              string;
+  title:           string;           // 제품명
+  launch_date:     string | null;    // 발매(예정)일 YYYY-MM-DD
+  manufacturer:    string | null;    // 제조사/위탁사
+  indication:      string | null;    // 계열/적응증
+  insurance_price: string | null;    // 보험가
+  insurance_code:  string | null;    // 보험코드
+  status:          string | null;    // 진행상태
+  memo:            string | null;    // 비고 (성분명 등)
+  created_at:      string;
+  updated_at:      string;
 };
 
 export default async function ProductsPage() {
@@ -45,7 +39,7 @@ export default async function ProductsPage() {
   const { data } = await supabase
     .from('upcoming_products')
     .select('*')
-    .order('created_at', { ascending: true });
+    .order('launch_date', { ascending: true });
 
   const products: UpcomingProduct[] = (data ?? []) as UpcomingProduct[];
 
