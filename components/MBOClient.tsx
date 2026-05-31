@@ -41,17 +41,21 @@ const FY_MONTH_LABEL: Record<number, string> = {
 
 /* ── 달성률 색상 ── */
 function rateColor(rate: number) {
-  if (rate >= 100) return '#34d399';  // 초과달성 — 에메랄드
-  if (rate >= 80)  return '#60a5fa';  // 순조 — 블루
-  if (rate >= 50)  return '#fbbf24';  // 주의 — 노랑
-  return '#f87171';                   // 미흡 — 빨강
+  if (rate >= 95) return '#60a5fa';  // 파랑
+  if (rate >= 85) return '#fbbf24';  // 노랑
+  return '#f87171';                  // 빨강
 }
 
 function rateLabel(rate: number) {
-  if (rate >= 100) return '달성';
-  if (rate >= 80)  return '순조';
-  if (rate >= 50)  return '주의';
+  if (rate >= 95) return '순조';
+  if (rate >= 85) return '주의';
   return '미흡';
+}
+
+function rateRgb(rate: number) {
+  if (rate >= 95) return '96,165,250';
+  if (rate >= 85) return '251,191,36';
+  return '248,113,113';
 }
 
 /* 숫자이면 세자리 콤마, 텍스트면 그대로 */
@@ -527,7 +531,7 @@ function TargetRow({
               </span>
               <span style={{
                 marginLeft: '0.35rem', fontSize: '0.65rem', padding: '0.08rem 0.35rem', borderRadius: 4,
-                background: `rgba(${rate >= 100 ? '52,211,153' : rate >= 80 ? '96,165,250' : rate >= 50 ? '251,191,36' : '248,113,113'},0.15)`,
+                background: `rgba(${rateRgb(rate)},0.15)`,
                 color: rateColor(rate),
               }}>
                 {rateLabel(rate)}
@@ -832,7 +836,7 @@ function MonthlyGrid({
           </span>
         )}
         {tRate !== null && (
-          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: rateColor(tRate), padding: '0.1rem 0.5rem', borderRadius: 5, background: `rgba(${tRate>=100?'52,211,153':tRate>=80?'96,165,250':tRate>=50?'251,191,36':'248,113,113'},0.1)` }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: rateColor(tRate), padding: '0.1rem 0.5rem', borderRadius: 5, background: `rgba(${rateRgb(tRate)},0.1)` }}>
             {tRate}%
           </span>
         )}
@@ -891,9 +895,9 @@ function MonthlyGrid({
                 <div key={fm} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   height: 28, borderRadius: 6, fontSize: '0.72rem', fontWeight: 700,
-                  background: r === null ? 'transparent' : `rgba(${r >= 100 ? '52,211,153' : r >= 80 ? '96,165,250' : r >= 50 ? '251,191,36' : '248,113,113'},0.12)`,
+                  background: r === null ? 'transparent' : `rgba(${rateRgb(r)},0.12)`,
                   color: r === null ? 'var(--text-muted)' : rateColor(r),
-                  border: r === null ? '1px solid rgba(255,255,255,0.05)' : `1px solid rgba(${r >= 100 ? '52,211,153' : r >= 80 ? '96,165,250' : r >= 50 ? '251,191,36' : '248,113,113'},0.25)`,
+                  border: r === null ? '1px solid rgba(255,255,255,0.05)' : `1px solid rgba(${rateRgb(r)},0.25)`,
                 }}>
                   {r === null ? '-' : `${r}%`}
                 </div>
