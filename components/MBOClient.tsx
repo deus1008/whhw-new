@@ -4,6 +4,8 @@ import { useState, useEffect, useTransition, useCallback } from 'react';
 import type { MboTarget, Member } from '@/app/mbo/actions';
 import {
   getMboTargets,
+  getMboStatus,
+  setMboStatus,
   createMboTarget,
   updateMboTarget,
   deleteMboTarget,
@@ -67,10 +69,12 @@ export default function MBOClient({
   const [periodType, setPeriodType] = useState<'annual' | 'monthly'>('annual');
   const [month,      setMonth]      = useState(CUR_MONTH);
   const [selectedId, setSelectedId] = useState(currentUserId);   // 지역장 ID
-  const [targets,    setTargets]    = useState<MboTarget[]>([]);
-  const [loading,    setLoading]    = useState(false);
-  const [toast,      setToast]      = useState('');
-  const [, startReorder]            = useTransition();
+  const [targets,     setTargets]     = useState<MboTarget[]>([]);
+  const [statusColor, setStatusColor] = useState<string | null>(null);
+  const [loading,     setLoading]     = useState(false);
+  const [toast,       setToast]       = useState('');
+  const [, startReorder]              = useTransition();
+  const [, startStatus]               = useTransition();
 
   const effectiveMonth = periodType === 'annual' ? null : month;
 
@@ -78,8 +82,12 @@ export default function MBOClient({
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getMboTargets(selectedId, year, effectiveMonth);
+      const [data, color] = await Promise.all([
+        getMboTargets(selectedId, year, effectiveMonth),
+        getMboStatus(selectedId, year, effectiveMonth),
+      ]);
       setTargets(data);
+      setStatusColor(color);
     } catch (e) {
       console.error('[MBO] reload error:', e);
     } finally {
@@ -117,6 +125,19 @@ export default function MBOClient({
     });
   }
 
+  /* ── 현수준 색상 설정 ── */
+  function handleSetStatus(color: string) {
+    setStatusColor(color);                     // 낙관적 업데이트
+    startStatus(async () => {
+      try {
+        const res = await setMboStatus(selectedId, year, effectiveMonth, color);
+        if (res.error) showToast('⚠ ' + res.error);
+      } catch {
+        showToast('⚠ 현수준 저장 중 오류가 발생했습니다.');
+      }
+    });
+  }
+
   /* ── 연간 요약: 월별 항목 합산 ── */
   const selectedEmail = members.find(m => m.id === selectedId)?.email ?? currentUserEmail;
 
@@ -142,25 +163,11 @@ export default function MBOClient({
               목표관리 (Management by Objectives)
             </p>
           </div>
-          {targets.length > 0 && avgRate !== null && (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '0.5rem',
-              padding: '0.45rem 1rem', borderRadius: 10,
-              background: `rgba(${avgRate >= 100 ? '52,211,153' : avgRate >= 80 ? '96,165,250' : avgRate >= 50 ? '251,191,36' : '248,113,113'},0.12)`,
-              border: `1px solid rgba(${avgRate >= 100 ? '52,211,153' : avgRate >= 80 ? '96,165,250' : avgRate >= 50 ? '251,191,36' : '248,113,113'},0.3)`,
-            }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: rateColor(avgRate) }}>
-                종합 달성률 {avgRate}%
-              </span>
-              <span style={{
-                fontSize: '0.65rem', fontWeight: 600, padding: '0.1rem 0.38rem', borderRadius: 4,
-                background: `rgba(${avgRate >= 100 ? '52,211,153' : avgRate >= 80 ? '96,165,250' : avgRate >= 50 ? '251,191,36' : '248,113,113'},0.2)`,
-                color: rateColor(avgRate),
-              }}>
-                {rateLabel(avgRate)}
-              </span>
-            </div>
-          )}
+          <CurrentLevelWidget
+            color={statusColor}
+            isAdmin={isAdmin}
+            onSelect={handleSetStatus}
+          />
         </div>
 
         {/* 컨트롤 행 */}
@@ -655,6 +662,72 @@ function AddTargetForm({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════
+   현수준 위젯
+════════════════════════════════════════════ */
+const STATUS_OPTIONS = [
+  { key: 'blue',   label: '양호', hex: '#60a5fa', rgb: '96,165,250' },
+  { key: 'yellow', label: '주의', hex: '#fbbf24', rgb: '251,191,36' },
+  { key: 'red',    label: '위험', hex: '#f87171', rgb: '248,113,113' },
+] as const;
+
+function CurrentLevelWidget({
+  color, isAdmin, onSelect,
+}: {
+  color:    string | null;
+  isAdmin:  boolean;
+  onSelect: (c: string) => void;
+}) {
+  const active = STATUS_OPTIONS.find(o => o.key === color) ?? null;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+      {/* 현수준 라벨 */}
+      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+        현수준
+      </span>
+
+      {/* 선택된 상태 표시 */}
+      {active ? (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '0.4rem',
+          padding: '0.35rem 0.85rem', borderRadius: 8,
+          background: `rgba(${active.rgb},0.12)`,
+          border: `1px solid rgba(${active.rgb},0.35)`,
+        }}>
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: active.hex, display: 'inline-block', flexShrink: 0 }} />
+          <span style={{ fontSize: '0.8rem', fontWeight: 700, color: active.hex }}>{active.label}</span>
+        </div>
+      ) : (
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.5, fontStyle: 'italic' }}>
+          {isAdmin ? '미설정' : '-'}
+        </span>
+      )}
+
+      {/* 관리자 색상 선택 버튼 */}
+      {isAdmin && (
+        <div style={{ display: 'flex', gap: '0.3rem' }}>
+          {STATUS_OPTIONS.map(o => (
+            <button
+              key={o.key}
+              onClick={() => onSelect(o.key)}
+              title={o.label}
+              style={{
+                width: 26, height: 26, borderRadius: '50%', cursor: 'pointer',
+                background: `rgba(${o.rgb},${color === o.key ? '0.85' : '0.25'})`,
+                border: `2px solid ${color === o.key ? o.hex : `rgba(${o.rgb},0.4)`}`,
+                boxShadow: color === o.key ? `0 0 8px rgba(${o.rgb},0.6)` : 'none',
+                transition: 'all 0.15s',
+                flexShrink: 0,
+              }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

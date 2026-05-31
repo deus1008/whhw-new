@@ -162,6 +162,46 @@ export async function deleteMboTarget(id: string): Promise<{ error?: string }> {
   return {};
 }
 
+/* ── 현수준 색상 조회 ── */
+export async function getMboStatus(
+  userId: string,
+  year: number,
+  month: number | null,
+): Promise<string | null> {
+  const sb = serviceClient();
+  let q = sb.from('mbo_status').select('status_color').eq('user_id', userId).eq('year', year);
+  q = month === null ? q.is('month', null) : q.eq('month', month);
+  const { data } = await q.maybeSingle();
+  return (data as { status_color: string } | null)?.status_color ?? null;
+}
+
+/* ── 현수준 색상 설정 (admin) ── */
+export async function setMboStatus(
+  userId: string,
+  year: number,
+  month: number | null,
+  color: string,
+): Promise<{ error?: string }> {
+  const auth = await getRole();
+  if (!auth?.isAdmin) return { error: '관리자만 현수준을 설정할 수 있습니다.' };
+
+  const sb = serviceClient();
+  const now = new Date().toISOString();
+
+  let q = sb.from('mbo_status').select('id').eq('user_id', userId).eq('year', year);
+  q = month === null ? q.is('month', null) : q.eq('month', month);
+  const { data: existing } = await q.maybeSingle();
+
+  if (existing) {
+    await sb.from('mbo_status').update({ status_color: color, updated_at: now }).eq('id', (existing as { id: string }).id);
+  } else {
+    await sb.from('mbo_status').insert({ user_id: userId, year, month, status_color: color, created_by: auth.userId });
+  }
+
+  revalidatePath('/mbo');
+  return {};
+}
+
 /* ── 실적 업데이트 (admin + 본인) ── */
 export async function updateMboActual(
   id: string,
