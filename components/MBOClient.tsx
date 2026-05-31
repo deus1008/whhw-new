@@ -89,23 +89,19 @@ export default function MBOClient({
   currentUserEmail:  string;
   members:           Member[];
 }) {
-  const [fyYear,     setFyYear]     = useState(CUR_FY_YEAR);
-  const [periodType, setPeriodType] = useState<'annual' | 'monthly'>('annual');
-  const [fyMonth,    setFyMonth]    = useState(CUR_FY_MONTH);  // 1=4월 … 12=3월
-  const [selectedId, setSelectedId] = useState(currentUserId);   // 지역장 ID
-  const [targets,     setTargets]     = useState<MboTarget[]>([]);
-  const [monthlyMap,  setMonthlyMap]  = useState<Record<string, MonthlyActual[]>>({});
+  const [fyYear,      setFyYear]     = useState(CUR_FY_YEAR);
+  const [selectedId,  setSelectedId] = useState(currentUserId);
+  const [targets,     setTargets]    = useState<MboTarget[]>([]);
+  const [monthlyMap,  setMonthlyMap] = useState<Record<string, MonthlyActual[]>>({});
   const [statusColor, setStatusColor] = useState<string | null>(null);
-  const [loading,     setLoading]     = useState(false);
-  const [toast,       setToast]       = useState('');
-  const [, startReorder]              = useTransition();
-  const [, startStatus]               = useTransition();
+  const [loading,     setLoading]    = useState(false);
+  const [toast,       setToast]      = useState('');
+  const [, startReorder]             = useTransition();
+  const [, startStatus]              = useTransition();
 
-  // FY → 캘린더 변환 (DB 쿼리용)
-  const { calYear, calMonth: _calM } = periodType === 'annual'
-    ? { calYear: fyYear, calMonth: null as null }
-    : fyToCalendar(fyYear, fyMonth);
-  const effectiveCalMonth = periodType === 'annual' ? null : _calM;
+  // 항상 연간 뷰 (calMonth = null)
+  const calYear          = fyYear;
+  const effectiveCalMonth = null;
 
   /* ── 데이터 로드 ── */
   const reload = useCallback(async () => {
@@ -117,8 +113,8 @@ export default function MBOClient({
       ]);
       setTargets(data);
       setStatusColor(color);
-      // 연간 뷰일 때만 월별 실적 사전 로드
-      if (effectiveCalMonth === null && data.length > 0) {
+      // 월별 실적 사전 로드
+      if (data.length > 0) {
         const mmap = await getMonthlyActualsByTargets(data.map(t => t.id));
         setMonthlyMap(mmap);
       } else {
@@ -129,7 +125,7 @@ export default function MBOClient({
     } finally {
       setLoading(false);
     }
-  }, [selectedId, calYear, effectiveCalMonth]);
+  }, [selectedId, calYear]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -225,43 +221,12 @@ export default function MBOClient({
           <select value={fyYear} onChange={e => setFyYear(Number(e.target.value))} style={selectStyle}>
             {FY_YEARS.map(y => <option key={y} value={y}>FY{y}</option>)}
           </select>
-
-          {/* 연간 / 월별 탭 */}
-          <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
-            {(['annual', 'monthly'] as const).map(pt => (
-              <button
-                key={pt}
-                onClick={() => setPeriodType(pt)}
-                style={{
-                  padding: '0.38rem 0.9rem', fontSize: '0.8rem', fontWeight: 600,
-                  cursor: 'pointer', border: 'none', fontFamily: 'inherit',
-                  background: periodType === pt ? 'rgba(99,102,241,0.25)' : 'transparent',
-                  color: periodType === pt ? '#a5b4fc' : 'var(--text-muted)',
-                  transition: 'all 0.15s',
-                }}
-              >
-                {pt === 'annual' ? '연간' : '월별'}
-              </button>
-            ))}
-          </div>
-
-          {/* 월 선택 (월별 탭) — FY순서: 4월→3월 */}
-          {periodType === 'monthly' && (
-            <select value={fyMonth} onChange={e => setFyMonth(Number(e.target.value))} style={selectStyle}>
-              {Array.from({ length: 12 }, (_, i) => i + 1).map(fm => (
-                <option key={fm} value={fm}>{FY_MONTH_LABEL[fm]}</option>
-              ))}
-            </select>
-          )}
         </div>
 
         {/* 선택된 멤버 표시 */}
         {isAdmin && (
           <p style={{ fontSize: '0.73rem', color: 'rgba(165,180,252,0.7)', marginTop: '0.7rem', marginBottom: 0 }}>
-            📋 {selectedEmail} · FY{fyYear}{' '}
-            {periodType === 'annual'
-              ? `연간 목표 (${fyYear}.04 ~ ${fyYear + 1}.03)`
-              : `${FY_MONTH_LABEL[fyMonth]} 목표`}
+            📋 {selectedEmail} · FY{fyYear} ({fyYear}.04 ~ {fyYear + 1}.03)
           </p>
         )}
       </div>
@@ -303,7 +268,7 @@ export default function MBOClient({
                     isOdd={i % 2 === 1}
                     isFirst={i === 0}
                     isLast={i === targets.length - 1}
-                    isAnnual={effectiveCalMonth === null}
+                    isAnnual={true}
                     monthlyActuals={monthlyMap[t.id] ?? []}
                     onMoveUp={i === 0 ? undefined : () => handleMove(i, i - 1)}
                     onMoveDown={i === targets.length - 1 ? undefined : () => handleMove(i, i + 1)}
@@ -322,9 +287,9 @@ export default function MBOClient({
         <AddTargetForm
           userId={selectedId}
           year={calYear}
-          month={effectiveCalMonth}
+          month={null}
           fyYear={fyYear}
-          fyMonth={periodType === 'monthly' ? fyMonth : null}
+          fyMonth={null}
           currentCount={targets.length}
           onAdded={reload}
           onToast={showToast}
