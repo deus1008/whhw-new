@@ -29,9 +29,20 @@ function rateLabel(rate: number) {
   return '미흡';
 }
 
-function fmtNum(v: number, unit: string) {
-  if (unit === '원' || unit === '만원') return v.toLocaleString();
-  return v.toLocaleString();
+/* 숫자이면 세자리 콤마, 텍스트면 그대로 */
+function fmtVal(v: string): string {
+  const n = Number(v);
+  if (v !== '' && !isNaN(n)) return n.toLocaleString();
+  return v || '-';
+}
+
+/* 달성률 계산 — 숫자일 때만, 텍스트면 null */
+function calcRate(actual: string, target: string): number | null {
+  const t = Number(target);
+  const a = Number(actual);
+  if (target === '' || isNaN(t) || t === 0) return null;
+  if (actual === '' || isNaN(a)) return null;
+  return Math.round((a / t) * 100);
 }
 
 /* ── 연도 옵션 ── */
@@ -79,12 +90,11 @@ export default function MBOClient({
   /* ── 연간 요약: 월별 항목 합산 ── */
   const selectedEmail = members.find(m => m.id === selectedId)?.email ?? currentUserEmail;
 
-  /* ── 달성률 전체 평균 ── */
-  const avgRate = targets.length === 0 ? 0 : Math.round(
-    targets.reduce((sum, t) => {
-      const rate = t.target_value > 0 ? (t.actual_value / t.target_value) * 100 : 0;
-      return sum + rate;
-    }, 0) / targets.length
+  /* ── 달성률 전체 평균 (숫자 항목만) ── */
+  const numericTargets = targets.filter(t => calcRate(t.actual_value, t.target_value) !== null);
+  const avgRate = numericTargets.length === 0 ? null : Math.round(
+    numericTargets.reduce((sum, t) => sum + calcRate(t.actual_value, t.target_value)!, 0)
+    / numericTargets.length
   );
 
   return (
@@ -102,7 +112,7 @@ export default function MBOClient({
               목표관리 (Management by Objectives)
             </p>
           </div>
-          {targets.length > 0 && (
+          {targets.length > 0 && avgRate !== null && (
             <div style={{
               display: 'flex', alignItems: 'center', gap: '0.5rem',
               padding: '0.45rem 1rem', borderRadius: 10,
@@ -220,20 +230,26 @@ export default function MBOClient({
                   />
                 ))}
               </tbody>
-              {/* 합계 행 */}
-              {targets.length > 1 && (
+              {/* 합계 행 — 숫자 항목만 합산 */}
+              {targets.length > 1 && numericTargets.length > 0 && (
                 <tfoot>
                   <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', background: 'rgba(99,102,241,0.05)' }}>
-                    <td style={{ ...tdStyle, fontWeight: 700, color: 'rgba(165,180,252,0.9)' }}>합계</td>
+                    <td style={{ ...tdStyle, fontWeight: 700, color: 'rgba(165,180,252,0.9)' }}>
+                      합계 {numericTargets.length < targets.length && (
+                        <span style={{ fontSize: '0.65rem', opacity: 0.6 }}>
+                          (숫자 {numericTargets.length}건)
+                        </span>
+                      )}
+                    </td>
                     <td style={tdStyle}></td>
                     <td style={{ ...tdStyle, fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {targets.reduce((s, t) => s + t.target_value, 0).toLocaleString()}
+                      {numericTargets.reduce((s, t) => s + Number(t.target_value), 0).toLocaleString()}
                     </td>
                     <td style={{ ...tdStyle, fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {targets.reduce((s, t) => s + t.actual_value, 0).toLocaleString()}
+                      {numericTargets.reduce((s, t) => s + Number(t.actual_value), 0).toLocaleString()}
                     </td>
-                    <td style={{ ...tdStyle, fontWeight: 700, color: rateColor(avgRate) }}>
-                      {avgRate}%
+                    <td style={{ ...tdStyle, fontWeight: 700, color: avgRate !== null ? rateColor(avgRate) : 'var(--text-muted)' }}>
+                      {avgRate !== null ? `${avgRate}%` : '-'}
                     </td>
                     <td style={tdStyle}></td>
                     {isAdmin && <td style={tdStyle}></td>}
@@ -291,22 +307,20 @@ function TargetRow({
 
   // 목표 편집 상태
   const [editName,   setEditName]   = useState(target.item_name);
-  const [editTarget, setEditTarget] = useState(String(target.target_value));
+  const [editTarget, setEditTarget] = useState(target.target_value);
   const [editUnit,   setEditUnit]   = useState(target.unit);
 
   // 실적 입력 상태
-  const [actualVal,  setActualVal]  = useState(String(target.actual_value));
+  const [actualVal,  setActualVal]  = useState(target.actual_value);
   const [actualNote, setActualNote] = useState(target.note ?? '');
 
-  const rate = target.target_value > 0
-    ? Math.round((target.actual_value / target.target_value) * 100)
-    : 0;
+  const rate = calcRate(target.actual_value, target.target_value);
 
   function handleSaveEdit() {
     startTransition(async () => {
       const res = await updateMboTarget(target.id, {
         item_name:    editName.trim(),
-        target_value: Number(editTarget) || 0,
+        target_value: editTarget.trim(),
         unit:         editUnit.trim(),
       });
       if (res.error) { onToast('⚠ ' + res.error); return; }
@@ -328,7 +342,7 @@ function TargetRow({
 
   function handleSaveActual() {
     startTransition(async () => {
-      const res = await updateMboActual(target.id, Number(actualVal) || 0, actualNote);
+      const res = await updateMboActual(target.id, actualVal.trim(), actualNote);
       if (res.error) { onToast('⚠ ' + res.error); return; }
       onToast('✓ 실적이 저장되었습니다.');
       setActualMode(false);
@@ -359,10 +373,10 @@ function TargetRow({
         </td>
         <td style={tdStyle}>
           <input
-            type="number"
             value={editTarget}
             onChange={e => setEditTarget(e.target.value)}
-            style={{ ...inlineInputStyle, width: 90 }}
+            style={{ ...inlineInputStyle, width: 110 }}
+            placeholder="목표값"
           />
         </td>
         <td colSpan={3} style={tdStyle}></td>
@@ -386,12 +400,12 @@ function TargetRow({
           {target.unit || '-'}
         </td>
         <td style={tdStyle}>
-          {fmtNum(target.target_value, target.unit)}
+          {fmtVal(target.target_value)}
         </td>
         <td style={{ ...tdStyle }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <span style={{ fontWeight: 600, color: rateColor(rate) }}>
-              {fmtNum(target.actual_value, target.unit)}
+            <span style={{ fontWeight: 600, color: rate !== null ? rateColor(rate) : 'var(--text-primary)' }}>
+              {fmtVal(target.actual_value)}
             </span>
             <button
               onClick={() => { setActualVal(String(target.actual_value)); setActualNote(target.note ?? ''); setActualMode(true); }}
@@ -410,30 +424,34 @@ function TargetRow({
           )}
         </td>
         <td style={tdStyle}>
-          <span style={{ fontWeight: 700, color: rateColor(rate), fontSize: '0.88rem' }}>
-            {rate}%
-          </span>
-          <span style={{
-            marginLeft: '0.35rem', fontSize: '0.65rem', padding: '0.08rem 0.35rem', borderRadius: 4,
-            background: `rgba(${rate >= 100 ? '52,211,153' : rate >= 80 ? '96,165,250' : rate >= 50 ? '251,191,36' : '248,113,113'},0.15)`,
-            color: rateColor(rate),
-          }}>
-            {rateLabel(rate)}
-          </span>
+          {rate !== null ? (
+            <>
+              <span style={{ fontWeight: 700, color: rateColor(rate), fontSize: '0.88rem' }}>
+                {rate}%
+              </span>
+              <span style={{
+                marginLeft: '0.35rem', fontSize: '0.65rem', padding: '0.08rem 0.35rem', borderRadius: 4,
+                background: `rgba(${rate >= 100 ? '52,211,153' : rate >= 80 ? '96,165,250' : rate >= 50 ? '251,191,36' : '248,113,113'},0.15)`,
+                color: rateColor(rate),
+              }}>
+                {rateLabel(rate)}
+              </span>
+            </>
+          ) : (
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>-</span>
+          )}
         </td>
         <td style={{ ...tdStyle, minWidth: 100 }}>
-          <div style={{
-            height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.07)',
-            overflow: 'hidden',
-          }}>
-            <div style={{
-              height: '100%',
-              width: `${Math.min(rate, 100)}%`,
-              background: rateColor(rate),
-              borderRadius: 4,
-              transition: 'width 0.4s ease',
-            }} />
-          </div>
+          {rate !== null ? (
+            <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+              <div style={{
+                height: '100%', width: `${Math.min(rate, 100)}%`,
+                background: rateColor(rate), borderRadius: 4, transition: 'width 0.4s ease',
+              }} />
+            </div>
+          ) : (
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', opacity: 0.5 }}>텍스트 목표</span>
+          )}
         </td>
         {isAdmin && (
           <td style={tdStyle}>
@@ -454,11 +472,10 @@ function TargetRow({
                 📝 실적 입력 — {target.item_name}
               </span>
               <input
-                type="number"
                 value={actualVal}
                 onChange={e => setActualVal(e.target.value)}
-                style={{ ...inlineInputStyle, width: 110 }}
-                placeholder={`실적값 (${target.unit || '숫자'})`}
+                style={{ ...inlineInputStyle, width: 120 }}
+                placeholder={`실적값 (${target.unit || '숫자·텍스트'})`}
               />
               <input
                 value={actualNote}
@@ -497,7 +514,7 @@ function AddTargetForm({
 
   function handleAdd() {
     if (!itemName.trim()) { onToast('⚠ 항목명을 입력하세요.'); return; }
-    if (!targetVal)       { onToast('⚠ 목표값을 입력하세요.'); return; }
+    if (!targetVal.trim()) { onToast('⚠ 목표값을 입력하세요.'); return; }
 
     startTransition(async () => {
       const res = await createMboTarget({
@@ -505,7 +522,7 @@ function AddTargetForm({
         year,
         month,
         item_name:    itemName.trim(),
-        target_value: Number(targetVal) || 0,
+        target_value: targetVal.trim(),
         unit:         unit.trim(),
         sort_order:   currentCount,
       });
@@ -549,10 +566,9 @@ function AddTargetForm({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', width: 110 }}>
           <label style={labelStyle}>목표값 *</label>
           <input
-            type="number"
             value={targetVal}
             onChange={e => setTargetVal(e.target.value)}
-            placeholder="0"
+            placeholder="숫자 또는 텍스트"
             style={inputStyle}
           />
         </div>

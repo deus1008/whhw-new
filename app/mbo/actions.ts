@@ -10,8 +10,8 @@ export type MboTarget = {
   year:         number;
   month:        number | null;
   item_name:    string;
-  target_value: number;
-  actual_value: number;
+  target_value: string;   // text — 숫자·텍스트 모두 허용
+  actual_value: string;   // text — 숫자·텍스트 모두 허용
   unit:         string;
   note:         string | null;
   sort_order:   number;
@@ -86,7 +86,7 @@ export async function createMboTarget(payload: {
   year:         number;
   month:        number | null;
   item_name:    string;
-  target_value: number;
+  target_value: string;
   unit:         string;
   sort_order:   number;
 }): Promise<{ error?: string }> {
@@ -142,7 +142,7 @@ export async function deleteMboTarget(id: string): Promise<{ error?: string }> {
 /* ── 실적 업데이트 (admin + 본인) ── */
 export async function updateMboActual(
   id: string,
-  actualValue: number,
+  actualValue: string,
   note: string,
 ): Promise<{ error?: string }> {
   const auth = await getRole();
