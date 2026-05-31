@@ -8,7 +8,7 @@ import {
   updateMboTarget,
   deleteMboTarget,
   updateMboActual,
-  swapSortOrders,
+  reorderMboTargets,
 } from '@/app/mbo/actions';
 
 const MONTH_NAMES = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -70,6 +70,7 @@ export default function MBOClient({
   const [targets,    setTargets]    = useState<MboTarget[]>([]);
   const [loading,    setLoading]    = useState(false);
   const [toast,      setToast]      = useState('');
+  const [, startReorder]            = useTransition();
 
   const effectiveMonth = periodType === 'annual' ? null : month;
 
@@ -91,6 +92,29 @@ export default function MBOClient({
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(''), 2500);
+  }
+
+  /* ── 행 순서 이동 (낙관적 업데이트) ── */
+  function handleMove(fromIdx: number, toIdx: number) {
+    const prev = targets;                       // 롤백용 스냅샷
+    const next = [...targets];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    setTargets(next);                           // 즉시 화면 반영
+
+    startReorder(async () => {
+      try {
+        const items = next.map((t, i) => ({ id: t.id, sort_order: i }));
+        const res = await reorderMboTargets(items);
+        if (res.error) {
+          setTargets(prev);                     // 실패 시 롤백
+          showToast('⚠ ' + res.error);
+        }
+      } catch {
+        setTargets(prev);
+        showToast('⚠ 순서 변경 중 오류가 발생했습니다.');
+      }
+    });
   }
 
   /* ── 연간 요약: 월별 항목 합산 ── */
@@ -233,8 +257,8 @@ export default function MBOClient({
                     isOdd={i % 2 === 1}
                     isFirst={i === 0}
                     isLast={i === targets.length - 1}
-                    prevTarget={targets[i - 1] ?? null}
-                    nextTarget={targets[i + 1] ?? null}
+                    onMoveUp={i === 0 ? undefined : () => handleMove(i, i - 1)}
+                    onMoveDown={i === targets.length - 1 ? undefined : () => handleMove(i, i + 1)}
                     onUpdated={reload}
                     onToast={showToast}
                   />
@@ -277,15 +301,15 @@ export default function MBOClient({
    목표 행 (수정 + 실적 입력 인라인)
 ════════════════════════════════════════════ */
 function TargetRow({
-  target, isAdmin, isOdd, isFirst, isLast, prevTarget, nextTarget, onUpdated, onToast,
+  target, isAdmin, isOdd, isFirst, isLast, onMoveUp, onMoveDown, onUpdated, onToast,
 }: {
   target:      MboTarget;
   isAdmin:     boolean;
   isOdd:       boolean;
   isFirst:     boolean;
   isLast:      boolean;
-  prevTarget:  MboTarget | null;
-  nextTarget:  MboTarget | null;
+  onMoveUp?:   () => void;
+  onMoveDown?: () => void;
   onUpdated:   () => void;
   onToast:     (msg: string) => void;
 }) {
@@ -303,19 +327,6 @@ function TargetRow({
   const [actualNote, setActualNote] = useState(target.note ?? '');
 
   const rate = calcRate(target.actual_value, target.target_value);
-
-  function handleMove(adjacent: MboTarget) {
-    startTransition(async () => {
-      try {
-        const res = await swapSortOrders(target.id, target.sort_order, adjacent.id, adjacent.sort_order);
-        if (res.error) { onToast('⚠ ' + res.error); return; }
-        onUpdated();
-      } catch (e) {
-        onToast('⚠ 순서 변경 중 오류가 발생했습니다.');
-        console.error('[MBO] handleMove error:', e);
-      }
-    });
-  }
 
   function handleSaveEdit() {
     startTransition(async () => {
@@ -475,7 +486,7 @@ function TargetRow({
             <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                 <button
-                  onClick={() => prevTarget && handleMove(prevTarget)}
+                  onClick={onMoveUp}
                   disabled={isFirst || isPending}
                   title="위로"
                   style={{
@@ -486,7 +497,7 @@ function TargetRow({
                   }}
                 >▲</button>
                 <button
-                  onClick={() => nextTarget && handleMove(nextTarget)}
+                  onClick={onMoveDown}
                   disabled={isLast || isPending}
                   title="아래로"
                   style={{

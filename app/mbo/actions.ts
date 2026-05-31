@@ -127,21 +127,25 @@ export async function updateMboTarget(
   return {};
 }
 
-/* ── 순서 교환 (admin) ── */
-export async function swapSortOrders(
-  id1: string, order1: number,
-  id2: string, order2: number,
+/* ── 순서 전체 재할당 (admin) ── */
+// 이동 후 배열 전체의 sort_order를 0,1,2… 으로 재설정
+export async function reorderMboTargets(
+  items: { id: string; sort_order: number }[],
 ): Promise<{ error?: string }> {
   const auth = await getRole();
   if (!auth?.isAdmin) return { error: '관리자만 순서를 변경할 수 있습니다.' };
 
   const sb = serviceClient();
-  const [r1, r2] = await Promise.all([
-    sb.from('mbo_targets').update({ sort_order: order2, updated_at: new Date().toISOString() }).eq('id', id1),
-    sb.from('mbo_targets').update({ sort_order: order1, updated_at: new Date().toISOString() }).eq('id', id2),
-  ]);
-  if (r1.error) return { error: r1.error.message };
-  if (r2.error) return { error: r2.error.message };
+  const now = new Date().toISOString();
+  const results = await Promise.all(
+    items.map(({ id, sort_order }) =>
+      sb.from('mbo_targets')
+        .update({ sort_order, updated_at: now })
+        .eq('id', id)
+    )
+  );
+  const firstError = results.find(r => r.error);
+  if (firstError?.error) return { error: firstError.error.message };
   revalidatePath('/mbo');
   return {};
 }
