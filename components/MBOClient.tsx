@@ -7,7 +7,7 @@ import {
   getMboStatus,
   setMboStatus,
   getMonthlyActualsByTargets,
-  upsertMonthlyActual,
+  upsertMonthlyEntry,
   createMboTarget,
   updateMboTarget,
   deleteMboTarget,
@@ -718,8 +718,10 @@ function AddTargetForm({
 }
 
 /* ════════════════════════════════════════════
-   월별 실적 입력 그리드
+   월별 목표·실적 입력 그리드
 ════════════════════════════════════════════ */
+const HALF = [[1,2,3,4,5,6],[7,8,9,10,11,12]] as const;
+
 function MonthlyGrid({
   targetId, unit, monthlyActuals, onSaved, onToast,
 }: {
@@ -729,27 +731,31 @@ function MonthlyGrid({
   onSaved:        () => void;
   onToast:        (msg: string) => void;
 }) {
-  // 12개월 초기값
-  const initVals = () => {
+  const init = (field: 'target_value' | 'actual_value') => {
     const v: Record<number, string> = {};
     for (let m = 1; m <= 12; m++) {
-      const found = monthlyActuals.find(a => a.month === m);
-      v[m] = found?.actual_value ?? '';
+      v[m] = monthlyActuals.find(a => a.month === m)?.[field] ?? '';
     }
     return v;
   };
-  const [vals, setVals] = useState<Record<number, string>>(initVals);
-  const [saving, setSaving] = useState<number | null>(null);
 
-  // monthlyActuals prop이 바뀌면 재초기화
-  useEffect(() => { setVals(initVals()); }, [monthlyActuals]); // eslint-disable-line
+  const [targets, setTargetsVal] = useState<Record<number, string>>(() => init('target_value'));
+  const [actuals, setActuals]    = useState<Record<number, string>>(() => init('actual_value'));
+  const [saving,  setSaving]     = useState<string | null>(null); // 'T-1'|'A-1' 등
 
-  async function handleBlur(month: number) {
-    setSaving(month);
+  useEffect(() => {
+    setTargetsVal(init('target_value'));
+    setActuals(init('actual_value'));
+  }, [monthlyActuals]); // eslint-disable-line
+
+  async function handleBlur(month: number, field: 'target' | 'actual') {
+    const key = `${field[0].toUpperCase()}-${month}`;
+    setSaving(key);
+    const value = field === 'target' ? (targets[month] ?? '') : (actuals[month] ?? '');
     try {
-      const res = await upsertMonthlyActual(targetId, month, vals[month] ?? '', '');
-      if (res.error) { onToast('⚠ ' + res.error); }
-      else { onSaved(); }
+      const res = await upsertMonthlyEntry(targetId, month, field, value);
+      if (res.error) onToast('⚠ ' + res.error);
+      else onSaved();
     } catch {
       onToast('⚠ 저장 중 오류가 발생했습니다.');
     } finally {
@@ -757,54 +763,87 @@ function MonthlyGrid({
     }
   }
 
-  // 숫자 합계
-  const numericVals = Object.values(vals).filter(v => v.trim() !== '' && !isNaN(Number(v))).map(Number);
-  const total = numericVals.length > 0 ? numericVals.reduce((a, b) => a + b, 0) : null;
+  const sumOf = (vals: Record<number, string>) => {
+    const nums = Object.values(vals).filter(v => v.trim() !== '' && !isNaN(Number(v))).map(Number);
+    return nums.length > 0 ? nums.reduce((a, b) => a + b, 0) : null;
+  };
+  const tSum = sumOf(targets);
+  const aSum = sumOf(actuals);
+  const tRate = tSum !== null && aSum !== null && tSum > 0 ? Math.round((aSum / tSum) * 100) : null;
+
+  const cellStyle = (val: string, isSaving: boolean): React.CSSProperties => ({
+    ...inlineInputStyle,
+    width: '100%', textAlign: 'right', boxSizing: 'border-box' as const,
+    background: isSaving ? 'rgba(99,102,241,0.15)' : val ? 'rgba(96,165,250,0.07)' : 'rgba(255,255,255,0.03)',
+    borderColor: val ? 'rgba(96,165,250,0.28)' : 'rgba(255,255,255,0.08)',
+    fontSize: '0.8rem',
+  });
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.65rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.73rem', fontWeight: 600, color: '#a5b4fc' }}>📅 월별 실적 입력</span>
-        {total !== null && (
-          <span style={{
-            fontSize: '0.73rem', fontWeight: 700, color: '#60a5fa',
-            padding: '0.1rem 0.55rem', borderRadius: 5,
-            background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.3)',
-          }}>
-            합계 {total.toLocaleString()}{unit ? ` ${unit}` : ''}
+      {/* 헤더 — 합계 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.73rem', fontWeight: 700, color: '#a5b4fc' }}>📅 월별 목표·실적</span>
+        {tSum !== null && (
+          <span style={{ fontSize: '0.72rem', color: '#fbbf24', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)' }}>
+            목표 합계 {tSum.toLocaleString()}{unit ? ` ${unit}` : ''}
           </span>
         )}
-        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', opacity: 0.7 }}>
-          입력 후 셀 이탈 시 자동 저장
-        </span>
+        {aSum !== null && (
+          <span style={{ fontSize: '0.72rem', color: '#60a5fa', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.25)' }}>
+            실적 합계 {aSum.toLocaleString()}{unit ? ` ${unit}` : ''}
+          </span>
+        )}
+        {tRate !== null && (
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: rateColor(tRate), padding: '0.1rem 0.5rem', borderRadius: 5, background: `rgba(${tRate>=100?'52,211,153':tRate>=80?'96,165,250':tRate>=50?'251,191,36':'248,113,113'},0.1)` }}>
+            {tRate}%
+          </span>
+        )}
+        <span style={{ fontSize: '0.67rem', color: 'var(--text-muted)', opacity: 0.6 }}>셀 이탈 시 자동 저장</span>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.4rem' }}>
-        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-          <div key={m} style={{ display: 'flex', flexDirection: 'column', gap: '0.18rem' }}>
-            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-              {m}월
-            </span>
-            <input
-              value={vals[m] ?? ''}
-              onChange={e => setVals(prev => ({ ...prev, [m]: e.target.value }))}
-              onBlur={() => handleBlur(m)}
-              placeholder="-"
-              style={{
-                ...inlineInputStyle,
-                width: '100%',
-                textAlign: 'right',
-                boxSizing: 'border-box',
-                background: saving === m
-                  ? 'rgba(99,102,241,0.15)'
-                  : vals[m]
-                  ? 'rgba(96,165,250,0.08)'
-                  : 'rgba(255,255,255,0.04)',
-                borderColor: vals[m] ? 'rgba(96,165,250,0.3)' : 'rgba(255,255,255,0.1)',
-              }}
-            />
+
+      {/* 상반기 / 하반기 */}
+      {HALF.map((months, hi) => (
+        <div key={hi} style={{ marginBottom: hi === 0 ? '0.6rem' : 0 }}>
+          {/* 월 이름 행 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem', marginBottom: '0.25rem' }}>
+            <div />
+            {months.map(m => (
+              <div key={m} style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textAlign: 'center', fontWeight: 600 }}>
+                {m}월
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+          {/* 목표 행 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem', marginBottom: '0.25rem' }}>
+            <div style={{ fontSize: '0.68rem', color: '#fbbf24', fontWeight: 600, display: 'flex', alignItems: 'center' }}>목표</div>
+            {months.map(m => (
+              <input
+                key={m}
+                value={targets[m] ?? ''}
+                onChange={e => setTargetsVal(prev => ({ ...prev, [m]: e.target.value }))}
+                onBlur={() => handleBlur(m, 'target')}
+                placeholder="-"
+                style={cellStyle(targets[m] ?? '', saving === `T-${m}`)}
+              />
+            ))}
+          </div>
+          {/* 실적 행 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem' }}>
+            <div style={{ fontSize: '0.68rem', color: '#60a5fa', fontWeight: 600, display: 'flex', alignItems: 'center' }}>실적</div>
+            {months.map(m => (
+              <input
+                key={m}
+                value={actuals[m] ?? ''}
+                onChange={e => setActuals(prev => ({ ...prev, [m]: e.target.value }))}
+                onBlur={() => handleBlur(m, 'actual')}
+                placeholder="-"
+                style={cellStyle(actuals[m] ?? '', saving === `A-${m}`)}
+              />
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

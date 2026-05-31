@@ -26,6 +26,7 @@ export type Member = {
 
 export type MonthlyActual = {
   month:        number;
+  target_value: string;
   actual_value: string;
   note:         string | null;
 };
@@ -176,7 +177,7 @@ export async function getMonthlyActualsByTargets(
   const sb = serviceClient();
   const { data, error } = await sb
     .from('mbo_monthly_actuals')
-    .select('target_id, month, actual_value, note')
+    .select('target_id, month, target_value, actual_value, note')
     .in('target_id', targetIds);
   if (error) { console.error('[mbo] getMonthlyActuals:', error.message); return {}; }
 
@@ -186,6 +187,7 @@ export async function getMonthlyActualsByTargets(
     if (!result[tid]) result[tid] = [];
     result[tid].push({
       month:        row.month as number,
+      target_value: String(row.target_value ?? ''),
       actual_value: String(row.actual_value ?? ''),
       note:         row.note as string | null,
     });
@@ -193,54 +195,56 @@ export async function getMonthlyActualsByTargets(
   return result;
 }
 
-/* ── 월별 실적 저장 + 연간 합산 자동 반영 ── */
-export async function upsertMonthlyActual(
+/* ── 월별 목표·실적 저장 + 연간 합산 자동 반영 ── */
+export async function upsertMonthlyEntry(
   targetId:    string,
   month:       number,
-  actualValue: string,
-  note:        string,
-): Promise<{ error?: string; newSum?: string }> {
+  field:       'target' | 'actual',
+  value:       string,
+): Promise<{ error?: string }> {
   const auth = await getRole();
   if (!auth) return { error: '로그인이 필요합니다.' };
 
   const sb  = serviceClient();
   const now = new Date().toISOString();
 
-  // 권한 확인 (admin 또는 본인)
+  // 권한 확인
   if (!auth.isAdmin) {
     const { data: t } = await sb.from('mbo_targets').select('user_id').eq('id', targetId).single();
     if (!t || (t as { user_id: string }).user_id !== auth.userId) return { error: '권한이 없습니다.' };
   }
 
-  // upsert 월별 실적
+  const col = field === 'target' ? 'target_value' : 'actual_value';
+
+  // upsert 월별 행
   const { error: uErr } = await sb.from('mbo_monthly_actuals').upsert(
-    { target_id: targetId, month, actual_value: actualValue, note, updated_by: auth.userId, updated_at: now },
+    { target_id: targetId, month, [col]: value, updated_by: auth.userId, updated_at: now },
     { onConflict: 'target_id,month' },
   );
   if (uErr) return { error: uErr.message };
 
-  // 모든 월별 실적 합산 → 연간 actual_value 갱신
+  // 해당 필드 전체 합산 → 연간 값 갱신
   const { data: allMonths } = await sb
     .from('mbo_monthly_actuals')
-    .select('actual_value')
+    .select(col)
     .eq('target_id', targetId);
 
-  // 숫자만 합산 (빈 값·텍스트 제외)
   const validNums = (allMonths ?? [])
-    .map(r => String((r as { actual_value: string }).actual_value ?? '').trim())
+    .map(r => String((r as Record<string, string>)[col] ?? '').trim())
     .filter(v => v !== '' && !isNaN(Number(v)))
     .map(Number);
 
   const newSum = validNums.length > 0 ? String(validNums.reduce((a, b) => a + b, 0)) : '';
 
   if (newSum !== '') {
+    const parentCol = field === 'target' ? 'target_value' : 'actual_value';
     await sb.from('mbo_targets')
-      .update({ actual_value: newSum, updated_at: now })
+      .update({ [parentCol]: newSum, updated_at: now })
       .eq('id', targetId);
   }
 
   revalidatePath('/mbo');
-  return { newSum };
+  return {};
 }
 
 /* ── 현수준 색상 조회 ── */
