@@ -262,6 +262,71 @@ export async function upsertMonthlyEntry(
   return {};
 }
 
+/* ── 월별 목표·실적 일괄 저장 (저장하기 버튼용) ── */
+export async function upsertMonthlyEntries(
+  targetId: string,
+  entries: Array<{ month: number; targetValue: string; actualValue: string }>,
+): Promise<{ error?: string }> {
+  const auth = await getRole();
+  if (!auth) return { error: '로그인이 필요합니다.' };
+
+  const sb  = serviceClient();
+  const now = new Date().toISOString();
+
+  // 권한 확인 + 단위 조회
+  const { data: parentTarget } = await sb
+    .from('mbo_targets')
+    .select('user_id, unit')
+    .eq('id', targetId)
+    .single();
+
+  if (!auth.isAdmin) {
+    if (!parentTarget || (parentTarget as { user_id: string }).user_id !== auth.userId)
+      return { error: '권한이 없습니다.' };
+  }
+
+  const useAvg = String((parentTarget as { unit: string } | null)?.unit ?? '').trim() === '%';
+
+  // 12개월 일괄 upsert
+  const upsertData = entries.map(e => ({
+    target_id:    targetId,
+    month:        e.month,
+    target_value: e.targetValue,
+    actual_value: e.actualValue,
+    updated_by:   auth.userId,
+    updated_at:   now,
+  }));
+
+  const { error: uErr } = await sb
+    .from('mbo_monthly_actuals')
+    .upsert(upsertData, { onConflict: 'target_id,month' });
+  if (uErr) return { error: uErr.message };
+
+  // 합산/평균 → 연간 목표·실적 갱신
+  const aggregate = (vals: string[]) => {
+    const nums = vals.filter(v => v.trim() !== '' && !isNaN(Number(v))).map(Number);
+    if (nums.length === 0) return '';
+    const total = nums.reduce((a, b) => a + b, 0);
+    return useAvg
+      ? String(Math.round((total / nums.length) * 100) / 100)
+      : String(total);
+  };
+
+  const newTarget = aggregate(entries.map(e => e.targetValue));
+  const newActual = aggregate(entries.map(e => e.actualValue));
+
+  const updates: Record<string, string> = { updated_at: now };
+  if (newTarget !== '') updates.target_value = newTarget;
+  if (newActual !== '') updates.actual_value = newActual;
+
+  if (Object.keys(updates).length > 1) {
+    await sb.from('mbo_targets').update(updates).eq('id', targetId);
+  }
+
+  revalidatePath('/mbo');
+  return {};
+}
+
 /* ── 현수준 색상 조회 ── */
 export async function getMboStatus(
   userId: string,
