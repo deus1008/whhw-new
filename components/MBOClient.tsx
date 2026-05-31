@@ -6,12 +6,15 @@ import {
   getMboTargets,
   getMboStatus,
   setMboStatus,
+  getMonthlyActualsByTargets,
+  upsertMonthlyActual,
   createMboTarget,
   updateMboTarget,
   deleteMboTarget,
   updateMboActual,
   reorderMboTargets,
 } from '@/app/mbo/actions';
+import type { MonthlyActual } from '@/app/mbo/actions';
 
 const MONTH_NAMES = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 const CUR_YEAR = new Date().getFullYear();
@@ -70,6 +73,7 @@ export default function MBOClient({
   const [month,      setMonth]      = useState(CUR_MONTH);
   const [selectedId, setSelectedId] = useState(currentUserId);   // 지역장 ID
   const [targets,     setTargets]     = useState<MboTarget[]>([]);
+  const [monthlyMap,  setMonthlyMap]  = useState<Record<string, MonthlyActual[]>>({});
   const [statusColor, setStatusColor] = useState<string | null>(null);
   const [loading,     setLoading]     = useState(false);
   const [toast,       setToast]       = useState('');
@@ -88,6 +92,13 @@ export default function MBOClient({
       ]);
       setTargets(data);
       setStatusColor(color);
+      // 연간 뷰일 때만 월별 실적 사전 로드
+      if (effectiveMonth === null && data.length > 0) {
+        const mmap = await getMonthlyActualsByTargets(data.map(t => t.id));
+        setMonthlyMap(mmap);
+      } else {
+        setMonthlyMap({});
+      }
     } catch (e) {
       console.error('[MBO] reload error:', e);
     } finally {
@@ -264,6 +275,8 @@ export default function MBOClient({
                     isOdd={i % 2 === 1}
                     isFirst={i === 0}
                     isLast={i === targets.length - 1}
+                    isAnnual={effectiveMonth === null}
+                    monthlyActuals={monthlyMap[t.id] ?? []}
                     onMoveUp={i === 0 ? undefined : () => handleMove(i, i - 1)}
                     onMoveDown={i === targets.length - 1 ? undefined : () => handleMove(i, i + 1)}
                     onUpdated={reload}
@@ -308,20 +321,25 @@ export default function MBOClient({
    목표 행 (수정 + 실적 입력 인라인)
 ════════════════════════════════════════════ */
 function TargetRow({
-  target, isAdmin, isOdd, isFirst, isLast, onMoveUp, onMoveDown, onUpdated, onToast,
+  target, isAdmin, isOdd, isFirst, isLast,
+  isAnnual, monthlyActuals,
+  onMoveUp, onMoveDown, onUpdated, onToast,
 }: {
-  target:      MboTarget;
-  isAdmin:     boolean;
-  isOdd:       boolean;
-  isFirst:     boolean;
-  isLast:      boolean;
-  onMoveUp?:   () => void;
-  onMoveDown?: () => void;
-  onUpdated:   () => void;
-  onToast:     (msg: string) => void;
+  target:          MboTarget;
+  isAdmin:         boolean;
+  isOdd:           boolean;
+  isFirst:         boolean;
+  isLast:          boolean;
+  isAnnual:        boolean;
+  monthlyActuals:  MonthlyActual[];
+  onMoveUp?:       () => void;
+  onMoveDown?:     () => void;
+  onUpdated:       () => void;
+  onToast:         (msg: string) => void;
 }) {
   const [editMode,    setEditMode]    = useState(false);
   const [actualMode,  setActualMode]  = useState(false);
+  const [monthlyOpen, setMonthlyOpen] = useState(false);
   const [isPending,   startTransition] = useTransition();
 
   // 목표 편집 상태
@@ -437,21 +455,39 @@ function TargetRow({
           {fmtVal(target.target_value)}
         </td>
         <td style={{ ...tdStyle }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 600, color: rate !== null ? rateColor(rate) : 'var(--text-primary)' }}>
               {fmtVal(target.actual_value)}
             </span>
-            <button
-              onClick={() => { setActualVal(String(target.actual_value)); setActualNote(target.note ?? ''); setActualMode(true); }}
-              title="실적 입력"
-              style={{
-                background: 'none', border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 4, padding: '0.1rem 0.35rem', cursor: 'pointer',
-                color: 'var(--text-muted)', fontSize: '0.65rem',
-              }}
-            >✏</button>
+            {/* 직접 입력 버튼 (월별 없을 때) */}
+            {!isAnnual && (
+              <button
+                onClick={() => { setActualVal(target.actual_value); setActualNote(target.note ?? ''); setActualMode(true); }}
+                title="실적 입력"
+                style={{
+                  background: 'none', border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 4, padding: '0.1rem 0.35rem', cursor: 'pointer',
+                  color: 'var(--text-muted)', fontSize: '0.65rem',
+                }}
+              >✏</button>
+            )}
+            {/* 월별 입력 토글 (연간 뷰) */}
+            {isAnnual && (
+              <button
+                onClick={() => setMonthlyOpen(v => !v)}
+                style={{
+                  padding: '0.1rem 0.45rem', borderRadius: 4, cursor: 'pointer',
+                  fontSize: '0.65rem', fontWeight: 600, fontFamily: 'inherit',
+                  background: monthlyOpen ? 'rgba(99,102,241,0.22)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${monthlyOpen ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.12)'}`,
+                  color: monthlyOpen ? '#a5b4fc' : 'var(--text-muted)',
+                }}
+              >
+                {monthlyOpen ? '▲ 월별' : '▼ 월별'}
+              </button>
+            )}
           </div>
-          {target.note && (
+          {target.note && !isAnnual && (
             <p style={{ fontSize: '0.66rem', color: 'var(--text-muted)', margin: '0.1rem 0 0', opacity: 0.7 }}>
               {target.note}
             </p>
@@ -527,7 +563,7 @@ function TargetRow({
         )}
       </tr>
 
-      {/* 실적 입력 인라인 행 */}
+      {/* 실적 입력 인라인 행 (월별 아닐 때) */}
       {actualMode && (
         <tr style={{ background: 'rgba(52,211,153,0.04)', borderTop: '1px solid rgba(52,211,153,0.1)' }}>
           <td colSpan={isAdmin ? 8 : 6} style={{ padding: '0.6rem 0.7rem' }}>
@@ -550,6 +586,21 @@ function TargetRow({
               <button onClick={handleSaveActual} disabled={isPending} style={btnSm('primary')}>저장</button>
               <button onClick={() => setActualMode(false)} style={btnSm('muted')}>취소</button>
             </div>
+          </td>
+        </tr>
+      )}
+
+      {/* 월별 실적 입력 그리드 */}
+      {isAnnual && monthlyOpen && (
+        <tr style={{ background: 'rgba(99,102,241,0.04)', borderTop: '1px solid rgba(99,102,241,0.15)' }}>
+          <td colSpan={isAdmin ? 8 : 6} style={{ padding: '0.75rem 1rem' }}>
+            <MonthlyGrid
+              targetId={target.id}
+              unit={target.unit}
+              monthlyActuals={monthlyActuals}
+              onSaved={onUpdated}
+              onToast={onToast}
+            />
           </td>
         </tr>
       )}
@@ -661,6 +712,98 @@ function AddTargetForm({
             취소
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════
+   월별 실적 입력 그리드
+════════════════════════════════════════════ */
+function MonthlyGrid({
+  targetId, unit, monthlyActuals, onSaved, onToast,
+}: {
+  targetId:       string;
+  unit:           string;
+  monthlyActuals: MonthlyActual[];
+  onSaved:        () => void;
+  onToast:        (msg: string) => void;
+}) {
+  // 12개월 초기값
+  const initVals = () => {
+    const v: Record<number, string> = {};
+    for (let m = 1; m <= 12; m++) {
+      const found = monthlyActuals.find(a => a.month === m);
+      v[m] = found?.actual_value ?? '';
+    }
+    return v;
+  };
+  const [vals, setVals] = useState<Record<number, string>>(initVals);
+  const [saving, setSaving] = useState<number | null>(null);
+
+  // monthlyActuals prop이 바뀌면 재초기화
+  useEffect(() => { setVals(initVals()); }, [monthlyActuals]); // eslint-disable-line
+
+  async function handleBlur(month: number) {
+    setSaving(month);
+    try {
+      const res = await upsertMonthlyActual(targetId, month, vals[month] ?? '', '');
+      if (res.error) { onToast('⚠ ' + res.error); }
+      else { onSaved(); }
+    } catch {
+      onToast('⚠ 저장 중 오류가 발생했습니다.');
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  // 숫자 합계
+  const numericVals = Object.values(vals).filter(v => v.trim() !== '' && !isNaN(Number(v))).map(Number);
+  const total = numericVals.length > 0 ? numericVals.reduce((a, b) => a + b, 0) : null;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.65rem', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.73rem', fontWeight: 600, color: '#a5b4fc' }}>📅 월별 실적 입력</span>
+        {total !== null && (
+          <span style={{
+            fontSize: '0.73rem', fontWeight: 700, color: '#60a5fa',
+            padding: '0.1rem 0.55rem', borderRadius: 5,
+            background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.3)',
+          }}>
+            합계 {total.toLocaleString()}{unit ? ` ${unit}` : ''}
+          </span>
+        )}
+        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', opacity: 0.7 }}>
+          입력 후 셀 이탈 시 자동 저장
+        </span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.4rem' }}>
+        {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+          <div key={m} style={{ display: 'flex', flexDirection: 'column', gap: '0.18rem' }}>
+            <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+              {m}월
+            </span>
+            <input
+              value={vals[m] ?? ''}
+              onChange={e => setVals(prev => ({ ...prev, [m]: e.target.value }))}
+              onBlur={() => handleBlur(m)}
+              placeholder="-"
+              style={{
+                ...inlineInputStyle,
+                width: '100%',
+                textAlign: 'right',
+                boxSizing: 'border-box',
+                background: saving === m
+                  ? 'rgba(99,102,241,0.15)'
+                  : vals[m]
+                  ? 'rgba(96,165,250,0.08)'
+                  : 'rgba(255,255,255,0.04)',
+                borderColor: vals[m] ? 'rgba(96,165,250,0.3)' : 'rgba(255,255,255,0.1)',
+              }}
+            />
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -24,6 +24,12 @@ export type Member = {
   email: string;
 };
 
+export type MonthlyActual = {
+  month:        number;
+  actual_value: string;
+  note:         string | null;
+};
+
 function serviceClient() {
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -160,6 +166,81 @@ export async function deleteMboTarget(id: string): Promise<{ error?: string }> {
   if (error) return { error: error.message };
   revalidatePath('/mbo');
   return {};
+}
+
+/* ── 월별 실적 전체 조회 (targetId 배열) ── */
+export async function getMonthlyActualsByTargets(
+  targetIds: string[],
+): Promise<Record<string, MonthlyActual[]>> {
+  if (targetIds.length === 0) return {};
+  const sb = serviceClient();
+  const { data, error } = await sb
+    .from('mbo_monthly_actuals')
+    .select('target_id, month, actual_value, note')
+    .in('target_id', targetIds);
+  if (error) { console.error('[mbo] getMonthlyActuals:', error.message); return {}; }
+
+  const result: Record<string, MonthlyActual[]> = {};
+  for (const row of data ?? []) {
+    const tid = row.target_id as string;
+    if (!result[tid]) result[tid] = [];
+    result[tid].push({
+      month:        row.month as number,
+      actual_value: String(row.actual_value ?? ''),
+      note:         row.note as string | null,
+    });
+  }
+  return result;
+}
+
+/* ── 월별 실적 저장 + 연간 합산 자동 반영 ── */
+export async function upsertMonthlyActual(
+  targetId:    string,
+  month:       number,
+  actualValue: string,
+  note:        string,
+): Promise<{ error?: string; newSum?: string }> {
+  const auth = await getRole();
+  if (!auth) return { error: '로그인이 필요합니다.' };
+
+  const sb  = serviceClient();
+  const now = new Date().toISOString();
+
+  // 권한 확인 (admin 또는 본인)
+  if (!auth.isAdmin) {
+    const { data: t } = await sb.from('mbo_targets').select('user_id').eq('id', targetId).single();
+    if (!t || (t as { user_id: string }).user_id !== auth.userId) return { error: '권한이 없습니다.' };
+  }
+
+  // upsert 월별 실적
+  const { error: uErr } = await sb.from('mbo_monthly_actuals').upsert(
+    { target_id: targetId, month, actual_value: actualValue, note, updated_by: auth.userId, updated_at: now },
+    { onConflict: 'target_id,month' },
+  );
+  if (uErr) return { error: uErr.message };
+
+  // 모든 월별 실적 합산 → 연간 actual_value 갱신
+  const { data: allMonths } = await sb
+    .from('mbo_monthly_actuals')
+    .select('actual_value')
+    .eq('target_id', targetId);
+
+  // 숫자만 합산 (빈 값·텍스트 제외)
+  const validNums = (allMonths ?? [])
+    .map(r => String((r as { actual_value: string }).actual_value ?? '').trim())
+    .filter(v => v !== '' && !isNaN(Number(v)))
+    .map(Number);
+
+  const newSum = validNums.length > 0 ? String(validNums.reduce((a, b) => a + b, 0)) : '';
+
+  if (newSum !== '') {
+    await sb.from('mbo_targets')
+      .update({ actual_value: newSum, updated_at: now })
+      .eq('id', targetId);
+  }
+
+  revalidatePath('/mbo');
+  return { newSum };
 }
 
 /* ── 현수준 색상 조회 ── */
