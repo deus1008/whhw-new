@@ -29,10 +29,11 @@ export interface PriceItem {
 }
 
 export interface BioEqItem {
-  itemName:   string;   // 생동 인정 품목명
-  ingrName:   string | null;
-  noticeDate: string | null;  // 고시일자 YYYYMMDD
-  entpName:   string | null;  // 업체명
+  itemName:         string;         // 생동 인정 품목명
+  ingrName:         string | null;
+  noticeDate:       string | null;  // 고시일자 YYYYMMDD
+  entpName:         string | null;  // 업체명
+  crossRecognized?: boolean;        // 동일계열 타 용량 기준 인정 여부
 }
 
 export interface DmfItem {
@@ -176,24 +177,53 @@ async function fetchPrices(apiKey: string, itemName: string): Promise<PriceItem[
   return fetchPricesFromAPI(apiKey, itemName);
 }
 
+/* ── 동일계열 기본명 추출 ── */
+// "글리젠타듀오정2.5/500밀리그램(리나글립틴/…)" → "글리젠타듀오정"
+// "글리젠타서방정5밀리그램" → "글리젠타서방정" (자연스럽게 구분됨)
+function extractBaseDrugName(itemName: string): string {
+  const clean = itemName.replace(/\s*[(\（（].*$/, '').trim();  // 괄호 제거
+  const m = clean.match(/^([^\d]+)/);                           // 첫 숫자 앞까지
+  return m ? m[1].trim() : clean;
+}
+
 /* ── 생동성인정품목 (MFDS) ── */
 async function fetchBioEq(apiKey: string, itemName: string): Promise<BioEqItem[]> {
-  const url = `${BIOEQ_URL}?serviceKey=${encodeURIComponent(apiKey)}&item_name=${encodeURIComponent(itemName)}&numOfRows=20&pageNo=1`;
-  try {
-    const res = await fetch(url, { next: { revalidate: 300 } });
-    if (!res.ok) { console.warn('[drug-info] 생동 HTTP', res.status); return []; }
-    const xml = await res.text();
-    return parseXmlItems(xml).map(item => ({
-      // 생동 인정 품목명 — 여러 가능한 필드명 시도
-      itemName:   item.BIOEQ_PRODT_NM || item.ITEM_NAME || item.item_name || '',
-      ingrName:   item.INGR_KOR_NAME  || null,
-      noticeDate: item.BIOEQ_PRODT_NOTICE_DATE || null,
-      entpName:   item.BIOEQ_ENTP_NM  || item.ENTP_NAME || null,
-    }));
-  } catch (e) {
-    console.warn('[drug-info] 생동 fetch error:', e);
-    return [];
+  async function doFetch(name: string): Promise<Omit<BioEqItem, 'crossRecognized'>[]> {
+    const url = `${BIOEQ_URL}?serviceKey=${encodeURIComponent(apiKey)}&item_name=${encodeURIComponent(name)}&numOfRows=20&pageNo=1`;
+    try {
+      const res = await fetch(url, { next: { revalidate: 300 } });
+      if (!res.ok) { console.warn('[drug-info] 생동 HTTP', res.status); return []; }
+      const xml = await res.text();
+      return parseXmlItems(xml).map(item => ({
+        // 생동 인정 품목명 — 여러 가능한 필드명 시도
+        itemName:   item.BIOEQ_PRODT_NM || item.ITEM_NAME || item.item_name || '',
+        ingrName:   item.INGR_KOR_NAME  || null,
+        noticeDate: item.BIOEQ_PRODT_NOTICE_DATE || null,
+        entpName:   item.BIOEQ_ENTP_NM  || item.ENTP_NAME || null,
+      }));
+    } catch (e) {
+      console.warn('[drug-info] 생동 fetch error:', e);
+      return [];
+    }
   }
+
+  // ① 제품명 직접 검색
+  const direct = await doFetch(itemName);
+  if (direct.length > 0) return direct.map(b => ({ ...b, crossRecognized: false }));
+
+  // ② 동일계열 기본명으로 재검색 (숫자·용량 이전 문자열)
+  //    글리젠타듀오정2.5/500mg → 글리젠타듀오정 → 2.5/1000mg 등 다른 용량도 포함
+  //    서방정/정 등 제형이 다르면 기본명이 달라 자동 구분됨
+  const baseName = extractBaseDrugName(itemName);
+  if (baseName !== itemName && baseName.length >= 3) {
+    const cross = await doFetch(baseName);
+    if (cross.length > 0) {
+      console.log(`[drug-info] 생동 계열 인정: "${itemName}" → 기본명 "${baseName}" (${cross.length}건)`);
+      return cross.map(b => ({ ...b, crossRecognized: true }));
+    }
+  }
+
+  return [];
 }
 
 /* ── 원료 DMF (MFDS) — 성분명별 병렬 검색 ── */

@@ -188,17 +188,27 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
       {/* ── 검색 결과 ── */}
       {!isPending && items.length > 0 && (
         <>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            {searchNote && <span style={{ color: '#fbbf24' }}>ℹ {searchNote}&nbsp;&nbsp;</span>}
-            &ldquo;{searched}&rdquo; 검색 결과 {total.toLocaleString()}건
-            {totalPages > 1 && <span> (페이지 {page}/{totalPages})</span>}
-            {source === 'prmsn' && (
-              <span style={{
-                marginLeft: '0.5rem', padding: '0.15rem 0.5rem', borderRadius: 5,
-                background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
-                color: '#a5b4fc', fontSize: '0.7rem',
-              }}>허가정보 DB</span>
-            )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              {searchNote && <span style={{ color: '#fbbf24' }}>ℹ {searchNote}&nbsp;&nbsp;</span>}
+              &ldquo;{searched}&rdquo; 검색 결과 {total.toLocaleString()}건
+              {totalPages > 1 && <span> (페이지 {page}/{totalPages})</span>}
+              {source === 'prmsn' && (
+                <span style={{
+                  marginLeft: '0.5rem', padding: '0.15rem 0.5rem', borderRadius: 5,
+                  background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
+                  color: '#a5b4fc', fontSize: '0.7rem',
+                }}>허가정보 DB</span>
+              )}
+            </div>
+            <div style={{
+              fontSize: '0.73rem', color: 'rgba(253,230,138,0.75)',
+              padding: '0.3rem 0.7rem', borderRadius: 7,
+              background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.18)',
+              lineHeight: 1.5,
+            }}>
+              💡 동일제품 복수함량의 경우 1개의 함량을 생동 등재하면, 나머지 함량은 비교용출시험으로 생동한 것으로 간주됩니다.
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '0.75rem' }}>
@@ -447,9 +457,32 @@ function DrugInfoPanel({ data, ingrName, bioeqYn }: {
           )
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            {/* 계열 생동 인정 안내 배너 */}
+            {bioEq[0]?.crossRecognized && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '0.4rem',
+                padding: '0.28rem 0.65rem', borderRadius: 7, marginBottom: '0.15rem',
+                background: 'rgba(251,191,36,0.08)',
+                border: '1px solid rgba(251,191,36,0.25)',
+              }}>
+                <span style={{ fontSize: '0.9rem' }}>↔</span>
+                <span style={{ fontSize: '0.73rem', color: '#fde68a', fontWeight: 600 }}>
+                  동일계열 성분 기준 생동 인정
+                </span>
+                <span style={{ fontSize: '0.68rem', color: 'rgba(253,230,138,0.7)' }}>
+                  (동일 제형의 다른 용량 품목에서 생동 확인됨)
+                </span>
+              </div>
+            )}
+
             {bioEq.slice(0, 3).map((b, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
-                <span style={{ color: '#6ee7b7', fontSize: '1rem', flexShrink: 0 }}>✓</span>
+                <span style={{
+                  fontSize: '1rem', flexShrink: 0,
+                  color: b.crossRecognized ? '#fbbf24' : '#6ee7b7',
+                }}>
+                  {b.crossRecognized ? '↔' : '✓'}
+                </span>
                 <div>
                   <span style={{ fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 600 }}>
                     {b.itemName || '생동 인정'}
