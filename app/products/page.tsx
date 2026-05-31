@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import ProductsClient from '@/components/ProductsClient';
@@ -36,11 +37,17 @@ export default async function ProductsPage() {
 
   const isAdmin = myProfile.role === 'admin';
 
-  const { data } = await supabase
+  // 서비스 롤 클라이언트로 RLS 우회 (발매예정 목록은 승인 멤버 전체 공개)
+  const sb = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+  const { data, error: fetchError } = await sb
     .from('upcoming_products')
     .select('*')
     .order('launch_date', { ascending: true });
 
+  if (fetchError) console.error('[products] fetch error:', fetchError.message);
   const products: UpcomingProduct[] = (data ?? []) as UpcomingProduct[];
 
   return (
