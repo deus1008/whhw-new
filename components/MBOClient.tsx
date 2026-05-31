@@ -8,6 +8,7 @@ import {
   updateMboTarget,
   deleteMboTarget,
   updateMboActual,
+  swapSortOrders,
 } from '@/app/mbo/actions';
 
 const MONTH_NAMES = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -213,7 +214,7 @@ export default function MBOClient({
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
-                  {['목표 항목', '단위', '목표', '실적', '달성률', '진행', ...(isAdmin ? ['관리'] : [])].map(h => (
+                  {['목표 항목', '단위', '목표', '실적', '달성률', '진행', ...(isAdmin ? ['순서', '관리'] : [])].map(h => (
                     <th key={h} style={thStyle}>{h}</th>
                   ))}
                 </tr>
@@ -225,6 +226,16 @@ export default function MBOClient({
                     target={t}
                     isAdmin={isAdmin}
                     isOdd={i % 2 === 1}
+                    isFirst={i === 0}
+                    isLast={i === targets.length - 1}
+                    onMoveUp={() => {
+                      const prev = targets[i - 1];
+                      swapSortOrders(t.id, t.sort_order, prev.id, prev.sort_order).then(reload);
+                    }}
+                    onMoveDown={() => {
+                      const next = targets[i + 1];
+                      swapSortOrders(t.id, t.sort_order, next.id, next.sort_order).then(reload);
+                    }}
                     onUpdated={reload}
                     onToast={showToast}
                   />
@@ -267,13 +278,17 @@ export default function MBOClient({
    목표 행 (수정 + 실적 입력 인라인)
 ════════════════════════════════════════════ */
 function TargetRow({
-  target, isAdmin, isOdd, onUpdated, onToast,
+  target, isAdmin, isOdd, isFirst, isLast, onMoveUp, onMoveDown, onUpdated, onToast,
 }: {
-  target:    MboTarget;
-  isAdmin:   boolean;
-  isOdd:     boolean;
-  onUpdated: () => void;
-  onToast:   (msg: string) => void;
+  target:      MboTarget;
+  isAdmin:     boolean;
+  isOdd:       boolean;
+  isFirst:     boolean;
+  isLast:      boolean;
+  onMoveUp:    () => void;
+  onMoveDown:  () => void;
+  onUpdated:   () => void;
+  onToast:     (msg: string) => void;
 }) {
   const [editMode,    setEditMode]    = useState(false);
   const [actualMode,  setActualMode]  = useState(false);
@@ -353,7 +368,7 @@ function TargetRow({
             placeholder="목표값"
           />
         </td>
-        <td colSpan={3} style={tdStyle}></td>
+        <td colSpan={4} style={tdStyle}></td>
         <td style={tdStyle}>
           <div style={{ display: 'flex', gap: '0.3rem' }}>
             <button onClick={handleSaveEdit} disabled={isPending} style={btnSm('primary')}>저장</button>
@@ -428,19 +443,49 @@ function TargetRow({
           )}
         </td>
         {isAdmin && (
-          <td style={tdStyle}>
-            <div style={{ display: 'flex', gap: '0.3rem' }}>
-              <button onClick={() => setEditMode(true)} style={btnSm('muted')}>수정</button>
-              <button onClick={handleDelete} disabled={isPending} style={btnSm('danger')}>삭제</button>
-            </div>
-          </td>
+          <>
+            {/* 순서 이동 버튼 */}
+            <td style={{ ...tdStyle, whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <button
+                  onClick={onMoveUp}
+                  disabled={isFirst || isPending}
+                  title="위로"
+                  style={{
+                    ...btnSm('muted'),
+                    padding: '0.2rem 0.5rem',
+                    opacity: isFirst ? 0.25 : 1,
+                    lineHeight: 1,
+                  }}
+                >▲</button>
+                <button
+                  onClick={onMoveDown}
+                  disabled={isLast || isPending}
+                  title="아래로"
+                  style={{
+                    ...btnSm('muted'),
+                    padding: '0.2rem 0.5rem',
+                    opacity: isLast ? 0.25 : 1,
+                    lineHeight: 1,
+                  }}
+                >▼</button>
+              </div>
+            </td>
+            {/* 수정·삭제 */}
+            <td style={tdStyle}>
+              <div style={{ display: 'flex', gap: '0.3rem' }}>
+                <button onClick={() => setEditMode(true)} style={btnSm('muted')}>수정</button>
+                <button onClick={handleDelete} disabled={isPending} style={btnSm('danger')}>삭제</button>
+              </div>
+            </td>
+          </>
         )}
       </tr>
 
       {/* 실적 입력 인라인 행 */}
       {actualMode && (
         <tr style={{ background: 'rgba(52,211,153,0.04)', borderTop: '1px solid rgba(52,211,153,0.1)' }}>
-          <td colSpan={isAdmin ? 7 : 6} style={{ padding: '0.6rem 0.7rem' }}>
+          <td colSpan={isAdmin ? 8 : 6} style={{ padding: '0.6rem 0.7rem' }}>
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem' }}>
               <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                 📝 실적 입력 — {target.item_name}

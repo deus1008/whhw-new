@@ -127,6 +127,25 @@ export async function updateMboTarget(
   return {};
 }
 
+/* ── 순서 교환 (admin) ── */
+export async function swapSortOrders(
+  id1: string, order1: number,
+  id2: string, order2: number,
+): Promise<{ error?: string }> {
+  const auth = await getRole();
+  if (!auth?.isAdmin) return { error: '관리자만 순서를 변경할 수 있습니다.' };
+
+  const sb = serviceClient();
+  const [r1, r2] = await Promise.all([
+    sb.from('mbo_targets').update({ sort_order: order2, updated_at: new Date().toISOString() }).eq('id', id1),
+    sb.from('mbo_targets').update({ sort_order: order1, updated_at: new Date().toISOString() }).eq('id', id2),
+  ]);
+  if (r1.error) return { error: r1.error.message };
+  if (r2.error) return { error: r2.error.message };
+  revalidatePath('/mbo');
+  return {};
+}
+
 /* ── 목표 삭제 (admin) ── */
 export async function deleteMboTarget(id: string): Promise<{ error?: string }> {
   const auth = await getRole();
