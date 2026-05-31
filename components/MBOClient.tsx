@@ -747,6 +747,16 @@ function MonthlyGrid({
 }) {
   const fyMtoCalM = (fm: number) => fm <= 9 ? fm + 3 : fm - 9;
 
+  // 숫자이면 천단위 콤마 표시, 텍스트면 그대로
+  const fmtInput = (raw: string): string => {
+    if (!raw || raw.trim() === '') return raw;
+    const n = Number(raw.replace(/,/g, ''));
+    if (isNaN(n)) return raw;
+    return n.toLocaleString();
+  };
+  // 콤마 제거 → raw 저장
+  const parseInput = (v: string): string => v.replace(/,/g, '');
+
   const init = (field: 'target_value' | 'actual_value') => {
     const v: Record<number, string> = {};
     for (let fm = 1; fm <= 12; fm++) {
@@ -855,8 +865,8 @@ function MonthlyGrid({
           <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem', marginBottom: '0.25rem' }}>
             <div style={{ fontSize: '0.68rem', color: '#fbbf24', fontWeight: 600, display: 'flex', alignItems: 'center' }}>목표</div>
             {fyMs.map(fm => (
-              <input key={fm} value={tVals[fm] ?? ''} placeholder="-"
-                onChange={e => setTVals(prev => ({ ...prev, [fm]: e.target.value }))}
+              <input key={fm} value={fmtInput(tVals[fm] ?? '')} placeholder="-"
+                onChange={e => setTVals(prev => ({ ...prev, [fm]: parseInput(e.target.value) }))}
                 style={cellStyle(tVals[fm] ?? '')} />
             ))}
           </div>
@@ -864,8 +874,8 @@ function MonthlyGrid({
           <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem', marginBottom: '0.25rem' }}>
             <div style={{ fontSize: '0.68rem', color: '#60a5fa', fontWeight: 600, display: 'flex', alignItems: 'center' }}>실적</div>
             {fyMs.map(fm => (
-              <input key={fm} value={aVals[fm] ?? ''} placeholder="-"
-                onChange={e => setAVals(prev => ({ ...prev, [fm]: e.target.value }))}
+              <input key={fm} value={fmtInput(aVals[fm] ?? '')} placeholder="-"
+                onChange={e => setAVals(prev => ({ ...prev, [fm]: parseInput(e.target.value) }))}
                 style={cellStyle(aVals[fm] ?? '')} />
             ))}
           </div>
