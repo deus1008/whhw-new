@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import type { UpcomingProduct } from '@/app/products/page';
 import type { ProductInput } from '@/app/products/actions';
 import { createProduct, updateProduct, deleteProduct } from '@/app/products/actions';
@@ -38,14 +38,23 @@ interface Props {
 
 /* ══════════════════════════════════════════════════════════════ */
 export default function ProductsClient({ initialProducts, isAdmin }: Props) {
-  const [products, setProducts]      = useState<UpcomingProduct[]>(initialProducts);
-  const [modalOpen, setModalOpen]    = useState(false);
-  const [editing, setEditing]        = useState<UpcomingProduct | null>(null);
-  const [form, setForm]              = useState<ProductInput>(EMPTY_FORM);
-  const [formError, setFormError]    = useState('');
-  const [isPending, startTransition] = useTransition();
+  const [products, setProducts]         = useState<UpcomingProduct[]>(initialProducts);
+  const [modalOpen, setModalOpen]       = useState(false);
+  const [editing, setEditing]           = useState<UpcomingProduct | null>(null);
+  const [form, setForm]                 = useState<ProductInput>(EMPTY_FORM);
+  const [formError, setFormError]       = useState('');
+  const [isPending, startTransition]    = useTransition();
   const [filterStatus, setFilterStatus] = useState('');
-  const [search, setSearch]          = useState('');
+  const [search, setSearch]             = useState('');
+  const [filterCompany, setFilterCompany] = useState('');  // 회사 필터
+
+  /* ── 회사 목록 (중복 제거) ─────────────────────────────────── */
+  const companyList = useMemo(() => {
+    const names = products
+      .map(p => p.manufacturer?.trim())
+      .filter((v): v is string => !!v);
+    return Array.from(new Set(names)).sort();
+  }, [products]);
 
   /* ── modal helpers ──────────────────────────────────────────── */
   function openCreate() {
@@ -55,7 +64,7 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
     setEditing(p);
     setForm({
       title:           p.title,
-      launch_date:     p.launch_date?.slice(0, 7) ?? '',   // YYYY-MM
+      launch_date:     p.launch_date?.slice(0, 7) ?? '',
       manufacturer:    p.manufacturer    ?? '',
       indication:      p.indication      ?? '',
       insurance_price: p.insurance_price ?? '',
@@ -74,9 +83,7 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
       const result = editing
         ? await updateProduct(editing.id, form)
         : await createProduct(form);
-
       if (result.error) { setFormError(result.error); return; }
-
       if (editing) {
         setProducts(prev => prev.map(p => p.id === editing.id ? result.data! : p));
       } else {
@@ -99,15 +106,16 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
 
   /* ── filter ─────────────────────────────────────────────────── */
   const filtered = products.filter(p => {
-    const matchStatus = !filterStatus || p.status === filterStatus;
+    const matchStatus  = !filterStatus  || p.status === filterStatus;
+    const matchCompany = !filterCompany || (p.manufacturer ?? '') === filterCompany;
     const q = search.trim().toLowerCase();
-    const matchSearch = !q
-      || p.title.toLowerCase().includes(q)
-      || (p.memo          ?? '').toLowerCase().includes(q)
+    const matchSearch  = !q
+      || (p.memo          ?? '').toLowerCase().includes(q)   // 성분명
+      || p.title.toLowerCase().includes(q)                    // 제품명
       || (p.indication    ?? '').toLowerCase().includes(q)
       || (p.manufacturer  ?? '').toLowerCase().includes(q)
       || (p.insurance_code ?? '').toLowerCase().includes(q);
-    return matchStatus && matchSearch;
+    return matchStatus && matchCompany && matchSearch;
   });
 
   /* ══ RENDER ══════════════════════════════════════════════════ */
@@ -119,22 +127,52 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
           🚀 발매예정품목
         </h2>
         <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.3rem' }}>
-          개발 검토부터 발매 완료까지 파이프라인을 관리합니다.
+          자사 및 타사 발매예정·완료 파이프라인을 성분명 중심으로 관리합니다.
         </p>
       </div>
 
-      {/* ── 툴바 ───────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
+      {/* ── 검색 툴바 ──────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.75rem' }}>
+        {/* 성분명·제품명 통합 검색 */}
         <input
-          type="text" placeholder="제품명 / 성분명(비고) / 계열 / 제조사 검색"
-          value={search} onChange={e => setSearch(e.target.value)}
+          type="text"
+          placeholder="성분명 / 제품명 / 계열 검색"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
           style={{ flex: '1 1 200px', ...inputStyle }}
         />
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
-          style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', fontSize: '0.82rem', cursor: 'pointer' }}>
+
+        {/* 회사 검색 */}
+        <div style={{ position: 'relative', flex: '0 0 auto' }}>
+          <input
+            type="text"
+            placeholder="🏢 회사 검색"
+            value={filterCompany}
+            onChange={e => setFilterCompany(e.target.value)}
+            list="company-list"
+            style={{ ...inputStyle, width: 180 }}
+          />
+          <datalist id="company-list">
+            {companyList.map(c => <option key={c} value={c} />)}
+          </datalist>
+          {filterCompany && (
+            <button
+              onClick={() => setFilterCompany('')}
+              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1 }}
+            >×</button>
+          )}
+        </div>
+
+        {/* 상태 필터 */}
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', fontSize: '0.82rem', cursor: 'pointer' }}
+        >
           <option value="">전체 상태</option>
           {STATUS_LIST.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
+
         {isAdmin && (
           <button onClick={openCreate}
             style={{ padding: '0.5rem 1.1rem', borderRadius: '8px', background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
@@ -143,8 +181,8 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
         )}
       </div>
 
-      {/* ── 진행상태 필터 배지 ──────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1.2rem' }}>
+      {/* ── 진행상태 배지 필터 ──────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1.2rem', alignItems: 'center' }}>
         {STATUS_LIST.map(s => {
           const c = STATUS_COLOR[s];
           return (
@@ -154,19 +192,26 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
             </button>
           );
         })}
+        {(filterStatus || filterCompany || search) && (
+          <button
+            onClick={() => { setFilterStatus(''); setFilterCompany(''); setSearch(''); }}
+            style={{ padding: '0.2rem 0.65rem', borderRadius: '20px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            필터 초기화
+          </button>
+        )}
       </div>
 
       {/* ── 테이블 ─────────────────────────────────────────────── */}
       {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', color: '#475569' }}>
-          {search || filterStatus ? '검색 결과가 없습니다.' : '등록된 품목이 없습니다.'}
+          {search || filterStatus || filterCompany ? '검색 결과가 없습니다.' : '등록된 품목이 없습니다.'}
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
             <thead>
               <tr style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                {['제품명', '성분명', '발매(예정)일', '계열', '제조사', '보험코드', '보험가', '진행상태', ''].map(h => (
+                {['성분명', '제품명', '발매(예정)일', '계열', '회사', '보험코드', '보험가', '진행상태', ''].map(h => (
                   <th key={h} style={{ padding: '0.65rem 0.9rem', textAlign: 'left', color: '#64748b', fontWeight: 700, fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -180,31 +225,54 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
                     style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: rowBg }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
                     onMouseLeave={e => (e.currentTarget.style.background = rowBg)}>
-                    <td style={{ padding: '0.7rem 0.9rem', color: '#e2e8f0', fontWeight: 700, minWidth: '120px' }}>
+
+                    {/* ① 성분명 — 주요 */}
+                    <td style={{ padding: '0.7rem 0.9rem', color: '#e2e8f0', fontWeight: 700, minWidth: '160px' }}>
+                      {p.memo || <span style={{ color: '#475569' }}>—</span>}
+                    </td>
+
+                    {/* ② 제품명 */}
+                    <td style={{ padding: '0.7rem 0.9rem', color: '#93c5fd', minWidth: '120px', fontWeight: 500 }}>
                       {p.title}
                     </td>
-                    <td style={{ padding: '0.7rem 0.9rem', color: '#94a3b8', maxWidth: '200px', fontSize: '0.78rem' }}>
-                      <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {p.memo ?? '—'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.7rem 0.9rem', color: '#93c5fd', whiteSpace: 'nowrap', fontWeight: 600 }}>
+
+                    {/* ③ 발매(예정)일 */}
+                    <td style={{ padding: '0.7rem 0.9rem', color: '#a78bfa', whiteSpace: 'nowrap', fontWeight: 600 }}>
                       {fmtDate(p.launch_date)}
                     </td>
+
+                    {/* ④ 계열 */}
                     <td style={{ padding: '0.7rem 0.9rem', color: '#94a3b8', maxWidth: '150px' }}>
                       <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {p.indication ?? '—'}
                       </span>
                     </td>
-                    <td style={{ padding: '0.7rem 0.9rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                      {p.manufacturer ?? '—'}
+
+                    {/* ⑤ 회사 */}
+                    <td style={{ padding: '0.7rem 0.9rem', whiteSpace: 'nowrap' }}>
+                      {p.manufacturer ? (
+                        <span style={{
+                          display: 'inline-block', padding: '0.12rem 0.5rem', borderRadius: '5px',
+                          fontSize: '0.72rem', fontWeight: 600,
+                          background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)',
+                          color: '#6ee7b7',
+                        }}>
+                          {p.manufacturer}
+                        </span>
+                      ) : <span style={{ color: '#475569' }}>—</span>}
                     </td>
-                    <td style={{ padding: '0.7rem 0.9rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+
+                    {/* ⑥ 보험코드 */}
+                    <td style={{ padding: '0.7rem 0.9rem', color: '#64748b', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>
                       {p.insurance_code ?? '—'}
                     </td>
+
+                    {/* ⑦ 보험가 */}
                     <td style={{ padding: '0.7rem 0.9rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
                       {p.insurance_price ?? '—'}
                     </td>
+
+                    {/* ⑧ 진행상태 */}
                     <td style={{ padding: '0.7rem 0.9rem', whiteSpace: 'nowrap' }}>
                       {p.status ? (
                         <span style={{ display: 'inline-block', padding: '0.15rem 0.55rem', borderRadius: '20px', background: sc.bg, border: `1px solid ${sc.bd}`, color: sc.color, fontSize: '0.7rem', fontWeight: 700 }}>
@@ -212,6 +280,8 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
                         </span>
                       ) : '—'}
                     </td>
+
+                    {/* ⑨ 관리 버튼 */}
                     <td style={{ padding: '0.7rem 0.75rem', whiteSpace: 'nowrap' }}>
                       {isAdmin && (
                         <>
@@ -230,7 +300,7 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
       )}
       <p style={{ fontSize: '0.73rem', color: '#475569', marginTop: '0.6rem', textAlign: 'right' }}>총 {filtered.length}건</p>
 
-      {/* ══ 등록/수정 모달 (admin) ════════════════════════════════ */}
+      {/* ══ 등록/수정 모달 ════════════════════════════════════════ */}
       {modalOpen && isAdmin && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
           onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
@@ -239,14 +309,21 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
               {editing ? '품목 수정' : '신규 품목 등록'}
             </h3>
 
+            <Field label="성분명 *">
+              <input value={form.memo} onChange={e => setForm(f => ({ ...f, memo: e.target.value }))}
+                placeholder="예) 파모티딘 20mg" style={inputStyle} />
+            </Field>
+
             <Field label="제품명 *">
               <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                 placeholder="예) 아주파모티딘정 20mg" style={inputStyle} />
             </Field>
 
-            <Field label="성분명 (비고)">
-              <input value={form.memo} onChange={e => setForm(f => ({ ...f, memo: e.target.value }))}
-                placeholder="예) 파모티딘 20mg" style={inputStyle} />
+            <Field label="회사">
+              <input value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))}
+                placeholder="예) 아주약품(주), 한미약품 등"
+                list="company-list"
+                style={inputStyle} />
             </Field>
 
             <Field label="발매(예정)일">
@@ -257,11 +334,6 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
             <Field label="계열/적응증">
               <input value={form.indication} onChange={e => setForm(f => ({ ...f, indication: e.target.value }))}
                 placeholder="예) 소화성궤양용제" style={inputStyle} />
-            </Field>
-
-            <Field label="제조사">
-              <input value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))}
-                placeholder="예) 아주약품" style={inputStyle} />
             </Field>
 
             <Field label="보험코드">
