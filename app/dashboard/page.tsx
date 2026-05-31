@@ -150,6 +150,7 @@ export default async function DashboardPage() {
           <Link href="/medical-search" style={navLink('#22d3ee', 'rgba(34,211,238,0.10)', 'rgba(34,211,238,0.28)')}>🏥 병원검색</Link>
           <Link href="/chat"           style={navLink('#06b6d4', 'rgba(6,182,212,0.12)',  'rgba(6,182,212,0.28)')}>챗봇</Link>
           <Link href="/performance" style={navLink('#4ade80', 'rgba(74,222,128,0.10)', 'rgba(74,222,128,0.25)')}>📊 마감분석</Link>
+          <Link href="/mbo"         style={navLink('#f59e0b', 'rgba(245,158,11,0.10)', 'rgba(245,158,11,0.28)')}>🎯 MBO</Link>
           <a href="https://ajupharm-news.web.app/" target="_blank" rel="noopener noreferrer" style={navLink('#fb7185', 'rgba(244,63,94,0.12)', 'rgba(244,63,94,0.28)')}>📰 뉴스</a>
           {canUpload && <Link href="/documents" style={navLink('#3b82f6', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.28)')}>문서</Link>}
           {isAdmin   && <Link href="/admin"     style={navLink('#a259ff', 'rgba(162,89,255,0.12)', 'rgba(162,89,255,0.28)')}>관리자</Link>}
