@@ -16,9 +16,28 @@ import {
 } from '@/app/mbo/actions';
 import type { MonthlyActual } from '@/app/mbo/actions';
 
-const MONTH_NAMES = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-const CUR_YEAR = new Date().getFullYear();
-const CUR_MONTH = new Date().getMonth() + 1;
+/* ── 회계연도(FY) 유틸
+   FY2026 = 2026-04-01 ~ 2027-03-31
+   FY 월 순서: 1=4월, 2=5월, … 9=12월, 10=1월, 11=2월, 12=3월
+─────────────────────────────────────── */
+const _CAL_YEAR  = new Date().getFullYear();
+const _CAL_MONTH = new Date().getMonth() + 1;
+const CUR_FY_YEAR  = _CAL_MONTH >= 4 ? _CAL_YEAR : _CAL_YEAR - 1;
+const CUR_FY_MONTH = _CAL_MONTH >= 4 ? _CAL_MONTH - 3 : _CAL_MONTH + 9;
+
+const FY_YEARS = [CUR_FY_YEAR - 1, CUR_FY_YEAR, CUR_FY_YEAR + 1];
+
+// FY월 → 캘린더 {year, month}
+function fyToCalendar(fyYear: number, fyMonth: number): { calYear: number; calMonth: number } {
+  return fyMonth <= 9
+    ? { calYear: fyYear,     calMonth: fyMonth + 3 }
+    : { calYear: fyYear + 1, calMonth: fyMonth - 9 };
+}
+
+const FY_MONTH_LABEL: Record<number, string> = {
+  1:'4월', 2:'5월', 3:'6월', 4:'7월', 5:'8월', 6:'9월',
+  7:'10월', 8:'11월', 9:'12월', 10:'1월', 11:'2월', 12:'3월',
+};
 
 /* ── 달성률 색상 ── */
 function rateColor(rate: number) {
@@ -51,8 +70,6 @@ function calcRate(actual: string, target: string): number | null {
   return Math.round((a / t) * 100);
 }
 
-/* ── 연도 옵션 ── */
-const YEARS = [CUR_YEAR - 1, CUR_YEAR, CUR_YEAR + 1];
 
 /* ════════════════════════════════════════════
    메인 컴포넌트
@@ -68,9 +85,9 @@ export default function MBOClient({
   currentUserEmail:  string;
   members:           Member[];
 }) {
-  const [year,       setYear]       = useState(CUR_YEAR);
+  const [fyYear,     setFyYear]     = useState(CUR_FY_YEAR);
   const [periodType, setPeriodType] = useState<'annual' | 'monthly'>('annual');
-  const [month,      setMonth]      = useState(CUR_MONTH);
+  const [fyMonth,    setFyMonth]    = useState(CUR_FY_MONTH);  // 1=4월 … 12=3월
   const [selectedId, setSelectedId] = useState(currentUserId);   // 지역장 ID
   const [targets,     setTargets]     = useState<MboTarget[]>([]);
   const [monthlyMap,  setMonthlyMap]  = useState<Record<string, MonthlyActual[]>>({});
@@ -80,20 +97,24 @@ export default function MBOClient({
   const [, startReorder]              = useTransition();
   const [, startStatus]               = useTransition();
 
-  const effectiveMonth = periodType === 'annual' ? null : month;
+  // FY → 캘린더 변환 (DB 쿼리용)
+  const { calYear, calMonth: _calM } = periodType === 'annual'
+    ? { calYear: fyYear, calMonth: null as null }
+    : fyToCalendar(fyYear, fyMonth);
+  const effectiveCalMonth = periodType === 'annual' ? null : _calM;
 
   /* ── 데이터 로드 ── */
   const reload = useCallback(async () => {
     setLoading(true);
     try {
       const [data, color] = await Promise.all([
-        getMboTargets(selectedId, year, effectiveMonth),
-        getMboStatus(selectedId, year, effectiveMonth),
+        getMboTargets(selectedId, calYear, effectiveCalMonth),
+        getMboStatus(selectedId, calYear, effectiveCalMonth),
       ]);
       setTargets(data);
       setStatusColor(color);
       // 연간 뷰일 때만 월별 실적 사전 로드
-      if (effectiveMonth === null && data.length > 0) {
+      if (effectiveCalMonth === null && data.length > 0) {
         const mmap = await getMonthlyActualsByTargets(data.map(t => t.id));
         setMonthlyMap(mmap);
       } else {
@@ -104,7 +125,7 @@ export default function MBOClient({
     } finally {
       setLoading(false);
     }
-  }, [selectedId, year, effectiveMonth]);
+  }, [selectedId, calYear, effectiveCalMonth]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -141,7 +162,7 @@ export default function MBOClient({
     setStatusColor(color);                     // 낙관적 업데이트
     startStatus(async () => {
       try {
-        const res = await setMboStatus(selectedId, year, effectiveMonth, color);
+        const res = await setMboStatus(selectedId, calYear, effectiveCalMonth, color);
         if (res.error) showToast('⚠ ' + res.error);
       } catch {
         showToast('⚠ 현수준 저장 중 오류가 발생했습니다.');
@@ -196,9 +217,9 @@ export default function MBOClient({
             </select>
           )}
 
-          {/* 연도 */}
-          <select value={year} onChange={e => setYear(Number(e.target.value))} style={selectStyle}>
-            {YEARS.map(y => <option key={y} value={y}>{y}년</option>)}
+          {/* 회계연도 */}
+          <select value={fyYear} onChange={e => setFyYear(Number(e.target.value))} style={selectStyle}>
+            {FY_YEARS.map(y => <option key={y} value={y}>FY{y}</option>)}
           </select>
 
           {/* 연간 / 월별 탭 */}
@@ -220,11 +241,11 @@ export default function MBOClient({
             ))}
           </div>
 
-          {/* 월 선택 (월별 탭) */}
+          {/* 월 선택 (월별 탭) — FY순서: 4월→3월 */}
           {periodType === 'monthly' && (
-            <select value={month} onChange={e => setMonth(Number(e.target.value))} style={selectStyle}>
-              {MONTH_NAMES.map((nm, i) => (
-                <option key={i + 1} value={i + 1}>{nm}</option>
+            <select value={fyMonth} onChange={e => setFyMonth(Number(e.target.value))} style={selectStyle}>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map(fm => (
+                <option key={fm} value={fm}>{FY_MONTH_LABEL[fm]}</option>
               ))}
             </select>
           )}
@@ -233,7 +254,10 @@ export default function MBOClient({
         {/* 선택된 멤버 표시 */}
         {isAdmin && (
           <p style={{ fontSize: '0.73rem', color: 'rgba(165,180,252,0.7)', marginTop: '0.7rem', marginBottom: 0 }}>
-            📋 {selectedEmail} · {year}년 {periodType === 'annual' ? '연간 목표' : `${month}월 목표`}
+            📋 {selectedEmail} · FY{fyYear}{' '}
+            {periodType === 'annual'
+              ? `연간 목표 (${fyYear}.04 ~ ${fyYear + 1}.03)`
+              : `${FY_MONTH_LABEL[fyMonth]} 목표`}
           </p>
         )}
       </div>
@@ -275,7 +299,7 @@ export default function MBOClient({
                     isOdd={i % 2 === 1}
                     isFirst={i === 0}
                     isLast={i === targets.length - 1}
-                    isAnnual={effectiveMonth === null}
+                    isAnnual={effectiveCalMonth === null}
                     monthlyActuals={monthlyMap[t.id] ?? []}
                     onMoveUp={i === 0 ? undefined : () => handleMove(i, i - 1)}
                     onMoveDown={i === targets.length - 1 ? undefined : () => handleMove(i, i + 1)}
@@ -293,8 +317,10 @@ export default function MBOClient({
       {isAdmin && (
         <AddTargetForm
           userId={selectedId}
-          year={year}
-          month={effectiveMonth}
+          year={calYear}
+          month={effectiveCalMonth}
+          fyYear={fyYear}
+          fyMonth={periodType === 'monthly' ? fyMonth : null}
           currentCount={targets.length}
           onAdded={reload}
           onToast={showToast}
@@ -612,11 +638,13 @@ function TargetRow({
    목표 추가 폼 (admin)
 ════════════════════════════════════════════ */
 function AddTargetForm({
-  userId, year, month, currentCount, onAdded, onToast,
+  userId, year, month, fyYear, fyMonth, currentCount, onAdded, onToast,
 }: {
   userId:       string;
   year:         number;
   month:        number | null;
+  fyYear:       number;
+  fyMonth:      number | null;
   currentCount: number;
   onAdded:      () => void;
   onToast:      (msg: string) => void;
@@ -667,6 +695,9 @@ function AddTargetForm({
     <div style={cardStyle}>
       <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#a5b4fc', marginBottom: '0.8rem' }}>
         + 새 목표 항목
+        <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', fontWeight: 400, color: 'var(--text-muted)' }}>
+          FY{fyYear} {fyMonth ? FY_MONTH_LABEL[fyMonth] : '연간'}
+        </span>
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'flex-end' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 2, minWidth: 160 }}>
@@ -720,7 +751,8 @@ function AddTargetForm({
 /* ════════════════════════════════════════════
    월별 목표·실적 입력 그리드
 ════════════════════════════════════════════ */
-const HALF = [[1,2,3,4,5,6],[7,8,9,10,11,12]] as const;
+// FY순서: [상반기 FY1~6 = 4월~9월], [하반기 FY7~12 = 10월~3월]
+const FY_HALVES = [[1,2,3,4,5,6],[7,8,9,10,11,12]] as const;
 
 function MonthlyGrid({
   targetId, unit, monthlyActuals, onSaved, onToast,
@@ -731,10 +763,14 @@ function MonthlyGrid({
   onSaved:        () => void;
   onToast:        (msg: string) => void;
 }) {
+  // FY월(1~12) → 캘린더월(1~12) 변환
+  const fyMtoCalM = (fm: number) => fm <= 9 ? fm + 3 : fm - 9;
+
   const init = (field: 'target_value' | 'actual_value') => {
     const v: Record<number, string> = {};
-    for (let m = 1; m <= 12; m++) {
-      v[m] = monthlyActuals.find(a => a.month === m)?.[field] ?? '';
+    for (let fm = 1; fm <= 12; fm++) {
+      const calM = fyMtoCalM(fm);
+      v[fm] = monthlyActuals.find(a => a.month === calM)?.[field] ?? '';
     }
     return v;
   };
@@ -748,12 +784,13 @@ function MonthlyGrid({
     setActuals(init('actual_value'));
   }, [monthlyActuals]); // eslint-disable-line
 
-  async function handleBlur(month: number, field: 'target' | 'actual') {
-    const key = `${field[0].toUpperCase()}-${month}`;
+  async function handleBlur(fyM: number, field: 'target' | 'actual') {
+    const key = `${field[0].toUpperCase()}-${fyM}`;
     setSaving(key);
-    const value = field === 'target' ? (targets[month] ?? '') : (actuals[month] ?? '');
+    const calM = fyMtoCalM(fyM);
+    const value = field === 'target' ? (targets[fyM] ?? '') : (actuals[fyM] ?? '');
     try {
-      const res = await upsertMonthlyEntry(targetId, month, field, value);
+      const res = await upsertMonthlyEntry(targetId, calM, field, value);
       if (res.error) onToast('⚠ ' + res.error);
       else onSaved();
     } catch {
@@ -802,43 +839,43 @@ function MonthlyGrid({
         <span style={{ fontSize: '0.67rem', color: 'var(--text-muted)', opacity: 0.6 }}>셀 이탈 시 자동 저장</span>
       </div>
 
-      {/* 상반기 / 하반기 */}
-      {HALF.map((months, hi) => (
+      {/* 상반기(4~9월) / 하반기(10~3월) */}
+      {FY_HALVES.map((fyMs, hi) => (
         <div key={hi} style={{ marginBottom: hi === 0 ? '0.6rem' : 0 }}>
           {/* 월 이름 행 */}
           <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem', marginBottom: '0.25rem' }}>
             <div />
-            {months.map(m => (
-              <div key={m} style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textAlign: 'center', fontWeight: 600 }}>
-                {m}월
+            {fyMs.map(fm => (
+              <div key={fm} style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textAlign: 'center', fontWeight: 600 }}>
+                {FY_MONTH_LABEL[fm]}
               </div>
             ))}
           </div>
           {/* 목표 행 */}
           <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem', marginBottom: '0.25rem' }}>
             <div style={{ fontSize: '0.68rem', color: '#fbbf24', fontWeight: 600, display: 'flex', alignItems: 'center' }}>목표</div>
-            {months.map(m => (
+            {fyMs.map(fm => (
               <input
-                key={m}
-                value={targets[m] ?? ''}
-                onChange={e => setTargetsVal(prev => ({ ...prev, [m]: e.target.value }))}
-                onBlur={() => handleBlur(m, 'target')}
+                key={fm}
+                value={targets[fm] ?? ''}
+                onChange={e => setTargetsVal(prev => ({ ...prev, [fm]: e.target.value }))}
+                onBlur={() => handleBlur(fm, 'target')}
                 placeholder="-"
-                style={cellStyle(targets[m] ?? '', saving === `T-${m}`)}
+                style={cellStyle(targets[fm] ?? '', saving === `T-${fm}`)}
               />
             ))}
           </div>
           {/* 실적 행 */}
           <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem' }}>
             <div style={{ fontSize: '0.68rem', color: '#60a5fa', fontWeight: 600, display: 'flex', alignItems: 'center' }}>실적</div>
-            {months.map(m => (
+            {fyMs.map(fm => (
               <input
-                key={m}
-                value={actuals[m] ?? ''}
-                onChange={e => setActuals(prev => ({ ...prev, [m]: e.target.value }))}
-                onBlur={() => handleBlur(m, 'actual')}
+                key={fm}
+                value={actuals[fm] ?? ''}
+                onChange={e => setActuals(prev => ({ ...prev, [fm]: e.target.value }))}
+                onBlur={() => handleBlur(fm, 'actual')}
                 placeholder="-"
-                style={cellStyle(actuals[m] ?? '', saving === `A-${m}`)}
+                style={cellStyle(actuals[fm] ?? '', saving === `A-${fm}`)}
               />
             ))}
           </div>
