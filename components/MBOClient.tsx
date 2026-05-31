@@ -866,7 +866,7 @@ function MonthlyGrid({
             ))}
           </div>
           {/* 실적 행 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem', marginBottom: '0.25rem' }}>
             <div style={{ fontSize: '0.68rem', color: '#60a5fa', fontWeight: 600, display: 'flex', alignItems: 'center' }}>실적</div>
             {fyMs.map(fm => (
               <input
@@ -878,6 +878,27 @@ function MonthlyGrid({
                 style={cellStyle(actuals[fm] ?? '', saving === `A-${fm}`)}
               />
             ))}
+          </div>
+          {/* 달성률 행 */}
+          <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem' }}>
+            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center' }}>달성률</div>
+            {fyMs.map(fm => {
+              const t = Number(targets[fm]);
+              const a = Number(actuals[fm]);
+              const hasRate = targets[fm]?.trim() && actuals[fm]?.trim() && !isNaN(t) && !isNaN(a) && t > 0;
+              const r = hasRate ? Math.round((a / t) * 100) : null;
+              return (
+                <div key={fm} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  height: 28, borderRadius: 6, fontSize: '0.72rem', fontWeight: 700,
+                  background: r === null ? 'transparent' : `rgba(${r >= 100 ? '52,211,153' : r >= 80 ? '96,165,250' : r >= 50 ? '251,191,36' : '248,113,113'},0.12)`,
+                  color: r === null ? 'var(--text-muted)' : rateColor(r),
+                  border: r === null ? '1px solid rgba(255,255,255,0.05)' : `1px solid rgba(${r >= 100 ? '52,211,153' : r >= 80 ? '96,165,250' : r >= 50 ? '251,191,36' : '248,113,113'},0.25)`,
+                }}>
+                  {r === null ? '-' : `${r}%`}
+                </div>
+              );
+            })}
           </div>
         </div>
       ))}
