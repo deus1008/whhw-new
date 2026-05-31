@@ -327,6 +327,57 @@ export async function upsertMonthlyEntries(
   return {};
 }
 
+/* ── 목표 항목 복사 (admin) ── */
+export async function copyMboTargets(
+  fromUserId: string,
+  toUserId:   string,
+  year:       number,
+): Promise<{ error?: string; count: number }> {
+  const auth = await getRole();
+  if (!auth?.isAdmin) return { error: '관리자만 복사할 수 있습니다.', count: 0 };
+
+  const sb  = serviceClient();
+  const now = new Date().toISOString();
+
+  // 원본 연간 목표 조회
+  const { data: sources, error: fetchErr } = await sb
+    .from('mbo_targets')
+    .select('item_name, target_value, unit, sort_order')
+    .eq('user_id', fromUserId)
+    .eq('year', year)
+    .is('month', null)
+    .order('sort_order');
+
+  if (fetchErr) return { error: fetchErr.message, count: 0 };
+  if (!sources || sources.length === 0) return { error: '복사할 목표 항목이 없습니다.', count: 0 };
+
+  // 대상 멤버 기존 연간 목표 삭제 (덮어쓰기)
+  await sb.from('mbo_targets').delete()
+    .eq('user_id', toUserId).eq('year', year).is('month', null);
+
+  // 복사 삽입 — target_value 유지, actual_value 초기화
+  const rows = (sources as Array<{ item_name: string; target_value: string; unit: string; sort_order: number }>)
+    .map((s, i) => ({
+      user_id:      toUserId,
+      year,
+      month:        null,
+      item_name:    s.item_name,
+      target_value: s.target_value,  // 목표값 그대로 복사 (나중에 수정 가능)
+      actual_value: '',
+      unit:         s.unit,
+      sort_order:   i,
+      created_by:   auth.userId,
+      created_at:   now,
+      updated_at:   now,
+    }));
+
+  const { error: insErr } = await sb.from('mbo_targets').insert(rows);
+  if (insErr) return { error: insErr.message, count: 0 };
+
+  revalidatePath('/mbo');
+  return { count: rows.length };
+}
+
 /* ── 현수준 색상 조회 ── */
 export async function getMboStatus(
   userId: string,

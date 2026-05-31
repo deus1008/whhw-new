@@ -13,6 +13,7 @@ import {
   deleteMboTarget,
   updateMboActual,
   reorderMboTargets,
+  copyMboTargets,
 } from '@/app/mbo/actions';
 import type { MonthlyActual } from '@/app/mbo/actions';
 
@@ -221,6 +222,18 @@ export default function MBOClient({
           <select value={fyYear} onChange={e => setFyYear(Number(e.target.value))} style={selectStyle}>
             {FY_YEARS.map(y => <option key={y} value={y}>FY{y}</option>)}
           </select>
+
+          {/* 목표 복사 (admin, 멤버 2명 이상) */}
+          {isAdmin && members.length > 1 && (
+            <CopyPanel
+              fromUserId={selectedId}
+              fromEmail={selectedEmail}
+              fyYear={fyYear}
+              members={members}
+              onCopied={(toId) => { setSelectedId(toId); reload(); }}
+              onToast={showToast}
+            />
+          )}
         </div>
 
         {/* 선택된 멤버 표시 */}
@@ -878,6 +891,111 @@ function MonthlyGrid({
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════
+   목표 복사 패널
+════════════════════════════════════════════ */
+function CopyPanel({
+  fromUserId, fromEmail, fyYear, members, onCopied, onToast,
+}: {
+  fromUserId: string;
+  fromEmail:  string;
+  fyYear:     number;
+  members:    Member[];
+  onCopied:   (toId: string) => void;
+  onToast:    (msg: string) => void;
+}) {
+  const [open,    setOpen]    = useState(false);
+  const [toId,    setToId]    = useState('');
+  const [copying, setCopying] = useState(false);
+
+  const others = members.filter(m => m.id !== fromUserId);
+
+  // 처음 열릴 때 기본값 설정
+  function handleOpen() {
+    if (others.length > 0 && !toId) setToId(others[0].id);
+    setOpen(true);
+  }
+
+  async function handleCopy() {
+    if (!toId) return;
+    const toEmail = members.find(m => m.id === toId)?.email ?? toId;
+    if (!confirm(`"${fromEmail}"의 FY${fyYear} 목표 항목을\n"${toEmail}"에게 복사할까요?\n\n기존 항목은 삭제됩니다.`)) return;
+
+    setCopying(true);
+    try {
+      const res = await copyMboTargets(fromUserId, toId, fyYear);
+      if (res.error) { onToast('⚠ ' + res.error); return; }
+      onToast(`✓ ${res.count}개 항목을 "${toEmail}"에게 복사했습니다.`);
+      setOpen(false);
+      onCopied(toId);
+    } catch {
+      onToast('⚠ 복사 중 오류가 발생했습니다.');
+    } finally {
+      setCopying(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={handleOpen}
+        title="이 멤버의 목표 항목을 다른 멤버에게 복사"
+        style={{
+          padding: '0.38rem 0.8rem', borderRadius: 8, cursor: 'pointer',
+          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)',
+          color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, fontFamily: 'inherit',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        📋 복사하기
+      </button>
+    );
+  }
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap',
+      padding: '0.45rem 0.8rem', borderRadius: 9,
+      background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.28)',
+    }}>
+      <span style={{ fontSize: '0.75rem', color: '#a5b4fc', fontWeight: 600, whiteSpace: 'nowrap' }}>
+        📋 복사 대상:
+      </span>
+      <select
+        value={toId}
+        onChange={e => setToId(e.target.value)}
+        style={{ ...selectStyle, fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}
+      >
+        {others.map(m => (
+          <option key={m.id} value={m.id}>{m.email}</option>
+        ))}
+      </select>
+      <button
+        onClick={handleCopy}
+        disabled={copying || !toId}
+        style={{
+          padding: '0.3rem 0.85rem', borderRadius: 7, cursor: copying ? 'not-allowed' : 'pointer',
+          background: 'rgba(99,102,241,0.22)', border: '1px solid rgba(99,102,241,0.5)',
+          color: '#a5b4fc', fontSize: '0.78rem', fontWeight: 700, fontFamily: 'inherit',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {copying ? '복사 중…' : '복사'}
+      </button>
+      <button
+        onClick={() => setOpen(false)}
+        style={{
+          padding: '0.3rem 0.65rem', borderRadius: 7, cursor: 'pointer',
+          background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
+          color: 'var(--text-muted)', fontSize: '0.78rem', fontFamily: 'inherit',
+        }}
+      >
+        취소
+      </button>
     </div>
   );
 }
