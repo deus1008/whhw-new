@@ -804,12 +804,20 @@ function MonthlyGrid({
     }
   }
 
-  const sumOf = (vals: Record<number, string>) => {
-    const nums = Object.values(vals).filter(v => v.trim() !== '' && !isNaN(Number(v))).map(Number);
-    return nums.length > 0 ? nums.reduce((a, b) => a + b, 0) : null;
+  const isAvg = unit.trim() === '%';
+
+  const numsOf = (vals: Record<number, string>) =>
+    Object.values(vals).filter(v => v.trim() !== '' && !isNaN(Number(v))).map(Number);
+
+  const aggregateOf = (vals: Record<number, string>) => {
+    const nums = numsOf(vals);
+    if (nums.length === 0) return null;
+    const total = nums.reduce((a, b) => a + b, 0);
+    return isAvg ? Math.round((total / nums.length) * 100) / 100 : total;
   };
-  const tSum = sumOf(targets);
-  const aSum = sumOf(actuals);
+
+  const tSum = aggregateOf(targets);
+  const aSum = aggregateOf(actuals);
   const tRate = tSum !== null && aSum !== null && tSum > 0 ? Math.round((aSum / tSum) * 100) : null;
 
   const cellStyle = (val: string, isSaving: boolean): React.CSSProperties => ({
@@ -827,12 +835,12 @@ function MonthlyGrid({
         <span style={{ fontSize: '0.73rem', fontWeight: 700, color: '#a5b4fc' }}>📅 월별 목표·실적</span>
         {tSum !== null && (
           <span style={{ fontSize: '0.72rem', color: '#fbbf24', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)' }}>
-            목표 합계 {tSum.toLocaleString()}{unit ? ` ${unit}` : ''}
+            목표 {isAvg ? '평균' : '합계'} {tSum.toLocaleString()}{unit ? ` ${unit}` : ''}
           </span>
         )}
         {aSum !== null && (
           <span style={{ fontSize: '0.72rem', color: '#60a5fa', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.25)' }}>
-            실적 합계 {aSum.toLocaleString()}{unit ? ` ${unit}` : ''}
+            실적 {isAvg ? '평균' : '합계'} {aSum.toLocaleString()}{unit ? ` ${unit}` : ''}
           </span>
         )}
         {tRate !== null && (

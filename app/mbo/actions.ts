@@ -208,11 +208,20 @@ export async function upsertMonthlyEntry(
   const sb  = serviceClient();
   const now = new Date().toISOString();
 
-  // 권한 확인
+  // 권한 확인 + 부모 항목 단위 조회 (합산 vs 평균 결정)
+  const { data: parentTarget } = await sb
+    .from('mbo_targets')
+    .select('user_id, unit')
+    .eq('id', targetId)
+    .single();
+
   if (!auth.isAdmin) {
-    const { data: t } = await sb.from('mbo_targets').select('user_id').eq('id', targetId).single();
-    if (!t || (t as { user_id: string }).user_id !== auth.userId) return { error: '권한이 없습니다.' };
+    if (!parentTarget || (parentTarget as { user_id: string }).user_id !== auth.userId)
+      return { error: '권한이 없습니다.' };
   }
+
+  // 단위가 '%'이면 평균, 그 외는 합산
+  const useAvg = String((parentTarget as { unit: string } | null)?.unit ?? '').trim() === '%';
 
   const col = field === 'target' ? 'target_value' : 'actual_value';
 
@@ -223,7 +232,7 @@ export async function upsertMonthlyEntry(
   );
   if (uErr) return { error: uErr.message };
 
-  // 해당 필드 전체 합산 → 연간 값 갱신
+  // 해당 필드 전체 조회 → 합산 또는 평균 → 연간 값 갱신
   const { data: allMonths } = await sb
     .from('mbo_monthly_actuals')
     .select(col)
@@ -234,12 +243,18 @@ export async function upsertMonthlyEntry(
     .filter(v => v !== '' && !isNaN(Number(v)))
     .map(Number);
 
-  const newSum = validNums.length > 0 ? String(validNums.reduce((a, b) => a + b, 0)) : '';
+  let newVal = '';
+  if (validNums.length > 0) {
+    const total = validNums.reduce((a, b) => a + b, 0);
+    newVal = useAvg
+      ? String(Math.round((total / validNums.length) * 100) / 100)  // 소수점 2자리
+      : String(total);
+  }
 
-  if (newSum !== '') {
+  if (newVal !== '') {
     const parentCol = field === 'target' ? 'target_value' : 'actual_value';
     await sb.from('mbo_targets')
-      .update({ [parentCol]: newSum, updated_at: now })
+      .update({ [parentCol]: newVal, updated_at: now })
       .eq('id', targetId);
   }
 
