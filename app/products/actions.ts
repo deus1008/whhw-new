@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import type { UpcomingProduct } from './page';
 
 export type ProductInput = {
@@ -17,7 +18,16 @@ export type ProductInput = {
 
 type Result<T = void> = { data?: T; error?: string };
 
-async function getApproved() {
+/* ── 서비스 롤 클라이언트 (RLS 우회) ─────────────────────────── */
+function sb() {
+  return createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
+
+/* ── 인증 확인 (승인 멤버) ────────────────────────────────────── */
+async function checkApproved(): Promise<{ userId: string; role: string } | { error: string }> {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: '인증이 필요합니다.' };
@@ -28,18 +38,10 @@ async function getApproved() {
   if (!profile || profile.status !== 'approved')
     return { error: '승인된 계정이 아닙니다.' };
 
-  return { supabase, user, role: profile.role as string };
-}
-
-async function getAdmin() {
-  const auth = await getApproved();
-  if (auth.error || !auth.supabase) return auth;
-  if (auth.role !== 'admin') return { error: '관리자만 삭제할 수 있습니다.' };
-  return auth;
+  return { userId: user.id, role: profile.role as string };
 }
 
 function clean(input: ProductInput) {
-  // YYYY-MM → YYYY-MM-01 으로 변환
   let launch = input.launch_date.trim() || null;
   if (launch && /^\d{4}-\d{2}$/.test(launch)) launch = `${launch}-01`;
 
@@ -55,33 +57,35 @@ function clean(input: ProductInput) {
   };
 }
 
-/* ── 생성 ─────────────────────────────────────────────────────── */
+/* ── 생성 (승인된 멤버) ───────────────────────────────────────── */
 export async function createProduct(input: ProductInput): Promise<Result<UpcomingProduct>> {
-  const auth = await getApproved();
-  if (auth.error || !auth.supabase) return { error: auth.error };
+  const auth = await checkApproved();
+  if ('error' in auth) return { error: auth.error };
   if (!input.title.trim()) return { error: '제품명을 입력하세요.' };
 
-  const { data, error } = await auth.supabase
+  const { data, error } = await sb()
     .from('upcoming_products')
     .insert(clean(input))
-    .select().single();
+    .select()
+    .single();
 
   if (error) return { error: `저장 실패: ${error.message}` };
   revalidatePath('/products');
   return { data: data as UpcomingProduct };
 }
 
-/* ── 수정 ─────────────────────────────────────────────────────── */
+/* ── 수정 (승인된 멤버) ───────────────────────────────────────── */
 export async function updateProduct(id: string, input: ProductInput): Promise<Result<UpcomingProduct>> {
-  const auth = await getApproved();
-  if (auth.error || !auth.supabase) return { error: auth.error };
+  const auth = await checkApproved();
+  if ('error' in auth) return { error: auth.error };
   if (!input.title.trim()) return { error: '제품명을 입력하세요.' };
 
-  const { data, error } = await auth.supabase
+  const { data, error } = await sb()
     .from('upcoming_products')
     .update(clean(input))
     .eq('id', id)
-    .select().single();
+    .select()
+    .single();
 
   if (error) return { error: `수정 실패: ${error.message}` };
   revalidatePath('/products');
@@ -90,11 +94,14 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Re
 
 /* ── 삭제 (관리자 전용) ───────────────────────────────────────── */
 export async function deleteProduct(id: string): Promise<Result> {
-  const auth = await getAdmin();
-  if (auth.error || !auth.supabase) return { error: auth.error };
+  const auth = await checkApproved();
+  if ('error' in auth) return { error: auth.error };
+  if (auth.role !== 'admin') return { error: '관리자만 삭제할 수 있습니다.' };
 
-  const { error } = await auth.supabase
-    .from('upcoming_products').delete().eq('id', id);
+  const { error } = await sb()
+    .from('upcoming_products')
+    .delete()
+    .eq('id', id);
 
   if (error) return { error: `삭제 실패: ${error.message}` };
   revalidatePath('/products');
