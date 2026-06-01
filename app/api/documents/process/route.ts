@@ -3,6 +3,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { extractText } from '@/lib/rag/extract';
 import { chunkText } from '@/lib/rag/chunk';
 import { embedTexts } from '@/lib/rag/embed';
+import { extractProductsFromText } from '@/lib/products/extract';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300; // Vercel: 최대 5분
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
   // ── 3. 문서 레코드 조회 ───────────────────────────────────────────────
   const { data: doc, error: docErr } = await supabase
     .from('documents')
-    .select('id, filename, file_type, storage_path, uploaded_by')
+    .select('id, filename, file_type, storage_path, uploaded_by, category')
     .eq('id', documentId)
     .single();
 
@@ -166,8 +167,62 @@ export async function POST(request: Request) {
     console.error('[process] status 업데이트 실패', updateErr);
   }
 
+  // ── 10. 허가현황 폴더 → 발매예정품목 자동 추출 ──────────────────────
+  let extractedCount = 0;
+  if (doc.category === '허가현황') {
+    try {
+      console.log(`[process:${documentId}] 허가현황 폴더 감지 → 제품 자동 추출 시작`);
+      const products = await extractProductsFromText(rawText);
+
+      if (products.length > 0) {
+        // 이 문서에서 이전에 추출한 항목 삭제 (재처리 시 중복 방지)
+        await supabase
+          .from('upcoming_products')
+          .delete()
+          .eq('source_document_id', documentId);
+
+        // 새로 추출한 항목 삽입
+        const now = new Date().toISOString();
+        const rows = products.map(p => {
+          let launch = p.launch_date?.trim() || null;
+          if (launch && /^\d{4}-\d{2}$/.test(launch)) launch = `${launch}-01`;
+          return {
+            title:              p.title.trim(),
+            memo:               p.ingredient?.trim() || null,
+            manufacturer:       p.manufacturer?.trim() || null,
+            launch_date:        launch,
+            indication:         p.indication?.trim() || null,
+            status:             p.status || '발매예정',
+            insurance_code:     p.insurance_code?.trim() || null,
+            insurance_price:    p.insurance_price?.trim() || null,
+            source_document_id: documentId,
+            created_at:         now,
+            updated_at:         now,
+          };
+        });
+
+        const { error: prodErr } = await supabase
+          .from('upcoming_products')
+          .insert(rows);
+
+        if (prodErr) {
+          console.warn(`[process:${documentId}] 제품 삽입 실패:`, prodErr.message);
+        } else {
+          extractedCount = rows.length;
+          console.log(`[process:${documentId}] 제품 ${extractedCount}건 자동 등록 완료`);
+        }
+      } else {
+        console.log(`[process:${documentId}] 추출된 제품 없음`);
+      }
+    } catch (e) {
+      // 추출 실패해도 문서 처리는 성공으로 유지
+      console.warn(`[process:${documentId}] 제품 자동 추출 중 오류 (무시):`, e);
+    }
+  }
+
   return Response.json({
-    ok:     true,
-    chunks: chunks.length,
+    ok:        true,
+    chunks:    chunks.length,
+    extracted: extractedCount,
   });
 }
