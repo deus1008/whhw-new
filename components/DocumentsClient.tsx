@@ -9,7 +9,7 @@ import { deleteDocument, renameFolder, getDownloadUrl } from '@/app/documents/ac
 import type { Document } from '@/app/documents/page';
 
 /* ── 허용 형식 ──────────────────────────────────────────── */
-const ALLOWED_EXTS = new Set(['pdf', 'docx', 'xlsx', 'xls']);
+const ALLOWED_EXTS = new Set(['pdf', 'docx', 'xlsx', 'xls', 'xlsb']);
 const MAX_BYTES    = 200 * 1024 * 1024; // 200 MB
 
 const FILE_META: Record<string, { label: string; color: string; bg: string; bd: string }> = {
@@ -17,6 +17,7 @@ const FILE_META: Record<string, { label: string; color: string; bg: string; bd: 
   docx: { label: 'DOCX', color: '#93c5fd', bg: 'rgba(59,130,246,0.12)',  bd: 'rgba(59,130,246,0.28)'  },
   xlsx: { label: 'XLSX', color: '#86efac', bg: 'rgba(34,197,94,0.12)',   bd: 'rgba(34,197,94,0.28)'   },
   xls:  { label: 'XLS',  color: '#6ee7b7', bg: 'rgba(16,185,129,0.12)',  bd: 'rgba(16,185,129,0.28)'  },
+  xlsb: { label: 'XLSB', color: '#4ade80', bg: 'rgba(74,222,128,0.12)',  bd: 'rgba(74,222,128,0.28)'  },
 };
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; bd: string }> = {
@@ -34,7 +35,7 @@ function getExt(name: string) {
 
 function validateFile(file: File): string | null {
   if (!ALLOWED_EXTS.has(getExt(file.name))) {
-    return `"${file.name}": PDF, DOCX, XLSX, XLS만 허용됩니다.`;
+    return `"${file.name}": PDF, DOCX, XLSX, XLS, XLSB만 허용됩니다.`;
   }
   if (file.size > MAX_BYTES) {
     return `"${file.name}": 200 MB 제한을 초과합니다 (${(file.size / 1024 / 1024).toFixed(1)} MB).`;
@@ -374,7 +375,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
           <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: 0 }}>
             {isDragging ? '여기에 놓으세요' : '클릭하거나 파일을 드래그하여 추가'}
           </p>
-          <input ref={fileInputRef} type="file" multiple accept=".pdf,.docx,.xlsx,.xls"
+          <input ref={fileInputRef} type="file" multiple accept=".pdf,.docx,.xlsx,.xls,.xlsb"
             onChange={handleFileChange} style={{ display: 'none' }} />
         </div>
 

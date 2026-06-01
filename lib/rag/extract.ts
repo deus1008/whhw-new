@@ -7,7 +7,8 @@ export async function extractText(buffer: Buffer, fileType: string): Promise<str
     case 'pdf':  return extractPdf(buffer);
     case 'docx': return extractDocx(buffer);
     case 'xlsx':
-    case 'xls':  return extractExcel(buffer);
+    case 'xls':
+    case 'xlsb': return extractExcel(buffer);
     default:
       throw new Error(`지원하지 않는 파일 형식: ${fileType}`);
   }

@@ -128,8 +128,8 @@ export async function POST(req: NextRequest) {
   if (!file) return NextResponse.json({ error: '파일이 없습니다.' }, { status: 400 });
 
   const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-  if (!['xlsx', 'xls', 'csv'].includes(ext)) {
-    return NextResponse.json({ error: 'xlsx / xls / csv 파일만 지원합니다.' }, { status: 400 });
+  if (!['xlsx', 'xls', 'xlsb', 'csv'].includes(ext)) {
+    return NextResponse.json({ error: 'xlsx / xls / xlsb / csv 파일만 지원합니다.' }, { status: 400 });
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
