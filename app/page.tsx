@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -222,19 +221,7 @@ export default function Home() {
       <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[1]" />
 
       <div className="relative z-10 text-center px-6 py-8 w-full max-w-[700px]">
-        {/* 로고 */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.2rem' }}>
-          <Image
-            src="/aju-alliance-logo.png"
-            alt="아주얼라이언스(주)"
-            width={320}
-            height={96}
-            style={{ objectFit: 'contain', width: 'min(320px, 80vw)', height: 'auto' }}
-            priority
-          />
-        </div>
-
-        <h1 className="domain">판매대행사업</h1>
+        <h1 className="domain">CSO Biz.</h1>
 
         {/* 페이지 바로가기 아이콘 */}
         <div style={{
