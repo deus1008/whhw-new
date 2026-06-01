@@ -5,7 +5,7 @@ import {
   DragEvent, ChangeEvent, useEffect,
 } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { deleteDocument, renameFolder } from '@/app/documents/actions';
+import { deleteDocument, renameFolder, getDownloadUrl } from '@/app/documents/actions';
 import type { Document } from '@/app/documents/page';
 
 /* ── 허용 형식 ──────────────────────────────────────────── */
@@ -105,10 +105,11 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
     }
   }, [folders, activeFolder]);
 
-  // 페이지 로드 시 '처리 대기(processing)' 또는 '완료인데 청크 없음' 문서 자동 재시작
+  // 페이지 로드 시 '처리 대기(processing)' 상태로 멈춘 문서만 자동 재시작
+  // (ready + chunk_count===0 조건 제거 — RLS 오탐으로 무한 재처리 발생 방지)
   useEffect(() => {
     const stuckDocs = initialDocuments.filter(
-      d => d.status === 'processing' || (d.status === 'ready' && d.chunk_count === 0),
+      d => d.status === 'processing',
     );
     if (stuckDocs.length === 0) return;
     console.log(`[DocumentsClient] 처리 필요 문서 ${stuckDocs.length}개 자동 재개`);
@@ -697,6 +698,9 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                       >↺</button>
                     )}
 
+                    {/* 다운로드 버튼 */}
+                    <DownloadButton storagePath={doc.storage_path} filename={doc.filename} />
+
                     {isConfirm ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>삭제?</span>
@@ -748,6 +752,50 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
         .folder-tab:hover { opacity: 0.8; }
       `}</style>
     </div>
+  );
+}
+
+/* ── 다운로드 버튼 컴포넌트 ──────────────────────────────── */
+function DownloadButton({ storagePath, filename }: { storagePath: string; filename: string }) {
+  const [loading, setLoading] = useState(false);
+
+  async function handleDownload() {
+    setLoading(true);
+    try {
+      const result = await getDownloadUrl(storagePath);
+      if (result.error || !result.url) {
+        alert(result.error ?? '다운로드 URL 생성에 실패했습니다.');
+        return;
+      }
+      // 링크 클릭으로 다운로드 트리거
+      const a = document.createElement('a');
+      a.href = result.url;
+      a.download = filename;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch {
+      alert('다운로드 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={handleDownload}
+      disabled={loading}
+      title="파일 다운로드"
+      style={{
+        padding: '0.22rem 0.6rem', borderRadius: '6px', cursor: loading ? 'not-allowed' : 'pointer',
+        background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)',
+        color: '#a5b4fc', fontSize: '0.72rem', fontWeight: 600, fontFamily: 'inherit',
+        flexShrink: 0, opacity: loading ? 0.5 : 1,
+      }}
+    >
+      {loading ? '…' : '⬇ 다운'}
+    </button>
   );
 }
 

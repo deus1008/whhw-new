@@ -74,6 +74,21 @@ export async function deleteDocument(formData: FormData) {
   revalidatePath('/documents');
 }
 
+/* ── 다운로드 서명 URL 생성 ──────────────────────────────── */
+export async function getDownloadUrl(storagePath: string): Promise<{ url?: string; error?: string }> {
+  try {
+    await verifyUploaderOrAdmin();
+    const sb = createServiceClient();
+    const { data, error } = await sb.storage
+      .from('documents')
+      .createSignedUrl(storagePath, 3600); // 1시간 유효
+    if (error) return { error: error.message };
+    return { url: data.signedUrl };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : '다운로드 URL 생성 실패' };
+  }
+}
+
 /* ── 폴더 이름 변경 ─────────────────────────────────────── */
 export async function renameFolder(oldName: string | null, newName: string): Promise<{ error?: string }> {
   try {

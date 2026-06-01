@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import DocumentsClient from '@/components/DocumentsClient';
@@ -46,11 +47,15 @@ export default async function DocumentsPage() {
 
   if (docsError) console.error('[documents:getDocs error]', docsError);
 
-  // 문서별 실제 청크 수 조회 (DB에 학습 데이터가 실제로 있는지 확인)
+  // 문서별 실제 청크 수 조회 — 서비스 롤로 RLS 우회 (청크 수 0 오탐 방지)
   const docIds = (docs ?? []).map(d => d.id);
   const chunkCountMap: Record<string, number> = {};
   if (docIds.length > 0) {
-    const { data: chunkRows } = await supabase
+    const sb = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    );
+    const { data: chunkRows } = await sb
       .from('document_chunks')
       .select('document_id')
       .in('document_id', docIds);
