@@ -66,7 +66,7 @@ export async function extractProductsFromText(
 
   try {
     const message = await client.messages.create({
-      model:      'claude-opus-4-5',
+      model:      'claude-opus-4-7',
       max_tokens: 4096,
       system:     SYSTEM_PROMPT,
       messages:   [{ role: 'user', content: USER_PROMPT(trimmed) }],

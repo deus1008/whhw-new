@@ -146,34 +146,56 @@ export async function POST(request: Request) {
           .eq('source_document_id', documentId);
 
         const now = new Date().toISOString();
-        const rows = products.map(p => {
+        const makeRow = (p: typeof products[0], includeSourceId: boolean) => {
           let launch = p.launch_date?.trim() || null;
           if (launch && /^\d{4}-\d{2}$/.test(launch)) launch = `${launch}-01`;
-          return {
-            title:              p.title.trim(),
-            memo:               p.ingredient?.trim() || null,
-            manufacturer:       p.manufacturer?.trim() || null,
-            launch_date:        launch,
-            indication:         p.indication?.trim() || null,
-            status:             p.status || '발매예정',
-            insurance_code:     p.insurance_code?.trim() || null,
-            insurance_price:    p.insurance_price?.trim() || null,
-            source_document_id: documentId,
-            created_at:         now,
-            updated_at:         now,
+          const row: Record<string, unknown> = {
+            title:           p.title.trim(),
+            memo:            p.ingredient?.trim() || null,
+            manufacturer:    p.manufacturer?.trim() || null,
+            launch_date:     launch,
+            indication:      p.indication?.trim() || null,
+            status:          p.status || '발매예정',
+            insurance_code:  p.insurance_code?.trim() || null,
+            insurance_price: p.insurance_price?.trim() || null,
+            created_at:      now,
+            updated_at:      now,
           };
-        });
+          if (includeSourceId) row.source_document_id = documentId;
+          return row;
+        };
+
+        // source_document_id 컬럼이 있으면 기존 데이터 삭제 후 재삽입
+        let includeSourceId = true;
+        const rows = products.map(p => makeRow(p, true));
 
         const { error: prodErr } = await supabase
           .from('upcoming_products')
           .insert(rows);
 
         if (prodErr) {
-          console.warn(`[process:${documentId}] 제품 삽입 실패:`, prodErr.message);
+          // source_document_id 컬럼 미생성 시 해당 컬럼 없이 재시도
+          if (prodErr.message.includes('source_document_id') || prodErr.code === '42703') {
+            console.warn(`[process:${documentId}] source_document_id 컬럼 없음, 컬럼 제외 재시도`);
+            includeSourceId = false;
+            const rowsWithout = products.map(p => makeRow(p, false));
+            const { error: prodErr2 } = await supabase
+              .from('upcoming_products')
+              .insert(rowsWithout);
+            if (prodErr2) {
+              console.warn(`[process:${documentId}] 제품 삽입 실패 (재시도):`, prodErr2.message);
+            } else {
+              extractedCount = rowsWithout.length;
+              console.log(`[process:${documentId}] 제품 ${extractedCount}건 자동 등록 (source_id 제외)`);
+            }
+          } else {
+            console.warn(`[process:${documentId}] 제품 삽입 실패:`, prodErr.message);
+          }
         } else {
           extractedCount = rows.length;
           console.log(`[process:${documentId}] 제품 ${extractedCount}건 자동 등록`);
         }
+        void includeSourceId; // suppress unused warning
       }
     } catch (e) {
       console.warn(`[process:${documentId}] 제품 추출 오류 (무시):`, e);
