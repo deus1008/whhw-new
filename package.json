@@ -7,8 +7,6 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "sync:docs": "tsx --env-file=.env.local scripts/sync-local-docs.ts",
-    "remove:local-docs": "tsx --env-file=.env.local scripts/remove-local-docs.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",

@@ -1,0 +1,38 @@
+
+> whhw-new@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.25:3000
+- Environments: .env.local
+✓ Ready in 1274ms
+
+[drug-search] nedrug HTTP 404
+[drug-search] 1차 nedrug: total=0 error=nedrug HTTP 404
+[drug-search] 2차 prmsn: total=43254 error=-
+ GET /api/drug-search?q=%EC%97%90%EC%A0%9C%ED%8B%B0%EB%AF%B8%EB%B8%8C 200 in 1628ms (next.js: 251ms, proxy.ts: 227ms, application-code: 1150ms)
+[drug-search] nedrug HTTP 404
+[drug-search] 1차 nedrug: total=0 error=nedrug HTTP 404
+[drug-search] 2차 prmsn: total=167 error=-
+ GET /api/drug-search?q=%EC%97%90%EC%A0%9C%ED%8B%B0%EB%AF%B8%EB%B8%8C 200 in 5.1s (next.js: 24ms, proxy.ts: 43ms, application-code: 5.1s)
+[drug-search] nedrug HTTP 404
+[drug-search] 1차 nedrug: total=0 error=nedrug HTTP 404
+[drug-search] 2차 prmsn: total=3 error=-
+ GET /api/drug-search?q=%ED%81%AC%EB%A0%88%ED%8A%B8%EB%A1%A4 200 in 2.3s (next.js: 2ms, proxy.ts: 5ms, application-code: 2.3s)
+[drug-search] nedrug HTTP 404
+[drug-search] 1차 nedrug: total=0 error=nedrug HTTP 404
+[drug-search] 2차 prmsn: total=7 error=-
+ GET /api/drug-search?q=%ED%83%80%EC%9D%B4%EB%A0%88%EB%86%80 200 in 8.2s (next.js: 3ms, proxy.ts: 4ms, application-code: 8.2s)
+[medical-search] 병원 "서울아산" p1
+[medical-search] 병원 → 12건 / 전체 97건
+ GET /api/medical-search?q=%EC%84%9C%EC%9A%B8%EC%95%84%EC%82%B0&type=hospital&page=1 200 in 15.9s (next.js: 169ms, proxy.ts: 45ms, application-code: 15.7s)
+[medical-search] 약국 "온누리" 분산스캔 20페이지
+[medical-search] 약국 → 107건 매칭 (2000건 스캔)
+ GET /api/medical-search?q=%EC%98%A8%EB%88%84%EB%A6%AC&type=pharmacy&page=1 200 in 3.9s (next.js: 3ms, proxy.ts: 4ms, application-code: 3.8s)
+[medical-search] 약국 "온누리" 분산스캔 20페이지
+[medical-search] 약국 → 107건 매칭 (2000건 스캔)
+ GET /api/medical-search?q=%EC%98%A8%EB%88%84%EB%A6%AC&type=pharmacy&page=1 200 in 21ms (next.js: 3ms, proxy.ts: 4ms, application-code: 14ms)
+[medical-search] 주변약국 lat=37.5265762 lon=127.107935 → TM(209541, 447459)
+[medical-search] 주변약국 → 29건 (10000건 스캔)
+ GET /api/medical-search?type=nearby&lat=37.5265762&lon=127.1079350 200 in 13.4s (next.js: 53ms, proxy.ts: 113ms, application-code: 13.3s)

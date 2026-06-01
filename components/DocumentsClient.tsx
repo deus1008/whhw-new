@@ -85,9 +85,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
   const [confirmId, setConfirmId]         = useState<string | null>(null);
   const [deleteError, setDeleteError]     = useState('');
   const [isPending, startTransition]      = useTransition();
-  const [processingIds, setProcessingIds]   = useState<Set<string>>(new Set());
-  const [batchProcessing, setBatchProcessing] = useState(false);
-  const [batchProgress, setBatchProgress]     = useState<{ current: number; total: number } | null>(null);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   // 폴더 이름 변경 상태
   const [renamingFolder, setRenamingFolder] = useState<string | null | undefined>(undefined); // undefined = 비활성
   const [renameValue, setRenameValue]       = useState('');
@@ -250,14 +248,11 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
         body:    JSON.stringify({ documentId: docId }),
       });
 
-      const data = await res.json() as { ok?: boolean; error?: string; chunks?: number };
+      const data = await res.json() as { ok?: boolean; error?: string };
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
 
-      // 처리 완료 후 청크 수도 업데이트 (API가 반환한 chunks 값 사용)
       setDocuments(prev => prev.map(d =>
-        d.id === docId
-          ? { ...d, status: 'ready', error_message: null, chunk_count: data.chunks ?? d.chunk_count }
-          : d
+        d.id === docId ? { ...d, status: 'ready', error_message: null } : d
       ));
     } catch (err) {
       const msg = err instanceof Error ? err.message : '처리 실패';
@@ -274,31 +269,14 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
     }
   }
 
-  /* ── 오류/학습없음 파일 전체 재처리 ─────────────────── */
+  /* ── 오류 파일 전체 재처리 ─────────────────────────── */
   async function handleBatchReprocess() {
     const errorDocs = visibleDocs.filter(
-      d =>
-        (d.status === 'error' ||
-          d.status === 'running' ||
-          (d.status === 'ready' && d.chunk_count === 0)) &&
-        !processingIds.has(d.id),
+      d => (d.status === 'error' || d.status === 'running') && !processingIds.has(d.id),
     );
-    if (errorDocs.length === 0 || batchProcessing) return;
-
-    setBatchProcessing(true);
-    setBatchProgress({ current: 0, total: errorDocs.length });
-
-    for (let i = 0; i < errorDocs.length; i++) {
-      setBatchProgress({ current: i + 1, total: errorDocs.length });
-      await triggerProcess(errorDocs[i].id);
-      // TPM 한도 보호: 파일 간 5초 대기
-      if (i < errorDocs.length - 1) {
-        await new Promise(resolve => setTimeout(resolve, 5_000));
-      }
+    for (const doc of errorDocs) {
+      await triggerProcess(doc.id);
     }
-
-    setBatchProcessing(false);
-    setBatchProgress(null);
   }
 
   /* ── 폴더 이름 변경 ──────────────────────────────────── */
@@ -508,30 +486,13 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
               {visibleDocs.length}{activeFolder !== null && `/${documents.length}`}
             </span>
           </h2>
-          {/* 오류/중단/학습없음 파일이 있을 때 전체 재처리 버튼 표시 */}
-          {visibleDocs.some(
-            d => d.status === 'error' || d.status === 'running' || (d.status === 'ready' && d.chunk_count === 0),
-          ) && (
+          {/* 오류/중단 파일이 있을 때 전체 재처리 버튼 */}
+          {visibleDocs.some(d => d.status === 'error' || d.status === 'running') && (
             <button
               onClick={handleBatchReprocess}
-              disabled={batchProcessing}
-              style={{
-                ...retryBtn,
-                fontSize: '0.78rem',
-                padding: '0.38rem 0.9rem',
-                opacity: batchProcessing ? 0.6 : 1,
-                cursor: batchProcessing ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-              }}
+              style={{ ...retryBtn, fontSize: '0.78rem', padding: '0.38rem 0.9rem' }}
             >
-              {batchProcessing ? (
-                <>
-                  <span style={{ ...spinnerStyle, width: '11px', height: '11px', borderWidth: '1.5px', borderColor: 'rgba(253,230,138,0.35)', borderTopColor: '#fde68a' }} />
-                  {batchProgress ? `재처리 중… ${batchProgress.current}/${batchProgress.total}` : '재처리 중…'}
-                </>
-              ) : (
-                `🔄 ${visibleDocs.filter(d => d.status === 'error' || d.status === 'running' || (d.status === 'ready' && d.chunk_count === 0)).length}개 전체 재처리`
-              )}
+              🔄 {visibleDocs.filter(d => d.status === 'error' || d.status === 'running').length}개 재처리
             </button>
           )}
         </div>
@@ -623,14 +584,10 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
               const isRunning     = processingIds.has(doc.id);
               const statusKey     = isRunning ? 'running' : doc.status;
               const statusMeta    = STATUS_META[statusKey] ?? STATUS_META['error'];
-              const isConfirm     = confirmId === doc.id;
-              const isError       = !isRunning && doc.status === 'error';
-              // 대기 상태로 멈춰있는 경우 (처리 중단) → 재처리 필요
-              const isStuck       = !isRunning && doc.status === 'processing';
-              // running 상태인데 클라이언트에서 처리 중 아님 → 이전 세션 crash 감지
+              const isConfirm      = confirmId === doc.id;
+              const isError        = !isRunning && doc.status === 'error';
+              const isStuck        = !isRunning && doc.status === 'processing';
               const isStuckRunning = !isRunning && doc.status === 'running';
-              // 완료 상태인데 청크가 없으면 학습 데이터 없음 → 재처리 필요
-              const isEmptyChunks = !isRunning && doc.status === 'ready' && doc.chunk_count === 0;
 
               return (
                 <div key={doc.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -655,22 +612,10 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                       {new Date(doc.created_at).toLocaleDateString('ko-KR')}
                     </span>
 
-                    {/* 상태 배지 + 청크 수 */}
+                    {/* 상태 배지 */}
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                       {isRunning && <span style={{ ...spinnerStyle, width: '10px', height: '10px', borderWidth: '1.5px', borderColor: 'rgba(147,197,253,0.35)', borderTopColor: '#93c5fd' }} />}
                       <Badge label={statusMeta.label} color={statusMeta.color} bg={statusMeta.bg} bd={statusMeta.bd} />
-                      {/* 실제 학습 청크 수 표시 */}
-                      {!isRunning && doc.status === 'ready' && (
-                        <span style={{
-                          fontSize: '0.66rem', padding: '1px 6px', borderRadius: '100px',
-                          background: doc.chunk_count > 0 ? 'rgba(34,197,94,0.08)' : 'rgba(239,68,68,0.12)',
-                          border: `1px solid ${doc.chunk_count > 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.3)'}`,
-                          color: doc.chunk_count > 0 ? '#86efac' : '#fca5a5',
-                          whiteSpace: 'nowrap',
-                        }}>
-                          {doc.chunk_count > 0 ? `${doc.chunk_count}청크` : '학습없음'}
-                        </span>
-                      )}
                     </span>
 
                     {/* 재처리 버튼:
@@ -687,10 +632,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                     {isError && (
                       <button onClick={() => triggerProcess(doc.id)} disabled={isRunning} style={retryBtn}>재처리</button>
                     )}
-                    {isEmptyChunks && (
-                      <button onClick={() => triggerProcess(doc.id)} disabled={isRunning} style={reprocessNeededBtn}>재처리 필요</button>
-                    )}
-                    {!isStuck && !isStuckRunning && !isError && !isEmptyChunks && doc.status === 'ready' && !isRunning && (
+                    {!isStuck && !isStuckRunning && !isError && doc.status === 'ready' && !isRunning && (
                       <button
                         onClick={() => triggerProcess(doc.id)}
                         style={reprocessIconBtn}
@@ -733,11 +675,6 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                   {isError && doc.error_message && (
                     <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#fca5a5', lineHeight: 1.5, wordBreak: 'break-word' }}>
                       ↳ {doc.error_message}
-                    </p>
-                  )}
-                  {isEmptyChunks && (
-                    <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#fbbf24', lineHeight: 1.5 }}>
-                      ↳ 완료 상태이지만 학습 데이터가 없습니다. "재처리 필요" 버튼을 눌러주세요.
                     </p>
                   )}
                 </div>

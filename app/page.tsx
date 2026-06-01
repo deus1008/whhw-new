@@ -97,15 +97,6 @@ const NAV_ITEMS = [
     external: false,
   },
   {
-    href: '/chat',
-    icon: '💬',
-    label: '챗봇',
-    color: '#67e8f9',
-    bg:   'rgba(6,182,212,0.10)',
-    bd:   'rgba(6,182,212,0.22)',
-    external: false,
-  },
-  {
     href: '/documents',
     icon: '📁',
     label: '문서관리',

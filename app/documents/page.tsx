@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { createClient as createServiceClient } from '@supabase/supabase-js';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import DocumentsClient from '@/components/DocumentsClient';
@@ -19,7 +18,6 @@ export type Document = {
   status: DocStatus;
   error_message: string | null;
   created_at: string;
-  chunk_count: number; // document_chunks 테이블 실제 청크 수
 };
 
 export default async function DocumentsPage() {
@@ -47,28 +45,7 @@ export default async function DocumentsPage() {
 
   if (docsError) console.error('[documents:getDocs error]', docsError);
 
-  // 문서별 실제 청크 수 조회 — 서비스 롤로 RLS 우회 (청크 수 0 오탐 방지)
-  const docIds = (docs ?? []).map(d => d.id);
-  const chunkCountMap: Record<string, number> = {};
-  if (docIds.length > 0) {
-    const sb = createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
-    const { data: chunkRows } = await sb
-      .from('document_chunks')
-      .select('document_id')
-      .in('document_id', docIds);
-    for (const row of (chunkRows ?? [])) {
-      const id = row.document_id as string;
-      chunkCountMap[id] = (chunkCountMap[id] ?? 0) + 1;
-    }
-  }
-
-  const docsWithChunks: Document[] = (docs ?? []).map(d => ({
-    ...(d as Omit<Document, 'chunk_count'>),
-    chunk_count: chunkCountMap[d.id] ?? 0,
-  }));
+  const docsWithChunks: Document[] = (docs ?? []) as Document[];
 
   return (
     <>
