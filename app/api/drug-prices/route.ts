@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as XLSX from 'xlsx';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+import { parseDrugPriceBuffer } from '@/lib/drug-prices/parse';
 
 export const maxDuration = 300; // 대용량 파일 업로드 시 타임아웃 방지
 
@@ -40,43 +40,6 @@ async function requireAdmin(): Promise<{ userId: string } | NextResponse> {
   return { userId: user.id };
 }
 
-/* ── 컬럼명 정규화: 개행·다중공백 → 단일공백, trim ── */
-function normalizeKey(k: string): string {
-  return String(k).replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
-}
-
-/* ── 컬럼명 매핑 ── */
-const COL_MAP: Record<string, string> = {
-  // item_name — 기존 API형 + HIRA 급여목록(제품명) + 기타
-  '품목명': 'item_name', '품명': 'item_name', '제품명': 'item_name',
-  'itmNm': 'item_name', 'ITEM_NAME': 'item_name',
-  // max_price — HIRA 급여목록(상한금액표 금액) + 기존
-  '상한가': 'max_price', '최고상한가': 'max_price', '최고상한금액': 'max_price',
-  '상한금액': 'max_price', '상한금액표 금액': 'max_price',
-  'mxCprc': 'max_price', 'MX_CPRC': 'max_price',
-  // pay_type — 기존 + HIRA 급여목록(전일: 전문/일반)
-  '급여구분': 'pay_type', '급여유형': 'pay_type', '급여구분명': 'pay_type',
-  '전일': 'pay_type', '전문일반': 'pay_type',
-  'payTpNm': 'pay_type', 'PAY_TP_NM': 'pay_type',
-  // standard
-  '규격': 'standard', '규격명': 'standard', '제형규격명': 'standard',
-  'nomNm': 'standard', 'NOM_NM': 'standard',
-  // unit
-  '단위': 'unit', 'unit': 'unit', 'UNIT': 'unit',
-  // effective_date
-  '시행일': 'effective_date', '시행년월일': 'effective_date', '적용시작일': 'effective_date',
-  '적용일자': 'effective_date', 'adtStaDd': 'effective_date', 'ADT_STA_DD': 'effective_date',
-  // manufacturer — HIRA 급여목록(업체명) + 기존
-  '제조업체': 'manufacturer', '제조업체명': 'manufacturer', '제조사': 'manufacturer',
-  '업체명': 'manufacturer', '제약사': 'manufacturer',
-  'mnfEntpNm': 'manufacturer', 'MNF_ENTP_NM': 'manufacturer',
-  // item_code — HIRA 급여목록(제품코드, 주성분코드) + 기존
-  '코드': 'item_code', '품목코드': 'item_code', '품목번호': 'item_code',
-  '제품코드': 'item_code', '주성분코드': 'item_code',
-  // ingredient_name — HIRA 급여목록(주성분명)
-  '주성분명': 'ingredient_name', '성분명': 'ingredient_name',
-  'ingrName': 'ingredient_name', 'INGR_NAME': 'ingredient_name',
-};
 
 /* ── GET: 파일 목록 또는 약가 검색 ── */
 export async function GET(req: NextRequest) {
@@ -169,51 +132,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'xlsx / xls / csv 파일만 지원합니다.' }, { status: 400 });
   }
 
-  /* Excel 파싱 */
   const buffer = Buffer.from(await file.arrayBuffer());
-  let rawRows: Record<string, unknown>[];
-  try {
-    const wb = XLSX.read(buffer, { type: 'buffer' });
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
-  } catch {
-    return NextResponse.json({ error: 'Excel 파싱에 실패했습니다.' }, { status: 400 });
+  const { rows, total: rawTotal, error: parseError } = parseDrugPriceBuffer(buffer, file.name);
+
+  if (parseError) {
+    return NextResponse.json({ error: parseError }, { status: 400 });
   }
-
-  if (rawRows.length === 0) {
-    return NextResponse.json({ error: '데이터가 없습니다.' }, { status: 400 });
-  }
-
-  /* 컬럼 매핑 (개행·다중공백 정규화 후 매칭) */
-  const colMapping: Record<string, string> = {};
-  for (const rawKey of Object.keys(rawRows[0])) {
-    const normalized = normalizeKey(rawKey);
-    if (COL_MAP[normalized]) colMapping[rawKey] = COL_MAP[normalized];
-  }
-
-  if (!Object.values(colMapping).includes('item_name')) {
-    const detectedCols = Object.keys(rawRows[0]).map(normalizeKey).join(', ');
-    return NextResponse.json({
-      error: `품목명 컬럼을 찾을 수 없습니다. 감지된 컬럼: [${detectedCols}]`,
-    }, { status: 400 });
-  }
-
-  /* 행 변환 */
-  const rows = rawRows
-    .map(row => {
-      const out: Record<string, unknown> = { source_file: file.name };
-      for (const [rawKey, mappedKey] of Object.entries(colMapping)) {
-        const val = String(row[rawKey] ?? '').trim();
-        if (mappedKey === 'max_price') {
-          out[mappedKey] = val ? (parseInt(val.replace(/,/g, ''), 10) || null) : null;
-        } else {
-          out[mappedKey] = val || null;
-        }
-      }
-      return out;
-    })
-    .filter(r => r.item_name);
-
   if (rows.length === 0) {
     return NextResponse.json({ error: '유효한 품목명 데이터가 없습니다.' }, { status: 400 });
   }
@@ -252,7 +176,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     success: true,
     inserted,
-    total: rawRows.length,
+    total: rawTotal,
     fileName: file.name,
   });
 }

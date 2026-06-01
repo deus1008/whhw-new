@@ -2,6 +2,7 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { extractText } from '@/lib/rag/extract';
 import { extractProductsFromText } from '@/lib/products/extract';
+import { parseDrugPriceBuffer } from '@/lib/drug-prices/parse';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -97,7 +98,41 @@ export async function POST(request: Request) {
     return fail('추출된 텍스트가 없습니다. 스캔 이미지 PDF이거나 빈 파일일 수 있습니다.');
   }
 
-  // ── 7. 허가현황 폴더 → 발매예정품목 자동 추출 ─────────────────────────
+  // ── 7. 약가 폴더 → drug_prices 자동 파싱 ─────────────────────────────
+  if (doc.category === '약가') {
+    try {
+      console.log(`[process:${documentId}] 약가 폴더 감지 → drug_prices 파싱 시작`);
+      const { rows, total, error: parseError } = parseDrugPriceBuffer(buffer, doc.filename);
+
+      if (parseError) {
+        console.warn(`[process:${documentId}] 약가 파싱 오류:`, parseError);
+        // 파싱 실패 시 문서는 error 상태로 설정
+        return fail(`약가 파싱 실패: ${parseError}`);
+      }
+
+      if (rows.length > 0) {
+        // 같은 파일명 기존 데이터 삭제 후 재삽입
+        await supabase.from('drug_prices').delete().eq('source_file', doc.filename);
+
+        const CHUNK = 1000;
+        for (let i = 0; i < rows.length; i += CHUNK) {
+          const { error: insErr } = await supabase
+            .from('drug_prices')
+            .insert(rows.slice(i, i + CHUNK));
+          if (insErr) {
+            console.warn(`[process:${documentId}] 약가 삽입 오류 (batch ${i}):`, insErr.message);
+          }
+        }
+        console.log(`[process:${documentId}] 약가 ${rows.length}/${total}건 drug_prices 저장 완료`);
+      } else {
+        console.log(`[process:${documentId}] 약가 데이터 없음`);
+      }
+    } catch (e) {
+      console.warn(`[process:${documentId}] 약가 처리 오류 (무시):`, e);
+    }
+  }
+
+  // ── 7b. 허가현황 폴더 → 발매예정품목 자동 추출 ────────────────────────
   let extractedCount = 0;
   if (doc.category === '허가현황') {
     try {
