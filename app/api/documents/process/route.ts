@@ -91,7 +91,8 @@ export async function POST(request: Request) {
   try {
     rawText = await extractText(buffer, doc.file_type);
   } catch (err) {
-    return fail(err instanceof Error ? err.message : '텍스트 추출 실패');
+    const detail = err instanceof Error ? err.message : String(err);
+    return fail(`텍스트 추출 실패 [${doc.file_type.toUpperCase()}]: ${detail}`);
   }
 
   if (!rawText.trim()) {

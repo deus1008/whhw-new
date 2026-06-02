@@ -249,7 +249,12 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
         body:    JSON.stringify({ documentId: docId }),
       });
 
-      const data = await res.json() as { ok?: boolean; error?: string };
+      // HTML 에러 페이지가 반환될 경우 대비 (Vercel 타임아웃·메모리 초과 등)
+      const text = await res.text();
+      let data: { ok?: boolean; error?: string } = {};
+      try { data = JSON.parse(text); } catch {
+        throw new Error(`서버 오류 (HTTP ${res.status}) — 파일이 너무 크거나 지원하지 않는 형식일 수 있습니다.`);
+      }
       if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
 
       setDocuments(prev => prev.map(d =>
