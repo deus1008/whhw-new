@@ -85,69 +85,67 @@ export async function POST(request: Request) {
   }
 
   const buffer = Buffer.from(await blob.arrayBuffer());
+  const category = (doc.category ?? '') as string;
 
-  // ── 6. 텍스트 추출 ─────────────────────────────────────────────────────
-  let rawText: string;
-  try {
-    rawText = await extractText(buffer, doc.file_type);
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    return fail(`텍스트 추출 실패 [${doc.file_type.toUpperCase()}]: ${detail}`);
-  }
+  // ══════════════════════════════════════════════════════════════════════
+  // 폴더별 처리 분기
+  // - 약가      : Excel 파싱 → drug_prices (텍스트 추출 불필요)
+  // - 허가현황   : 텍스트 추출 → AI 제품 분석 (텍스트 추출 필요)
+  // - 그 외 폴더 : 파일 검증만 후 즉시 완료 (텍스트 추출 불필요)
+  // ══════════════════════════════════════════════════════════════════════
 
-  if (!rawText.trim()) {
-    return fail('추출된 텍스트가 없습니다. 스캔 이미지 PDF이거나 빈 파일일 수 있습니다.');
-  }
+  // ── A. 약가 폴더 ────────────────────────────────────────────────────────
+  if (category === '약가') {
+    console.log(`[process:${documentId}] 약가 폴더 → drug_prices 파싱`);
+    const { rows, total, error: parseError } = parseDrugPriceBuffer(buffer, doc.filename);
 
-  // ── 7. 약가 폴더 → drug_prices 자동 파싱 ─────────────────────────────
-  if (doc.category === '약가') {
-    try {
-      console.log(`[process:${documentId}] 약가 폴더 감지 → drug_prices 파싱 시작`);
-      const { rows, total, error: parseError } = parseDrugPriceBuffer(buffer, doc.filename);
-
-      if (parseError) {
-        console.warn(`[process:${documentId}] 약가 파싱 오류:`, parseError);
-        // 파싱 실패 시 문서는 error 상태로 설정
-        return fail(`약가 파싱 실패: ${parseError}`);
-      }
-
-      if (rows.length > 0) {
-        // 같은 파일명 기존 데이터 삭제 후 재삽입
-        await supabase.from('drug_prices').delete().eq('source_file', doc.filename);
-
-        const CHUNK = 1000;
-        for (let i = 0; i < rows.length; i += CHUNK) {
-          const { error: insErr } = await supabase
-            .from('drug_prices')
-            .insert(rows.slice(i, i + CHUNK));
-          if (insErr) {
-            console.warn(`[process:${documentId}] 약가 삽입 오류 (batch ${i}):`, insErr.message);
-          }
-        }
-        console.log(`[process:${documentId}] 약가 ${rows.length}/${total}건 drug_prices 저장 완료`);
-      } else {
-        console.log(`[process:${documentId}] 약가 데이터 없음`);
-      }
-    } catch (e) {
-      console.warn(`[process:${documentId}] 약가 처리 오류 (무시):`, e);
+    if (parseError) {
+      return fail(`약가 파싱 실패: ${parseError}`);
     }
+
+    if (rows.length > 0) {
+      await supabase.from('drug_prices').delete().eq('source_file', doc.filename);
+
+      const CHUNK = 1000;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const { error: insErr } = await supabase
+          .from('drug_prices')
+          .insert(rows.slice(i, i + CHUNK));
+        if (insErr) {
+          console.warn(`[process:${documentId}] 약가 삽입 오류 (batch ${i}):`, insErr.message);
+        }
+      }
+      console.log(`[process:${documentId}] 약가 ${rows.length}/${total}건 저장 완료`);
+    }
+
+    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    return Response.json({ ok: true, inserted: rows.length });
   }
 
-  // ── 7b. 허가현황 폴더 → 발매예정품목 자동 추출 ────────────────────────
-  let extractedCount = 0;
-  if (doc.category === '허가현황') {
-    try {
-      console.log(`[process:${documentId}] 허가현황 감지 → 제품 자동 추출 시작`);
-      const products = await extractProductsFromText(rawText);
+  // ── B. 허가현황 폴더 ────────────────────────────────────────────────────
+  if (category === '허가현황') {
+    console.log(`[process:${documentId}] 허가현황 폴더 → 텍스트 추출 + AI 제품 분석`);
 
+    let rawText: string;
+    try {
+      rawText = await extractText(buffer, doc.file_type);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      return fail(`텍스트 추출 실패 [${doc.file_type.toUpperCase()}]: ${detail}`);
+    }
+
+    if (!rawText.trim()) {
+      return fail('추출된 텍스트가 없습니다. 스캔 이미지 PDF이거나 빈 파일일 수 있습니다.');
+    }
+
+    let extractedCount = 0;
+    try {
+      const products = await extractProductsFromText(rawText);
       if (products.length > 0) {
-        await supabase
-          .from('upcoming_products')
-          .delete()
-          .eq('source_document_id', documentId);
+        await supabase.from('upcoming_products').delete().eq('source_document_id', documentId);
 
         const now = new Date().toISOString();
-        const makeRow = (p: typeof products[0], includeSourceId: boolean) => {
+        const makeRow = (p: typeof products[0], withSrcId: boolean) => {
           let launch = p.launch_date?.trim() || null;
           if (launch && /^\d{4}-\d{2}$/.test(launch)) launch = `${launch}-01`;
           const row: Record<string, unknown> = {
@@ -162,52 +160,36 @@ export async function POST(request: Request) {
             created_at:      now,
             updated_at:      now,
           };
-          if (includeSourceId) row.source_document_id = documentId;
+          if (withSrcId) row.source_document_id = documentId;
           return row;
         };
 
-        // source_document_id 컬럼이 있으면 기존 데이터 삭제 후 재삽입
-        let includeSourceId = true;
-        const rows = products.map(p => makeRow(p, true));
-
         const { error: prodErr } = await supabase
           .from('upcoming_products')
-          .insert(rows);
+          .insert(products.map(p => makeRow(p, true)));
 
-        if (prodErr) {
-          // source_document_id 컬럼 미생성 시 해당 컬럼 없이 재시도
-          if (prodErr.message.includes('source_document_id') || prodErr.code === '42703') {
-            console.warn(`[process:${documentId}] source_document_id 컬럼 없음, 컬럼 제외 재시도`);
-            includeSourceId = false;
-            const rowsWithout = products.map(p => makeRow(p, false));
-            const { error: prodErr2 } = await supabase
-              .from('upcoming_products')
-              .insert(rowsWithout);
-            if (prodErr2) {
-              console.warn(`[process:${documentId}] 제품 삽입 실패 (재시도):`, prodErr2.message);
-            } else {
-              extractedCount = rowsWithout.length;
-              console.log(`[process:${documentId}] 제품 ${extractedCount}건 자동 등록 (source_id 제외)`);
-            }
-          } else {
-            console.warn(`[process:${documentId}] 제품 삽입 실패:`, prodErr.message);
-          }
-        } else {
-          extractedCount = rows.length;
-          console.log(`[process:${documentId}] 제품 ${extractedCount}건 자동 등록`);
+        if (prodErr && (prodErr.message.includes('source_document_id') || prodErr.code === '42703')) {
+          const { error: e2 } = await supabase
+            .from('upcoming_products')
+            .insert(products.map(p => makeRow(p, false)));
+          if (!e2) extractedCount = products.length;
+        } else if (!prodErr) {
+          extractedCount = products.length;
         }
-        void includeSourceId; // suppress unused warning
+
+        console.log(`[process:${documentId}] 제품 ${extractedCount}건 자동 등록`);
       }
     } catch (e) {
       console.warn(`[process:${documentId}] 제품 추출 오류 (무시):`, e);
     }
+
+    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    return Response.json({ ok: true, extracted: extractedCount });
   }
 
-  // ── 8. 완료 ────────────────────────────────────────────────────────────
-  await supabase
-    .from('documents')
-    .update({ status: 'ready', error_message: null })
-    .eq('id', documentId);
-
-  return Response.json({ ok: true, extracted: extractedCount });
+  // ── C. 그 외 폴더 — 파일 검증만 후 즉시 완료 ──────────────────────────
+  // (텍스트 추출 없음 → 대용량 파일도 메모리 초과 없음)
+  console.log(`[process:${documentId}] 일반 폴더(${category || '미분류'}) → 즉시 완료`);
+  await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+  return Response.json({ ok: true });
 }
