@@ -77,9 +77,18 @@ function findCol(keys: string[], candidates: string[]): string | undefined {
 export function parseTrendBuffer(buffer: Buffer, fileName: string): ParseTrendResult {
   let rawRows: Record<string, unknown>[];
   try {
-    const wb   = XLSX.read(buffer, { type: 'buffer' });
-    const ws   = wb.Sheets[wb.SheetNames[0]];
-    rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+    // 메모리 최소화 옵션: 수식·HTML·날짜 파싱 모두 비활성화
+    const wb = XLSX.read(buffer, {
+      type:        'buffer',
+      cellFormula: false,
+      cellHTML:    false,
+      cellNF:      false,
+      cellText:    false,
+      cellDates:   false,
+      sheetStubs:  false,
+    });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    rawRows  = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
   } catch (e) {
     return { rows: [], total: 0, error: `파싱 실패: ${e instanceof Error ? e.message : String(e)}` };
   }

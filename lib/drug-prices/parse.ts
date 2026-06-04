@@ -51,9 +51,17 @@ export type ParseResult = {
 export function parseDrugPriceBuffer(buffer: Buffer, fileName: string): ParseResult {
   let rawRows: Record<string, unknown>[];
   try {
-    const wb  = XLSX.read(buffer, { type: 'buffer' });
-    const ws  = wb.Sheets[wb.SheetNames[0]];
-    rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+    const wb = XLSX.read(buffer, {
+      type:        'buffer',
+      cellFormula: false,
+      cellHTML:    false,
+      cellNF:      false,
+      cellText:    false,
+      cellDates:   false,
+      sheetStubs:  false,
+    });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    rawRows  = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
   } catch {
     return { rows: [], total: 0, error: 'Excel/CSV 파싱에 실패했습니다.' };
   }
