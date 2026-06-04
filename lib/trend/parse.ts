@@ -7,27 +7,60 @@ import * as XLSX from 'xlsx';
 export type TrendRow = {
   source_file:          string;
   prescription_month:   string | null;   // YYYYMM
-  sales_rep:            string | null;   // 내부담당자
-  cso_name:             string | null;   // 담당CSO
-  hospital_name:        string | null;   // 처방처명
-  product_name:         string | null;   // 품목명
-  hospital_type:        string | null;   // 종별구분
-  commission_rate:      number | null;   // 합산수수료 (%)
-  commission_tier:      string | null;   // 수수료구간
-  prescription_amount:  number | null;   // 처방금액
+  sales_rep:            string | null;
+  cso_name:             string | null;
+  hospital_name:        string | null;
+  product_name:         string | null;
+  hospital_type:        string | null;
+  commission_rate:      number | null;
+  commission_tier:      string | null;
+  prescription_amount:  number | null;
 };
 
-/* ── 처방월 정규화 → YYYYMM ── */
-function normalizeMonth(raw: string): string | null {
-  if (!raw) return null;
-  const s = raw.trim().replace(/[^\d]/g, '');
-  if (s.length === 6) return s;                        // 202501
-  if (s.length === 8) return s.slice(0, 6);            // 20250101
-  if (s.length === 4) return s;                        // 2025 → 연도만
-  return raw.trim() || null;
+/* ── 처방월 정규화 → YYYYMM
+   처리 형식:
+   - Excel 시리얼 숫자: 46078 → 202603
+   - YYYYMM 문자열: "202601"
+   - YYYYMMDD: "20260101"
+   - 구분자 포함: "2026-01", "2026/01", "2026.01"
+   - Date 객체
+── */
+function normalizeMonth(raw: unknown): string | null {
+  if (raw === null || raw === undefined || raw === '') return null;
+
+  // Date 객체
+  if (raw instanceof Date) {
+    const y = raw.getFullYear();
+    const m = String(raw.getMonth() + 1).padStart(2, '0');
+    return `${y}${m}`;
+  }
+
+  // Excel 시리얼 날짜 숫자 (약 40000~50000 범위: 2009~2036년)
+  if (typeof raw === 'number') {
+    if (raw > 40000 && raw < 55000) {
+      const date = new Date((raw - 25569) * 86400 * 1000);
+      if (!isNaN(date.getTime())) {
+        const y = date.getUTCFullYear();
+        const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+        return `${y}${m}`;
+      }
+    }
+    // 숫자형 YYYYMM (e.g., 202601)
+    const ns = String(Math.round(raw));
+    if (ns.length === 6) return ns;
+    if (ns.length === 8) return ns.slice(0, 6);
+    return null;
+  }
+
+  // 문자열 처리
+  const str = String(raw).trim();
+  const digits = str.replace(/[^\d]/g, '');
+  if (digits.length === 6) return digits;           // "202601" or "2026-01" → 202601
+  if (digits.length === 8) return digits.slice(0, 6); // "2026-01-01"
+  return str || null;
 }
 
-/* ── 수수료 구간 계산 ── */
+/* ── 수수료 구간 ── */
 function getCommissionTier(rate: number | null): string | null {
   if (rate === null || isNaN(rate)) return null;
   if (rate <  10) return '10% 미만';
@@ -38,15 +71,18 @@ function getCommissionTier(rate: number | null): string | null {
   return '50% 이상';
 }
 
-/* ── 숫자 파싱 (콤마·% 제거) ── */
+/* ── 숫자 파싱 (콤마·%·원화 제거, 괄호 → 음수) ── */
 function parseNum(v: unknown): number | null {
-  const s = String(v ?? '').replace(/[,%₩\s]/g, '').trim();
+  if (typeof v === 'number') return isNaN(v) ? null : v;
+  const s = String(v ?? '').replace(/[,%₩\s원]/g, '').trim();
   if (!s) return null;
-  const n = parseFloat(s);
-  return isNaN(n) ? null : n;
+  // 괄호 표현 음수: (1234) → -1234
+  const neg = s.startsWith('(') && s.endsWith(')');
+  const clean = neg ? s.slice(1, -1) : s;
+  const n = parseFloat(clean);
+  return isNaN(n) ? null : (neg ? -n : n);
 }
 
-/* ── 문자열 파싱 ── */
 function parseStr(v: unknown): string | null {
   const s = String(v ?? '').trim();
   return s || null;
@@ -55,16 +91,13 @@ function parseStr(v: unknown): string | null {
 export type ParseTrendResult = {
   rows:  TrendRow[];
   total: number;
+  skipped: number;
   error?: string;
 };
 
-/* ── 컬럼명 유연 검색 (공백·괄호 포함 변형 대응) ── */
+/* ── 컬럼명 유연 검색 ── */
 function findCol(keys: string[], candidates: string[]): string | undefined {
-  // 1) 정확 매칭
-  for (const c of candidates) {
-    if (keys.includes(c)) return c;
-  }
-  // 2) trim·소문자 후 포함 매칭
+  for (const c of candidates) { if (keys.includes(c)) return c; }
   const lower = candidates.map(c => c.toLowerCase().replace(/\s/g, ''));
   for (const k of keys) {
     const kl = k.toLowerCase().replace(/\s/g, '');
@@ -77,61 +110,63 @@ function findCol(keys: string[], candidates: string[]): string | undefined {
 export function parseTrendBuffer(buffer: Buffer, fileName: string): ParseTrendResult {
   let rawRows: Record<string, unknown>[];
   try {
-    // 메모리 최소화 옵션: 수식·HTML·날짜 파싱 모두 비활성화
     const wb = XLSX.read(buffer, {
       type:        'buffer',
       cellFormula: false,
       cellHTML:    false,
       cellNF:      false,
       cellText:    false,
-      cellDates:   false,
+      cellDates:   false,   // 날짜를 시리얼 숫자로 → normalizeMonth에서 처리
       cellStyles:  false,
       sheetStubs:  false,
     });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    rawRows  = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '', raw: true });
+    // raw:true → 숫자·시리얼 날짜를 그대로 반환 (포맷 없이)
+    rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '', raw: true });
   } catch (e) {
-    return { rows: [], total: 0, error: `파싱 실패: ${e instanceof Error ? e.message : String(e)}` };
+    return { rows: [], total: 0, skipped: 0, error: `파싱 실패: ${e instanceof Error ? e.message : String(e)}` };
   }
 
-  if (rawRows.length === 0) return { rows: [], total: 0, error: '데이터 없음' };
+  if (rawRows.length === 0) return { rows: [], total: 0, skipped: 0, error: '데이터 없음' };
 
-  // 실제 컬럼명 탐색 (BOM·공백 포함 변형 대응)
   const keys = Object.keys(rawRows[0]);
   const COL = {
-    month:    findCol(keys, ['처방월','처방년월','처방연월','청구년월','년월']),
-    rep:      findCol(keys, ['내부담당자','담당자','MR','담당MR','영업담당자']),
-    cso:      findCol(keys, ['담당CSO','CSO명','CSO','법인명','수탁법인']),
+    month:    findCol(keys, ['처방월','처방년월','처방연월','청구년월','년월','처방일']),
+    rep:      findCol(keys, ['내부담당자','담당자','MR','담당MR','영업담당자','담당']),
+    cso:      findCol(keys, ['담당CSO','CSO명','CSO','법인명','수탁법인','거래처코드']),
     hospital: findCol(keys, ['처방처명','병원명','거래처명','처방처','거래처']),
-    product:  findCol(keys, ['품목명','제품명','약품명','품명']),
-    type:     findCol(keys, ['종별구분','종별','요양기관종별','기관종별']),
-    comm:     findCol(keys, ['합산수수료','수수료율','수수료','수수료(%)','합산수수료율']),
-    amount:   findCol(keys, ['처방금액','처방액','원외처방금액','처방금액(원)','금액']),
+    product:  findCol(keys, ['품목명','제품명','약품명','품명','상품명']),
+    type:     findCol(keys, ['종별구분','종별','요양기관종별','기관종별','요양종별']),
+    comm:     findCol(keys, ['합산수수료','수수료율','수수료','수수료(%)','합산수수료율','수수료%']),
+    amount:   findCol(keys, ['처방금액','처방액','원외처방금액','처방금액(원)','금액','원외금액']),
   };
 
-  // 진단용 로그 (Vercel 로그에서 확인 가능)
-  console.log(`[trend-parse] 파일: ${fileName}`);
-  console.log(`[trend-parse] 전체 컬럼(${keys.length}):`, keys.slice(0, 15).join(', '));
+  console.log(`[trend-parse] 파일: ${fileName}, 전체행: ${rawRows.length}`);
+  console.log(`[trend-parse] 컬럼(${keys.length}):`, keys.slice(0, 20).join(' | '));
   console.log(`[trend-parse] 매핑:`, JSON.stringify(COL));
 
   if (!COL.amount) {
     return {
-      rows:  [],
-      total: rawRows.length,
-      error: `처방금액 컬럼을 찾을 수 없습니다. 감지된 컬럼: [${keys.slice(0, 10).join(', ')}]`,
+      rows: [], total: rawRows.length, skipped: rawRows.length,
+      error: `처방금액 컬럼을 찾을 수 없습니다. 감지된 컬럼: [${keys.slice(0, 12).join(', ')}]`,
     };
   }
 
   const rows: TrendRow[] = [];
+  let skipped = 0;
+
   for (const raw of rawRows) {
     const amount = parseNum(COL.amount ? raw[COL.amount] : null);
-    if (!amount || amount <= 0) continue;
+
+    // 금액이 null이거나 양수가 아닌 경우 스킵 (반환·조정 제외)
+    if (amount === null || amount <= 0) { skipped++; continue; }
 
     const commRate = parseNum(COL.comm ? raw[COL.comm] : null);
+    const month    = normalizeMonth(COL.month ? raw[COL.month] : null);
 
     rows.push({
       source_file:         fileName,
-      prescription_month:  normalizeMonth(String(COL.month ? raw[COL.month] : '')),
+      prescription_month:  month,
       sales_rep:           parseStr(COL.rep      ? raw[COL.rep]      : null),
       cso_name:            parseStr(COL.cso      ? raw[COL.cso]      : null),
       hospital_name:       parseStr(COL.hospital ? raw[COL.hospital] : null),
@@ -143,6 +178,7 @@ export function parseTrendBuffer(buffer: Buffer, fileName: string): ParseTrendRe
     });
   }
 
-  console.log(`[trend-parse] 유효 행: ${rows.length} / 전체: ${rawRows.length}`);
-  return { rows, total: rawRows.length };
+  const nullMonths = rows.filter(r => !r.prescription_month).length;
+  console.log(`[trend-parse] 저장행: ${rows.length}, 스킵: ${skipped}, 월null: ${nullMonths}`);
+  return { rows, total: rawRows.length, skipped };
 }
