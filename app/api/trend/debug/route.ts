@@ -23,19 +23,33 @@ export async function GET() {
 
   const sb = serviceClient();
 
-  // 트렌드분析 폴더의 최신 문서 조회
-  const { data: docs } = await sb
+  // 모든 xlsb/xlsx 문서 카테고리 확인
+  const { data: allDocs } = await sb
     .from('documents')
-    .select('id, filename, storage_path, category')
-    .eq('category', '트렌드분析')
+    .select('id, filename, storage_path, category, status')
+    .or('filename.ilike.%.xlsb,filename.ilike.%.xlsx,filename.ilike.%.xls')
     .order('created_at', { ascending: false })
-    .limit(1);
+    .limit(20);
 
-  if (!docs || docs.length === 0) {
-    return NextResponse.json({ error: '트렌드분析 폴더에 문서가 없습니다.' });
+  // 카테고리가 트렌드 관련인 문서 탐색 (느슨한 매칭)
+  const trendDoc = (allDocs ?? []).find(d => {
+    const cat = String(d.category ?? '');
+    return cat.includes('트렌드') || cat.includes('trend') || cat.includes('Trend');
+  });
+
+  if (!trendDoc) {
+    return NextResponse.json({
+      error: '트렌드 관련 폴더의 Excel/XLSB 문서를 찾을 수 없습니다.',
+      allCategories: (allDocs ?? []).map(d => ({
+        filename: d.filename,
+        category: d.category,
+        categoryHex: Buffer.from(String(d.category ?? ''), 'utf8').toString('hex'),
+        status: d.status,
+      })),
+    });
   }
 
-  const doc = docs[0] as { id: string; filename: string; storage_path: string; category: string };
+  const doc = trendDoc as { id: string; filename: string; storage_path: string; category: string; status: string };
 
   // 파일 다운로드
   const { data: blob, error: dlErr } = await sb.storage
