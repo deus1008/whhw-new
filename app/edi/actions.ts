@@ -31,6 +31,89 @@ function getSvc() {
 }
 
 /* ── EDI 폴더 파일 → 분석 결과 반환 ────────────────────────── */
+/* ── EDI 폴더 파일 목록만 반환 ── */
+export async function getEdiFileList(): Promise<{
+  files: { id: string; filename: string; created_at: string }[];
+  error?: string;
+}> {
+  const svc = getSvc();
+  const { data: docs, error: dbErr } = await svc
+    .from('documents')
+    .select('id, filename, created_at')
+    .eq('category', FOLDER_NAME)
+    .in('file_type', ['xlsx', 'xls', 'csv', 'txt'])
+    .order('created_at', { ascending: false });
+  if (dbErr) return { files: [], error: dbErr.message };
+  return { files: (docs ?? []) as { id: string; filename: string; created_at: string }[] };
+}
+
+/* ── 단건 파일 분析 ── */
+export async function analyzeEdiFile(docId: string): Promise<{
+  report?: EdiReport;
+  error?: string;
+}> {
+  const svc = getSvc();
+  const { data: doc, error: dbErr } = await svc
+    .from('documents')
+    .select('id, filename, file_type, storage_path, created_at')
+    .eq('id', docId).single();
+  if (dbErr || !doc) return { error: '파일을 찾을 수 없습니다.' };
+
+  const d = doc as Record<string,string>;
+  const cacheKey = `${CACHE_PREFIX}${d.id}.json`;
+  const CV = 11;
+  try {
+    const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
+    if (blob) {
+      const cached = JSON.parse(await blob.text()) as EdiReport & { cacheVersion?: number };
+      if ((cached as unknown as Record<string,unknown>).cacheVersion === CV &&
+          Array.isArray((cached.data as unknown as Record<string,unknown>).salesPersonStats)) {
+        return { report: cached };
+      }
+    }
+  } catch { /* no cache */ }
+
+  const { data: fileBlob, error: dlErr } = await svc.storage.from(BUCKET_DOCS).download(d.storage_path);
+  if (dlErr || !fileBlob) return { error: dlErr?.message ?? '다운로드 실패' };
+  const buffer = Buffer.from(await fileBlob.arrayBuffer());
+  if (buffer.length / 1024 / 1024 > 20)
+    return { error: `파일 크기(${Math.round(buffer.length/1024/1024)}MB) 초과` };
+
+  try {
+    let wb: XLSX.WorkBook;
+    if (d.file_type === 'csv' || d.file_type === 'txt') {
+      let text: string;
+      try { text = new TextDecoder('euc-kr').decode(buffer); } catch { text = buffer.toString('utf-8'); }
+      wb = XLSX.read(text, { type: 'string' });
+    } else {
+      wb = XLSX.read(buffer, { type: 'buffer' });
+    }
+    let bestSheet = wb.SheetNames[0], bestRows = 0;
+    for (const name of wb.SheetNames) {
+      const ref = wb.Sheets[name]['!ref'];
+      if (!ref) continue;
+      const range = XLSX.utils.decode_range(ref);
+      if (range.e.r - range.s.r > bestRows) { bestRows = range.e.r - range.s.r; bestSheet = name; }
+    }
+    const HEADER_KW = ['담당자','cso','거래처','처방처','품목','금액','처방','청구','기간','년월'];
+    const rawArrays = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[bestSheet], { header: 1, defval: '' });
+    let headerRowIdx = 0;
+    for (let ri = 0; ri < Math.min(rawArrays.length, 10); ri++) {
+      const rowStr = (rawArrays[ri] as unknown[]).map(c2 => String(c2??'').toLowerCase()).join('|');
+      if (HEADER_KW.some(kw => rowStr.includes(kw))) { headerRowIdx = ri; break; }
+    }
+    let rows = XLSX.utils.sheet_to_json<Record<string,unknown>>(wb.Sheets[bestSheet], { defval: '', range: headerRowIdx });
+    if (rows.length > MAX_ROWS) rows = rows.slice(0, MAX_ROWS);
+    const data = processEdi(rows, d.filename);
+    const report = { period: data.period || d.filename, filename: d.filename, data, updated_at: d.created_at, doc_id: d.id, cacheVersion: CV } as EdiReport & { cacheVersion: number };
+    try {
+      const cBlob = new Blob([JSON.stringify(report)], { type: 'application/json' });
+      await svc.storage.from(BUCKET_CACHE).upload(cacheKey, cBlob, { upsert: true });
+    } catch { /* ignore */ }
+    return { report };
+  } catch (e) { return { error: e instanceof Error ? e.message : '분析 오류' }; }
+}
+
 export async function getEdiData(): Promise<{
   reports: EdiReport[];
   errors:  { filename: string; message: string }[];

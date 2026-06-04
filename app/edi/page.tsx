@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import EdiClient from '@/components/EdiClient';
-import { getEdiData } from './actions';
+import { getEdiFileList } from './actions';
 
 export default async function EdiPage() {
   const supabase = await createClient();
@@ -20,7 +20,7 @@ export default async function EdiPage() {
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
   const isAdmin = profile.role === 'admin';
-  const { reports, errors } = await getEdiData();
+  const { files } = await getEdiFileList();
 
   return (
     <>
@@ -44,7 +44,7 @@ export default async function EdiPage() {
           <LogoutButton compact />
         </div>
 
-        <EdiClient reports={reports} errors={errors} isAdmin={isAdmin} />
+        <EdiClient files={files} isAdmin={isAdmin} />
       </div>
     </>
   );

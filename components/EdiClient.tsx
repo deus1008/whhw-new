@@ -2,7 +2,7 @@
 
 import { useState, useTransition, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
-import { forceRefreshEdi } from '@/app/edi/actions';
+import { forceRefreshEdi, analyzeEdiFile } from '@/app/edi/actions';
 import type { EdiReport } from '@/app/edi/actions';
 import type { EdiData, SalesPersonStat, CsoStat, HospitalStat, ItemStat, DrugPrice } from '@/lib/edi/process';
 // HospitalStat now carries .items (품목 드릴다운)
@@ -44,119 +44,99 @@ const TD_MUTED = (align: 'left' | 'right' = 'left'): CSSProperties => ({
 const TR_SUBTOTAL: CSSProperties = { background: 'rgba(255,255,255,0.035)' };
 const TR_TOTAL:    CSSProperties = { background: 'rgba(168,85,247,0.12)', fontWeight: 700 };
 
-/* ── Props ──────────────────────────────────────────────────── */
+
+/* ── Props ────────────────────────────────────────────────── */
 interface Props {
-  reports: EdiReport[];
-  errors:  { filename: string; message: string }[];
+  files:   { id: string; filename: string; created_at: string }[];
   isAdmin: boolean;
 }
 
 /* ════════════════════════════════════════════════════════════ */
-/*  메인 컴포넌트                                               */
-/* ════════════════════════════════════════════════════════════ */
-export default function EdiClient({ reports, errors, isAdmin }: Props) {
-  const [selectedDocId, setSelectedDocId] = useState(reports[0]?.doc_id ?? '');
-  const [isPending, startTransition] = useTransition();
+export default function EdiClient({ files, isAdmin }: Props) {
+  const [selectedId,   setSelectedId]   = useState(files[0]?.id ?? '');
+  const [report,       setReport]       = useState<EdiReport | null>(null);
+  const [analyzing,    setAnalyzing]    = useState(false);
+  const [analyzeErr,   setAnalyzeErr]   = useState('');
+  const [isPending,    startTransition] = useTransition();
   const [refreshError, setRefreshError] = useState('');
   const router = useRouter();
+
+  async function handleAnalyze() {
+    if (!selectedId) return;
+    setAnalyzing(true); setAnalyzeErr(''); setReport(null);
+    try {
+      const res = await analyzeEdiFile(selectedId);
+      if (res.error) setAnalyzeErr(res.error);
+      else if (res.report) setReport(res.report as EdiReport);
+    } catch (e) { setAnalyzeErr(e instanceof Error ? e.message : '분析 실패'); }
+    finally { setAnalyzing(false); }
+  }
 
   function handleRefresh() {
     setRefreshError('');
     startTransition(async () => {
       const r = await forceRefreshEdi();
-      if (r.error) setRefreshError(r.error);
-      else router.refresh();
+      if (r.error) setRefreshError(r.error); else router.refresh();
     });
   }
 
-  const selected = reports.find(r => r.doc_id === selectedDocId);
-
-  if (reports.length === 0) {
-    return <EmptyState errors={errors} />;
-  }
+  if (files.length === 0) return <EmptyState errors={[]} />;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-      {isPending && <LoadingOverlay />}
+      {(analyzing || isPending) && <LoadingOverlay />}
 
-      {/* 파일 선택 헤더 */}
-      <div style={{
-        background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
-        borderRadius: 14, padding: '1rem 1.2rem',
-        display: 'flex', flexDirection: 'column', gap: '0.75rem',
-      }}>
+      {/* 파일 선택 + 分析 버튼 */}
+      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              🗂 EDI 분석 대시보드
-            </h2>
-            <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-              📁 문서관리 → <strong style={{ color: '#fbbf24' }}>EDI</strong> 폴더의 파일을 자동 분석합니다
-            </p>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>🗂 EDI 分析 대시보드</h2>
+            <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>파일을 선택하고 分析 버튼을 눌러주세요</p>
           </div>
           {isAdmin && (
-            <button
-              onClick={handleRefresh} disabled={isPending}
-              title="캐시를 지우고 파일을 다시 분석합니다"
-              style={{
-                padding: '0.38rem 0.9rem', borderRadius: 8, cursor: isPending ? 'not-allowed' : 'pointer',
-                background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.28)',
-                color: isPending ? 'rgba(251,191,36,0.4)' : '#fbbf24',
-                fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: 600,
-              }}
-            >
-              {isPending ? '처리 중…' : '🔄 재분석'}
+            <button onClick={handleRefresh} disabled={isPending}
+              style={{ padding: '0.38rem 0.9rem', borderRadius: 8, cursor: isPending ? 'not-allowed' : 'pointer', background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.28)', color: isPending ? 'rgba(251,191,36,0.4)' : '#fbbf24', fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: 600 }}>
+              {isPending ? '처리 중…' : '🔄 캐시 초기화'}
             </button>
           )}
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>파일 선택</span>
-          {reports.map(r => {
-            const active = r.doc_id === selectedDocId;
-            return (
-              <button
-                key={r.doc_id}
-                onClick={() => setSelectedDocId(r.doc_id)}
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  gap: '0.6rem', padding: '0.55rem 0.9rem', borderRadius: 9,
-                  cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
-                  background: active ? 'rgba(168,85,247,0.14)' : 'rgba(255,255,255,0.03)',
-                  border: `1px solid ${active ? 'rgba(168,85,247,0.42)' : 'rgba(255,255,255,0.08)'}`,
-                  transition: 'all 0.15s',
-                }}
-              >
-                <span style={{
-                  fontSize: '0.82rem', fontWeight: active ? 600 : 400,
-                  color: active ? '#d8b4fe' : 'var(--text-primary)',
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-                }}>
-                  🗂 {r.filename}
-                </span>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  {r.period && `${r.period} · `}{new Date(r.updated_at).toLocaleDateString('ko-KR')}
-                </span>
-              </button>
-            );
-          })}
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem' }}>파일 선택</span>
+            <select
+              value={selectedId}
+              onChange={e => { setSelectedId(e.target.value); setReport(null); setAnalyzeErr(''); }}
+              style={{ width: '100%', padding: '0.55rem 0.8rem', borderRadius: 9, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-primary)', fontSize: '0.85rem', fontFamily: 'inherit', cursor: 'pointer' }}
+            >
+              {files.map(f => (
+                <option key={f.id} value={f.id}>
+                  {f.filename} ({new Date(f.created_at).toLocaleDateString('ko-KR')})
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={handleAnalyze}
+            disabled={analyzing || !selectedId}
+            style={{ padding: '0.55rem 1.4rem', borderRadius: 9, cursor: analyzing ? 'not-allowed' : 'pointer', background: analyzing ? 'rgba(168,85,247,0.08)' : 'rgba(168,85,247,0.18)', border: '1px solid rgba(168,85,247,0.4)', color: '#c4b5fd', fontSize: '0.88rem', fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+          >
+            {analyzing ? '⏳ 분析 중…' : '▶ 分析'}
+          </button>
         </div>
 
-        {errors.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-            {errors.map((e, i) => <ErrorMsg key={i} msg={`⚠ ${e.filename}: ${e.message}`} />)}
-          </div>
-        )}
+        {analyzeErr && <ErrorMsg msg={'⚠ ' + analyzeErr} />}
         {refreshError && <ErrorMsg msg={refreshError} />}
       </div>
 
-      {selected
-        ? <EdiDashboard data={selected.data} />
-        : <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem' }}>파일을 선택하세요.</p>
+      {report
+        ? <EdiDashboard data={report.data} />
+        : !analyzing && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem 0' }}>파일을 선택하고 分析 버튼을 눌러주세요.</p>
       }
     </div>
   );
 }
+
 
 /* ════════════════════════════════════════════════════════════ */
 /*  대시보드 본문 (5개 테이블)                                  */
