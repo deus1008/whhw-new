@@ -135,16 +135,40 @@ export async function GET(req: NextRequest) {
     case 'product':  items = aggregate(rows, 'product_name'); break;
     case 'type':     items = aggregate(rows, 'hospital_type'); break;
     case 'tier':
-      // 수수료구간 정렬
       items = aggregate(rows, 'commission_tier').sort((a, b) => {
         const order = ['10% 미만','10%~20%','20%~30%','30%~40%','40%~50%','50% 이상'];
         return (order.indexOf(a.label) ?? 99) - (order.indexOf(b.label) ?? 99);
       });
       break;
-    default:         items = aggregateMonthly(rows, monthFrom, monthTo);
+    default: items = aggregateMonthly(rows, monthFrom, monthTo);
   }
 
-  return NextResponse.json({ items, total: totalAmount, rowCount: rows.length });
+  // 담당자별 피벗: 담당자(행) × 월(열)
+  let pivot: { months: string[]; rows: { label: string; monthly: Record<string, number>; total: number }[] } | undefined;
+  if (groupBy === 'rep') {
+    const monthItems = aggregateMonthly(rows, monthFrom, monthTo);
+    const months = monthItems.map(m => m.label);
+
+    const repMap = new Map<string, Record<string, number>>();
+    for (const r of rows) {
+      if (!r.sales_rep || !r.prescription_month) continue;
+      if (!repMap.has(r.sales_rep)) repMap.set(r.sales_rep, {});
+      const m = repMap.get(r.sales_rep)!;
+      m[r.prescription_month] = (m[r.prescription_month] ?? 0) + (r.prescription_amount ?? 0);
+    }
+
+    const pivotRows = Array.from(repMap.entries())
+      .map(([label, monthly]) => ({
+        label,
+        monthly,
+        total: Object.values(monthly).reduce((s, v) => s + v, 0),
+      }))
+      .sort((a, b) => b.total - a.total);
+
+    pivot = { months, rows: pivotRows };
+  }
+
+  return NextResponse.json({ items, pivot, total: totalAmount, rowCount: rows.length });
 }
 
 /* ── GET /api/trend?meta=1 — 필터 옵션 목록 ── */

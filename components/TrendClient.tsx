@@ -136,6 +136,84 @@ function DataTable({ items, labelHeader = '항목' }: { items: AggItem[]; labelH
   );
 }
 
+/* ── 담당자 × 월 피벗 테이블 ── */
+type PivotData = {
+  months: string[];
+  rows: { label: string; monthly: Record<string, number>; total: number }[];
+};
+
+function fmtM(m: string) {
+  return m.length === 6 ? `${m.slice(0,4)}.${m.slice(4,6)}` : m;
+}
+
+function RepPivotTable({ pivot }: { pivot: PivotData }) {
+  if (pivot.rows.length === 0) return <NoData />;
+  const { months, rows } = pivot;
+  const grandTotal = rows.reduce((s, r) => s + r.total, 0);
+
+  return (
+    <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+        <thead>
+          <tr style={{ background: 'rgba(255,255,255,0.04)', position: 'sticky', top: 0 }}>
+            <th style={{ ...th, minWidth: 120, position: 'sticky', left: 0, background: 'rgba(17,24,39,0.95)' }}>
+              담당자
+            </th>
+            {months.map(m => (
+              <th key={m} style={{ ...th, textAlign: 'right', minWidth: 80 }}>{fmtM(m)}</th>
+            ))}
+            <th style={{ ...th, textAlign: 'right', minWidth: 90, color: '#a5b4fc' }}>합계</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => {
+            const rowBg = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)';
+            return (
+              <tr key={row.label} style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: rowBg }}>
+                <td style={{
+                  ...td, fontWeight: 600, position: 'sticky', left: 0,
+                  background: i % 2 === 0 ? 'rgba(17,24,39,0.95)' : 'rgba(20,26,44,0.95)',
+                  minWidth: 120,
+                }}>
+                  {row.label}
+                </td>
+                {months.map(m => {
+                  const v = row.monthly[m] ?? 0;
+                  return (
+                    <td key={m} style={{
+                      ...td, textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+                      color: v > 0 ? 'rgba(240,244,255,0.85)' : 'rgba(148,163,184,0.3)',
+                    }}>
+                      {v > 0 ? v.toLocaleString() : '-'}
+                    </td>
+                  );
+                })}
+                <td style={{ ...td, textAlign: 'right', fontWeight: 700, color: '#a5b4fc', fontVariantNumeric: 'tabular-nums' }}>
+                  {row.total.toLocaleString()}
+                </td>
+              </tr>
+            );
+          })}
+          <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', background: 'rgba(99,102,241,0.05)' }}>
+            <td style={{ ...td, fontWeight: 700, position: 'sticky', left: 0, background: 'rgba(99,102,241,0.05)' }}>합계</td>
+            {months.map(m => {
+              const colTotal = rows.reduce((s, r) => s + (r.monthly[m] ?? 0), 0);
+              return (
+                <td key={m} style={{ ...td, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                  {colTotal > 0 ? colTotal.toLocaleString() : '-'}
+                </td>
+              );
+            })}
+            <td style={{ ...td, textAlign: 'right', fontWeight: 700, color: '#a5b4fc', fontVariantNumeric: 'tabular-nums' }}>
+              {grandTotal.toLocaleString()}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function NoData() {
   return (
     <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '2rem 0' }}>
@@ -150,7 +228,8 @@ function NoData() {
 export default function TrendClient() {
   const [activeTab, setActiveTab] = useState<TabKey>('month');
   const [items,     setItems]     = useState<AggItem[]>([]);
-  const [total,     setTotal]     = useState(0);
+  const [pivot,     setPivot]     = useState<PivotData | null>(null);
+  const [_total,    _setTotal]    = useState(0); // kept for future use
   const [loading,   setLoading]   = useState(false);
   const [meta,      setMeta]      = useState<MetaData | null>(null);
 
@@ -190,7 +269,7 @@ export default function TrendClient() {
       const res  = await fetch(`/api/trend?${params}`);
       const data = await res.json();
       setItems(data.items ?? []);
-      setTotal(data.total ?? 0);
+      setPivot(data.pivot ?? null);
     } catch (e) {
       console.error('[Trend] load error:', e);
     } finally {
@@ -219,12 +298,6 @@ export default function TrendClient() {
               문서관리 EDI 폴더에 업로드한 월별 처방실적 데이터를 다차원으로 분析합니다.
             </p>
           </div>
-          {total > 0 && (
-            <div style={{ padding: '0.5rem 1rem', borderRadius: 9, background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.25)' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>총 처방금액 </span>
-              <span style={{ fontSize: '1rem', fontWeight: 700, color: '#34d399' }}>{total.toLocaleString()}원</span>
-            </div>
-          )}
         </div>
 
         {/* 필터 */}
@@ -289,7 +362,7 @@ export default function TrendClient() {
             {TABS.find(t => t.key === activeTab)?.label}
           </h3>
           <div style={{ display: 'flex', gap: '0.35rem' }}>
-            {(['chart', 'table'] as const).map(m => (
+            {activeTab !== 'rep' && (['chart', 'table'] as const).map(m => (
               <button key={m} onClick={() => setViewMode(m)}
                 style={{
                   padding: '0.25rem 0.7rem', borderRadius: 6, cursor: 'pointer',
@@ -301,11 +374,19 @@ export default function TrendClient() {
                 {m === 'chart' ? '📊 차트' : '📋 테이블'}
               </button>
             ))}
+            {activeTab === 'rep' && (
+              <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', alignSelf: 'center' }}>
+                담당자 × 월 피벗
+              </span>
+            )}
           </div>
         </div>
 
         {loading ? (
           <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>⏳ 분析 중…</p>
+        ) : activeTab === 'rep' ? (
+          /* 담당자별: 항상 피벗 테이블 (담당자 행 × 월 열) */
+          pivot ? <RepPivotTable pivot={pivot} /> : <NoData />
         ) : viewMode === 'chart' ? (
           activeTab === 'month'
             ? <LineChart items={items} />
