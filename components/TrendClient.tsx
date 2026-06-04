@@ -144,7 +144,7 @@ function fmtM(m: string) {
   return m.length === 6 ? `${m.slice(0,4)}.${m.slice(4,6)}` : m;
 }
 
-function RepPivotTable({ pivot }: { pivot: PivotData }) {
+function PivotTable({ pivot, rowHeader = "항목" }: { pivot: PivotData; rowHeader?: string }) {
   if (pivot.rows.length === 0) return <NoData />;
   const { months, rows } = pivot;
 
@@ -154,7 +154,7 @@ function RepPivotTable({ pivot }: { pivot: PivotData }) {
         <thead>
           <tr style={{ background: 'rgba(255,255,255,0.04)', position: 'sticky', top: 0 }}>
             <th style={{ ...th, minWidth: 120, position: 'sticky', left: 0, background: 'rgba(17,24,39,0.95)' }}>
-              담당자
+              {rowHeader}
             </th>
             {months.map(m => (
               <th key={m} style={{ ...th, textAlign: 'right', minWidth: 80 }}>{fmtM(m)}</th>
@@ -358,7 +358,7 @@ export default function TrendClient() {
             {TABS.find(t => t.key === activeTab)?.label}
           </h3>
           <div style={{ display: 'flex', gap: '0.35rem' }}>
-            {activeTab !== 'rep' && (['chart', 'table'] as const).map(m => (
+            {!pivot && (['chart', 'table'] as const).map(m => (
               <button key={m} onClick={() => setViewMode(m)}
 
                 style={{
@@ -371,9 +371,9 @@ export default function TrendClient() {
                 {m === 'chart' ? '📊 차트' : '📋 테이블'}
               </button>
             ))}
-            {activeTab === 'rep' && (
+            {pivot && (
               <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', alignSelf: 'center' }}>
-                담당자 × 월 피벗
+                차원 × 월 피벗
               </span>
             )}
           </div>
@@ -381,9 +381,9 @@ export default function TrendClient() {
 
         {loading ? (
           <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>⏳ 분석 중…</p>
-        ) : activeTab === 'rep' ? (
-          /* 담당자별: 항상 피벗 테이블 (담당자 행 × 월 열) */
-          pivot ? <RepPivotTable pivot={pivot} /> : <NoData />
+        ) : pivot ? (
+          /* 모든 차원 탭: 차원(행) × 월(열) 피벗 테이블 */
+          <PivotTable pivot={pivot} rowHeader={labelMap[activeTab]} />
         ) : viewMode === 'chart' ? (
           <BarChart items={items} maxItems={activeTab === 'hospital' ? 30 : 20} />
         ) : (

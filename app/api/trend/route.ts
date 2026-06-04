@@ -157,21 +157,33 @@ export async function GET(req: NextRequest) {
     default: items = aggregateMonthly(rows, monthFrom, monthTo);
   }
 
-  // 담당자별 피벗: 담당자(행) × 월(열)
-  let pivot: { months: string[]; rows: { label: string; monthly: Record<string, number>; total: number }[] } | undefined;
-  if (groupBy === 'rep') {
+  // 피벗: 차원(행) × 월(열) — rep / cso / hospital / product / type 모두 적용
+  type PivotResult = { months: string[]; rows: { label: string; monthly: Record<string, number>; total: number }[] };
+
+  const PIVOT_KEY_MAP: Partial<Record<string, keyof TrendRow>> = {
+    rep:      'sales_rep',
+    cso:      'cso_name',
+    hospital: 'hospital_name',
+    product:  'product_name',
+    type:     'hospital_type',
+  };
+
+  let pivot: PivotResult | undefined;
+  const pivotKey = PIVOT_KEY_MAP[groupBy];
+  if (pivotKey) {
     const monthItems = aggregateMonthly(rows, monthFrom, monthTo);
     const months = monthItems.map(m => m.label);
 
-    const repMap = new Map<string, Record<string, number>>();
+    const dimMap = new Map<string, Record<string, number>>();
     for (const r of rows) {
-      if (!r.sales_rep || !r.prescription_month) continue;
-      if (!repMap.has(r.sales_rep)) repMap.set(r.sales_rep, {});
-      const m = repMap.get(r.sales_rep)!;
+      const dim = r[pivotKey] as string | null;
+      if (!dim || !r.prescription_month) continue;
+      if (!dimMap.has(dim)) dimMap.set(dim, {});
+      const m = dimMap.get(dim)!;
       m[r.prescription_month] = (m[r.prescription_month] ?? 0) + (r.prescription_amount ?? 0);
     }
 
-    const pivotRows = Array.from(repMap.entries())
+    const pivotRows = Array.from(dimMap.entries())
       .map(([label, monthly]) => ({
         label,
         monthly,
