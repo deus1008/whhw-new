@@ -3,7 +3,6 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { extractText } from '@/lib/rag/extract';
 import { extractProductsFromText } from '@/lib/products/extract';
 import { parseDrugPriceBuffer } from '@/lib/drug-prices/parse';
-import { parseTrendBuffer }    from '@/lib/trend/parse';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -157,33 +156,6 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, extracted: extractedCount });
   }
 
-  // ── C. EDI 폴더 → trend_prescriptions 파싱 ──────────────────────
-  if (category === 'EDI') {
-    const sizeMB = buffer.length / 1024 / 1024;
-    if (sizeMB > 100) {
-      return fail(`파일 크기(${sizeMB.toFixed(0)}MB)가 너무 큽니다. 100MB 이하 파일만 처리할 수 있습니다.`);
-    }
-
-    const { rows, total, error: parseError } = parseTrendBuffer(buffer, doc.filename);
-    if (parseError) return fail(`처방실적 파싱 실패: ${parseError}`);
-
-    if (rows.length > 0) {
-      await supabase.from('trend_prescriptions').delete().eq('source_file', doc.filename);
-      const CHUNK = 500;
-      let inserted = 0;
-      for (let i = 0; i < rows.length; i += CHUNK) {
-        const { error: insErr } = await supabase.from('trend_prescriptions').insert(rows.slice(i, i + CHUNK));
-        if (insErr) console.warn(`[process:${documentId}] 트랜드 삽입 오류 (batch ${i}):`, insErr.message);
-        else inserted += rows.slice(i, i + CHUNK).length;
-      }
-      console.log(`[process:${documentId}] 트랜드 ${inserted}/${total}건 저장 완료`);
-    } else {
-      console.log(`[process:${documentId}] 트랜드 유효 행 없음 (전체 ${total}행)`);
-    }
-
-    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
-    return Response.json({ ok: true, inserted: rows.length });
-  }
 
   // ── D. 그 외 폴더 — 즉시 완료 ─────────────────────────────────────────
   console.log(`[process:${documentId}] 일반 폴더(${category || '미분류'}) → 즉시 완료`);
