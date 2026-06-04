@@ -279,7 +279,7 @@ export default function TrendClient() {
               📈 처방실적 트렌드 분석
             </h2>
             <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              문서관리 > EDI 폴더에 업로드·재처리한 월별 파일 데이터를 집계합니다.
+              문서관리 &gt; EDI 폴더에 업로드·재처리한 월별 파일 데이터를 집계합니다.
             </p>
           </div>
         </div>
