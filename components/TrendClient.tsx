@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import * as XLSX from 'xlsx';
 
 type AggItem  = { label: string; amount: number };
 type MetaData = { reps: string[]; csos: string[]; products: string[]; types: string[]; tiers: string[]; months: string[] };
@@ -18,6 +19,39 @@ const TABS = [
 type TabKey = typeof TABS[number]['key'];
 
 const TIER_ORDER = ['10% 미만','10%~20%','20%~30%','30%~40%','40%~50%','50% 이상'];
+
+/* ── 수수료 구간 ── */
+function getCommissionTier(rate: number | null): string | null {
+  if (rate === null || isNaN(rate)) return null;
+  if (rate <  10) return '10% 미만';
+  if (rate <  20) return '10%~20%';
+  if (rate <  30) return '20%~30%';
+  if (rate <  40) return '30%~40%';
+  if (rate <  50) return '40%~50%';
+  return '50% 이상';
+}
+function parseNum(v: unknown): number | null {
+  const s = String(v ?? '').replace(/[,%₩\s]/g, '').trim();
+  if (!s) return null;
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+function normalizeMonth(raw: string): string | null {
+  const s = raw.trim().replace(/[^\d]/g, '');
+  if (s.length === 6) return s;
+  if (s.length === 8) return s.slice(0, 6);
+  return raw.trim() || null;
+}
+function findCol(keys: string[], candidates: string[]): string | undefined {
+  for (const c of candidates) { if (keys.includes(c)) return c; }
+  const lower = candidates.map(c => c.toLowerCase().replace(/\s/g, ''));
+  for (const k of keys) {
+    const kl = k.toLowerCase().replace(/\s/g, '');
+    const idx = lower.findIndex(c => kl.includes(c) || c.includes(kl));
+    if (idx >= 0) return k;
+  }
+  return undefined;
+}
 
 function fmtAmt(n: number): string {
   if (n >= 1_0000_0000) return `${(n / 1_0000_0000).toFixed(1)}억`;
@@ -207,6 +241,112 @@ export default function TrendClient() {
   // 뷰 모드
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
 
+  // 파일 업로드 상태
+  const [uploading,    setUploading]    = useState(false);
+  const [uploadStatus, setUploadStatus] = useState('');
+  const [uploadError,  setUploadError]  = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* ── 브라우저에서 XLSB 파싱 → API → DB ── */
+  async function handleFileUpload(file: File) {
+    setUploading(true);
+    setUploadStatus('파일 읽는 중…');
+    setUploadError('');
+
+    try {
+      const ab = await file.arrayBuffer();
+      const buffer = new Uint8Array(ab);
+
+      setUploadStatus('컬럼 분석 중…');
+      const wb = XLSX.read(buffer, {
+        type: 'array', cellFormula: false, cellHTML: false,
+        cellNF: false, cellText: false, cellDates: false,
+      });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+
+      if (rawRows.length === 0) {
+        setUploadError('데이터가 없습니다.');
+        return;
+      }
+
+      const keys = Object.keys(rawRows[0]);
+      const COL = {
+        month:    findCol(keys, ['처방월','처방년월','처방연월','청구년월','년월']),
+        rep:      findCol(keys, ['내부담당자','담당자','MR','담당MR']),
+        cso:      findCol(keys, ['담당CSO','CSO명','CSO','법인명']),
+        hospital: findCol(keys, ['처방처명','병원명','거래처명','처방처']),
+        product:  findCol(keys, ['품목명','제품명','약품명']),
+        type:     findCol(keys, ['종별구분','종별','요양기관종별']),
+        comm:     findCol(keys, ['합산수수료','수수료율','수수료']),
+        amount:   findCol(keys, ['처방금액','처방액','처방금액(원)','금액']),
+      };
+
+      if (!COL.amount) {
+        setUploadError(`처방금액 컬럼을 찾을 수 없습니다. 감지된 컬럼: [${keys.slice(0,8).join(', ')}]`);
+        return;
+      }
+
+      // 유효 행 변환
+      const rows = rawRows
+        .map(raw => {
+          const amount = parseNum(COL.amount ? raw[COL.amount] : null);
+          if (!amount || amount <= 0) return null;
+          const commRate = parseNum(COL.comm ? raw[COL.comm] : null);
+          return {
+            source_file:         file.name,
+            prescription_month:  normalizeMonth(String(COL.month ? raw[COL.month] : '')),
+            sales_rep:           String(COL.rep      ? raw[COL.rep]      ?? '' : '').trim() || null,
+            cso_name:            String(COL.cso      ? raw[COL.cso]      ?? '' : '').trim() || null,
+            hospital_name:       String(COL.hospital ? raw[COL.hospital] ?? '' : '').trim() || null,
+            product_name:        String(COL.product  ? raw[COL.product]  ?? '' : '').trim() || null,
+            hospital_type:       String(COL.type     ? raw[COL.type]     ?? '' : '').trim() || null,
+            commission_rate:     commRate,
+            commission_tier:     getCommissionTier(commRate),
+            prescription_amount: amount,
+          };
+        })
+        .filter(Boolean);
+
+      if (rows.length === 0) {
+        setUploadError('처방금액이 있는 유효한 행이 없습니다.');
+        return;
+      }
+
+      // 배치로 API 전송
+      const BATCH = 500;
+      let inserted = 0;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        setUploadStatus(`저장 중… ${Math.min(i + BATCH, rows.length).toLocaleString()} / ${rows.length.toLocaleString()}행`);
+        const res = await fetch('/api/trend/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceFile: file.name,
+            rows: rows.slice(i, i + BATCH),
+            isFirst: i === 0,
+          }),
+        });
+        const data = await res.json() as { inserted?: number; error?: string };
+        if (!res.ok || data.error) {
+          setUploadError(`저장 실패 (batch ${i}): ${data.error}`);
+          return;
+        }
+        inserted += data.inserted ?? 0;
+      }
+
+      setUploadStatus(`✓ ${inserted.toLocaleString()}행 저장 완료 — "${file.name}"`);
+      // 메타 + 차트 재로드
+      const metaRes = await fetch('/api/trend', { method: 'POST' });
+      setMeta(await metaRes.json());
+      load();
+    } catch (e) {
+      setUploadError(`처리 오류: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setUploading(false);
+    }
+  }
+
   /* ── 메타 데이터 로드 ── */
   useEffect(() => {
     fetch('/api/trend', { method: 'POST' })
@@ -248,6 +388,51 @@ export default function TrendClient() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+
+      {/* ── 파일 직접 업로드 (브라우저 파싱) ── */}
+      <div style={card}>
+        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#a5b4fc', marginBottom: '0.8rem' }}>
+          📂 처방실적 파일 업로드
+        </h2>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.8rem', lineHeight: 1.6 }}>
+          XLSB / XLSX / XLS 파일을 선택하면 브라우저에서 직접 파싱하여 DB에 저장합니다.
+          대용량 파일도 처리 가능합니다. (월별 파일을 각각 업로드 권장)
+        </p>
+        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsb,.xlsx,.xls"
+            style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); e.target.value = ''; }}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            style={{
+              padding: '0.5rem 1.2rem', borderRadius: 8, cursor: uploading ? 'not-allowed' : 'pointer',
+              background: uploading ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.18)',
+              border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc',
+              fontSize: '0.85rem', fontWeight: 600, fontFamily: 'inherit',
+            }}
+          >
+            {uploading ? '처리 중…' : '📁 파일 선택'}
+          </button>
+          {uploading && (
+            <span style={{ fontSize: '0.8rem', color: '#a5b4fc' }}>{uploadStatus}</span>
+          )}
+          {!uploading && uploadStatus && !uploadError && (
+            <span style={{ fontSize: '0.8rem', color: '#34d399' }}>{uploadStatus}</span>
+          )}
+        </div>
+        {uploadError && (
+          <div style={{ marginTop: '0.6rem', padding: '0.5rem 0.8rem', borderRadius: 7,
+            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)',
+            fontSize: '0.78rem', color: '#f87171' }}>
+            ⚠ {uploadError}
+          </div>
+        )}
+      </div>
 
       {/* ── 헤더 ── */}
       <div style={card}>
