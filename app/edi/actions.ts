@@ -34,8 +34,17 @@ function getSvc() {
 
 /* ── 헤더 행 자동 탐색 (BOM·개행 정규화, 다중 전략) ── */
 function detectHeaderRow(rawArrays: unknown[][]): number {
-  // 실제 컬럼명 집합 (사용자 파일 기준 정확 매칭 우선)
-  const EXACT_COLS = new Set(['담당자','내부담당자','담당cso','cso명','처방처','처방처명','처방액','처방금액','최종실적','품목명','약품명']);
+  // 실제 파일 컬럼명 (스크린샷 기준 확정)
+  const EXACT_COLS = new Set([
+    '내부담당','내부담당자','담당자',        // salesperson
+    '담당cso','cso명','cso',               // CSO
+    '처방처명','처방처',                    // hospital
+    '품목명','약품명',                      // item
+    '처방금액','처방액',                    // amount
+    '최종실적',                            // final
+    '종별구분','종별',                      // type
+    '실적월','처방월','청구월',             // date
+  ]);
   const KW = ['담당자','담당','cso','거래처','처방처','품목','금액','처방','청구','기간','년월','사원','법인','성명'];
 
   let bestScore = -1;
@@ -93,7 +102,7 @@ export async function analyzeEdiFile(docId: string): Promise<{
 
   const d = doc as Record<string,string>;
   const cacheKey = `${CACHE_PREFIX}${d.id}.json`;
-  const CV = 14;
+  const CV = 15;
   try {
     const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
     if (blob) {
@@ -177,7 +186,7 @@ export async function getEdiData(): Promise<{
       if (blob) {
         const cached = JSON.parse(await blob.text()) as EdiReport;
         // 구버전 캐시 감지: 필수 필드 없거나 캐시 버전 불일치 시 재처리
-        const CACHE_VERSION = 14; // 헤더 행 자동 탐색 추가
+        const CACHE_VERSION = 15; // 헤더 행 자동 탐색 추가
         const d = cached.data as unknown as Record<string, unknown>;
         if (
           !Array.isArray(d.salesPersonStats) ||
@@ -268,7 +277,7 @@ export async function getEdiData(): Promise<{
         data,
         updated_at:   doc.created_at as string,
         doc_id:       doc.id as string,
-        cacheVersion: 14,
+        cacheVersion: 15,
       };
 
       // 캐시 저장 (실패해도 무시)
