@@ -65,12 +65,24 @@ function aggregateMonthly(
     map.set(label, (map.get(label) ?? 0) + (r.prescription_amount ?? 0));
   }
 
-  // 범위 결정: 파라미터 우선, 없으면 데이터 min/max
+  // 범위 결정
   const dataMonths = Array.from(map.keys()).filter(Boolean).sort();
   if (dataMonths.length === 0) return [];
 
-  const rangeFrom = fromMonth && /^\d{6}$/.test(fromMonth) ? fromMonth : dataMonths[0];
-  const rangeTo   = toMonth   && /^\d{6}$/.test(toMonth)   ? toMonth   : dataMonths[dataMonths.length - 1];
+  const maxMonth = dataMonths[dataMonths.length - 1];
+  const rangeTo   = toMonth   && /^\d{6}$/.test(toMonth)   ? toMonth   : maxMonth;
+
+  // 기간 미설정 시 최신 월 기준 직전 12개월이 기본 범위
+  let defaultFrom = dataMonths[0];
+  if (!fromMonth) {
+    const y = parseInt(maxMonth.slice(0, 4));
+    const m = parseInt(maxMonth.slice(4, 6));
+    const nm = m - 11;
+    defaultFrom = nm <= 0
+      ? `${y - 1}${String(12 + nm).padStart(2, '0')}`
+      : `${y}${String(nm).padStart(2, '0')}`;
+  }
+  const rangeFrom = fromMonth && /^\d{6}$/.test(fromMonth) ? fromMonth : defaultFrom;
 
   // 범위 내 모든 월을 0으로 채우고 데이터로 덮어쓰기
   return generateMonthRange(rangeFrom, rangeTo).map(month => ({
@@ -109,6 +121,8 @@ export async function GET(req: NextRequest) {
     .from('trend_prescriptions')
     .select('prescription_month,sales_rep,cso_name,hospital_name,product_name,hospital_type,commission_tier,prescription_amount');
 
+  // 필터 미설정 시 최신 12개월 범위를 DB에서 먼저 제한 (성능)
+  // 정확한 기본 범위는 데이터 로드 후 aggregateMonthly에서 결정
   if (monthFrom) q = q.gte('prescription_month', monthFrom);
   if (monthTo)   q = q.lte('prescription_month', monthTo);
   if (filterRep)  q = q.eq('sales_rep',        filterRep);
