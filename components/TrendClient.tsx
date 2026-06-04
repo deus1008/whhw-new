@@ -148,7 +148,6 @@ function fmtM(m: string) {
 function RepPivotTable({ pivot }: { pivot: PivotData }) {
   if (pivot.rows.length === 0) return <NoData />;
   const { months, rows } = pivot;
-  const grandTotal = rows.reduce((s, r) => s + r.total, 0);
 
   return (
     <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
@@ -193,20 +192,6 @@ function RepPivotTable({ pivot }: { pivot: PivotData }) {
               </tr>
             );
           })}
-          <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', background: 'rgba(99,102,241,0.05)' }}>
-            <td style={{ ...td, fontWeight: 700, position: 'sticky', left: 0, background: 'rgba(99,102,241,0.05)' }}>합계</td>
-            {months.map(m => {
-              const colTotal = rows.reduce((s, r) => s + (r.monthly[m] ?? 0), 0);
-              return (
-                <td key={m} style={{ ...td, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                  {colTotal > 0 ? colTotal.toLocaleString() : '-'}
-                </td>
-              );
-            })}
-            <td style={{ ...td, textAlign: 'right', fontWeight: 700, color: '#a5b4fc', fontVariantNumeric: 'tabular-nums' }}>
-              {grandTotal.toLocaleString()}
-            </td>
-          </tr>
         </tbody>
       </table>
     </div>
