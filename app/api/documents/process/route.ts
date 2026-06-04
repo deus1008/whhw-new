@@ -159,6 +159,11 @@ export async function POST(request: Request) {
 
   // ── C. EDI 폴더 → trend_prescriptions 파싱 ──────────────────────
   if (category === 'EDI') {
+    const sizeMB = buffer.length / 1024 / 1024;
+    if (sizeMB > 100) {
+      return fail(`파일 크기(${sizeMB.toFixed(0)}MB)가 너무 큽니다. 100MB 이하 파일만 처리할 수 있습니다.`);
+    }
+
     const { rows, total, error: parseError } = parseTrendBuffer(buffer, doc.filename);
     if (parseError) return fail(`처방실적 파싱 실패: ${parseError}`);
 
