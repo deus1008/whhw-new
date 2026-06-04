@@ -11,7 +11,6 @@ const TABS = [
   { key: 'hospital', label: '🏥 처방처별' },
   { key: 'product',  label: '💊 품목별' },
   { key: 'type',     label: '🏷 종별' },
-  { key: 'tier',     label: '💰 수수료구간별' },
 ] as const;
 
 type TabKey = typeof TABS[number]['key'];
@@ -277,10 +276,10 @@ export default function TrendClient() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.6rem', marginBottom: '1.2rem' }}>
           <div>
             <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              📈 처방실적 트렌드 분析
+              📈 처방실적 트렌드 분석
             </h2>
             <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-              문서관리 EDI 폴더에 업로드한 월별 처방실적 데이터를 다차원으로 분析합니다.
+              문서관리 EDI 폴더에 업로드한 월별 처방실적 데이터를 다차원으로 분석합니다.
             </p>
           </div>
         </div>
@@ -381,7 +380,7 @@ export default function TrendClient() {
         </div>
 
         {loading ? (
-          <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>⏳ 분析 중…</p>
+          <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>⏳ 분석 중…</p>
         ) : activeTab === 'rep' ? (
           /* 담당자별: 항상 피벗 테이블 (담당자 행 × 월 열) */
           pivot ? <RepPivotTable pivot={pivot} /> : <NoData />
