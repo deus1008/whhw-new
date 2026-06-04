@@ -87,141 +87,109 @@ export async function POST(request: Request) {
 
   const buffer = Buffer.from(await blob.arrayBuffer());
   const category = (doc.category ?? '') as string;
+  const fileSizeMB = (buffer.length / 1024 / 1024).toFixed(1);
+  console.log(`[process:${documentId}] 폴더: "${category}", 파일: ${doc.filename}, 크기: ${fileSizeMB}MB`);
 
   // ══════════════════════════════════════════════════════════════════════
   // 폴더별 처리 분기
-  // - 약가      : Excel 파싱 → drug_prices (텍스트 추출 불필요)
-  // - 허가현황   : 텍스트 추출 → AI 제품 분석 (텍스트 추출 필요)
-  // - 그 외 폴더 : 파일 검증만 후 즉시 완료 (텍스트 추출 불필요)
   // ══════════════════════════════════════════════════════════════════════
 
   // ── A. 약가 폴더 ────────────────────────────────────────────────────────
   if (category === '약가') {
-    console.log(`[process:${documentId}] 약가 폴더 → drug_prices 파싱`);
     const { rows, total, error: parseError } = parseDrugPriceBuffer(buffer, doc.filename);
-
-    if (parseError) {
-      return fail(`약가 파싱 실패: ${parseError}`);
-    }
+    if (parseError) return fail(`약가 파싱 실패: ${parseError}`);
 
     if (rows.length > 0) {
       await supabase.from('drug_prices').delete().eq('source_file', doc.filename);
-
       const CHUNK = 1000;
       for (let i = 0; i < rows.length; i += CHUNK) {
-        const { error: insErr } = await supabase
-          .from('drug_prices')
-          .insert(rows.slice(i, i + CHUNK));
-        if (insErr) {
-          console.warn(`[process:${documentId}] 약가 삽입 오류 (batch ${i}):`, insErr.message);
-        }
+        const { error: insErr } = await supabase.from('drug_prices').insert(rows.slice(i, i + CHUNK));
+        if (insErr) console.warn(`[process:${documentId}] 약가 삽입 오류 (batch ${i}):`, insErr.message);
       }
       console.log(`[process:${documentId}] 약가 ${rows.length}/${total}건 저장 완료`);
     }
-
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     return Response.json({ ok: true, inserted: rows.length });
   }
 
   // ── B. 허가현황 폴더 ────────────────────────────────────────────────────
   if (category === '허가현황') {
-    console.log(`[process:${documentId}] 허가현황 폴더 → 텍스트 추출 + AI 제품 분석`);
-
     let rawText: string;
     try {
       rawText = await extractText(buffer, doc.file_type);
     } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
-      return fail(`텍스트 추출 실패 [${doc.file_type.toUpperCase()}]: ${detail}`);
+      return fail(`텍스트 추출 실패 [${doc.file_type.toUpperCase()}]: ${err instanceof Error ? err.message : String(err)}`);
     }
-
-    if (!rawText.trim()) {
-      return fail('추출된 텍스트가 없습니다. 스캔 이미지 PDF이거나 빈 파일일 수 있습니다.');
-    }
+    if (!rawText.trim()) return fail('추출된 텍스트가 없습니다.');
 
     let extractedCount = 0;
     try {
       const products = await extractProductsFromText(rawText);
       if (products.length > 0) {
         await supabase.from('upcoming_products').delete().eq('source_document_id', documentId);
-
         const now = new Date().toISOString();
         const makeRow = (p: typeof products[0], withSrcId: boolean) => {
           let launch = p.launch_date?.trim() || null;
           if (launch && /^\d{4}-\d{2}$/.test(launch)) launch = `${launch}-01`;
           const row: Record<string, unknown> = {
-            title:           p.title.trim(),
-            memo:            p.ingredient?.trim() || null,
-            manufacturer:    p.manufacturer?.trim() || null,
-            launch_date:     launch,
-            indication:      p.indication?.trim() || null,
-            status:          p.status || '발매예정',
-            insurance_code:  p.insurance_code?.trim() || null,
-            insurance_price: p.insurance_price?.trim() || null,
-            created_at:      now,
-            updated_at:      now,
+            title: p.title.trim(), memo: p.ingredient?.trim() || null,
+            manufacturer: p.manufacturer?.trim() || null, launch_date: launch,
+            indication: p.indication?.trim() || null, status: p.status || '발매예정',
+            insurance_code: p.insurance_code?.trim() || null, insurance_price: p.insurance_price?.trim() || null,
+            created_at: now, updated_at: now,
           };
           if (withSrcId) row.source_document_id = documentId;
           return row;
         };
-
-        const { error: prodErr } = await supabase
-          .from('upcoming_products')
-          .insert(products.map(p => makeRow(p, true)));
-
+        const { error: prodErr } = await supabase.from('upcoming_products').insert(products.map(p => makeRow(p, true)));
         if (prodErr && (prodErr.message.includes('source_document_id') || prodErr.code === '42703')) {
-          const { error: e2 } = await supabase
-            .from('upcoming_products')
-            .insert(products.map(p => makeRow(p, false)));
+          const { error: e2 } = await supabase.from('upcoming_products').insert(products.map(p => makeRow(p, false)));
           if (!e2) extractedCount = products.length;
         } else if (!prodErr) {
           extractedCount = products.length;
         }
-
         console.log(`[process:${documentId}] 제품 ${extractedCount}건 자동 등록`);
       }
     } catch (e) {
       console.warn(`[process:${documentId}] 제품 추출 오류 (무시):`, e);
     }
-
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     return Response.json({ ok: true, extracted: extractedCount });
   }
 
-  // ── C. 트랜드분석 폴더 → trend_prescriptions 파싱 ─────────────────────
-  console.log(`[process:${documentId}] 폴더 감지: "${category}" (파일: ${doc.filename})`);
-  if (category === '트랜드분석') {
-    console.log(`[process:${documentId}] 트랜드분석 분기 진입 → 처방실적 파싱`);
-    const { rows, total, error: parseError } = parseTrendBuffer(buffer, doc.filename);
-
-    if (parseError) {
-      return fail(`처방실적 파싱 실패: ${parseError}`);
+  // ── C. 트랜드분析 폴더 → trend_prescriptions 파싱 ──────────────────────
+  if (category === '트랜드분析') {
+    // 파일 크기 제한: 50MB 초과 시 오류 (Vercel 메모리 한계)
+    const sizeMB = buffer.length / 1024 / 1024;
+    if (sizeMB > 50) {
+      return fail(
+        `파일 크기(${sizeMB.toFixed(0)}MB)가 너무 큽니다. ` +
+        `처방실적 파일은 월별로 분리하여 업로드해 주세요 (권장: 50MB 이하).`
+      );
     }
 
-    if (rows.length > 0) {
-      // 같은 파일명 기존 데이터 삭제 후 재삽입
-      await supabase.from('trend_prescriptions').delete().eq('source_file', doc.filename);
+    const { rows, total, error: parseError } = parseTrendBuffer(buffer, doc.filename);
+    if (parseError) return fail(`처방실적 파싱 실패: ${parseError}`);
 
-      const CHUNK = 1000;
+    if (rows.length > 0) {
+      await supabase.from('trend_prescriptions').delete().eq('source_file', doc.filename);
+      const CHUNK = 500;
       let inserted = 0;
       for (let i = 0; i < rows.length; i += CHUNK) {
-        const { error: insErr } = await supabase
-          .from('trend_prescriptions')
-          .insert(rows.slice(i, i + CHUNK));
-        if (insErr) {
-          console.warn(`[process:${documentId}] 트렌드 삽입 오류 (batch ${i}):`, insErr.message);
-        } else {
-          inserted += rows.slice(i, i + CHUNK).length;
-        }
+        const { error: insErr } = await supabase.from('trend_prescriptions').insert(rows.slice(i, i + CHUNK));
+        if (insErr) console.warn(`[process:${documentId}] 트랜드 삽입 오류 (batch ${i}):`, insErr.message);
+        else inserted += rows.slice(i, i + CHUNK).length;
       }
-      console.log(`[process:${documentId}] 트렌드 ${inserted}/${total}건 저장 완료`);
+      console.log(`[process:${documentId}] 트랜드 ${inserted}/${total}건 저장 완료`);
+    } else {
+      console.log(`[process:${documentId}] 트랜드 유효 행 없음 (전체 ${total}행)`);
     }
 
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     return Response.json({ ok: true, inserted: rows.length });
   }
 
-  // ── D. 그 외 폴더 — 즉시 완료 (텍스트 추출 없음) ────────────────────
+  // ── D. 그 외 폴더 — 즉시 완료 ─────────────────────────────────────────
   console.log(`[process:${documentId}] 일반 폴더(${category || '미분류'}) → 즉시 완료`);
   await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
   return Response.json({ ok: true });
