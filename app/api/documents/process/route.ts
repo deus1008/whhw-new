@@ -157,8 +157,8 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, extracted: extractedCount });
   }
 
-  // ── C. 트랜드분析 폴더 → trend_prescriptions 파싱 ──────────────────────
-  if (category === '트랜드분析') {
+  // ── C. EDI 폴더 → trend_prescriptions 파싱 ──────────────────────
+  if (category === 'EDI') {
     // 파일 크기 제한: 50MB 초과 시 오류 (Vercel 메모리 한계)
     const sizeMB = buffer.length / 1024 / 1024;
     if (sizeMB > 50) {
