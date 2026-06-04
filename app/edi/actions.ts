@@ -89,6 +89,17 @@ export async function getEdiData(): Promise<{
       }
 
       const buffer = Buffer.from(await fileBlob.arrayBuffer());
+
+      // 20MB 초과 파일은 EDI 분석 범위를 벗어남 — 스킵
+      const fileSizeMB = buffer.length / 1024 / 1024;
+      if (fileSizeMB > 20) {
+        errors.push({
+          filename: doc.filename,
+          message:  `파일 크기(${fileSizeMB.toFixed(0)}MB)가 EDI 분석 범위를 초과합니다. EDI 폴더에는 20MB 이하 파일만 지원됩니다.`,
+        });
+        continue;
+      }
+
       let wb: XLSX.WorkBook;
 
       if (doc.file_type === 'csv' || doc.file_type === 'txt') {
