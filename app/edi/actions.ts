@@ -63,7 +63,7 @@ export async function getEdiData(): Promise<{
       if (blob) {
         const cached = JSON.parse(await blob.text()) as EdiReport;
         // 구버전 캐시 감지: 필수 필드 없거나 캐시 버전 불일치 시 재처리
-        const CACHE_VERSION = 10; // 처방처별 품목×CSO 2단 드릴다운 추가
+        const CACHE_VERSION = 11; // 헤더 행 자동 탐색 추가
         const d = cached.data as unknown as Record<string, unknown>;
         if (
           !Array.isArray(d.salesPersonStats) ||
@@ -125,8 +125,25 @@ export async function getEdiData(): Promise<{
         if (rowCount > bestRows) { bestRows = rowCount; bestSheet = name; }
       }
 
+      // 실제 헤더 행 탐색 (첫 행이 제목/단위 행일 경우 대비)
+      // 키워드가 포함된 행을 헤더로 사용
+      const HEADER_KW = ['담당자','cso','거래처','처방처','품목','금액','처방','청구','기간','년월'];
+      const rawArrays = XLSX.utils.sheet_to_json<unknown[]>(
+        wb.Sheets[bestSheet], { header: 1, defval: '' },
+      );
+      let headerRowIdx = 0;
+      for (let ri = 0; ri < Math.min(rawArrays.length, 10); ri++) {
+        const rowStr = (rawArrays[ri] as unknown[])
+          .map(c => String(c ?? '').toLowerCase())
+          .join('|');
+        if (HEADER_KW.some(kw => rowStr.includes(kw))) {
+          headerRowIdx = ri;
+          break;
+        }
+      }
+
       let rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-        wb.Sheets[bestSheet], { defval: '' },
+        wb.Sheets[bestSheet], { defval: '', range: headerRowIdx },
       );
 
       if (!rows.length) {
@@ -147,7 +164,7 @@ export async function getEdiData(): Promise<{
         data,
         updated_at:   doc.created_at as string,
         doc_id:       doc.id as string,
-        cacheVersion: 10,
+        cacheVersion: 11,
       };
 
       // 캐시 저장 (실패해도 무시)
