@@ -144,55 +144,66 @@ function fmtM(m: string) {
   return m.length === 6 ? `${m.slice(0,4)}.${m.slice(4,6)}` : m;
 }
 
+/* 백만원 단위 포맷 */
+function fmtM2(v: number): string {
+  if (v === 0) return '-';
+  return (v / 1_000_000).toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
 function PivotTable({ pivot, rowHeader = "항목" }: { pivot: PivotData; rowHeader?: string }) {
   if (pivot.rows.length === 0) return <NoData />;
   const { months, rows } = pivot;
 
   return (
-    <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
-        <thead>
-          <tr style={{ background: 'rgba(255,255,255,0.04)', position: 'sticky', top: 0 }}>
-            <th style={{ ...th, minWidth: 120, position: 'sticky', left: 0, background: 'rgba(17,24,39,0.95)' }}>
-              {rowHeader}
-            </th>
-            {months.map(m => (
-              <th key={m} style={{ ...th, textAlign: 'right', minWidth: 80 }}>{fmtM(m)}</th>
-            ))}
-            <th style={{ ...th, textAlign: 'right', minWidth: 90, color: '#a5b4fc' }}>합계</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => {
-            const rowBg = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)';
-            return (
-              <tr key={row.label} style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: rowBg }}>
-                <td style={{
-                  ...td, fontWeight: 600, position: 'sticky', left: 0,
-                  background: i % 2 === 0 ? 'rgba(17,24,39,0.95)' : 'rgba(20,26,44,0.95)',
-                  minWidth: 120,
-                }}>
-                  {row.label}
-                </td>
-                {months.map(m => {
-                  const v = row.monthly[m] ?? 0;
-                  return (
-                    <td key={m} style={{
-                      ...td, textAlign: 'right', fontVariantNumeric: 'tabular-nums',
-                      color: v > 0 ? 'rgba(240,244,255,0.85)' : 'rgba(148,163,184,0.3)',
-                    }}>
-                      {v > 0 ? v.toLocaleString() : '-'}
-                    </td>
-                  );
-                })}
-                <td style={{ ...td, textAlign: 'right', fontWeight: 700, color: '#a5b4fc', fontVariantNumeric: 'tabular-nums' }}>
-                  {row.total.toLocaleString()}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div>
+      <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'right', margin: '0 0 0.3rem' }}>
+        단위: 백만원
+      </p>
+      <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
+          <thead>
+            <tr style={{ background: 'rgba(255,255,255,0.04)', position: 'sticky', top: 0 }}>
+              <th style={{ ...th, minWidth: 120, position: 'sticky', left: 0, background: 'rgba(17,24,39,0.95)' }}>
+                {rowHeader}
+              </th>
+              {months.map(m => (
+                <th key={m} style={{ ...th, textAlign: 'right', minWidth: 72 }}>{fmtM(m)}</th>
+              ))}
+              <th style={{ ...th, textAlign: 'right', minWidth: 80, color: '#a5b4fc' }}>합계</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => {
+              const rowBg = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)';
+              return (
+                <tr key={row.label} style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: rowBg }}>
+                  <td style={{
+                    ...td, fontWeight: 600, position: 'sticky', left: 0,
+                    background: i % 2 === 0 ? 'rgba(17,24,39,0.95)' : 'rgba(20,26,44,0.95)',
+                    minWidth: 120,
+                  }}>
+                    {row.label}
+                  </td>
+                  {months.map(m => {
+                    const v = row.monthly[m] ?? 0;
+                    return (
+                      <td key={m} style={{
+                        ...td, textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+                        color: v > 0 ? 'rgba(240,244,255,0.85)' : 'rgba(148,163,184,0.3)',
+                      }}>
+                        {fmtM2(v)}
+                      </td>
+                    );
+                  })}
+                  <td style={{ ...td, textAlign: 'right', fontWeight: 700, color: '#a5b4fc', fontVariantNumeric: 'tabular-nums' }}>
+                    {fmtM2(row.total)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
