@@ -85,10 +85,12 @@ export function parseTrendBuffer(buffer: Buffer, fileName: string): ParseTrendRe
       cellNF:      false,
       cellText:    false,
       cellDates:   false,
+      cellStyles:  false,
       sheetStubs:  false,
+      bookSheets:  true,   // 시트 목록만 미리 로드
     });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    rawRows  = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+    rawRows  = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '', raw: true });
   } catch (e) {
     return { rows: [], total: 0, error: `파싱 실패: ${e instanceof Error ? e.message : String(e)}` };
   }

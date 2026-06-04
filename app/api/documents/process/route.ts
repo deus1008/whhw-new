@@ -159,15 +159,6 @@ export async function POST(request: Request) {
 
   // ── C. EDI 폴더 → trend_prescriptions 파싱 ──────────────────────
   if (category === 'EDI') {
-    // 파일 크기 제한: 50MB 초과 시 오류 (Vercel 메모리 한계)
-    const sizeMB = buffer.length / 1024 / 1024;
-    if (sizeMB > 50) {
-      return fail(
-        `파일 크기(${sizeMB.toFixed(0)}MB)가 너무 큽니다. ` +
-        `처방실적 파일은 월별로 분리하여 업로드해 주세요 (권장: 50MB 이하).`
-      );
-    }
-
     const { rows, total, error: parseError } = parseTrendBuffer(buffer, doc.filename);
     if (parseError) return fail(`처방실적 파싱 실패: ${parseError}`);
 
