@@ -348,11 +348,6 @@ export default function TrendClient() {
                 {m === 'chart' ? '📊 차트' : '📋 테이블'}
               </button>
             ))}
-            {pivot && (
-              <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', alignSelf: 'center' }}>
-                차원 × 월 피벗
-              </span>
-            )}
           </div>
         </div>
 
