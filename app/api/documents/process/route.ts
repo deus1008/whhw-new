@@ -3,6 +3,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { extractText } from '@/lib/rag/extract';
 import { extractProductsFromText } from '@/lib/products/extract';
 import { parseDrugPriceBuffer } from '@/lib/drug-prices/parse';
+import { parseTrendBuffer }    from '@/lib/trend/parse';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -187,8 +188,39 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, extracted: extractedCount });
   }
 
-  // ── C. 그 외 폴더 — 파일 검증만 후 즉시 완료 ──────────────────────────
-  // (텍스트 추출 없음 → 대용량 파일도 메모리 초과 없음)
+  // ── C. 트렌드분석 폴더 → trend_prescriptions 파싱 ─────────────────────
+  if (category === '트렌드분석') {
+    console.log(`[process:${documentId}] 트렌드분석 폴더 → 처방실적 파싱 시작`);
+    const { rows, total, error: parseError } = parseTrendBuffer(buffer, doc.filename);
+
+    if (parseError) {
+      return fail(`처방실적 파싱 실패: ${parseError}`);
+    }
+
+    if (rows.length > 0) {
+      // 같은 파일명 기존 데이터 삭제 후 재삽입
+      await supabase.from('trend_prescriptions').delete().eq('source_file', doc.filename);
+
+      const CHUNK = 1000;
+      let inserted = 0;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const { error: insErr } = await supabase
+          .from('trend_prescriptions')
+          .insert(rows.slice(i, i + CHUNK));
+        if (insErr) {
+          console.warn(`[process:${documentId}] 트렌드 삽입 오류 (batch ${i}):`, insErr.message);
+        } else {
+          inserted += rows.slice(i, i + CHUNK).length;
+        }
+      }
+      console.log(`[process:${documentId}] 트렌드 ${inserted}/${total}건 저장 완료`);
+    }
+
+    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    return Response.json({ ok: true, inserted: rows.length });
+  }
+
+  // ── D. 그 외 폴더 — 즉시 완료 (텍스트 추출 없음) ────────────────────
   console.log(`[process:${documentId}] 일반 폴더(${category || '미분류'}) → 즉시 완료`);
   await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
   return Response.json({ ok: true });

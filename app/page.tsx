@@ -52,6 +52,15 @@ const NAV_ITEMS = [
     external: false,
   },
   {
+    href: '/trend',
+    icon: '📈',
+    label: '트렌드분석',
+    color: '#67e8f9',
+    bg:   'rgba(34,211,238,0.10)',
+    bd:   'rgba(34,211,238,0.22)',
+    external: false,
+  },
+  {
     href: '/performance',
     icon: '📊',
     label: '마감분석',
