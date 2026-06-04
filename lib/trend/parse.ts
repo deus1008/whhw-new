@@ -177,7 +177,7 @@ export function parseTrendBuffer(buffer: Buffer, fileName: string): ParseTrendRe
   if (!COL.amount) {
     return {
       rows: [], total: rawRows.length, skipped: rawRows.length,
-      error: `처방금액 컬럼을 찾을 수 없습니다. 감지된 컬럼: [${keys.slice(0, 12).join(', ')}]`,
+      error: `처방금액 컬럼을 찾을 수 없습니다. 감지된 컬럼: [${normKeys.slice(0, 12).join(', ')}]`,
     };
   }
 
