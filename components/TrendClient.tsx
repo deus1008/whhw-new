@@ -345,17 +345,6 @@ export default function TrendClient() {
         </div>
       </div>
 
-      {/* ── 월별 추이 (항상 표시) ── */}
-      <div style={card}>
-        <h3 style={{ margin: '0 0 1rem', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-          📅 월별 추이
-        </h3>
-        {loading ? (
-          <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '1rem 0' }}>⏳</p>
-        ) : (
-          <LineChart items={monthlyItems} />
-        )}
-      </div>
 
       {/* ── 탭 ── */}
       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
