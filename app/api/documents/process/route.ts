@@ -188,10 +188,10 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, extracted: extractedCount });
   }
 
-  // ── C. 트렌드분석 폴더 → trend_prescriptions 파싱 ─────────────────────
+  // ── C. 트랜드분석 폴더 → trend_prescriptions 파싱 ─────────────────────
   console.log(`[process:${documentId}] 폴더 감지: "${category}" (파일: ${doc.filename})`);
-  if (category === '트렌드분석') {
-    console.log(`[process:${documentId}] 트렌드분석 분기 진입 → 처방실적 파싱`);
+  if (category === '트랜드분석') {
+    console.log(`[process:${documentId}] 트랜드분석 분기 진입 → 처방실적 파싱`);
     const { rows, total, error: parseError } = parseTrendBuffer(buffer, doc.filename);
 
     if (parseError) {
