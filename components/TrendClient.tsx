@@ -307,42 +307,7 @@ export default function TrendClient() {
           </div>
         </div>
 
-        {/* 필터 */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'center' }}>
-          <input type="month" value={monthFrom} onChange={e => setMonthFrom(e.target.value)} style={sel} title="시작월" />
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>~</span>
-          <input type="month" value={monthTo} onChange={e => setMonthTo(e.target.value)} style={sel} title="종료월" />
-
-          <select value={filterRep} onChange={e => setFilterRep(e.target.value)} style={sel}>
-            <option value="">전체 담당자</option>
-            {(meta?.reps ?? []).map(v => <option key={v} value={v}>{v}</option>)}
-          </select>
-          <select value={filterCso} onChange={e => setFilterCso(e.target.value)} style={sel}>
-            <option value="">전체 CSO</option>
-            {(meta?.csos ?? []).map(v => <option key={v} value={v}>{v}</option>)}
-          </select>
-          <select value={filterProd} onChange={e => setFilterProd(e.target.value)} style={sel}>
-            <option value="">전체 품목</option>
-            {(meta?.products ?? []).map(v => <option key={v} value={v}>{v}</option>)}
-          </select>
-          <select value={filterType} onChange={e => setFilterType(e.target.value)} style={sel}>
-            <option value="">전체 종별</option>
-            {(meta?.types ?? []).map(v => <option key={v} value={v}>{v}</option>)}
-          </select>
-          <select value={filterTier} onChange={e => setFilterTier(e.target.value)} style={sel}>
-            <option value="">전체 구간</option>
-            {TIER_ORDER.map(v => <option key={v} value={v}>{v}</option>)}
-          </select>
-
-          {(monthFrom || monthTo || filterRep || filterCso || filterProd || filterType || filterTier) && (
-            <button onClick={() => {
-              setMonthFrom(''); setMonthTo('');
-              setFilterRep(''); setFilterCso(''); setFilterProd(''); setFilterType(''); setFilterTier('');
-            }} style={{ padding: '0.38rem 0.75rem', borderRadius: 7, cursor: 'pointer', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontSize: '0.78rem', fontFamily: 'inherit' }}>
-              필터 초기화
-            </button>
-          )}
-        </div>
+        {/* 필터 — 현재 비활성화 */}
       </div>
 
 
