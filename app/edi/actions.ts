@@ -34,24 +34,29 @@ function getSvc() {
 
 /* ── 헤더 행 자동 탐색 (BOM·개행 정규화, 다중 전략) ── */
 function detectHeaderRow(rawArrays: unknown[][]): number {
-  const KW = ['담당자','담당','cso','거래처','처방처','처방처명','병원','요양기관','품목','품목명','금액','처방','청구','기간','년월','사원','법인','기관','성명','주민','약품'];
+  // 실제 컬럼명 집합 (사용자 파일 기준 정확 매칭 우선)
+  const EXACT_COLS = new Set(['담당자','내부담당자','담당cso','cso명','처방처','처방처명','처방액','처방금액','최종실적','품목명','약품명']);
+  const KW = ['담당자','담당','cso','거래처','처방처','품목','금액','처방','청구','기간','년월','사원','법인','성명'];
 
-  // 각 행의 점수 계산: 비어있지 않은 셀 수 × 키워드 수
-  // 제목 행은 비어있는 셀이 많아 점수가 낮음
   let bestScore = -1;
   let bestRow   = 0;
 
   for (let ri = 0; ri < Math.min(rawArrays.length, 20); ri++) {
-    const cells    = (rawArrays[ri] as unknown[]).map(c => String(c??'').replace(/^﻿/,'').replace(/[\r\n]/g,' ').trim());
+    const cells    = (rawArrays[ri] as unknown[]).map(c => String(c??'').replace(/^﻿/,'').replace(/[\r\n\s]+/g,' ').trim());
     const nonEmpty = cells.filter(Boolean);
-    if (nonEmpty.length < 3) continue; // 비어 있는 셀이 너무 많으면 제목 행일 가능성↑
+    if (nonEmpty.length < 3) continue;
 
-    const rowStr  = nonEmpty.map(c => c.toLowerCase()).join('|');
-    const kwHits  = KW.filter(kw => rowStr.includes(kw)).length;
+    const lower = nonEmpty.map(c => c.toLowerCase().replace(/\s/g,''));
+
+    // 전략1: 정확한 컬럼명이 3개 이상 → 즉시 반환 (가장 신뢰도 높음)
+    const exactHits = lower.filter(c => EXACT_COLS.has(c)).length;
+    if (exactHits >= 3) return ri;
+
+    // 전략2: 점수 기반
+    const rowStr   = lower.join('|');
+    const kwHits   = KW.filter(kw => rowStr.includes(kw)).length;
     const korCells = nonEmpty.filter(c => /[가-힣]/.test(c)).length;
-
-    // 점수: 비어있지 않은 셀 수 + 키워드 수 × 3 + 한글 셀 수
-    const score = nonEmpty.length + kwHits * 3 + korCells;
+    const score    = nonEmpty.length + exactHits * 5 + kwHits * 2 + korCells;
     if (score > bestScore) { bestScore = score; bestRow = ri; }
   }
 
@@ -88,7 +93,7 @@ export async function analyzeEdiFile(docId: string): Promise<{
 
   const d = doc as Record<string,string>;
   const cacheKey = `${CACHE_PREFIX}${d.id}.json`;
-  const CV = 13;
+  const CV = 14;
   try {
     const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
     if (blob) {
@@ -172,7 +177,7 @@ export async function getEdiData(): Promise<{
       if (blob) {
         const cached = JSON.parse(await blob.text()) as EdiReport;
         // 구버전 캐시 감지: 필수 필드 없거나 캐시 버전 불일치 시 재처리
-        const CACHE_VERSION = 13; // 헤더 행 자동 탐색 추가
+        const CACHE_VERSION = 14; // 헤더 행 자동 탐색 추가
         const d = cached.data as unknown as Record<string, unknown>;
         if (
           !Array.isArray(d.salesPersonStats) ||
@@ -263,7 +268,7 @@ export async function getEdiData(): Promise<{
         data,
         updated_at:   doc.created_at as string,
         doc_id:       doc.id as string,
-        cacheVersion: 13,
+        cacheVersion: 14,
       };
 
       // 캐시 저장 (실패해도 무시)
