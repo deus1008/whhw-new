@@ -154,6 +154,11 @@ function PivotTable({ pivot, rowHeader = "항목" }: { pivot: PivotData; rowHead
   if (pivot.rows.length === 0) return <NoData />;
   const { months, rows } = pivot;
 
+  // 월별 열 합계
+  const colTotals = months.map(m =>
+    rows.reduce((s, r) => s + (r.monthly[m] ?? 0), 0)
+  );
+
   return (
     <div>
       <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'right', margin: '0 0 0.3rem' }}>
@@ -169,7 +174,6 @@ function PivotTable({ pivot, rowHeader = "항목" }: { pivot: PivotData; rowHead
               {months.map(m => (
                 <th key={m} style={{ ...th, textAlign: 'right', minWidth: 72 }}>{fmtM(m)}</th>
               ))}
-              <th style={{ ...th, textAlign: 'right', minWidth: 80, color: '#a5b4fc' }}>합계</th>
             </tr>
           </thead>
           <tbody>
@@ -195,13 +199,23 @@ function PivotTable({ pivot, rowHeader = "항목" }: { pivot: PivotData; rowHead
                       </td>
                     );
                   })}
-                  <td style={{ ...td, textAlign: 'right', fontWeight: 700, color: '#a5b4fc', fontVariantNumeric: 'tabular-nums' }}>
-                    {fmtM2(row.total)}
-                  </td>
                 </tr>
               );
             })}
           </tbody>
+          {/* 열 합계 행 */}
+          <tfoot>
+            <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', background: 'rgba(99,102,241,0.05)' }}>
+              <td style={{ ...td, fontWeight: 700, position: 'sticky', left: 0, background: 'rgba(99,102,241,0.05)' }}>
+                합계
+              </td>
+              {colTotals.map((v, i) => (
+                <td key={i} style={{ ...td, textAlign: 'right', fontWeight: 700, color: '#a5b4fc', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtM2(v)}
+                </td>
+              ))}
+            </tr>
+          </tfoot>
         </table>
       </div>
     </div>
