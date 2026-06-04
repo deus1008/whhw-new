@@ -88,7 +88,7 @@ export async function analyzeEdiFile(docId: string): Promise<{
 
   const d = doc as Record<string,string>;
   const cacheKey = `${CACHE_PREFIX}${d.id}.json`;
-  const CV = 12;
+  const CV = 13;
   try {
     const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
     if (blob) {
@@ -124,6 +124,10 @@ export async function analyzeEdiFile(docId: string): Promise<{
     }
     const rawArrays1 = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[bestSheet], { header: 1, defval: '' });
     const headerRowIdx = detectHeaderRow(rawArrays1);
+    // 디버그: 감지된 헤더 행 정보 로깅
+    const debugRow = (rawArrays1[headerRowIdx] as unknown[] ?? []).map(c => String(c??'').trim()).filter(Boolean);
+    console.log(`[EDI] ${d.filename}: 헤더행=${headerRowIdx}, 셀=${debugRow.slice(0,8).join('|')}`);
+
     let rows = XLSX.utils.sheet_to_json<Record<string,unknown>>(wb.Sheets[bestSheet], { defval: '', range: headerRowIdx });
     if (rows.length > MAX_ROWS) rows = rows.slice(0, MAX_ROWS);
     const data = processEdi(rows, d.filename);
@@ -168,7 +172,7 @@ export async function getEdiData(): Promise<{
       if (blob) {
         const cached = JSON.parse(await blob.text()) as EdiReport;
         // 구버전 캐시 감지: 필수 필드 없거나 캐시 버전 불일치 시 재처리
-        const CACHE_VERSION = 12; // 헤더 행 자동 탐색 추가
+        const CACHE_VERSION = 13; // 헤더 행 자동 탐색 추가
         const d = cached.data as unknown as Record<string, unknown>;
         if (
           !Array.isArray(d.salesPersonStats) ||
@@ -259,7 +263,7 @@ export async function getEdiData(): Promise<{
         data,
         updated_at:   doc.created_at as string,
         doc_id:       doc.id as string,
-        cacheVersion: 12,
+        cacheVersion: 13,
       };
 
       // 캐시 저장 (실패해도 무시)
