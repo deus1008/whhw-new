@@ -58,6 +58,22 @@ export type ParseTrendResult = {
   error?: string;
 };
 
+/* ── 컬럼명 유연 검색 (공백·괄호 포함 변형 대응) ── */
+function findCol(keys: string[], candidates: string[]): string | undefined {
+  // 1) 정확 매칭
+  for (const c of candidates) {
+    if (keys.includes(c)) return c;
+  }
+  // 2) trim·소문자 후 포함 매칭
+  const lower = candidates.map(c => c.toLowerCase().replace(/\s/g, ''));
+  for (const k of keys) {
+    const kl = k.toLowerCase().replace(/\s/g, '');
+    const idx = lower.findIndex(c => kl.includes(c) || c.includes(kl));
+    if (idx >= 0) return k;
+  }
+  return undefined;
+}
+
 export function parseTrendBuffer(buffer: Buffer, fileName: string): ParseTrendResult {
   let rawRows: Record<string, unknown>[];
   try {
@@ -70,26 +86,53 @@ export function parseTrendBuffer(buffer: Buffer, fileName: string): ParseTrendRe
 
   if (rawRows.length === 0) return { rows: [], total: 0, error: '데이터 없음' };
 
+  // 실제 컬럼명 탐색 (BOM·공백 포함 변형 대응)
+  const keys = Object.keys(rawRows[0]);
+  const COL = {
+    month:    findCol(keys, ['처방월','처방년월','처방연월','청구년월','년월']),
+    rep:      findCol(keys, ['내부담당자','담당자','MR','담당MR','영업담당자']),
+    cso:      findCol(keys, ['담당CSO','CSO명','CSO','법인명','수탁법인']),
+    hospital: findCol(keys, ['처방처명','병원명','거래처명','처방처','거래처']),
+    product:  findCol(keys, ['품목명','제품명','약품명','품명']),
+    type:     findCol(keys, ['종별구분','종별','요양기관종별','기관종별']),
+    comm:     findCol(keys, ['합산수수료','수수료율','수수료','수수료(%)','합산수수료율']),
+    amount:   findCol(keys, ['처방금액','처방액','원외처방금액','처방금액(원)','금액']),
+  };
+
+  // 진단용 로그 (Vercel 로그에서 확인 가능)
+  console.log(`[trend-parse] 파일: ${fileName}`);
+  console.log(`[trend-parse] 전체 컬럼(${keys.length}):`, keys.slice(0, 15).join(', '));
+  console.log(`[trend-parse] 매핑:`, JSON.stringify(COL));
+
+  if (!COL.amount) {
+    return {
+      rows:  [],
+      total: rawRows.length,
+      error: `처방금액 컬럼을 찾을 수 없습니다. 감지된 컬럼: [${keys.slice(0, 10).join(', ')}]`,
+    };
+  }
+
   const rows: TrendRow[] = [];
   for (const raw of rawRows) {
-    const amount = parseNum(raw['처방금액']);
-    if (!amount || amount <= 0) continue;   // 처방금액 없는 행 스킵
+    const amount = parseNum(COL.amount ? raw[COL.amount] : null);
+    if (!amount || amount <= 0) continue;
 
-    const commRate = parseNum(raw['합산수수료']);
+    const commRate = parseNum(COL.comm ? raw[COL.comm] : null);
 
     rows.push({
       source_file:         fileName,
-      prescription_month:  normalizeMonth(String(raw['처방월'] ?? '')),
-      sales_rep:           parseStr(raw['내부담당자']),
-      cso_name:            parseStr(raw['담당CSO']),
-      hospital_name:       parseStr(raw['처방처명']),
-      product_name:        parseStr(raw['품목명']),
-      hospital_type:       parseStr(raw['종별구분']),
+      prescription_month:  normalizeMonth(String(COL.month ? raw[COL.month] : '')),
+      sales_rep:           parseStr(COL.rep      ? raw[COL.rep]      : null),
+      cso_name:            parseStr(COL.cso      ? raw[COL.cso]      : null),
+      hospital_name:       parseStr(COL.hospital ? raw[COL.hospital] : null),
+      product_name:        parseStr(COL.product  ? raw[COL.product]  : null),
+      hospital_type:       parseStr(COL.type     ? raw[COL.type]     : null),
       commission_rate:     commRate,
       commission_tier:     getCommissionTier(commRate),
       prescription_amount: amount,
     });
   }
 
+  console.log(`[trend-parse] 유효 행: ${rows.length} / 전체: ${rawRows.length}`);
   return { rows, total: rawRows.length };
 }
