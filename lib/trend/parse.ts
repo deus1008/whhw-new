@@ -88,6 +88,21 @@ function parseStr(v: unknown): string | null {
   return s || null;
 }
 
+/* ── 파일명에서 연월 추출 ──
+   "EDI현황조회_2026-04.xlsx" → "202604"
+   "처방실적_2025.08.xlsx"   → "202508"
+   "data_202506.xlsx"         → "202506"
+── */
+function monthFromFileName(fileName: string): string | null {
+  // YYYY-MM 또는 YYYY.MM 패턴
+  const m1 = fileName.match(/(\d{4})[-.](\d{2})/);
+  if (m1) return `${m1[1]}${m1[2]}`;
+  // YYYYMM 6자리 패턴
+  const m2 = fileName.match(/(\d{6})/);
+  if (m2) return m2[1];
+  return null;
+}
+
 export type ParseTrendResult = {
   rows:  TrendRow[];
   total: number;
@@ -152,6 +167,12 @@ export function parseTrendBuffer(buffer: Buffer, fileName: string): ParseTrendRe
     };
   }
 
+  // 파일명에서 연월 추출 (처방월 컬럼 파싱 실패 시 fallback)
+  const fileMonth = monthFromFileName(fileName);
+  if (fileMonth) {
+    console.log(`[trend-parse] 파일명 연월: ${fileMonth} (from "${fileName}")`);
+  }
+
   const rows: TrendRow[] = [];
   let skipped = 0;
 
@@ -162,7 +183,8 @@ export function parseTrendBuffer(buffer: Buffer, fileName: string): ParseTrendRe
     if (amount === null || amount <= 0) { skipped++; continue; }
 
     const commRate = parseNum(COL.comm ? raw[COL.comm] : null);
-    const month    = normalizeMonth(COL.month ? raw[COL.month] : null);
+    // 처방월 컬럼 파싱 → null이면 파일명에서 추출한 연월 사용
+    const month    = normalizeMonth(COL.month ? raw[COL.month] : null) ?? fileMonth;
 
     rows.push({
       source_file:         fileName,
