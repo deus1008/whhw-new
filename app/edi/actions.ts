@@ -102,7 +102,7 @@ export async function analyzeEdiFile(docId: string): Promise<{
 
   const d = doc as Record<string,string>;
   const cacheKey = `${CACHE_PREFIX}${d.id}.json`;
-  const CV = 15;
+  const CV = 16;
   try {
     const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
     if (blob) {
@@ -136,16 +136,28 @@ export async function analyzeEdiFile(docId: string): Promise<{
       const range = XLSX.utils.decode_range(ref);
       if (range.e.r - range.s.r > bestRows) { bestRows = range.e.r - range.s.r; bestSheet = name; }
     }
-    const rawArrays1 = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[bestSheet], { header: 1, defval: '' });
-    const headerRowIdx = detectHeaderRow(rawArrays1);
-    // 디버그: 감지된 헤더 행 정보 로깅
-    const debugRow = (rawArrays1[headerRowIdx] as unknown[] ?? []).map(c => String(c??'').trim()).filter(Boolean);
-    console.log(`[EDI] ${d.filename}: 헤더행=${headerRowIdx}, 셀=${debugRow.slice(0,8).join('|')}`);
-
-    let rows = XLSX.utils.sheet_to_json<Record<string,unknown>>(wb.Sheets[bestSheet], { defval: '', range: headerRowIdx });
-    if (rows.length > MAX_ROWS) rows = rows.slice(0, MAX_ROWS);
-    const data = processEdi(rows, d.filename);
-    const report = { period: data.period || d.filename, filename: d.filename, data, updated_at: d.created_at, doc_id: d.id, cacheVersion: CV } as EdiReport & { cacheVersion: number };
+    // 행 0-9를 순서대로 헤더로 시도 → processEdi 성공 시 사용
+    let data: ReturnType<typeof processEdi> | null = null;
+    let usedHeaderRow = 0;
+    for (let hri = 0; hri <= 9; hri++) {
+      try {
+        let tryRows = XLSX.utils.sheet_to_json<Record<string,unknown>>(
+          wb.Sheets[bestSheet], { defval: '', range: hri },
+        );
+        if (tryRows.length === 0) continue;
+        if (tryRows.length > MAX_ROWS) tryRows = tryRows.slice(0, MAX_ROWS);
+        const tryData = processEdi(tryRows, d.filename);
+        // salesperson 또는 hospital 데이터가 있으면 성공
+        if (tryData.salesPersonStats.length > 0 || tryData.hospitalRanking.length > 0) {
+          data = tryData;
+          usedHeaderRow = hri;
+          console.log(`[EDI] ${d.filename}: 헤더행=${hri} 성공 (담당자 ${tryData.salesPersonStats.length}명)`);
+          break;
+        }
+      } catch { /* 이 행은 헤더가 아님, 다음 시도 */ }
+    }
+    if (!data) throw new Error('유효한 헤더 행을 찾을 수 없습니다 (행 0-9 시도 실패)');
+    const report = { period: data!.period || d.filename, filename: d.filename, data, updated_at: d.created_at, doc_id: d.id, cacheVersion: CV } as EdiReport & { cacheVersion: number };
     try {
       const cBlob = new Blob([JSON.stringify(report)], { type: 'application/json' });
       await svc.storage.from(BUCKET_CACHE).upload(cacheKey, cBlob, { upsert: true });
@@ -186,7 +198,7 @@ export async function getEdiData(): Promise<{
       if (blob) {
         const cached = JSON.parse(await blob.text()) as EdiReport;
         // 구버전 캐시 감지: 필수 필드 없거나 캐시 버전 불일치 시 재처리
-        const CACHE_VERSION = 15; // 헤더 행 자동 탐색 추가
+        const CACHE_VERSION = 16; // 헤더 행 자동 탐색 추가
         const d = cached.data as unknown as Record<string, unknown>;
         if (
           !Array.isArray(d.salesPersonStats) ||
@@ -277,7 +289,7 @@ export async function getEdiData(): Promise<{
         data,
         updated_at:   doc.created_at as string,
         doc_id:       doc.id as string,
-        cacheVersion: 15,
+        cacheVersion: 16,
       };
 
       // 캐시 저장 (실패해도 무시)
