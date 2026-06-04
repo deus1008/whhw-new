@@ -147,7 +147,7 @@ function fmtM(m: string) {
 /* 백만원 단위 포맷 */
 function fmtM2(v: number): string {
   if (v === 0) return '-';
-  return (v / 1_000_000).toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return Math.round(v / 1_000_000).toLocaleString('ko-KR');
 }
 
 function PivotTable({ pivot, rowHeader = "항목" }: { pivot: PivotData; rowHeader?: string }) {
