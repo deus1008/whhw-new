@@ -265,7 +265,7 @@ export default function TrendClient() {
 
   const labelMap: Record<TabKey, string> = {
     rep: '담당자', cso: '담당CSO',
-    hospital: '처방처', product: '품목명', type: '종별구분', tier: '수수료구간',
+    hospital: '처방처', product: '품목명', type: '종별구분',
   };
 
   return (
