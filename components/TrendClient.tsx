@@ -177,6 +177,17 @@ function PivotTable({ pivot, rowHeader = "항목" }: { pivot: PivotData; rowHead
             </tr>
           </thead>
           <tbody>
+            {/* 열 합계 행 — 헤더 바로 아래 */}
+            <tr style={{ borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: '2px solid rgba(255,255,255,0.1)', background: 'rgba(99,102,241,0.05)' }}>
+              <td style={{ ...td, fontWeight: 700, position: 'sticky', left: 0, background: 'rgba(99,102,241,0.05)' }}>
+                합계
+              </td>
+              {colTotals.map((v, i) => (
+                <td key={i} style={{ ...td, textAlign: 'right', fontWeight: 700, color: '#a5b4fc', fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtM2(v)}
+                </td>
+              ))}
+            </tr>
             {rows.map((row, i) => {
               const rowBg = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)';
               return (
@@ -203,19 +214,6 @@ function PivotTable({ pivot, rowHeader = "항목" }: { pivot: PivotData; rowHead
               );
             })}
           </tbody>
-          {/* 열 합계 행 */}
-          <tfoot>
-            <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', background: 'rgba(99,102,241,0.05)' }}>
-              <td style={{ ...td, fontWeight: 700, position: 'sticky', left: 0, background: 'rgba(99,102,241,0.05)' }}>
-                합계
-              </td>
-              {colTotals.map((v, i) => (
-                <td key={i} style={{ ...td, textAlign: 'right', fontWeight: 700, color: '#a5b4fc', fontVariantNumeric: 'tabular-nums' }}>
-                  {fmtM2(v)}
-                </td>
-              ))}
-            </tr>
-          </tfoot>
         </table>
       </div>
     </div>
