@@ -86,12 +86,12 @@ export default function EdiClient({ files, isAdmin }: Props) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
       {(analyzing || isPending) && <LoadingOverlay />}
 
-      {/* 파일 선택 + 分析 버튼 */}
+      {/* 파일 선택 + 분석 버튼 */}
       <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>🗂 EDI 分析 대시보드</h2>
-            <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>파일을 선택하고 分析 버튼을 눌러주세요</p>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>🗂 EDI 분석 대시보드</h2>
+            <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>파일을 선택하고 분석 버튼을 눌러주세요</p>
           </div>
           {isAdmin && (
             <button onClick={handleRefresh} disabled={isPending}
@@ -121,7 +121,7 @@ export default function EdiClient({ files, isAdmin }: Props) {
             disabled={analyzing || !selectedId}
             style={{ padding: '0.55rem 1.4rem', borderRadius: 9, cursor: analyzing ? 'not-allowed' : 'pointer', background: analyzing ? 'rgba(168,85,247,0.08)' : 'rgba(168,85,247,0.18)', border: '1px solid rgba(168,85,247,0.4)', color: '#c4b5fd', fontSize: '0.88rem', fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
           >
-            {analyzing ? '⏳ 분析 중…' : '▶ 分析'}
+            {analyzing ? '⏳ 분析 중…' : '▶ 분석'}
           </button>
         </div>
 
@@ -131,7 +131,7 @@ export default function EdiClient({ files, isAdmin }: Props) {
 
       {report
         ? <EdiDashboard data={report.data} />
-        : !analyzing && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem 0' }}>파일을 선택하고 分析 버튼을 눌러주세요.</p>
+        : !analyzing && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem 0' }}>파일을 선택하고 분석 버튼을 눌러주세요.</p>
       }
     </div>
   );

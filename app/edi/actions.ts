@@ -31,6 +31,26 @@ function getSvc() {
 }
 
 /* ── EDI 폴더 파일 → 분석 결과 반환 ────────────────────────── */
+
+/* ── 헤더 행 자동 탐색 (BOM·개행 정규화, 다중 전략) ── */
+function detectHeaderRow(rawArrays: unknown[][]): number {
+  // 전략1: EDI 키워드 포함 행
+  const KW = ['담당자','담당','cso','거래처','처방처','처방처명','병원','요양기관','품목','품목명','금액','처방','청구','기간','년월','사원','법인','기관','성명','주민','약품'];
+  for (let ri = 0; ri < Math.min(rawArrays.length, 20); ri++) {
+    const rowStr = (rawArrays[ri] as unknown[])
+      .map(c => String(c??'').replace(/^﻿/,'').replace(/[\r\n]/g,' ').toLowerCase())
+      .join('|');
+    if (KW.some(kw => rowStr.includes(kw))) return ri;
+  }
+  // 전략2: 한글 셀이 3개 이상인 행
+  for (let ri = 0; ri < Math.min(rawArrays.length, 20); ri++) {
+    const cells = (rawArrays[ri] as unknown[]).map(c => String(c??'').trim()).filter(Boolean);
+    const korCount = cells.filter(c => /[가-힣]/.test(c)).length;
+    if (korCount >= 3) return ri;
+  }
+  return 0;
+}
+
 /* ── EDI 폴더 파일 목록만 반환 ── */
 export async function getEdiFileList(): Promise<{
   files: { id: string; filename: string; created_at: string }[];
@@ -95,13 +115,8 @@ export async function analyzeEdiFile(docId: string): Promise<{
       const range = XLSX.utils.decode_range(ref);
       if (range.e.r - range.s.r > bestRows) { bestRows = range.e.r - range.s.r; bestSheet = name; }
     }
-    const HEADER_KW = ['담당자','cso','거래처','처방처','품목','금액','처방','청구','기간','년월'];
-    const rawArrays = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[bestSheet], { header: 1, defval: '' });
-    let headerRowIdx = 0;
-    for (let ri = 0; ri < Math.min(rawArrays.length, 10); ri++) {
-      const rowStr = (rawArrays[ri] as unknown[]).map(c2 => String(c2??'').toLowerCase()).join('|');
-      if (HEADER_KW.some(kw => rowStr.includes(kw))) { headerRowIdx = ri; break; }
-    }
+    const rawArrays1 = XLSX.utils.sheet_to_json<unknown[]>(wb.Sheets[bestSheet], { header: 1, defval: '' });
+    const headerRowIdx = detectHeaderRow(rawArrays1);
     let rows = XLSX.utils.sheet_to_json<Record<string,unknown>>(wb.Sheets[bestSheet], { defval: '', range: headerRowIdx });
     if (rows.length > MAX_ROWS) rows = rows.slice(0, MAX_ROWS);
     const data = processEdi(rows, d.filename);
@@ -210,20 +225,10 @@ export async function getEdiData(): Promise<{
 
       // 실제 헤더 행 탐색 (첫 행이 제목/단위 행일 경우 대비)
       // 키워드가 포함된 행을 헤더로 사용
-      const HEADER_KW = ['담당자','cso','거래처','처방처','품목','금액','처방','청구','기간','년월'];
-      const rawArrays = XLSX.utils.sheet_to_json<unknown[]>(
+      const rawArrays2 = XLSX.utils.sheet_to_json<unknown[]>(
         wb.Sheets[bestSheet], { header: 1, defval: '' },
       );
-      let headerRowIdx = 0;
-      for (let ri = 0; ri < Math.min(rawArrays.length, 10); ri++) {
-        const rowStr = (rawArrays[ri] as unknown[])
-          .map(c => String(c ?? '').toLowerCase())
-          .join('|');
-        if (HEADER_KW.some(kw => rowStr.includes(kw))) {
-          headerRowIdx = ri;
-          break;
-        }
-      }
+      const headerRowIdx = detectHeaderRow(rawArrays2);
 
       let rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
         wb.Sheets[bestSheet], { defval: '', range: headerRowIdx },
