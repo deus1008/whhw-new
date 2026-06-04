@@ -6,7 +6,6 @@ type AggItem  = { label: string; amount: number };
 type MetaData = { reps: string[]; csos: string[]; products: string[]; types: string[]; tiers: string[]; months: string[] };
 
 const TABS = [
-  { key: 'month',    label: '📅 월별 추이' },
   { key: 'rep',      label: '👤 담당자별' },
   { key: 'cso',      label: '🏢 담당CSO별' },
   { key: 'hospital', label: '🏥 처방처별' },
@@ -226,11 +225,11 @@ function NoData() {
    메인 컴포넌트
 ════════════════════════════════════════════ */
 export default function TrendClient() {
-  const [activeTab, setActiveTab] = useState<TabKey>('month');
-  const [items,     setItems]     = useState<AggItem[]>([]);
-  const [pivot,     setPivot]     = useState<PivotData | null>(null);
-  const [_total,    _setTotal]    = useState(0); // kept for future use
-  const [loading,   setLoading]   = useState(false);
+  const [activeTab,     setActiveTab]     = useState<TabKey>('rep');
+  const [items,         setItems]         = useState<AggItem[]>([]);
+  const [monthlyItems,  setMonthlyItems]  = useState<AggItem[]>([]);
+  const [pivot,         setPivot]         = useState<PivotData | null>(null);
+  const [loading,       setLoading]       = useState(false);
   const [meta,      setMeta]      = useState<MetaData | null>(null);
 
   // 필터
@@ -269,6 +268,7 @@ export default function TrendClient() {
       const res  = await fetch(`/api/trend?${params}`);
       const data = await res.json();
       setItems(data.items ?? []);
+      setMonthlyItems(data.monthlyItems ?? []);
       setPivot(data.pivot ?? null);
     } catch (e) {
       console.error('[Trend] load error:', e);
@@ -280,7 +280,7 @@ export default function TrendClient() {
   useEffect(() => { load(); }, [load]);
 
   const labelMap: Record<TabKey, string> = {
-    month: '처방월', rep: '담당자', cso: '담당CSO',
+    rep: '담당자', cso: '담당CSO',
     hospital: '처방처', product: '품목명', type: '종별구분', tier: '수수료구간',
   };
 
@@ -338,6 +338,18 @@ export default function TrendClient() {
         </div>
       </div>
 
+      {/* ── 월별 추이 (항상 표시) ── */}
+      <div style={card}>
+        <h3 style={{ margin: '0 0 1rem', fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+          📅 월별 추이
+        </h3>
+        {loading ? (
+          <p style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '1rem 0' }}>⏳</p>
+        ) : (
+          <LineChart items={monthlyItems} />
+        )}
+      </div>
+
       {/* ── 탭 ── */}
       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
         {TABS.map(t => (
@@ -364,6 +376,7 @@ export default function TrendClient() {
           <div style={{ display: 'flex', gap: '0.35rem' }}>
             {activeTab !== 'rep' && (['chart', 'table'] as const).map(m => (
               <button key={m} onClick={() => setViewMode(m)}
+
                 style={{
                   padding: '0.25rem 0.7rem', borderRadius: 6, cursor: 'pointer',
                   fontFamily: 'inherit', fontSize: '0.75rem', fontWeight: 600,
@@ -388,9 +401,7 @@ export default function TrendClient() {
           /* 담당자별: 항상 피벗 테이블 (담당자 행 × 월 열) */
           pivot ? <RepPivotTable pivot={pivot} /> : <NoData />
         ) : viewMode === 'chart' ? (
-          activeTab === 'month'
-            ? <LineChart items={items} />
-            : <BarChart items={items} maxItems={activeTab === 'hospital' ? 30 : 20} />
+          <BarChart items={items} maxItems={activeTab === 'hospital' ? 30 : 20} />
         ) : (
           <DataTable items={items} labelHeader={labelMap[activeTab]} />
         )}

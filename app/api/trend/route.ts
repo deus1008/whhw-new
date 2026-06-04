@@ -168,7 +168,12 @@ export async function GET(req: NextRequest) {
     pivot = { months, rows: pivotRows };
   }
 
-  return NextResponse.json({ items, pivot, total: totalAmount, rowCount: rows.length });
+  // 월별 추이는 탭에 관계없이 항상 포함
+  const monthlyItems = groupBy === 'month'
+    ? items
+    : aggregateMonthly(rows, monthFrom, monthTo);
+
+  return NextResponse.json({ items, monthlyItems, pivot, total: totalAmount, rowCount: rows.length });
 }
 
 /* ── GET /api/trend?meta=1 — 필터 옵션 목록 ── */
