@@ -37,10 +37,46 @@ function aggregate(
     .sort((a, b) => b.amount - a.amount);
 }
 
-function aggregateMonthly(rows: TrendRow[]): { label: string; amount: number }[] {
-  return aggregate(rows, 'prescription_month').sort((a, b) =>
-    a.label.localeCompare(b.label),
-  );
+/* ── YYYYMM 범위 내 모든 월 생성 ── */
+function generateMonthRange(from: string, to: string): string[] {
+  const months: string[] = [];
+  let y = parseInt(from.slice(0, 4));
+  let m = parseInt(from.slice(4, 6));
+  const endY = parseInt(to.slice(0, 4));
+  const endM = parseInt(to.slice(4, 6));
+
+  while (y < endY || (y === endY && m <= endM)) {
+    months.push(`${y}${String(m).padStart(2, '0')}`);
+    if (m === 12) { y++; m = 1; } else { m++; }
+  }
+  return months;
+}
+
+function aggregateMonthly(
+  rows: TrendRow[],
+  fromMonth?: string,
+  toMonth?: string,
+): { label: string; amount: number }[] {
+  // 데이터 집계
+  const map = new Map<string, number>();
+  for (const r of rows) {
+    const label = r.prescription_month ?? null;
+    if (!label) continue;
+    map.set(label, (map.get(label) ?? 0) + (r.prescription_amount ?? 0));
+  }
+
+  // 범위 결정: 파라미터 우선, 없으면 데이터 min/max
+  const dataMonths = Array.from(map.keys()).filter(Boolean).sort();
+  if (dataMonths.length === 0) return [];
+
+  const rangeFrom = fromMonth && /^\d{6}$/.test(fromMonth) ? fromMonth : dataMonths[0];
+  const rangeTo   = toMonth   && /^\d{6}$/.test(toMonth)   ? toMonth   : dataMonths[dataMonths.length - 1];
+
+  // 범위 내 모든 월을 0으로 채우고 데이터로 덮어쓰기
+  return generateMonthRange(rangeFrom, rangeTo).map(month => ({
+    label:  month,
+    amount: map.get(month) ?? 0,
+  }));
 }
 
 /* ── GET /api/trend ── */
@@ -92,7 +128,7 @@ export async function GET(req: NextRequest) {
 
   let items: { label: string; amount: number }[];
   switch (groupBy) {
-    case 'month':    items = aggregateMonthly(rows); break;
+    case 'month':    items = aggregateMonthly(rows, monthFrom, monthTo); break;
     case 'rep':      items = aggregate(rows, 'sales_rep'); break;
     case 'cso':      items = aggregate(rows, 'cso_name'); break;
     case 'hospital': items = aggregate(rows, 'hospital_name'); break;
@@ -105,7 +141,7 @@ export async function GET(req: NextRequest) {
         return (order.indexOf(a.label) ?? 99) - (order.indexOf(b.label) ?? 99);
       });
       break;
-    default:         items = aggregateMonthly(rows);
+    default:         items = aggregateMonthly(rows, monthFrom, monthTo);
   }
 
   return NextResponse.json({ items, total: totalAmount, rowCount: rows.length });
