@@ -144,20 +144,34 @@ export function parseTrendBuffer(buffer: Buffer, fileName: string): ParseTrendRe
 
   if (rawRows.length === 0) return { rows: [], total: 0, skipped: 0, error: '데이터 없음' };
 
-  const keys = Object.keys(rawRows[0]);
+  // BOM·개행·다중공백 제거 후 정규화 (컬럼명 정확 매칭 보장)
+  const normalizeKey = (k: string) =>
+    k.replace(/^﻿/, '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+  const origKeys  = Object.keys(rawRows[0]);
+  const normKeys  = origKeys.map(normalizeKey);
+
+  // 정규화된 키로 row 재구성
+  rawRows = rawRows.map(row => {
+    const out: Record<string, unknown> = {};
+    origKeys.forEach((ok, i) => { out[normKeys[i]] = row[ok]; });
+    return out;
+  });
+
+  // 사용자 지정 컬럼명으로 직접 매핑 (정확 우선, 유연 보조)
   const COL = {
-    month:    findCol(keys, ['처방월','처방년월','처방연월','청구년월','년월','처방일']),
-    rep:      findCol(keys, ['내부담당자','담당자','MR','담당MR','영업담당자','담당']),
-    cso:      findCol(keys, ['담당CSO','CSO명','CSO','법인명','수탁법인','거래처코드']),
-    hospital: findCol(keys, ['처방처명','병원명','거래처명','처방처','거래처']),
-    product:  findCol(keys, ['품목명','제품명','약품명','품명','상품명']),
-    type:     findCol(keys, ['종별구분','종별','요양기관종별','기관종별','요양종별']),
-    comm:     findCol(keys, ['합산수수료','수수료율','수수료','수수료(%)','합산수수료율','수수료%']),
-    amount:   findCol(keys, ['처방금액','처방액','원외처방금액','처방금액(원)','금액','원외금액']),
+    month:    findCol(normKeys, ['처방월','처방년월','처방연월','청구년월','년월','처방일']),
+    rep:      findCol(normKeys, ['내부담당자','담당자','MR명','담당MR','영업담당자']),
+    cso:      findCol(normKeys, ['담당CSO','CSO','CSO명','법인명']),
+    hospital: findCol(normKeys, ['처방처명','처방처','병원명','거래처명','거래처']),
+    product:  findCol(normKeys, ['품목명','제품명','품명','약품명']),
+    type:     findCol(normKeys, ['종별구분','종별','요양기관종별','기관종별']),
+    comm:     findCol(normKeys, ['합산수수료','수수료율','수수료']),
+    amount:   findCol(normKeys, ['처방금액','처방액','원외처방금액','처방금액(원)','금액']),
   };
 
   console.log(`[trend-parse] 파일: ${fileName}, 전체행: ${rawRows.length}`);
-  console.log(`[trend-parse] 컬럼(${keys.length}):`, keys.slice(0, 20).join(' | '));
+  console.log(`[trend-parse] 정규화컬럼(${normKeys.length}):`, normKeys.slice(0, 20).join(' | '));
   console.log(`[trend-parse] 매핑:`, JSON.stringify(COL));
 
   if (!COL.amount) {
