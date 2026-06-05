@@ -43,6 +43,15 @@ const NAV_ITEMS = [
     external: false,
   },
   {
+    href: '/customers',
+    icon: '🏢',
+    label: '거래처현황',
+    color: '#fbbf24',
+    bg:   'rgba(251,191,36,0.10)',
+    bd:   'rgba(251,191,36,0.22)',
+    external: false,
+  },
+  {
     href: '/edi',
     icon: '🗂',
     label: 'EDI',

@@ -2,7 +2,8 @@ import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { extractText } from '@/lib/rag/extract';
 import { extractProductsFromText } from '@/lib/products/extract';
-import { parseDrugPriceBuffer } from '@/lib/drug-prices/parse';
+import { parseDrugPriceBuffer }  from '@/lib/drug-prices/parse';
+import { parseCustomerBuffer }   from '@/lib/customers/parse';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -157,7 +158,29 @@ export async function POST(request: Request) {
   }
 
 
-  // ── D. 그 외 폴더 — 즉시 완료 ─────────────────────────────────────────
+  // ── D. 거래처현황 폴더 → customer_status 파싱 ───────────────────────────
+  if (category === '거래처현황') {
+    console.log(`[process:${documentId}] 거래처현황 폴더 → 거래처 데이터 파싱`);
+    const { rows, total, error: parseError } = parseCustomerBuffer(buffer, doc.filename);
+
+    if (parseError) return fail(`거래처 파싱 실패: ${parseError}`);
+
+    if (rows.length > 0) {
+      await supabase.from('customer_status').delete().eq('source_file', doc.filename);
+      const CHUNK = 500;
+      let inserted = 0;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const { error: insErr } = await supabase.from('customer_status').insert(rows.slice(i, i + CHUNK));
+        if (insErr) console.warn(`[process:${documentId}] 거래처 삽입 오류:`, insErr.message);
+        else inserted += rows.slice(i, i + CHUNK).length;
+      }
+      console.log(`[process:${documentId}] 거래처 ${inserted}/${total}건 저장 완료`);
+    }
+    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    return Response.json({ ok: true, inserted: rows.length });
+  }
+
+  // ── E. 그 외 폴더 — 즉시 완료 ─────────────────────────────────────────
   console.log(`[process:${documentId}] 일반 폴더(${category || '미분류'}) → 즉시 완료`);
   await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
   return Response.json({ ok: true });
