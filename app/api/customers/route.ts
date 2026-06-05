@@ -34,19 +34,33 @@ export async function GET(req: NextRequest) {
 
   const sb = serviceClient();
 
-  // 필터 옵션 조회 (첫 번째 요청 시 함께)
+  // 필터 옵션 + 담당자별 거래처 수 조회
   if (sp.get('meta') === '1') {
-    const [regions, types, managers] = await Promise.all([
+    const [regions, types, allManagers] = await Promise.all([
       sb.from('customer_status').select('region').not('region','is',null).limit(1000),
       sb.from('customer_status').select('customer_type').not('customer_type','is',null).limit(100),
-      sb.from('customer_status').select('manager').not('manager','is',null).limit(500),
+      sb.from('customer_status').select('manager').limit(10000),
     ]);
     const uniq = <T>(arr: T[] | null, k: keyof T) =>
       Array.from(new Set((arr ?? []).map(r => String(r[k] ?? '')).filter(Boolean))).sort();
+
+    // 담당자별 거래처 수 집계
+    const managerCountMap = new Map<string, number>();
+    for (const row of (allManagers.data ?? [])) {
+      const m = String((row as Record<string,string>).manager ?? '').trim();
+      if (m) managerCountMap.set(m, (managerCountMap.get(m) ?? 0) + 1);
+    }
+    const managerCounts = Array.from(managerCountMap.entries())
+      .map(([manager, count]) => ({ manager, count }))
+      .sort((a, b) => b.count - a.count);
+    const totalCount = (allManagers.data ?? []).length;
+
     return NextResponse.json({
-      regions:  uniq(regions.data  as Record<string,string>[], 'region'),
-      types:    uniq(types.data    as Record<string,string>[], 'customer_type'),
-      managers: uniq(managers.data as Record<string,string>[], 'manager'),
+      regions:       uniq(regions.data as Record<string,string>[], 'region'),
+      types:         uniq(types.data   as Record<string,string>[], 'customer_type'),
+      managers:      managerCounts.map(m => m.manager),
+      managerCounts,
+      totalCount,
     });
   }
 
