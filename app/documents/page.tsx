@@ -33,7 +33,7 @@ export default async function DocumentsPage() {
     .single();
 
   const role = myProfile?.role as string | undefined;
-  if (!role || (role !== 'admin' && role !== 'uploader')) {
+  if (!role || (role !== '관리자' && role !== '영업관리총괄' && role !== '영업관리' && role !== '마케팅총괄' && role !== 'PM')) {
     redirect('/dashboard');
   }
 
@@ -63,7 +63,7 @@ export default async function DocumentsPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
           <Link href="/dashboard" style={navLinkStyle}>← 대시보드</Link>
-          {role === 'admin' && (
+          {role === '관리자' && (
             <Link href="/admin" style={navLinkStyle}>관리자 →</Link>
           )}
           <LogoutButton compact />

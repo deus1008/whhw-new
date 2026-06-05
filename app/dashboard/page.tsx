@@ -44,8 +44,8 @@ export default async function DashboardPage() {
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
 
   const role      = myProfile.role as string;
-  const isAdmin   = role === 'admin';
-  const canUpload = role === 'admin' || role === 'uploader';
+  const isAdmin   = role === '관리자';
+  const canUpload = role === '관리자' || role === 'uploader';
 
   /* ── 방문 기록 조회 ─────────────────────────────────────── */
   const today     = todayStr();

@@ -23,7 +23,7 @@ async function verifyUploaderOrAdmin() {
     .eq('id', user.id)
     .single();
 
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'uploader')) {
+  if (!profile || (profile.role !== '관리자' && profile.role !== '영업관리총괄' && profile.role !== '영업관리' && profile.role !== '마케팅총괄' && profile.role !== 'PM')) {
     throw new Error('Unauthorized');
   }
 
@@ -46,7 +46,7 @@ export async function deleteDocument(formData: FormData) {
     .single();
 
   if (fetchErr || !doc) throw new Error('문서를 찾을 수 없습니다.');
-  if (role === 'uploader' && doc.uploaded_by !== userId) {
+  if (role !== '관리자' && doc.uploaded_by !== userId) {
     throw new Error('삭제 권한이 없습니다.');
   }
 
@@ -102,7 +102,7 @@ export async function renameFolder(oldName: string | null, newName: string): Pro
 
     let dbError: { message: string } | null = null;
 
-    if (role === 'admin') {
+    if (role === '관리자') {
       // 관리자: 해당 폴더의 모든 문서 변경
       if (oldName === null) {
         const { error } = await supabase

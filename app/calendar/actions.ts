@@ -76,7 +76,7 @@ export async function updateSchedule(
   if (!input.start_date) return { error: '날짜를 입력하세요.' };
 
   // 본인 또는 관리자만 수정
-  if (auth.role !== 'admin') {
+  if (auth.role !== '관리자') {
     const { data: existing } = await auth.supabase
       .from('marketing_schedules').select('user_id').eq('id', id).single();
     if (!existing || existing.user_id !== auth.user!.id)
@@ -100,7 +100,7 @@ export async function deleteSchedule(id: string): Promise<Result> {
   const auth = await getAuthorized();
   if (auth.error || !auth.supabase) return { error: auth.error };
 
-  if (auth.role !== 'admin') {
+  if (auth.role !== '관리자') {
     const { data: existing } = await auth.supabase
       .from('marketing_schedules').select('user_id').eq('id', id).single();
     if (!existing || existing.user_id !== auth.user!.id)

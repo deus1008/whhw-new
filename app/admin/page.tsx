@@ -5,9 +5,10 @@ import { updateStatus, updateRole } from './actions';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
+import { ALL_ROLES, ROLE_META, type UserRole } from '@/lib/roles';
 
 type Status = 'pending' | 'approved' | 'rejected';
-type Role   = 'admin' | 'uploader' | 'member';
+type Role   = UserRole;
 
 type Profile = {
   id: string;
@@ -23,11 +24,7 @@ const sectionMeta: Record<Status, { label: string; color: string; rgba: string }
   rejected: { label: '거부됨',   color: '#fca5a5', rgba: 'rgba(239,68,68,'  },
 };
 
-const roleMeta: Record<Role, { label: string; color: string; bg: string; border: string }> = {
-  admin:    { label: '관리자',  color: '#c084fc', bg: 'rgba(162,89,255,0.13)', border: 'rgba(162,89,255,0.28)' },
-  uploader: { label: '업로더',  color: '#93c5fd', bg: 'rgba(59,130,246,0.13)', border: 'rgba(59,130,246,0.28)' },
-  member:   { label: '멤버',    color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', border: 'rgba(148,163,184,0.2)' },
-};
+const roleMeta = ROLE_META;
 
 const buttonDefs: Record<Status, [string, Status, boolean][]> = {
   pending:  [['승인', 'approved', true],  ['거부', 'rejected', false]],
@@ -57,8 +54,8 @@ function RoleBadge({ role }: { role: Role }) {
 }
 
 function ActionButtons({ profile }: { profile: Profile }) {
-  // admin 역할 행: 상태/역할 변경 버튼 없음
-  if (profile.role === 'admin') {
+  // 관리자 역할 행: 변경 불가
+  if (profile.role === '관리자') {
     return (
       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic', flexShrink: 0 }}>
         관리자 (고정)
@@ -66,52 +63,42 @@ function ActionButtons({ profile }: { profile: Profile }) {
     );
   }
 
-  const nextRole: Role = profile.role === 'uploader' ? 'member' : 'uploader';
-  const roleLabel = profile.role === 'uploader' ? '업로더 해제' : '업로더로 지정';
-
   return (
-    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', flexShrink: 0 }}>
+    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', flexShrink: 0, alignItems: 'center' }}>
       {/* 상태 변경 */}
       {buttonDefs[profile.status].map(([label, target, isGreen]) => (
         <form key={target} action={updateStatus}>
           <input type="hidden" name="userId" value={profile.id} />
           <input type="hidden" name="status" value={target} />
-          <button
-            type="submit"
-            style={{
-              padding: '0.35rem 0.8rem',
-              borderRadius: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              border: isGreen ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(239,68,68,0.22)',
-              background: isGreen ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.09)',
-              color: isGreen ? '#86efac' : '#fca5a5',
-            }}
-          >
+          <button type="submit" style={{
+            padding: '0.35rem 0.8rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
+            border: isGreen ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(239,68,68,0.22)',
+            background: isGreen ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.09)',
+            color: isGreen ? '#86efac' : '#fca5a5',
+          }}>
             {label}
           </button>
         </form>
       ))}
 
-      {/* 역할 변경 */}
-      <form action={updateRole}>
+      {/* 역할 변경 — 드롭다운 선택 */}
+      <form action={updateRole} style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
         <input type="hidden" name="userId" value={profile.id} />
-        <input type="hidden" name="role" value={nextRole} />
-        <button
-          type="submit"
-          style={{
-            padding: '0.35rem 0.8rem',
-            borderRadius: '6px',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            border: '1px solid rgba(59,130,246,0.25)',
-            background: 'rgba(59,130,246,0.1)',
-            color: '#93c5fd',
-          }}
-        >
-          {roleLabel}
+        <select name="role" defaultValue={profile.role} style={{
+          padding: '0.32rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600,
+          background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)',
+          color: 'var(--text-primary)', fontFamily: 'inherit', cursor: 'pointer',
+        }}>
+          {ALL_ROLES.filter(r => r !== '관리자').map(r => (
+            <option key={r} value={r}>{r} — {ROLE_META[r].desc}</option>
+          ))}
+        </select>
+        <button type="submit" style={{
+          padding: '0.32rem 0.65rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600,
+          cursor: 'pointer', border: '1px solid rgba(99,102,241,0.35)',
+          background: 'rgba(99,102,241,0.15)', color: '#a5b4fc',
+        }}>
+          변경
         </button>
       </form>
     </div>
@@ -193,7 +180,7 @@ export default async function AdminPage() {
     .eq('id', user.id)
     .single();
 
-  if (!myProfile || myProfile.role !== 'admin') {
+  if (!myProfile || myProfile.role !== '관리자') {
     redirect('/dashboard');
   }
 

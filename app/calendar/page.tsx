@@ -35,7 +35,7 @@ export default async function MarketingPage() {
 
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
 
-  const isAdmin = myProfile.role === 'admin';
+  const isAdmin = myProfile.role === '관리자';
 
   // 전체 일정 조회 (최근 3개월 ~ 향후 12개월)
   const from = new Date();

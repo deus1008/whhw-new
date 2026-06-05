@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     .eq('id', user.id)
     .single();
 
-  if (!profile || (profile.role !== 'admin' && profile.role !== 'uploader')) {
+  if (!profile || (profile.role !== '관리자' && profile.role !== 'uploader')) {
     return Response.json({ error: '업로드 권한이 없습니다.' }, { status: 403 });
   }
 
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
     return Response.json({ error: '문서를 찾을 수 없습니다.' }, { status: 404 });
   }
 
-  if (profile.role === 'uploader' && doc.uploaded_by !== user.id) {
+  if (profile.role !== '관리자' && doc.uploaded_by !== user.id) {
     return Response.json({ error: '처리 권한이 없습니다.' }, { status: 403 });
   }
 

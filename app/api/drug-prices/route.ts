@@ -34,7 +34,7 @@ async function requireAdmin(): Promise<{ userId: string } | NextResponse> {
     .eq('id', user.id)
     .single();
 
-  if (profile?.role !== 'admin') {
+  if (profile?.role !== '관리자') {
     return NextResponse.json({ error: '관리자만 접근할 수 있습니다.' }, { status: 403 });
   }
   return { userId: user.id };
