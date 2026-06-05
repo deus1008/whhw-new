@@ -27,16 +27,16 @@ export type ParseCustomerResult = {
 
 /* ── 컬럼 키워드 매핑 ── */
 // 실제 파일 컬럼명 우선 배치
-const CODE_KW    = ['cso코드','cso_코드','내부코드','co_id','거래처코드','코드','요양기관번호','기관코드','번호','code'];
-const NAME_KW    = ['cso명','내부명','거래처명','업체명','기관명','병원명','약국명','요양기관명','상호','법인명','name'];
+const CODE_KW    = ['사업자번호','cso코드','cso_코드','내부코드','co_id','거래처코드','코드','요양기관번호','기관코드','번호','code'];
+const NAME_KW    = ['cso명','거래처명','업체명','기관명','병원명','약국명','요양기관명','상호','법인명','name'];
 const TYPE_KW    = ['종별','종별구분','기관종별','요양종별','구분','업종'];
 const REGION_KW  = ['시도','지역','광역','시도명'];
-const SUBRGN_KW  = ['시군구','구시군','세부지역','시군구명'];
+const SUBRGN_KW  = ['내부명','시군구','구시군','세부지역','시군구명'];  // 내부명을 sub_region에 저장
 const ADDR_KW    = ['주소','주소지','소재지','도로명주소','지번주소','address'];
 const PHONE_KW   = ['전화','전화번호','연락처','tel','phone','TEL'];
-const MANAGER_KW = ['담당자','지역장','담당지역장','담당','manager','지점장','매니저'];
-const CSO_KW     = ['담당cso','cso','cso명'];
-const MEMO_KW    = ['비고','메모','note','remark'];
+const MANAGER_KW = ['담당사원명','담당사원','지역장','담당지역장','manager','지점장','매니저'];  // 담당사원명 우선
+const CSO_KW     = ['담당자','담당cso','cso담당자'];  // CSO 담당자(업체측)
+const MEMO_KW    = ['업체담당자이메일','이메일','email','비고','메모','note','remark'];
 
 function norm(s: string): string {
   return s.replace(/[\s\r\n_\-\.]/g, '').toLowerCase();
@@ -113,25 +113,17 @@ export function parseCustomerBuffer(buffer: Buffer, fileName: string): ParseCust
     return out;
   });
 
-  // CSO명/내부명이 둘 다 있으면 CSO명 → name, 내부명 → cso로 분리
-  const hasCsoName  = keys.some(k => norm(k) === 'cso명' || norm(k) === 'cso_명');
-  const hasInnerName = keys.some(k => norm(k) === '내부명' || norm(k) === '내부_명');
-
   const COL = {
     code:    findCol(keys, CODE_KW),
-    name:    hasCsoName ? findCol(keys, ['CSO명','cso명','cso_명']) || findCol(keys, NAME_KW)
-                        : findCol(keys, NAME_KW),
+    name:    findCol(keys, NAME_KW),
     type:    findCol(keys, TYPE_KW),
     region:  findCol(keys, REGION_KW),
-    sub:     findCol(keys, SUBRGN_KW),
+    sub:     findCol(keys, SUBRGN_KW),   // 내부명 → sub_region
     addr:    findCol(keys, ADDR_KW),
     phone:   findCol(keys, PHONE_KW),
-    manager: findCol(keys, MANAGER_KW),
-    // CSO명+내부명 둘 다 있으면 내부명을 cso 컬럼에 저장
-    cso:     (hasCsoName && hasInnerName)
-               ? findCol(keys, ['내부명','내부_명'])
-               : findCol(keys, CSO_KW),
-    memo:    findCol(keys, MEMO_KW),
+    manager: findCol(keys, MANAGER_KW),  // 담당사원명 → manager(지역장)
+    cso:     findCol(keys, CSO_KW),      // 담당자 → cso(업체 담당자)
+    memo:    findCol(keys, MEMO_KW),     // 업체담당자이메일 → memo
   };
 
   console.log(`[customer-parse] 파일: ${fileName}, 헤더행=${headerRowIdx}`);

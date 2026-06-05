@@ -93,7 +93,7 @@ export default function CustomersClient() {
               ref={inputRef}
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="거래처명 / 코드 / 주소 검색"
+              placeholder="CSO명 / 사업자번호 / 내부명 / 주소 검색"
               style={{ flex: 1, ...inputSel }}
             />
             <button type="submit" disabled={loading}
@@ -123,7 +123,7 @@ export default function CustomersClient() {
               {meta.types.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
             <select value={manager} onChange={e => setManager(e.target.value)} style={inputSel}>
-              <option value="">전체 지역장</option>
+              <option value="">전체 담당사원(지역장)</option>
               {meta.managers.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
@@ -164,7 +164,7 @@ export default function CustomersClient() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  {['거래처(CSO)명','코드','종별','지역','담당자','내부명/CSO','전화번호','주소','비고'].map(h => (
+                  {['CSO명','사업자번호','내부명','종별/지역','담당사원(지역장)','담당자(CSO)','연락처','주소/이메일','비고'].map(h => (
                     <th key={h} style={th}>{h}</th>
                   ))}
                 </tr>
@@ -173,43 +173,43 @@ export default function CustomersClient() {
                 {items.map((c, i) => (
                   <tr key={c.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)',
                     background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                    <td style={{ ...td, fontWeight: 600, color: 'var(--text-primary)', minWidth: 120 }}>
+                    {/* CSO명 */}
+                    <td style={{ ...td, fontWeight: 600, color: 'var(--text-primary)', minWidth: 130 }}>
                       {c.customer_name}
                     </td>
-                    <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.73rem', whiteSpace: 'nowrap' }}>
+                    {/* 사업자번호 */}
+                    <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.72rem', whiteSpace: 'nowrap' }}>
                       {c.customer_code ?? '—'}
                     </td>
-                    <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                      {c.customer_type ? (
-                        <span style={{
-                          padding: '0.1rem 0.45rem', borderRadius: 5, fontSize: '0.7rem', fontWeight: 600,
-                          background: typeColor(c.customer_type).bg,
-                          border: `1px solid ${typeColor(c.customer_type).bd}`,
-                          color: typeColor(c.customer_type).color,
-                        }}>
-                          {c.customer_type}
-                        </span>
-                      ) : '—'}
+                    {/* 내부명 (sub_region에 저장) */}
+                    <td style={{ ...td, color: 'rgba(240,244,255,0.7)', whiteSpace: 'nowrap' }}>
+                      {c.sub_region ?? '—'}
                     </td>
-                    <td style={{ ...td, whiteSpace: 'nowrap' }}>
-                      {[c.region, c.sub_region].filter(Boolean).join(' ') || '—'}
+                    {/* 종별/지역 */}
+                    <td style={{ ...td, whiteSpace: 'nowrap', fontSize: '0.73rem' }}>
+                      {[c.customer_type, c.region].filter(Boolean).join(' / ') || '—'}
                     </td>
-                    <td style={{ ...td, fontWeight: c.manager ? 600 : 400, color: c.manager ? '#a5b4fc' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {/* 담당사원명 → 지역장 ⭐ */}
+                    <td style={{ ...td, fontWeight: c.manager ? 700 : 400, color: c.manager ? '#a5b4fc' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                       {c.manager ?? '—'}
                     </td>
-                    <td style={{ ...td, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                    {/* 담당자 (CSO 업체 담당자) */}
+                    <td style={{ ...td, color: 'rgba(240,244,255,0.75)', whiteSpace: 'nowrap' }}>
                       {c.cso ?? '—'}
                     </td>
-                    <td style={{ ...td, whiteSpace: 'nowrap', fontSize: '0.73rem' }}>
+                    {/* 전화번호 */}
+                    <td style={{ ...td, whiteSpace: 'nowrap', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
                       {c.phone ?? '—'}
                     </td>
-                    <td style={{ ...td, maxWidth: 200, fontSize: '0.73rem' }}>
-                      <span style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {c.address ?? '—'}
-                      </span>
+                    {/* 주소 / 이메일(memo) */}
+                    <td style={{ ...td, maxWidth: 220, fontSize: '0.72rem' }}>
+                      <div style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {c.memo || c.address || '—'}
+                      </div>
                     </td>
-                    <td style={{ ...td, maxWidth: 120, fontSize: '0.73rem', color: 'var(--text-muted)' }}>
-                      {c.memo ?? ''}
+                    {/* 비고 */}
+                    <td style={{ ...td, maxWidth: 100, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      {c.address && c.memo ? c.address : ''}
                     </td>
                   </tr>
                 ))}
