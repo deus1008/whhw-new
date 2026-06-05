@@ -164,7 +164,7 @@ export default function CustomersClient() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  {['거래처명','코드','종별','지역','담당지역장','담당CSO','전화번호','주소','비고'].map(h => (
+                  {['거래처(CSO)명','코드','종별','지역','담당자','내부명/CSO','전화번호','주소','비고'].map(h => (
                     <th key={h} style={th}>{h}</th>
                   ))}
                 </tr>
