@@ -10,6 +10,7 @@ export type UserRole =
   | '마케팅총괄'    // 마케팅업무 총괄
   | '영업관리'      // 영업관리업무 담당
   | '영업관리총괄'  // 영업관리업무 총괄
+  | '옵저버'        // 시스템 모니터링 (읽기 전용)
   | '관리자';       // 시스템 전체 관리
 
 /** 모든 역할 목록 */
@@ -17,6 +18,7 @@ export const ALL_ROLES: UserRole[] = [
   '지역장', '사업부장', '사업총괄',
   'PM', '마케팅총괄',
   '영업관리', '영업관리총괄',
+  '옵저버',
   '관리자',
 ];
 
@@ -29,6 +31,7 @@ export const ROLE_META: Record<UserRole, { label: string; color: string; bg: str
   '마케팅총괄':  { label: '마케팅총괄', color: '#22d3ee', bg: 'rgba(34,211,238,0.18)',  border: 'rgba(34,211,238,0.4)',  desc: '마케팅업무 총괄' },
   '영업관리':    { label: '영업관리',   color: '#a5b4fc', bg: 'rgba(99,102,241,0.12)',  border: 'rgba(99,102,241,0.3)',  desc: '영업관리업무 담당' },
   '영업관리총괄':{ label: '영업관리총괄', color: '#818cf8', bg: 'rgba(99,102,241,0.18)', border: 'rgba(99,102,241,0.4)', desc: '영업관리업무 총괄' },
+  '옵저버':      { label: '옵저버',     color: '#94a3b8', bg: 'rgba(148,163,184,0.12)', border: 'rgba(148,163,184,0.3)', desc: '시스템 모니터링 (읽기 전용)' },
   '관리자':      { label: '관리자',     color: '#c084fc', bg: 'rgba(162,89,255,0.14)',  border: 'rgba(162,89,255,0.35)', desc: '시스템 전체 관리' },
 };
 
