@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { normalizeRole } from '@/lib/roles';
+import { getRoles } from '@/lib/roles';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
 import { processEdi } from '@/lib/edi/process';
@@ -402,9 +402,9 @@ export async function forceRefreshEdi(): Promise<{ error?: string }> {
   if (!user) return { error: '로그인이 필요합니다.' };
 
   const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single();
-  const role = normalizeRole(profile?.role);
-  if (role !== '관리자' && role !== '영업관리총괄' && role !== '영업관리')
+    .from('profiles').select('role, roles').eq('id', user.id).single();
+  const userRoles = getRoles(profile ?? {});
+  if (!userRoles.some(r => ['관리자', '영업관리총괄', '영업관리'].includes(r)))
     return { error: '관리자만 새로고침할 수 있습니다.' };
 
   const svc = getSvc();

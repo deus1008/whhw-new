@@ -1,6 +1,6 @@
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { normalizeRole } from '@/lib/roles';
+import { profileCanUpload, profileIsAdmin } from '@/lib/roles';
 import { extractText } from '@/lib/rag/extract';
 import { extractProductsFromText } from '@/lib/products/extract';
 import { parseDrugPriceBuffer }      from '@/lib/drug-prices/parse';
@@ -28,15 +28,14 @@ export async function POST(request: Request) {
 
   const { data: profile } = await authClient
     .from('profiles')
-    .select('role')
+    .select('role, roles')
     .eq('id', user.id)
     .single();
 
-  const role = normalizeRole(profile?.role);
-  const uploadRoles = ['관리자', '영업관리총괄', '영업관리', '마케팅총괄', 'PM'];
-  if (!profile || !uploadRoles.includes(role)) {
+  if (!profile || !profileCanUpload(profile)) {
     return Response.json({ error: '업로드 권한이 없습니다.' }, { status: 403 });
   }
+  const isAdmin = profileIsAdmin(profile);
 
   // ── 2. 요청 파싱 ────────────────────────────────────────────────────────
   let documentId: string;
@@ -62,7 +61,7 @@ export async function POST(request: Request) {
     return Response.json({ error: '문서를 찾을 수 없습니다.' }, { status: 404 });
   }
 
-  if (role !== '관리자' && doc.uploaded_by !== user.id) {
+  if (!isAdmin && doc.uploaded_by !== user.id) {
     return Response.json({ error: '처리 권한이 없습니다.' }, { status: 403 });
   }
 

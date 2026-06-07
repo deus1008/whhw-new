@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { normalizeRole } from '@/lib/roles';
+import { profileCanUpload, profileIsAdmin } from '@/lib/roles';
 
 /** RLS를 우회하는 서비스 롤 클라이언트 */
 function createServiceClient() {
@@ -20,21 +20,19 @@ async function verifyUploaderOrAdmin() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, roles')
     .eq('id', user.id)
     .single();
 
-  const role = normalizeRole(profile?.role);
-  const uploadRoles = ['관리자', '영업관리총괄', '영업관리', '마케팅총괄', 'PM'];
-  if (!profile || !uploadRoles.includes(role)) {
+  if (!profile || !profileCanUpload(profile)) {
     throw new Error('Unauthorized');
   }
 
-  return { supabase, userId: user.id, role };
+  return { supabase, userId: user.id, isAdmin: profileIsAdmin(profile) };
 }
 
 export async function deleteDocument(formData: FormData) {
-  const { supabase, userId, role } = await verifyUploaderOrAdmin();
+  const { supabase, userId, isAdmin } = await verifyUploaderOrAdmin();
 
   const documentId  = formData.get('documentId')  as string;
   const storagePath = formData.get('storagePath') as string;
@@ -49,7 +47,7 @@ export async function deleteDocument(formData: FormData) {
     .single();
 
   if (fetchErr || !doc) throw new Error('문서를 찾을 수 없습니다.');
-  if (role !== '관리자' && doc.uploaded_by !== userId) {
+  if (!isAdmin && doc.uploaded_by !== userId) {
     throw new Error('삭제 권한이 없습니다.');
   }
 
@@ -95,7 +93,7 @@ export async function getDownloadUrl(storagePath: string): Promise<{ url?: strin
 /* ── 폴더 이름 변경 ─────────────────────────────────────── */
 export async function renameFolder(oldName: string | null, newName: string): Promise<{ error?: string }> {
   try {
-    const { userId, role } = await verifyUploaderOrAdmin();
+    const { userId, isAdmin } = await verifyUploaderOrAdmin();
 
     const trimmed = newName.trim();
     if (!trimmed) return { error: '폴더 이름을 입력하세요.' };
@@ -105,7 +103,7 @@ export async function renameFolder(oldName: string | null, newName: string): Pro
 
     let dbError: { message: string } | null = null;
 
-    if (role === '관리자') {
+    if (isAdmin) {
       // 관리자: 해당 폴더의 모든 문서 변경
       if (oldName === null) {
         const { error } = await supabase

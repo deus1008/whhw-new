@@ -2,20 +2,20 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { ALL_ROLES, normalizeRole, type UserRole } from '@/lib/roles';
+import { ALL_ROLES, normalizeRole, profileIsAdmin, type UserRole } from '@/lib/roles';
 
 type Status = 'pending' | 'approved' | 'rejected';
 
-/** 관리자 확인 — role 단일 컬럼만 사용 (항상 존재) */
+/** 관리자 확인 — role 단일 컬럼 + roles 배열 모두 확인 */
 async function verifyAdmin() {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) throw new Error('Unauthorized');
 
   const { data: profile } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single();
+    .from('profiles').select('role, roles').eq('id', user.id).single();
 
-  if (!profile || normalizeRole(profile.role) !== '관리자') throw new Error('Unauthorized');
+  if (!profile || !profileIsAdmin(profile)) throw new Error('Unauthorized');
   return supabase;
 }
 
@@ -64,10 +64,10 @@ export async function updateRoles(formData: FormData) {
     throw new Error('관리자 역할은 이 방법으로 부여할 수 없습니다.');
   }
 
-  // 대상 사용자가 관리자인지 확인 (role 컬럼으로만 — 항상 존재)
+  // 대상 사용자가 관리자인지 확인
   const { data: target } = await supabase
-    .from('profiles').select('role').eq('id', userId).single();
-  if (normalizeRole(target?.role) === '관리자') {
+    .from('profiles').select('role, roles').eq('id', userId).single();
+  if (target && profileIsAdmin(target)) {
     throw new Error('관리자 역할은 변경할 수 없습니다.');
   }
 

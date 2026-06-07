@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { normalizeRole } from '@/lib/roles';
+import { profileCanUpload, profileIsAdmin } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import DocumentsClient from '@/components/DocumentsClient';
@@ -29,15 +29,14 @@ export default async function DocumentsPage() {
 
   const { data: myProfile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, roles')
     .eq('id', user.id)
     .single();
 
-  const role = normalizeRole(myProfile?.role);
-  const uploadRoles = ['관리자', '영업관리총괄', '영업관리', '마케팅총괄', 'PM'];
-  if (!role || !uploadRoles.includes(role)) {
+  if (!myProfile || !profileCanUpload(myProfile)) {
     redirect('/dashboard');
   }
+  const isAdmin = profileIsAdmin(myProfile);
 
   const { data: docs, error: docsError } = await supabase
     .from('documents')
@@ -65,7 +64,7 @@ export default async function DocumentsPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
           <Link href="/dashboard" style={navLinkStyle}>← 대시보드</Link>
-          {role === '관리자' && (
+          {isAdmin && (
             <Link href="/admin" style={navLinkStyle}>관리자 →</Link>
           )}
           <LogoutButton compact />
