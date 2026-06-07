@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { ReactElement } from 'react';
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -109,6 +110,15 @@ export type ProductRankItem = {
   months:        { month: string; prescAmt: number }[];
 };
 
+export type DcStatusItem = {
+  id:           string;
+  category:     string;   // 준비중 | 약속 | 상정 | 통과
+  productName:  string;
+  hospitalName: string;
+  progress:     string | null;
+  updatedAt:    string;
+};
+
 export type DashboardData = {
   reportDate:           string;
   recentMonths:         string[];          // 최근 3 처방월
@@ -136,6 +146,9 @@ export type DashboardData = {
   // 섹션8: 품목현황
   top10Products:        ProductRankItem[];
   bottom10Products:     ProductRankItem[];
+  // 섹션8(DC현황)
+  dcItems:              DcStatusItem[];
+  dcStageCounts:        Record<string, number>;
 };
 
 /* ── 포맷 유틸 ─────────────────────────────────────────────────────── */
@@ -214,7 +227,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     upcomingProducts,
     csoDocs,
     top10Products, bottom10Products,
+    dcItems, dcStageCounts,
   } = data;
+
+  const [memo, setMemo] = useState('');
 
   const today = reportDate;
   const noSett = recentMonths.length === 0;
@@ -224,6 +240,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const todayStr = today;
   const upcomingSchedules = schedules.filter(s => s.startDate >= todayStr).slice(0, 8);
   const recentSchedules   = schedules.filter(s => s.startDate < todayStr).slice(-6).reverse();
+
+  // DC 단계 상수
+  const DC_STAGES = ['준비중', '약속', '상정', '통과'] as const;
+  const DC_COLORS: Record<string, string> = {
+    준비중: '#94a3b8', 약속: '#fbbf24', 상정: '#60a5fa', 통과: '#4ade80',
+  };
 
   return (
     <>
@@ -397,9 +419,77 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          섹션 1: 거래처현황
+          섹션 1: 처방실적 현황 (EDI/실적마감)
       ══════════════════════════════════════════════════════════ */}
-      <Section title="🏢 거래처현황" id="s1">
+      <Section title="📈 처방실적 현황" id="s1">
+        {noEdi ? (
+          <Empty msg="EDI 또는 실적마감 파일을 업로드하면 자동 집계됩니다." />
+        ) : (
+          <>
+            <SubTitle>▸ 월별 처방 집계 (3개월)</SubTitle>
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>월</th>
+                  <th className="right">처방처수</th>
+                  <th className="right">전월 대비</th>
+                  <th className="right">처방품목수</th>
+                  <th className="right">처방액 합계</th>
+                  <th className="right">전월 대비</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ediMonthly.map((r, i) => (
+                  <tr key={r.month}>
+                    <td className="muted">{fmtPeriod(r.month)}</td>
+                    <td className="right bold">{r.hospCount.toLocaleString()}</td>
+                    <td className="right"><DeltaCount cur={r.hospCount} prev={ediMonthly[i - 1]?.hospCount} /></td>
+                    <td className="right">{r.productCount.toLocaleString()}</td>
+                    <td className="right bold">{fmtWon(r.totalPrescAmt)}</td>
+                    <td className="right"><DeltaAmt cur={r.totalPrescAmt} prev={ediMonthly[i - 1]?.totalPrescAmt} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {top5Products.length > 0 && (
+              <>
+                <SubTitle>▸ 주력 품목 TOP 5 (처방액 기준)</SubTitle>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="dash-table">
+                    <thead>
+                      <tr>
+                        <th className="center">순위</th>
+                        <th>품목명</th>
+                        {ediMonths.map(m => <th key={m} className="right">{fmtPeriod(m)}</th>)}
+                        <th className="right" style={{ color: '#a8c4ff' }}>합계</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {top5Products.map((p, i) => (
+                        <tr key={p.name}>
+                          <td className="center muted">{i + 1}</td>
+                          <td style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</td>
+                          {p.months.map(m => (
+                            <td key={m.month} className="right" style={{ fontSize: '0.78rem' }}>
+                              {m.prescAmt > 0 ? fmtWon(m.prescAmt, true) : <span className="muted">-</span>}
+                            </td>
+                          ))}
+                          <td className="right bold" style={{ color: '#a8c4ff' }}>{fmtWon(p.totalPrescAmt, true)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════
+          섹션 2: 거래처현황
+      ══════════════════════════════════════════════════════════ */}
+      <Section title="🏢 거래처현황" id="s2">
 
         {/* 1-A: 거래처 월별 변동 (customer_status 기반) */}
         {customerMonthly.length > 0 && (
@@ -523,14 +613,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </Section>
 
       {/* ══════════════════════════════════════════════════════════
-          섹션 2: 처방처현황
+          섹션 3: 처방처현황
       ══════════════════════════════════════════════════════════ */}
-      <Section title="🏥 처방처현황" id="s2">
+      <Section title="🏥 처방처현황" id="s3">
         {noSett ? (
           <Empty msg="수수료정산 파일을 업로드하면 자동 집계됩니다." />
         ) : (
           <>
-            {/* 2-A: 월별 처방처/품목/처방액 */}
             <SubTitle>▸ 처방처·품목·처방액 변동 (3개월)</SubTitle>
             <table className="dash-table">
               <thead>
@@ -548,20 +637,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   <tr key={r.month}>
                     <td className="muted">{fmtPeriod(r.month)}</td>
                     <td className="right bold">{r.hospCount.toLocaleString()}</td>
-                    <td className="right">
-                      <DeltaCount cur={r.hospCount} prev={prescriptionMonthly[i - 1]?.hospCount} />
-                    </td>
+                    <td className="right"><DeltaCount cur={r.hospCount} prev={prescriptionMonthly[i - 1]?.hospCount} /></td>
                     <td className="right">{r.productCount.toLocaleString()}</td>
                     <td className="right bold">{fmtWon(r.totalPrescAmt)}</td>
-                    <td className="right">
-                      <DeltaAmt cur={r.totalPrescAmt} prev={prescriptionMonthly[i - 1]?.totalPrescAmt} />
-                    </td>
+                    <td className="right"><DeltaAmt cur={r.totalPrescAmt} prev={prescriptionMonthly[i - 1]?.totalPrescAmt} /></td>
                   </tr>
                 ))}
               </tbody>
             </table>
-
-            {/* 2-B: 상위 10 처방처 */}
             {top10Prescribers.length > 0 && (
               <>
                 <SubTitle>▸ 상위 10 처방처 (3개월 추이)</SubTitle>
@@ -572,9 +655,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         <th className="center">순위</th>
                         <th>처방처명</th>
                         <th>구분</th>
-                        {recentMonths.map(m => (
-                          <th key={m} className="right">{fmtPeriod(m)}</th>
-                        ))}
+                        {recentMonths.map(m => <th key={m} className="right">{fmtPeriod(m)}</th>)}
                         <th className="right" style={{ color: '#a8c4ff' }}>합계</th>
                       </tr>
                     </thead>
@@ -582,22 +663,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       {top10Prescribers.map((r, i) => (
                         <tr key={r.name}>
                           <td className="center muted">{i + 1}</td>
-                          <td style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {r.name}
-                          </td>
-                          <td>
-                            <span className={`badge ${r.category === '의원' ? 'badge-clinic' : 'badge-hosp'}`}>
-                              {r.category}
-                            </span>
-                          </td>
+                          <td style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</td>
+                          <td><span className={`badge ${r.category === '의원' ? 'badge-clinic' : 'badge-hosp'}`}>{r.category}</span></td>
                           {r.months.map(m => (
                             <td key={m.month} className="right" style={{ fontSize: '0.78rem' }}>
                               {m.prescAmt > 0 ? fmtWon(m.prescAmt, true) : <span className="muted">-</span>}
                             </td>
                           ))}
-                          <td className="right bold" style={{ color: '#a8c4ff' }}>
-                            {fmtWon(r.totalPrescAmt, true)}
-                          </td>
+                          <td className="right bold" style={{ color: '#a8c4ff' }}>{fmtWon(r.totalPrescAmt, true)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -610,9 +683,67 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </Section>
 
       {/* ══════════════════════════════════════════════════════════
-          섹션 3: 수수료정산현황
+          섹션 4: 품목현황
       ══════════════════════════════════════════════════════════ */}
-      <Section title="💰 수수료정산현황" id="s3">
+      <Section title="💊 품목현황" id="s4">
+        {top10Products.length === 0 ? (
+          <Empty msg="수수료정산 파일을 업로드하면 자동 집계됩니다." />
+        ) : (
+          <>
+            {([
+              { label: '▸ 상위 10 품목 (최신월 처방액 기준)', items: top10Products,    isTop: true,  accentColor: '#4ade80' },
+              { label: '▸ 하위 10 품목 (최신월 처방액 기준)', items: bottom10Products, isTop: false, accentColor: '#f87171' },
+            ] as { label: string; items: ProductRankItem[]; isTop: boolean; accentColor: string }[]).map(({ label, items, isTop, accentColor }) => (
+              items.length > 0 && (
+                <div key={label} style={{ marginBottom: '0.5rem' }}>
+                  <SubTitle>{label}</SubTitle>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="dash-table">
+                      <thead>
+                        <tr>
+                          <th className="center">순위</th>
+                          <th>품목명</th>
+                          {recentMonths.map(m => <th key={m} className="right">{fmtPeriod(m)}</th>)}
+                          <th className="right">합계</th>
+                          <th className="right">전월대비</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((p, i) => (
+                          <tr key={p.name}>
+                            <td className="center" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>
+                              {isTop ? i + 1 : `▼${i + 1}`}
+                            </td>
+                            <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{p.name}</td>
+                            {p.months.map(m => (
+                              <td key={m.month} className="right" style={{ fontSize: '0.80rem' }}>
+                                {m.prescAmt > 0 ? fmtWon(m.prescAmt, true) : <span className="muted">-</span>}
+                              </td>
+                            ))}
+                            <td className="right bold" style={{ color: accentColor, fontSize: '0.80rem' }}>{fmtWon(p.totalPrescAmt, true)}</td>
+                            <td className="right" style={{ fontSize: '0.78rem' }}>
+                              {p.delta === 0
+                                ? <span className="muted">±0</span>
+                                : <span className={p.delta > 0 ? 'up' : 'dn'}>
+                                    {p.delta > 0 ? '▲' : '▼'}{fmtWon(Math.abs(p.delta), true)}
+                                  </span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )
+            ))}
+          </>
+        )}
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════
+          섹션 5: 수수료정산현황
+      ══════════════════════════════════════════════════════════ */}
+      <Section title="💰 수수료정산현황" id="s5">
         {noSett ? (
           <Empty msg="수수료정산 파일을 업로드하면 자동 집계됩니다." />
         ) : (
@@ -622,12 +753,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <table className="dash-table">
                 <thead>
                   <tr>
-                    <th>월</th>
-                    <th>구분</th>
-                    <th className="right">처방액</th>
-                    <th className="right">전월 대비</th>
-                    <th className="right">정산액</th>
-                    <th className="right">전월 대비</th>
+                    <th>월</th><th>구분</th>
+                    <th className="right">처방액</th><th className="right">전월 대비</th>
+                    <th className="right">정산액</th><th className="right">전월 대비</th>
                     <th className="right">수수료율</th>
                   </tr>
                 </thead>
@@ -635,13 +763,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   {settlementTrend.map((row, ri) => {
                     const prev = settlementTrend[ri - 1];
                     const rows: ReactElement[] = [];
-
                     if (row.clinic) {
                       rows.push(
                         <tr key={`${row.month}-cl`}>
-                          <td className="muted" rowSpan={[row.clinic, row.hospital, row.total].filter(Boolean).length}>
-                            {fmtPeriod(row.month)}
-                          </td>
+                          <td className="muted" rowSpan={[row.clinic, row.hospital, row.total].filter(Boolean).length}>{fmtPeriod(row.month)}</td>
                           <td><span className="badge badge-clinic">의원</span></td>
                           <td className="right">{fmtWon(row.clinic.prescAmt)}</td>
                           <td className="right"><DeltaAmt cur={row.clinic.prescAmt} prev={prev?.clinic?.prescAmt} /></td>
@@ -651,7 +776,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         </tr>
                       );
                     }
-
                     if (row.hospital) {
                       rows.push(
                         <tr key={`${row.month}-hs`}>
@@ -665,7 +789,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         </tr>
                       );
                     }
-
                     rows.push(
                       <tr key={`${row.month}-total`} className="total-row">
                         {!row.clinic && !row.hospital && <td className="muted">{fmtPeriod(row.month)}</td>}
@@ -677,7 +800,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         <td className="right" style={{ fontWeight: 700 }}>{fmtRate(row.total.rate)}</td>
                       </tr>
                     );
-
                     return rows;
                   })}
                 </tbody>
@@ -688,11 +810,191 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </Section>
 
       {/* ══════════════════════════════════════════════════════════
-          섹션 4: 현장활동
+          섹션 6: 경쟁사 동향
       ══════════════════════════════════════════════════════════ */}
-      <Section title="👥 현장활동" id="s4">
+      <Section title="📄 경쟁사 동향" id="s6">
+        {csoDocs.length === 0 ? (
+          <Empty msg="'CSO동향' 등 관련 폴더에 파일을 업로드하면 목록이 표시됩니다." />
+        ) : (
+          <>
+            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: '0 0 0.7rem' }}>
+              문서관리에 업로드된 CSO/경쟁사 관련 최신 자료 목록입니다.
+            </p>
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>파일명</th><th>폴더</th>
+                  <th className="center">형식</th><th className="right">업로드일</th>
+                </tr>
+              </thead>
+              <tbody>
+                {csoDocs.map(d => (
+                  <tr key={d.id}>
+                    <td style={{ maxWidth: '260px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.filename}</td>
+                    <td><span className="schedule-tag" style={{ background: 'rgba(168,85,247,0.12)', color: '#d8b4fe' }}>{d.category}</span></td>
+                    <td className="center muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase' }}>{d.fileType}</td>
+                    <td className="right muted" style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{fmtDate(d.createdAt.slice(0, 10))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.5rem', textAlign: 'right' }}>
+              전체 파일 보기 → <a href="/documents" style={{ color: '#a5b4fc' }}>문서관리</a>
+            </p>
+          </>
+        )}
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════
+          섹션 7: 발매예정현황
+      ══════════════════════════════════════════════════════════ */}
+      <Section title="🚀 발매예정현황" id="s7">
+        {upcomingProducts.length === 0 ? (
+          <Empty msg="허가현황 폴더에 파일을 업로드하면 자동으로 등록됩니다." />
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>제품명</th><th>제조사</th>
+                  <th className="center">발매예정일</th><th>보험코드</th>
+                  <th className="right">보험가</th><th className="center">상태</th>
+                </tr>
+              </thead>
+              <tbody>
+                {upcomingProducts.map(p => {
+                  const isPast = p.launchDate && p.launchDate < today;
+                  const statusColor =
+                    p.status === '발매완료' ? '#4ade80' :
+                    p.status === '보험등재' ? '#a5b4fc' :
+                    p.status === '허가완료' ? '#fbbf24' : 'rgba(255,255,255,0.5)';
+                  return (
+                    <tr key={p.id} style={{ opacity: isPast ? 0.65 : 1 }}>
+                      <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                        {p.title}
+                        {p.indication && (
+                          <span className="muted" style={{ fontSize: '0.72rem', fontWeight: 400, marginLeft: '0.4rem' }}>
+                            {p.indication.length > 20 ? p.indication.slice(0, 20) + '…' : p.indication}
+                          </span>
+                        )}
+                      </td>
+                      <td className="muted" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{p.manufacturer ?? '-'}</td>
+                      <td className="center" style={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+                        {p.launchDate ? fmtDate(p.launchDate.slice(0, 10)) : '-'}
+                      </td>
+                      <td className="muted" style={{ fontSize: '0.78rem' }}>{p.insuranceCode ?? '-'}</td>
+                      <td className="right" style={{ fontSize: '0.8rem' }}>{p.insurancePrice ?? '-'}</td>
+                      <td className="center">
+                        <span className="badge" style={{ background: `${statusColor}22`, color: statusColor, border: `1px solid ${statusColor}44` }}>
+                          {p.status ?? '예정'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════
+          섹션 8: DC현황
+      ══════════════════════════════════════════════════════════ */}
+      <Section title="🏥 DC현황" id="s8">
+        {/* 8-A: 단계별 요약 */}
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
+          {DC_STAGES.map(stage => {
+            const cnt = dcStageCounts[stage] ?? 0;
+            const color = DC_COLORS[stage];
+            return (
+              <div key={stage} style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                padding: '0.5rem 1rem', borderRadius: '8px',
+                background: `${color}14`, border: `1px solid ${color}33`,
+                minWidth: '70px',
+              }}>
+                <span style={{ fontSize: '1.2rem', fontWeight: 700, color }}>{cnt}</span>
+                <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)', marginTop: '2px' }}>{stage}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 8-B: 진행 중 항목 (약속/상정) */}
+        {(['약속', '상정'] as const).map(stage => {
+          const items = dcItems.filter(d => d.category === stage).slice(0, 8);
+          if (items.length === 0) return null;
+          return (
+            <div key={stage} style={{ marginBottom: '0.6rem' }}>
+              <SubTitle>
+                ▸ {stage} 단계
+                <span className="badge" style={{ marginLeft: '0.4rem', background: `${DC_COLORS[stage]}22`, color: DC_COLORS[stage], border: `1px solid ${DC_COLORS[stage]}44` }}>
+                  {dcStageCounts[stage]}건
+                </span>
+              </SubTitle>
+              <table className="dash-table">
+                <thead>
+                  <tr>
+                    <th>제품명</th><th>병원명</th><th>진행현황</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map(d => (
+                    <tr key={d.id}>
+                      <td style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{d.productName}</td>
+                      <td style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.hospitalName}</td>
+                      <td className="muted" style={{ fontSize: '0.78rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {d.progress ?? '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        })}
+
+        {/* 8-C: 최근 통과 */}
+        {dcItems.filter(d => d.category === '통과').length > 0 && (
+          <>
+            <SubTitle>
+              ▸ 통과 완료
+              <span className="badge" style={{ marginLeft: '0.4rem', background: '#4ade8022', color: '#4ade80', border: '1px solid #4ade8044' }}>
+                {dcStageCounts['통과']}건
+              </span>
+            </SubTitle>
+            <table className="dash-table">
+              <thead>
+                <tr><th>제품명</th><th>병원명</th><th>진행현황</th></tr>
+              </thead>
+              <tbody>
+                {dcItems.filter(d => d.category === '통과').slice(0, 8).map(d => (
+                  <tr key={d.id}>
+                    <td style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{d.productName}</td>
+                    <td style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.hospitalName}</td>
+                    <td className="muted" style={{ fontSize: '0.78rem' }}>{d.progress ?? '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {dcItems.length === 0 && (
+          <Empty msg="DC현황 페이지에서 데이터를 입력하면 표시됩니다." />
+        )}
+
+        <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.5rem', textAlign: 'right' }}>
+          전체 보기 → <a href="/dc" style={{ color: '#a5b4fc' }}>DC현황</a>
+        </p>
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════
+          섹션 9: 현장활동현황
+      ══════════════════════════════════════════════════════════ */}
+      <Section title="👥 현장활동현황" id="s9">
         <div className="two-col">
-          {/* 4-A: 담당자별 방문 현황 */}
           <div>
             <SubTitle>▸ 담당자별 방문 현황</SubTitle>
             {visitSummary.length === 0 ? (
@@ -702,18 +1004,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 <thead>
                   <tr>
                     <th>담당자</th>
-                    {visitMonths.map(m => (
-                      <th key={m} className="center">{fmtPeriod(m)}</th>
-                    ))}
+                    {visitMonths.map(m => <th key={m} className="center">{fmtPeriod(m)}</th>)}
                     <th className="center" style={{ color: '#a8c4ff' }}>합계</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visitSummary.map(v => (
                     <tr key={v.name}>
-                      <td style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {v.name}
-                      </td>
+                      <td style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</td>
                       {visitMonths.map(m => {
                         const cnt = v.months.find(mv => mv.month === m)?.count ?? 0;
                         return (
@@ -729,8 +1027,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </table>
             )}
           </div>
-
-          {/* 4-B: 주요 일정 */}
           <div>
             {upcomingSchedules.length > 0 && (
               <>
@@ -768,267 +1064,49 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </Section>
 
       {/* ══════════════════════════════════════════════════════════
-          섹션 5: 처방실적 현황 (EDI/실적마감)
+          섹션 10: 메모 (자유기술)
       ══════════════════════════════════════════════════════════ */}
-      <Section title="📈 처방실적 현황" id="s5">
-        {noEdi ? (
-          <Empty msg="EDI 또는 실적마감 파일을 업로드하면 자동 집계됩니다." />
-        ) : (
-          <>
-            {/* 5-A: 월별 처방현황 */}
-            <SubTitle>▸ 월별 처방 집계 (3개월)</SubTitle>
-            <table className="dash-table">
-              <thead>
-                <tr>
-                  <th>월</th>
-                  <th className="right">처방처수</th>
-                  <th className="right">전월 대비</th>
-                  <th className="right">처방품목수</th>
-                  <th className="right">처방액 합계</th>
-                  <th className="right">전월 대비</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ediMonthly.map((r, i) => (
-                  <tr key={r.month}>
-                    <td className="muted">{fmtPeriod(r.month)}</td>
-                    <td className="right bold">{r.hospCount.toLocaleString()}</td>
-                    <td className="right">
-                      <DeltaCount cur={r.hospCount} prev={ediMonthly[i - 1]?.hospCount} />
-                    </td>
-                    <td className="right">{r.productCount.toLocaleString()}</td>
-                    <td className="right bold">{fmtWon(r.totalPrescAmt)}</td>
-                    <td className="right">
-                      <DeltaAmt cur={r.totalPrescAmt} prev={ediMonthly[i - 1]?.totalPrescAmt} />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-
-            {/* 5-B: 상위 5 품목 */}
-            {top5Products.length > 0 && (
-              <>
-                <SubTitle>▸ 주력 품목 TOP 5 (처방액 기준)</SubTitle>
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="dash-table">
-                    <thead>
-                      <tr>
-                        <th className="center">순위</th>
-                        <th>품목명</th>
-                        {ediMonths.map(m => (
-                          <th key={m} className="right">{fmtPeriod(m)}</th>
-                        ))}
-                        <th className="right" style={{ color: '#a8c4ff' }}>합계</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {top5Products.map((p, i) => (
-                        <tr key={p.name}>
-                          <td className="center muted">{i + 1}</td>
-                          <td style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {p.name}
-                          </td>
-                          {p.months.map(m => (
-                            <td key={m.month} className="right" style={{ fontSize: '0.78rem' }}>
-                              {m.prescAmt > 0 ? fmtWon(m.prescAmt, true) : <span className="muted">-</span>}
-                            </td>
-                          ))}
-                          <td className="right bold" style={{ color: '#a8c4ff' }}>
-                            {fmtWon(p.totalPrescAmt, true)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-          </>
-        )}
+      <Section title="📝 메모" id="s10">
+        <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: '0 0 0.6rem' }}>
+          인쇄 전 자유롭게 내용을 입력하세요. 입력 내용은 저장되지 않습니다.
+        </p>
+        {/* 화면 전용: textarea */}
+        <textarea
+          className="memo-area no-print"
+          value={memo}
+          onChange={e => setMemo(e.target.value)}
+          placeholder="보고 내용, 특이사항, 향후 계획 등을 자유롭게 입력하세요..."
+          rows={6}
+          style={{
+            width: '100%', padding: '0.7rem 0.8rem',
+            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '8px', color: 'rgba(255,255,255,0.85)',
+            fontSize: '0.83rem', lineHeight: 1.65, resize: 'vertical',
+            fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+          }}
+        />
+        {/* 인쇄 전용: 입력된 텍스트를 줄바꿈 유지하여 표시 */}
+        <div
+          className="memo-print"
+          style={{
+            display: 'none',
+            whiteSpace: 'pre-wrap', fontSize: '0.83rem', lineHeight: 1.7,
+            border: '1px solid #ccc', borderRadius: '4px', padding: '0.6rem 0.8rem',
+            minHeight: '80px', color: '#111',
+          }}
+        >
+          {memo || '(내용 없음)'}
+        </div>
       </Section>
 
-      {/* ══════════════════════════════════════════════════════════
-          섹션 6: 발매예정
-      ══════════════════════════════════════════════════════════ */}
-      <Section title="🚀 발매예정" id="s6">
-        {upcomingProducts.length === 0 ? (
-          <Empty msg="허가현황 폴더에 파일을 업로드하면 자동으로 등록됩니다." />
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="dash-table">
-              <thead>
-                <tr>
-                  <th>제품명</th>
-                  <th>제조사</th>
-                  <th className="center">발매예정일</th>
-                  <th>보험코드</th>
-                  <th className="right">보험가</th>
-                  <th className="center">상태</th>
-                </tr>
-              </thead>
-              <tbody>
-                {upcomingProducts.map(p => {
-                  const isPast = p.launchDate && p.launchDate < today;
-                  const statusColor =
-                    p.status === '발매완료' ? '#4ade80' :
-                    p.status === '보험등재' ? '#a5b4fc' :
-                    p.status === '허가완료' ? '#fbbf24' :
-                    'rgba(255,255,255,0.5)';
-                  return (
-                    <tr key={p.id} style={{ opacity: isPast ? 0.65 : 1 }}>
-                      <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
-                        {p.title}
-                        {p.indication && (
-                          <span className="muted" style={{ fontSize: '0.72rem', fontWeight: 400, marginLeft: '0.4rem' }}>
-                            {p.indication.length > 20 ? p.indication.slice(0, 20) + '…' : p.indication}
-                          </span>
-                        )}
-                      </td>
-                      <td className="muted" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                        {p.manufacturer ?? '-'}
-                      </td>
-                      <td className="center" style={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
-                        {p.launchDate ? fmtDate(p.launchDate.slice(0, 10)) : '-'}
-                      </td>
-                      <td className="muted" style={{ fontSize: '0.78rem' }}>
-                        {p.insuranceCode ?? '-'}
-                      </td>
-                      <td className="right" style={{ fontSize: '0.8rem' }}>
-                        {p.insurancePrice ?? '-'}
-                      </td>
-                      <td className="center">
-                        <span className="badge" style={{
-                          background: `${statusColor}22`,
-                          color: statusColor,
-                          border: `1px solid ${statusColor}44`,
-                        }}>
-                          {p.status ?? '예정'}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Section>
-
-      {/* ══════════════════════════════════════════════════════════
-          섹션 8: 품목현황 — 상위/하위 10 품목 추이
-      ══════════════════════════════════════════════════════════ */}
-      <Section title="💊 품목현황" id="s8">
-        {top10Products.length === 0 ? (
-          <Empty msg="수수료정산 파일을 업로드하면 자동 집계됩니다." />
-        ) : (
-          <>
-            {/* 공통 테이블 렌더러 */}
-            {([
-              { label: '▸ 상위 10 품목 (최신월 처방액 기준)', items: top10Products,     isTop: true,  accentColor: '#4ade80' },
-              { label: '▸ 하위 10 품목 (최신월 처방액 기준)', items: bottom10Products,  isTop: false, accentColor: '#f87171' },
-            ] as { label: string; items: ProductRankItem[]; isTop: boolean; accentColor: string }[]).map(({ label, items, isTop, accentColor }) => (
-              items.length > 0 && (
-                <div key={label} style={{ marginBottom: '0.5rem' }}>
-                  <SubTitle>{label}</SubTitle>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table className="dash-table">
-                      <thead>
-                        <tr>
-                          <th className="center">순위</th>
-                          <th>품목명</th>
-                          {recentMonths.map(m => (
-                            <th key={m} className="right">{fmtPeriod(m)}</th>
-                          ))}
-                          <th className="right">합계</th>
-                          <th className="right">전월대비</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {items.map((p, i) => (
-                          <tr key={p.name}>
-                            <td className="center" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>
-                              {isTop ? i + 1 : `▼${i + 1}`}
-                            </td>
-                            <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
-                              {p.name}
-                            </td>
-                            {p.months.map(m => (
-                              <td key={m.month} className="right" style={{ fontSize: '0.80rem' }}>
-                                {m.prescAmt > 0
-                                  ? fmtWon(m.prescAmt, true)
-                                  : <span className="muted">-</span>}
-                              </td>
-                            ))}
-                            <td className="right bold" style={{ color: accentColor, fontSize: '0.80rem' }}>
-                              {fmtWon(p.totalPrescAmt, true)}
-                            </td>
-                            <td className="right" style={{ fontSize: '0.78rem' }}>
-                              {p.delta === 0
-                                ? <span className="muted">±0</span>
-                                : <span className={p.delta > 0 ? 'up' : 'dn'}>
-                                    {p.delta > 0 ? '▲' : '▼'}{fmtWon(Math.abs(p.delta), true)}
-                                  </span>}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )
-            ))}
-          </>
-        )}
-      </Section>
-
-      {/* ══════════════════════════════════════════════════════════
-          섹션 7: 경쟁사 동향
-      ══════════════════════════════════════════════════════════ */}
-      <Section title="📄 경쟁사 동향" id="s7">
-        {csoDocs.length === 0 ? (
-          <Empty msg="'CSO동향' 등 관련 폴더에 파일을 업로드하면 목록이 표시됩니다." />
-        ) : (
-          <>
-            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: '0 0 0.7rem' }}>
-              문서관리에 업로드된 CSO/경쟁사 관련 최신 자료 목록입니다.
-            </p>
-            <table className="dash-table">
-              <thead>
-                <tr>
-                  <th>파일명</th>
-                  <th>폴더</th>
-                  <th className="center">형식</th>
-                  <th className="right">업로드일</th>
-                </tr>
-              </thead>
-              <tbody>
-                {csoDocs.map(d => (
-                  <tr key={d.id}>
-                    <td style={{ maxWidth: '260px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {d.filename}
-                    </td>
-                    <td>
-                      <span className="schedule-tag" style={{ background: 'rgba(168,85,247,0.12)', color: '#d8b4fe' }}>
-                        {d.category}
-                      </span>
-                    </td>
-                    <td className="center muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase' }}>
-                      {d.fileType}
-                    </td>
-                    <td className="right muted" style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
-                      {fmtDate(d.createdAt.slice(0, 10))}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.5rem', textAlign: 'right' }}>
-              전체 파일 보기 → <a href="/documents" style={{ color: '#a5b4fc' }}>문서관리</a>
-            </p>
-          </>
-        )}
-      </Section>
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          .memo-print { display: block !important; }
+        }
+        .memo-area:focus { border-color: rgba(99,102,241,0.5) !important; box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
+        .memo-area::placeholder { color: rgba(255,255,255,0.22); }
+      `}</style>
     </>
   );
 }

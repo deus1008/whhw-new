@@ -130,6 +130,7 @@ export default async function DashboardPage() {
     { data: ediRows },
     { data: upcomingRows },
     { data: docRows },
+    { data: dcRows },
   ] = await Promise.all([
     svc.from('customer_status')
       .select('source_file, created_at')
@@ -165,6 +166,12 @@ export default async function DashboardPage() {
       .gte('created_at', since3mStr)
       .order('created_at', { ascending: false })
       .limit(60),
+    // DC현황: 전체 목록 (sort_order 순)
+    svc.from('dc_status')
+      .select('id,category,product_name,hospital_name,progress,updated_at')
+      .order('category', { ascending: true })
+      .order('sort_order', { ascending: true })
+      .limit(200),
   ]);
 
   // ── C. Settlement 데이터 가공 ─────────────────────────────────────────────
@@ -427,6 +434,20 @@ export default async function DashboardPage() {
       createdAt: d.created_at as string,
     }));
 
+  // ── J. DC현황 ─────────────────────────────────────────────────────────────
+  const DC_STAGES = ['준비중', '약속', '상정', '통과'] as const;
+  const dcItems = (dcRows ?? []).map(r => ({
+    id:           r.id           as string,
+    category:     (r.category ?? '') as string,
+    productName:  (r.product_name  ?? '') as string,
+    hospitalName: (r.hospital_name ?? '') as string,
+    progress:     (r.progress ?? null)    as string | null,
+    updatedAt:    (r.updated_at ?? '')    as string,
+  }));
+  const dcStageCounts: Record<string, number> = Object.fromEntries(
+    DC_STAGES.map(s => [s, dcItems.filter(d => d.category === s).length]),
+  );
+
   // ── F. 주요일정 ───────────────────────────────────────────────────────────
   const schedules = (scheduleRows ?? []).map(s => ({
     title:     s.title    as string,
@@ -457,6 +478,8 @@ export default async function DashboardPage() {
     csoDocs,
     top10Products,
     bottom10Products,
+    dcItems,
+    dcStageCounts,
   };
 
   return (
