@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import type { ReactElement } from 'react';
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -82,10 +82,16 @@ export type ScheduleItem = {
 };
 
 export type EdiMonthStat = {
-  month:         string;
-  hospCount:     number;
-  productCount:  number;
-  totalPrescAmt: number;
+  month:                string;
+  hospCount:            number;
+  clinicCount:          number;
+  hospitalCount:        number;
+  productCount:         number;
+  clinicProductCount:   number;
+  hospitalProductCount: number;
+  totalPrescAmt:        number;
+  clinicPrescAmt:       number;
+  hospitalPrescAmt:     number;
 };
 
 export type TopProduct = {
@@ -226,10 +232,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     reportDate, recentMonths,
     csoStats,
     settlementByCategory, top10Customers, customerMonthly,
-    prescriptionMonthly, top10Prescribers,
+    prescriptionMonthly,
     settlementTrend,
     schedules, visitSummary, visitMonths,
-    ediMonthly, top5Products, ediMonths,
+    ediMonthly, ediMonths,
     upcomingProducts,
     csoDocs,
     top10Products, bottom10Products,
@@ -435,62 +441,62 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <Empty msg="EDI 또는 실적마감 파일을 업로드하면 자동 집계됩니다." />
         ) : (
           <>
-            <SubTitle>▸ 월별 처방 집계 (3개월)</SubTitle>
-            <table className="dash-table">
-              <thead>
-                <tr>
-                  <th>월</th>
-                  <th className="right">처방처수</th>
-                  <th className="right">전월 대비</th>
-                  <th className="right">처방품목수</th>
-                  <th className="right">처방액 합계</th>
-                  <th className="right">전월 대비</th>
-                </tr>
-              </thead>
-              <tbody>
-                {ediMonthly.map((r, i) => (
-                  <tr key={r.month}>
-                    <td className="muted">{fmtPeriod(r.month)}</td>
-                    <td className="right bold">{r.hospCount.toLocaleString()}</td>
-                    <td className="right"><DeltaCount cur={r.hospCount} prev={ediMonthly[i - 1]?.hospCount} /></td>
-                    <td className="right">{r.productCount.toLocaleString()}</td>
-                    <td className="right bold">{fmtWon(r.totalPrescAmt)}</td>
-                    <td className="right"><DeltaAmt cur={r.totalPrescAmt} prev={ediMonthly[i - 1]?.totalPrescAmt} /></td>
+            <SubTitle>▸ 의원·병원별 처방 집계 (3개월)</SubTitle>
+            <div style={{ overflowX: 'auto' }}>
+              <table className="dash-table">
+                <thead>
+                  <tr>
+                    <th>월</th>
+                    <th>구분</th>
+                    <th className="right">처방처수</th>
+                    <th className="right">처방품목수</th>
+                    <th className="right">처방액 합계</th>
+                    <th className="right">처방액 평균</th>
+                    <th className="right">전월대비</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {top5Products.length > 0 && (
-              <>
-                <SubTitle>▸ 주력 품목 TOP 5 (처방액 기준)</SubTitle>
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="dash-table">
-                    <thead>
-                      <tr>
-                        <th className="center">순위</th>
-                        <th>품목명</th>
-                        {ediMonths.map(m => <th key={m} className="right">{fmtPeriod(m)}</th>)}
-                        <th className="right" style={{ color: '#a8c4ff' }}>합계</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {top5Products.map((p, i) => (
-                        <tr key={p.name}>
-                          <td className="center muted">{i + 1}</td>
-                          <td style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</td>
-                          {p.months.map(m => (
-                            <td key={m.month} className="right" style={{ fontSize: '0.78rem' }}>
-                              {m.prescAmt > 0 ? fmtWon(m.prescAmt, true) : <span className="muted">-</span>}
-                            </td>
-                          ))}
-                          <td className="right bold" style={{ color: '#a8c4ff' }}>{fmtWon(p.totalPrescAmt, true)}</td>
+                </thead>
+                <tbody>
+                  {ediMonthly.map((r, i) => {
+                    const prev = ediMonthly[i - 1];
+                    return (
+                      <Fragment key={r.month}>
+                        <tr>
+                          <td className="muted" rowSpan={3}>{fmtPeriod(r.month)}</td>
+                          <td><span className="badge badge-clinic">의원</span></td>
+                          <td className="right">{r.clinicCount.toLocaleString()}</td>
+                          <td className="right">{r.clinicProductCount.toLocaleString()}</td>
+                          <td className="right">{fmtWon(r.clinicPrescAmt)}</td>
+                          <td className="right muted" style={{ fontSize: '0.78rem' }}>
+                            {r.clinicCount > 0 ? fmtWon(Math.round(r.clinicPrescAmt / r.clinicCount)) : '-'}
+                          </td>
+                          <td className="right"><DeltaAmt cur={r.clinicPrescAmt} prev={prev?.clinicPrescAmt} /></td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
+                        <tr>
+                          <td><span className="badge badge-hosp">병원</span></td>
+                          <td className="right">{r.hospitalCount.toLocaleString()}</td>
+                          <td className="right">{r.hospitalProductCount.toLocaleString()}</td>
+                          <td className="right">{fmtWon(r.hospitalPrescAmt)}</td>
+                          <td className="right muted" style={{ fontSize: '0.78rem' }}>
+                            {r.hospitalCount > 0 ? fmtWon(Math.round(r.hospitalPrescAmt / r.hospitalCount)) : '-'}
+                          </td>
+                          <td className="right"><DeltaAmt cur={r.hospitalPrescAmt} prev={prev?.hospitalPrescAmt} /></td>
+                        </tr>
+                        <tr className="total-row">
+                          <td>전체</td>
+                          <td className="right bold">{r.hospCount.toLocaleString()}</td>
+                          <td className="right">{r.productCount.toLocaleString()}</td>
+                          <td className="right bold">{fmtWon(r.totalPrescAmt)}</td>
+                          <td className="right muted" style={{ fontSize: '0.78rem' }}>
+                            {r.hospCount > 0 ? fmtWon(Math.round(r.totalPrescAmt / r.hospCount)) : '-'}
+                          </td>
+                          <td className="right"><DeltaAmt cur={r.totalPrescAmt} prev={prev?.totalPrescAmt} /></td>
+                        </tr>
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </>
         )}
       </Section>
@@ -505,7 +511,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <Empty msg="CSO 담당자 정보가 있는 파일을 업로드하면 집계됩니다." />
         ) : (
           <>
-            <SubTitle>▸ CSO별 처방처수·처방액·정산액 ({recentMonths.length > 0 ? `${fmtPeriod(recentMonths[0])} ~ ${fmtPeriod(recentMonths[recentMonths.length - 1])}` : '최근 3개월'})</SubTitle>
+            <SubTitle>▸ CSO별 집계 · CSO {csoStats.length}개 ({recentMonths.length > 0 ? `${fmtPeriod(recentMonths[0])} ~ ${fmtPeriod(recentMonths[recentMonths.length - 1])}` : '최근 3개월'})</SubTitle>
             <div style={{ overflowX: 'auto' }}>
               <table className="dash-table">
                 <thead>
@@ -534,23 +540,32 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       </tr>
                     );
                   })}
-                  {/* 합계 행 */}
-                  <tr className="total-row">
-                    <td className="center" />
-                    <td style={{ fontWeight: 700 }}>전체 합계</td>
-                    <td className="right">{new Set(csoStats.map(r => r.hospCount)).size > 0
-                      ? csoStats.reduce((s, r) => s + r.hospCount, 0).toLocaleString()
-                      : '-'}</td>
-                    <td className="right">{fmtWon(csoStats.reduce((s, r) => s + r.prescAmt, 0))}</td>
-                    <td className="right">{fmtWon(csoStats.reduce((s, r) => s + r.settAmt, 0))}</td>
-                    <td className="right" style={{ color: '#a8c4ff' }}>
-                      {(() => {
-                        const tp = csoStats.reduce((s, r) => s + r.prescAmt, 0);
-                        const ts = csoStats.reduce((s, r) => s + r.settAmt, 0);
-                        return tp > 0 ? fmtRate(Math.round(ts / tp * 1000) / 10) : '-';
-                      })()}
-                    </td>
-                  </tr>
+                  {/* 합산 / 평균 행 */}
+                  {(() => {
+                    const n  = csoStats.length;
+                    const th = csoStats.reduce((s, r) => s + r.hospCount, 0);
+                    const tp = csoStats.reduce((s, r) => s + r.prescAmt,  0);
+                    const ts = csoStats.reduce((s, r) => s + r.settAmt,   0);
+                    const overallRate = tp > 0 ? Math.round(ts / tp * 1000) / 10 : 0;
+                    return (
+                      <>
+                        <tr className="total-row">
+                          <td className="center" colSpan={2} style={{ fontWeight: 700 }}>합산 (CSO {n}개)</td>
+                          <td className="right">{th.toLocaleString()}</td>
+                          <td className="right">{fmtWon(tp)}</td>
+                          <td className="right">{fmtWon(ts)}</td>
+                          <td className="right" style={{ color: '#a8c4ff' }}>{tp > 0 ? fmtRate(overallRate) : '-'}</td>
+                        </tr>
+                        <tr className="total-row" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                          <td className="center" colSpan={2}>CSO당 평균</td>
+                          <td className="right">{n > 0 ? Math.round(th / n).toLocaleString() : '-'}</td>
+                          <td className="right">{n > 0 ? fmtWon(Math.round(tp / n)) : '-'}</td>
+                          <td className="right">{n > 0 ? fmtWon(Math.round(ts / n)) : '-'}</td>
+                          <td className="right muted">-</td>
+                        </tr>
+                      </>
+                    );
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -615,40 +630,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </table>
             </div>
 
-            {/* 3-B: 상위 10 처방처 (병원/의원 구분) */}
-            {top10Prescribers.length > 0 && (
-              <>
-                <SubTitle>▸ 상위 10 처방처 (3개월 추이)</SubTitle>
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="dash-table">
-                    <thead>
-                      <tr>
-                        <th className="center">순위</th>
-                        <th>처방처명</th>
-                        <th>구분</th>
-                        {recentMonths.map(m => <th key={m} className="right">{fmtPeriod(m)}</th>)}
-                        <th className="right" style={{ color: '#a8c4ff' }}>합계</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {top10Prescribers.map((r, i) => (
-                        <tr key={r.name}>
-                          <td className="center muted">{i + 1}</td>
-                          <td style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</td>
-                          <td><span className={`badge ${r.category === '의원' ? 'badge-clinic' : 'badge-hosp'}`}>{r.category}</span></td>
-                          {r.months.map(m => (
-                            <td key={m.month} className="right" style={{ fontSize: '0.78rem' }}>
-                              {m.prescAmt > 0 ? fmtWon(m.prescAmt, true) : <span className="muted">-</span>}
-                            </td>
-                          ))}
-                          <td className="right bold" style={{ color: '#a8c4ff' }}>{fmtWon(r.totalPrescAmt, true)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
           </>
         )}
       </Section>

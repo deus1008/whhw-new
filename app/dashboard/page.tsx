@@ -402,14 +402,26 @@ export default async function DashboardPage() {
   const ediMonthSet  = new Set(ediMonths);
 
   const ediMonthly = ediMonths.map(month => {
-    const rows     = normEdi.filter(r => r.prescription_month === month);
-    const hosps    = new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!));
-    const products = new Set(rows.filter(r => r.product_name).map(r => r.product_name!));
+    const rows    = normEdi.filter(r => r.prescription_month === month);
+    const clRows  = rows.filter(r =>  isClinic(null, r.hospital_type));
+    const hsRows  = rows.filter(r => !isClinic(null, r.hospital_type));
+    const allH    = new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!));
+    const clH     = new Set(clRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
+    const hsH     = new Set(hsRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
+    const allP    = new Set(rows.filter(r => r.product_name).map(r => r.product_name!));
+    const clP     = new Set(clRows.filter(r => r.product_name).map(r => r.product_name!));
+    const hsP     = new Set(hsRows.filter(r => r.product_name).map(r => r.product_name!));
     return {
       month,
-      hospCount:     hosps.size,
-      productCount:  products.size,
-      totalPrescAmt: rows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+      hospCount:            allH.size,
+      clinicCount:          clH.size,
+      hospitalCount:        hsH.size,
+      productCount:         allP.size,
+      clinicProductCount:   clP.size,
+      hospitalProductCount: hsP.size,
+      totalPrescAmt:        rows.reduce((s, r)   => s + (r.prescription_amount ?? 0), 0),
+      clinicPrescAmt:       clRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+      hospitalPrescAmt:     hsRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
     };
   });
 
