@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { normalizeRole } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import MarketingClient from '@/components/MarketingClient';
@@ -35,7 +36,8 @@ export default async function MarketingPage() {
 
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
 
-  const isAdmin = myProfile.role === '관리자';
+  const role = normalizeRole(myProfile.role);
+  const isAdmin = role === '관리자' || role === '마케팅총괄';
 
   // 전체 일정 조회 (최근 3개월 ~ 향후 12개월)
   const from = new Date();

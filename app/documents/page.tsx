@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { normalizeRole } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import DocumentsClient from '@/components/DocumentsClient';
@@ -32,8 +33,9 @@ export default async function DocumentsPage() {
     .eq('id', user.id)
     .single();
 
-  const role = myProfile?.role as string | undefined;
-  if (!role || (role !== '관리자' && role !== '영업관리총괄' && role !== '영업관리' && role !== '마케팅총괄' && role !== 'PM')) {
+  const role = normalizeRole(myProfile?.role);
+  const uploadRoles = ['관리자', '영업관리총괄', '영업관리', '마케팅총괄', 'PM'];
+  if (!role || !uploadRoles.includes(role)) {
     redirect('/dashboard');
   }
 

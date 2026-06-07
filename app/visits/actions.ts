@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { normalizeRole } from '@/lib/roles';
 import type { VisitRecord } from './page';
 
 export type RecordInput = {
@@ -32,7 +33,9 @@ async function getAuthorized() {
     return { error: '승인된 계정이 아닙니다.' };
   }
 
-  return { supabase, user, role: profile.role as string };
+  const role = normalizeRole(profile.role);
+  const isAdmin = role === '관리자' || role === '사업총괄' || role === '영업관리총괄';
+  return { supabase, user, role: isAdmin ? '관리자' : role };
 }
 
 function cleanInput(input: RecordInput) {
@@ -47,6 +50,34 @@ function cleanInput(input: RecordInput) {
     next_action:   input.next_action.trim()   || null,
     follow_up_date: input.follow_up_date      || null,
   };
+}
+
+/** 제품명 텍스트를 파싱해 visit_products 행 배열로 변환 */
+function parseProductNames(productsText: string | null | undefined): string[] {
+  if (!productsText?.trim()) return [];
+  return productsText
+    .split(/[,，、\n]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+}
+
+/** visit_products 테이블에 제품 목록을 동기화 (기존 삭제 후 재삽입) */
+async function syncVisitProducts(
+  supabase: Awaited<ReturnType<typeof import('@/lib/supabase/server').createClient>>,
+  visitId: string,
+  productsText: string | null | undefined,
+): Promise<void> {
+  try {
+    await supabase.from('visit_products').delete().eq('visit_id', visitId);
+    const names = parseProductNames(productsText);
+    if (names.length === 0) return;
+    await supabase.from('visit_products').insert(
+      names.map((product_name, i) => ({ visit_id: visitId, product_name, sort_order: i })),
+    );
+  } catch (e) {
+    // visit_products 테이블 미존재 시 무시 (마이그레이션 전 상태)
+    console.warn('[syncVisitProducts] 스킵:', e instanceof Error ? e.message : e);
+  }
 }
 
 /* ── 생성 ─────────────────────────────────────────────────── */
@@ -65,6 +96,7 @@ export async function createVisitRecord(input: RecordInput): Promise<Result<Visi
     .single();
 
   if (error) return { error: `저장 실패: ${error.message}` };
+  await syncVisitProducts(auth.supabase, data.id, input.products);
   return { data: data as VisitRecord };
 }
 
@@ -78,7 +110,7 @@ export async function updateVisitRecord(id: string, input: RecordInput): Promise
   if (!input.content)       return { error: '협의 내용을 입력하세요.' };
 
   // 본인 레코드인지 확인 (admin이 아닌 경우)
-  if (auth.role !== 'admin') {
+  if (auth.role !== '관리자') {
     const { data: existing } = await auth.supabase
       .from('visit_records').select('user_id').eq('id', id).single();
     if (!existing || existing.user_id !== auth.user!.id) {
@@ -94,6 +126,7 @@ export async function updateVisitRecord(id: string, input: RecordInput): Promise
     .single();
 
   if (error) return { error: `수정 실패: ${error.message}` };
+  await syncVisitProducts(auth.supabase, id, input.products);
   return { data: data as VisitRecord };
 }
 
@@ -102,7 +135,7 @@ export async function deleteVisitRecord(id: string): Promise<Result<void>> {
   const auth = await getAuthorized();
   if (auth.error || !auth.supabase) return { error: auth.error };
 
-  if (auth.role !== 'admin') {
+  if (auth.role !== '관리자') {
     const { data: existing } = await auth.supabase
       .from('visit_records').select('user_id').eq('id', id).single();
     if (!existing || existing.user_id !== auth.user!.id) {

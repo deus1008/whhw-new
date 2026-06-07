@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { normalizeRole } from '@/lib/roles';
 import * as XLSX from 'xlsx';
 import { processRaw } from '@/lib/performance/process';
 import type { PerfData } from '@/lib/performance/process';
@@ -10,6 +11,65 @@ import type { PerfData } from '@/lib/performance/process';
 const BUCKET_DOCS = 'documents';
 const BUCKET_CACHE = 'performance-data';
 const FOLDER_NAME = '실적마감';
+
+/** trend_prescriptions 에 실적마감 원본 행 동기화 (이미 존재하면 스킵) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function syncPerfToDb(svc: any, rows: Record<string, unknown>[], filename: string, period: string): Promise<void> {
+  try {
+    const { count } = await svc
+      .from('trend_prescriptions')
+      .select('id', { count: 'exact', head: true })
+      .eq('source_file', filename);
+    if ((count ?? 0) > 0) return;
+
+    // period "YYYY.MM" → "YYYYMM"
+    const prescMonth = period ? period.replace('.', '') : null;
+
+    type InsertRow = {
+      source_file: string;
+      prescription_month: string | null;
+      sales_rep: string | null;
+      cso_name: string | null;
+      hospital_name: string | null;
+      product_name: string | null;
+      hospital_type: string | null;
+      prescription_amount: number | null;
+    };
+
+    const insertRows: InsertRow[] = [];
+    for (const r of rows) {
+      const amt = Number(r['처방금액']) || 0;
+      if (amt === 0) continue; // 금액 없는 행 제외
+
+      insertRows.push({
+        source_file:         filename,
+        prescription_month:  prescMonth,
+        sales_rep:           String(r['현담당자']    ?? '').trim() || null,
+        cso_name:            String(r['판매대행처명'] ?? '').trim() || null,
+        hospital_name:       String(r['처방처명']    ?? r['거래처명'] ?? '').trim() || null,
+        product_name:        String(r['품목명']      ?? '').trim() || null,
+        hospital_type:       String(r['병원구분']    ?? r['종별구분'] ?? '').trim() || null,
+        prescription_amount: amt,
+      });
+    }
+
+    if (insertRows.length === 0) return;
+
+    const CHUNK = 1000;
+    for (let i = 0; i < insertRows.length; i += CHUNK) {
+      const { error } = await svc
+        .from('trend_prescriptions')
+        .insert(insertRows.slice(i, i + CHUNK));
+      if (error) {
+        console.warn(`[syncPerfToDb] 삽입 오류 (chunk ${i}):`, error.message);
+        break;
+      }
+    }
+    console.log(`[syncPerfToDb] ${filename}: ${insertRows.length}행 저장 완료`);
+  } catch (e) {
+    console.warn('[syncPerfToDb] 스킵:', e instanceof Error ? e.message : e);
+  }
+}
 
 export interface StoredReport {
   period: string;
@@ -101,6 +161,12 @@ export async function getPerformanceData(): Promise<{
       const blob = new Blob([JSON.stringify(report)], { type: 'application/json' });
       await svc.storage.from(BUCKET_CACHE).upload(cacheKey, blob, { upsert: true });
 
+      // DB 저장 (행 단위 구조화) — 당월분만 저장
+      const currentMonthRows = rows.filter(r =>
+        String(r['실적구분'] ?? '').trim() === '당월분',
+      );
+      await syncPerfToDb(svc, currentMonthRows.length > 0 ? currentMonthRows : rows, doc.filename as string, data.period);
+
       reports.push(report);
     } catch (e) {
       console.error('[getPerformanceData] doc:', doc.id, e);
@@ -125,7 +191,8 @@ export async function forceRefreshAnalysis(): Promise<{ error?: string }> {
 
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single();
-  if (!profile || profile.role !== 'admin')
+  const role = normalizeRole(profile?.role);
+  if (role !== '관리자' && role !== '영업관리총괄' && role !== '영업관리')
     return { error: '관리자만 새로고침할 수 있습니다.' };
 
   const svc = getSvc();

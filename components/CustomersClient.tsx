@@ -224,7 +224,7 @@ export default function CustomersClient() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  {['CSO명','사업자번호','내부명','종별/지역','담당사원(지역장)','담당자(CSO)','연락처','주소/이메일','비고'].map(h => (
+                  {['No.','CSO명','담당자','업체담당자이메일','사업자번호','담당사원명'].map(h => (
                     <th key={h} style={th}>{h}</th>
                   ))}
                 </tr>
@@ -233,43 +233,29 @@ export default function CustomersClient() {
                 {items.map((c, i) => (
                   <tr key={c.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)',
                     background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                    {/* No. */}
+                    <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.72rem', width: 40, textAlign: 'center' }}>
+                      {(page - 1) * 50 + i + 1}
+                    </td>
                     {/* CSO명 */}
                     <td style={{ ...td, fontWeight: 600, color: 'var(--text-primary)', minWidth: 130 }}>
                       {c.customer_name}
                     </td>
-                    {/* 사업자번호 */}
-                    <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.72rem', whiteSpace: 'nowrap' }}>
-                      {c.customer_code ?? '—'}
-                    </td>
-                    {/* 내부명 (sub_region에 저장) */}
-                    <td style={{ ...td, color: 'rgba(240,244,255,0.7)', whiteSpace: 'nowrap' }}>
-                      {c.sub_region ?? '—'}
-                    </td>
-                    {/* 종별/지역 */}
-                    <td style={{ ...td, whiteSpace: 'nowrap', fontSize: '0.73rem' }}>
-                      {[c.customer_type, c.region].filter(Boolean).join(' / ') || '—'}
-                    </td>
-                    {/* 담당사원명 → 지역장 ⭐ */}
-                    <td style={{ ...td, fontWeight: c.manager ? 700 : 400, color: c.manager ? '#a5b4fc' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      {c.manager ?? '—'}
-                    </td>
                     {/* 담당자 (CSO 업체 담당자) */}
-                    <td style={{ ...td, color: 'rgba(240,244,255,0.75)', whiteSpace: 'nowrap' }}>
+                    <td style={{ ...td, color: 'rgba(240,244,255,0.8)', whiteSpace: 'nowrap', minWidth: 80 }}>
                       {c.cso ?? '—'}
                     </td>
-                    {/* 전화번호 */}
-                    <td style={{ ...td, whiteSpace: 'nowrap', fontSize: '0.73rem', color: 'var(--text-muted)' }}>
-                      {c.phone ?? '—'}
+                    {/* 업체담당자이메일 */}
+                    <td style={{ ...td, fontSize: '0.75rem', color: '#67e8f9', minWidth: 180 }}>
+                      {c.memo || '—'}
                     </td>
-                    {/* 주소 / 이메일(memo) */}
-                    <td style={{ ...td, maxWidth: 220, fontSize: '0.72rem' }}>
-                      <div style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {c.memo || c.address || '—'}
-                      </div>
+                    {/* 사업자번호 */}
+                    <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120, fontVariantNumeric: 'tabular-nums' }}>
+                      {c.customer_code ?? '—'}
                     </td>
-                    {/* 비고 */}
-                    <td style={{ ...td, maxWidth: 100, fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                      {c.address && c.memo ? c.address : ''}
+                    {/* 담당사원명 */}
+                    <td style={{ ...td, fontWeight: c.manager ? 700 : 400, color: c.manager ? '#a5b4fc' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      {c.manager ?? '—'}
                     </td>
                   </tr>
                 ))}

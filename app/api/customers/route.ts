@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
-export const dynamic = 'force-dynamic';
+// ⑥ force-dynamic 제거 → 5분 캐시로 매 요청 DB 조회 방지
+export const revalidate = 300;
 
 function serviceClient() {
   return createSupabaseClient(

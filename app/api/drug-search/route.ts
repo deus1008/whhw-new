@@ -224,7 +224,7 @@ async function fetchFromNedrug(
         Accept: 'application/json, text/plain, */*',
         'X-Requested-With': 'XMLHttpRequest',
       },
-      next: { revalidate: 300 },
+      next: { revalidate: 86400 },
     });
 
     if (!res.ok) {
@@ -280,7 +280,7 @@ async function fetchDataGoKr(
   try {
     const res = await fetch(url, {
       headers: { Accept: 'application/json' },
-      next: { revalidate: 300 },
+      next: { revalidate: 86400 },
     });
 
     if (!res.ok) {

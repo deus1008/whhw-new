@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { normalizeRole } from '@/lib/roles';
 
 /** RLS를 우회하는 서비스 롤 클라이언트 */
 function createServiceClient() {
@@ -23,11 +24,13 @@ async function verifyUploaderOrAdmin() {
     .eq('id', user.id)
     .single();
 
-  if (!profile || (profile.role !== '관리자' && profile.role !== '영업관리총괄' && profile.role !== '영업관리' && profile.role !== '마케팅총괄' && profile.role !== 'PM')) {
+  const role = normalizeRole(profile?.role);
+  const uploadRoles = ['관리자', '영업관리총괄', '영업관리', '마케팅총괄', 'PM'];
+  if (!profile || !uploadRoles.includes(role)) {
     throw new Error('Unauthorized');
   }
 
-  return { supabase, userId: user.id, role: profile.role as string };
+  return { supabase, userId: user.id, role };
 }
 
 export async function deleteDocument(formData: FormData) {

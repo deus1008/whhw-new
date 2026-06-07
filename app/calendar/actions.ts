@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { normalizeRole } from '@/lib/roles';
 import type { MarketingSchedule } from './page';
 
 export type ScheduleInput = {
@@ -30,7 +31,7 @@ async function getAuthorized() {
   if (!profile || profile.status !== 'approved')
     return { error: '승인된 계정이 아닙니다.' };
 
-  return { supabase, user, role: profile.role as string };
+  return { supabase, user, role: normalizeRole(profile.role) };
 }
 
 function clean(input: ScheduleInput) {

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { normalizeRole } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import VisitsClient from '@/components/VisitsClient';
@@ -36,7 +37,8 @@ export default async function VisitsPage() {
 
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
 
-  const isAdmin = myProfile.role === 'admin';
+  const role = normalizeRole(myProfile.role);
+  const isAdmin = role === '관리자' || role === '사업총괄' || role === '영업관리총괄';
   let records: VisitRecord[] = [];
 
   if (isAdmin) {

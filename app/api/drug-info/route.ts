@@ -147,7 +147,7 @@ async function fetchPricesFromDB(itemName: string): Promise<PriceItem[]> {
 async function fetchPricesFromAPI(apiKey: string, itemName: string): Promise<PriceItem[]> {
   const url = `${PRICE_URL}?ServiceKey=${encodeURIComponent(apiKey)}&itmNm=${encodeURIComponent(itemName)}&numOfRows=20&pageNo=1`;
   try {
-    const res = await fetch(url, { next: { revalidate: 300 } });
+    const res = await fetch(url, { next: { revalidate: 86400 } });
     if (!res.ok) { console.warn('[drug-info] 약가 API HTTP', res.status); return []; }
     const xml = await res.text();
     return parseXmlItems(xml).map(item => ({
@@ -191,7 +191,7 @@ async function fetchBioEq(apiKey: string, itemName: string): Promise<BioEqItem[]
   async function doFetch(name: string): Promise<Omit<BioEqItem, 'crossRecognized'>[]> {
     const url = `${BIOEQ_URL}?serviceKey=${encodeURIComponent(apiKey)}&item_name=${encodeURIComponent(name)}&numOfRows=20&pageNo=1`;
     try {
-      const res = await fetch(url, { next: { revalidate: 300 } });
+      const res = await fetch(url, { next: { revalidate: 86400 } });
       if (!res.ok) { console.warn('[drug-info] 생동 HTTP', res.status); return []; }
       const xml = await res.text();
       return parseXmlItems(xml).map(item => ({
@@ -237,7 +237,7 @@ async function fetchDmf(apiKey: string, ingrName: string): Promise<DmfItem[]> {
   const results = await Promise.allSettled(
     ingredients.map(async (ingr) => {
       const url = `${DMF_URL}?serviceKey=${encodeURIComponent(apiKey)}&ingr_kor_name=${encodeURIComponent(ingr)}&numOfRows=50&pageNo=1`;
-      const res = await fetch(url, { next: { revalidate: 300 } });
+      const res = await fetch(url, { next: { revalidate: 86400 } });
       if (!res.ok) { console.warn('[drug-info] DMF HTTP', res.status, ingr); return [] as DmfItem[]; }
       const xml = await res.text();
       return parseXmlItems(xml).map(item => ({

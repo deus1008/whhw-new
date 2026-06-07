@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { normalizeRole } from '@/lib/roles';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
@@ -35,7 +36,8 @@ export default async function ProductsPage() {
 
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
 
-  const isAdmin = myProfile.role === 'admin';
+  const role = normalizeRole(myProfile.role);
+  const isAdmin = role === '관리자' || role === '마케팅총괄' || role === 'PM';
 
   // 서비스 롤 클라이언트로 RLS 우회 (발매예정 목록은 승인 멤버 전체 공개)
   const sb = createServiceClient(

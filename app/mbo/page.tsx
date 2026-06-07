@@ -1,10 +1,14 @@
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { normalizeRole } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
-import MBOClient from '@/components/MBOClient';
 import { getMembers } from './actions';
+
+// ⑦ dynamic import: MBOClient JS 번들을 별도 청크로 분리 → 초기 페이지 번들 경량화
+const MBOClient = dynamic(() => import('@/components/MBOClient'));
 
 export default async function MBOPage() {
   const supabase = await createClient();
@@ -19,7 +23,8 @@ export default async function MBOPage() {
 
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
-  const isAdmin = profile.role === 'admin';
+  const role = normalizeRole(profile.role);
+  const isAdmin = role === '관리자' || role === '사업총괄' || role === '영업관리총괄';
   const members = isAdmin ? await getMembers() : [];
 
   return (

@@ -41,9 +41,38 @@ export const ADMIN_ROLES: UserRole[] = ['관리자'];
 /** 문서 업로드 가능 역할 */
 export const UPLOADER_ROLES: UserRole[] = ['관리자', '영업관리총괄', '영업관리', '마케팅총괄', 'PM'];
 
-/** 역할 체크 헬퍼 */
+/** 단일 role 문자열 체크 헬퍼 (레거시 호환) */
 export const isAdminRole    = (role: string) => ADMIN_ROLES.includes(role as UserRole);
 export const isUploaderRole = (role: string) => UPLOADER_ROLES.includes(role as UserRole);
+
+/**
+ * 프로필 객체에서 유효한 역할 배열 반환
+ * - roles 배열이 있으면 그것을 사용
+ * - 없으면 role 단일 값에서 배열 생성
+ */
+export function getRoles(profile: { role?: string | null; roles?: string[] | null }): UserRole[] {
+  if (profile.roles && profile.roles.length > 0) return profile.roles as UserRole[];
+  if (profile.role) return [profile.role as UserRole];
+  return [];
+}
+
+/** 프로필이 특정 역할을 가지는지 확인 */
+export function profileHasRole(
+  profile: { role?: string | null; roles?: string[] | null },
+  role: UserRole,
+): boolean {
+  return getRoles(profile).includes(role);
+}
+
+/** 프로필이 관리자인지 확인 */
+export function profileIsAdmin(profile: { role?: string | null; roles?: string[] | null }): boolean {
+  return profileHasRole(profile, '관리자');
+}
+
+/** 프로필이 문서 업로드 권한을 가지는지 확인 */
+export function profileCanUpload(profile: { role?: string | null; roles?: string[] | null }): boolean {
+  return getRoles(profile).some(r => UPLOADER_ROLES.includes(r));
+}
 
 /** 구버전 역할 → 신규 역할 마이그레이션 매핑 */
 export const LEGACY_ROLE_MAP: Record<string, UserRole> = {
@@ -51,3 +80,13 @@ export const LEGACY_ROLE_MAP: Record<string, UserRole> = {
   'uploader': '영업관리',
   'member':   '지역장',
 };
+
+/**
+ * 구버전 role 값을 신규 역할명으로 정규화
+ * 예: 'admin' → '관리자', 'uploader' → '영업관리'
+ * 이미 신규 역할명이면 그대로 반환
+ */
+export function normalizeRole(role: string | null | undefined): string {
+  if (!role) return '';
+  return LEGACY_ROLE_MAP[role] ?? role;
+}

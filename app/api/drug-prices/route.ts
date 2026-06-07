@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+import { normalizeRole } from '@/lib/roles';
 import { parseDrugPriceBuffer } from '@/lib/drug-prices/parse';
 
 export const maxDuration = 300; // 대용량 파일 업로드 시 타임아웃 방지
@@ -34,7 +35,7 @@ async function requireAdmin(): Promise<{ userId: string } | NextResponse> {
     .eq('id', user.id)
     .single();
 
-  if (profile?.role !== '관리자') {
+  if (normalizeRole(profile?.role) !== '관리자') {
     return NextResponse.json({ error: '관리자만 접근할 수 있습니다.' }, { status: 403 });
   }
   return { userId: user.id };

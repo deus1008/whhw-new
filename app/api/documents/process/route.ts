@@ -1,9 +1,12 @@
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { normalizeRole } from '@/lib/roles';
 import { extractText } from '@/lib/rag/extract';
 import { extractProductsFromText } from '@/lib/products/extract';
-import { parseDrugPriceBuffer }  from '@/lib/drug-prices/parse';
-import { parseCustomerBuffer }   from '@/lib/customers/parse';
+import { parseDrugPriceBuffer }      from '@/lib/drug-prices/parse';
+import { parseCustomerBuffer }       from '@/lib/customers/parse';
+import { parseCommissionBuffer }     from '@/lib/commission/parse';
+import { parseSettlementBuffer, type SettlementColConfig } from '@/lib/commission-settlement/parse';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -29,7 +32,9 @@ export async function POST(request: Request) {
     .eq('id', user.id)
     .single();
 
-  if (!profile || (profile.role !== '관리자' && profile.role !== 'uploader')) {
+  const role = normalizeRole(profile?.role);
+  const uploadRoles = ['관리자', '영업관리총괄', '영업관리', '마케팅총괄', 'PM'];
+  if (!profile || !uploadRoles.includes(role)) {
     return Response.json({ error: '업로드 권한이 없습니다.' }, { status: 403 });
   }
 
@@ -57,7 +62,7 @@ export async function POST(request: Request) {
     return Response.json({ error: '문서를 찾을 수 없습니다.' }, { status: 404 });
   }
 
-  if (profile.role !== '관리자' && doc.uploaded_by !== user.id) {
+  if (role !== '관리자' && doc.uploaded_by !== user.id) {
     return Response.json({ error: '처리 권한이 없습니다.' }, { status: 403 });
   }
 
@@ -180,7 +185,77 @@ export async function POST(request: Request) {
     return Response.json({ ok: true, inserted: rows.length });
   }
 
-  // ── E. 그 외 폴더 — 즉시 완료 ─────────────────────────────────────────
+  // ── E. 수수료율 폴더 → commission_rates 파싱 ────────────────────────────
+  if (category === '수수료율') {
+    console.log(`[process:${documentId}] 수수료율 폴더 → 수수료 데이터 파싱`);
+    const { rows, total, error: parseError } = parseCommissionBuffer(buffer, doc.filename);
+
+    if (parseError) return fail(`수수료율 파싱 실패: ${parseError}`);
+
+    if (rows.length > 0) {
+      // 동일 파일명 기준 삭제 → 다른 파일의 이력 보존
+      await supabase.from('commission_rates').delete().eq('source_file', doc.filename);
+      const CHUNK = 500;
+      let inserted = 0;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const { error: insErr } = await supabase
+          .from('commission_rates')
+          .insert(chunk);
+        if (insErr) console.warn(`[process:${documentId}] 수수료율 삽입 오류(chunk ${i}):`, insErr.message);
+        else inserted += chunk.length;
+      }
+      console.log(`[process:${documentId}] 수수료율 ${inserted}/${total}건 저장 완료 (전체 초기화 후 재적재)`);
+    }
+    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    return Response.json({ ok: true, inserted: rows.length });
+  }
+
+  // ── F. 수수료정산 폴더 → commission_settlements 파싱 ──────────────────
+  if (category === '수수료정산') {
+    console.log(`[process:${documentId}] 수수료정산 폴더 → 정산 데이터 파싱`);
+
+    // DB에서 컬럼 설정 로드 (없으면 parse.ts 내 DEFAULT_COL_CONFIG 폴백)
+    const { data: settingsRow } = await supabase
+      .from('parse_settings')
+      .select('value')
+      .eq('key', 'settlement_columns')
+      .single();
+    const colConfig: SettlementColConfig = (settingsRow?.value as SettlementColConfig) ?? {};
+    console.log(`[process:${documentId}] 컬럼 설정:`, JSON.stringify(colConfig));
+
+    const { rows, total, error: parseError } = parseSettlementBuffer(buffer, doc.filename, colConfig);
+
+    if (parseError) return fail(`수수료정산 파싱 실패: ${parseError}`);
+
+    if (rows.length > 0) {
+      // 동일 파일명 기준 삭제 → 재업로드 시 덮어쓰기
+      await supabase.from('commission_settlements').delete().eq('source_file', doc.filename);
+      const CHUNK = 500;
+      let inserted = 0;
+      let firstErr: string | null = null;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const { error: insErr } = await supabase.from('commission_settlements').insert(chunk);
+        if (insErr) {
+          console.error(`[process:${documentId}] 정산 삽입 오류(chunk ${i}):`, insErr.message);
+          if (!firstErr) firstErr = insErr.message;
+        } else {
+          inserted += chunk.length;
+        }
+      }
+      // 첫 번째 청크부터 실패한 경우(컬럼 누락 등) → 오류 반환
+      if (inserted === 0 && firstErr) {
+        return fail(`수수료정산 DB 저장 실패: ${firstErr} — Supabase SQL Editor에서 20260606_cs_full_schema.sql 을 실행하세요`);
+      }
+      console.log(`[process:${documentId}] 수수료정산 ${inserted}/${total}건 저장 완료`);
+      if (firstErr) console.warn(`[process:${documentId}] 일부 청크 오류: ${firstErr}`);
+    }
+    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    return Response.json({ ok: true, inserted: rows.length, total });
+  }
+
+  // ── G. 그 외 폴더 — 즉시 완료 ─────────────────────────────────────────
   console.log(`[process:${documentId}] 일반 폴더(${category || '미분류'}) → 즉시 완료`);
   await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
   return Response.json({ ok: true });

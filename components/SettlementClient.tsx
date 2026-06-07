@@ -1,0 +1,446 @@
+'use client';
+
+import React, { useState, useMemo } from 'react';
+
+/* ── 타입 ── */
+export type SettlementRowClient = {
+  id:                  string;
+  source_file:         string;
+  settlement_month:    string | null;
+  prescription_month:  string | null;
+  manager:             string | null;
+  cso_name:            string | null;
+  hospital_name:       string | null;
+  product_name:        string | null;
+  approved_qty:        number | null;
+  unit_price:          number | null;
+  prescription_amount: number | null;
+  hospital_category:   string | null;
+  hospital_type:       string | null;
+  commission_rate:     number | null;
+  settlement_amount:   number | null;
+};
+
+/* ── 집계 트리 타입 ── */
+type L3 = { name: string; presc: number; sett: number; cnt: number };
+type L2 = { name: string; presc: number; sett: number; cnt: number; sub: L3[] };
+type L1 = { name: string; presc: number; sett: number; cnt: number; sub: L2[] };
+
+/* ── 3단 집계 빌더 ── */
+function buildTree(
+  rows: SettlementRowClient[],
+  getL1: (r: SettlementRowClient) => string,
+  getL2: (r: SettlementRowClient) => string,
+  getL3: (r: SettlementRowClient) => string,
+): L1[] {
+  const data: Record<string, Record<string, Record<string, { p: number; s: number; c: number }>>> = {};
+  for (const r of rows) {
+    const k1 = getL1(r); const k2 = getL2(r); const k3 = getL3(r);
+    if (!data[k1])         data[k1]         = {};
+    if (!data[k1][k2])     data[k1][k2]     = {};
+    if (!data[k1][k2][k3]) data[k1][k2][k3] = { p: 0, s: 0, c: 0 };
+    data[k1][k2][k3].p += r.prescription_amount ?? 0;
+    data[k1][k2][k3].s += r.settlement_amount   ?? 0;
+    data[k1][k2][k3].c++;
+  }
+  return Object.entries(data).map(([n1, l2map]) => {
+    const sub2: L2[] = Object.entries(l2map).map(([n2, l3map]) => {
+      const sub3: L3[] = Object.entries(l3map)
+        .map(([n3, v]) => ({ name: n3, presc: v.p, sett: v.s, cnt: v.c }))
+        .sort((a, b) => b.sett - a.sett);
+      return {
+        name: n2,
+        presc: sub3.reduce((s, x) => s + x.presc, 0),
+        sett:  sub3.reduce((s, x) => s + x.sett,  0),
+        cnt:   sub3.reduce((s, x) => s + x.cnt,   0),
+        sub:   sub3,
+      };
+    }).sort((a, b) => b.sett - a.sett);
+    return {
+      name: n1,
+      presc: sub2.reduce((s, x) => s + x.presc, 0),
+      sett:  sub2.reduce((s, x) => s + x.sett,  0),
+      cnt:   sub2.reduce((s, x) => s + x.cnt,   0),
+      sub:   sub2,
+    };
+  }).sort((a, b) => b.sett - a.sett);
+}
+
+/* ── 포맷 유틸 ── */
+function fmtChun(n: number | null | undefined): string {
+  if (n == null) return '-';
+  return Math.round(n / 1000).toLocaleString();
+}
+function fmtChunBig(n: number | null | undefined): string {
+  if (n == null) return '-';
+  const c = n / 1000;
+  if (Math.abs(c) >= 100_000) return `${(c / 100_000).toFixed(1)}억`;
+  if (Math.abs(c) >= 1_000)   return `${(c / 1_000).toFixed(0)}만`;
+  return `${Math.round(c).toLocaleString()}천`;
+}
+function fmtPct(n: number | null | undefined): string {
+  if (n == null) return '-';
+  return `${n.toFixed(1)}%`;
+}
+function calcRate(sett: number, presc: number): string {
+  return presc > 0 ? fmtPct((sett / presc) * 100) : '-';
+}
+function fmtMonth(m: string | null): string {
+  if (!m) return '-';
+  const mt = m.match(/^(\d{4})-(\d{2})$/);
+  if (mt) return `${mt[1]}년 ${+mt[2]}월`;
+  return m;
+}
+
+/* ── 공통 스타일 ── */
+const CARD: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: '14px', padding: '1rem', marginBottom: '0.75rem',
+};
+const TH: React.CSSProperties = {
+  padding: '0.4rem 0.6rem', fontSize: '0.7rem', color: 'var(--text-muted)',
+  fontWeight: 600, whiteSpace: 'nowrap',
+  borderBottom: '1px solid rgba(255,255,255,0.08)', textAlign: 'right',
+};
+const TH_L: React.CSSProperties = { ...TH, textAlign: 'left' };
+const TD: React.CSSProperties = {
+  padding: '0.4rem 0.6rem', fontSize: '0.78rem', whiteSpace: 'nowrap',
+  borderBottom: '1px solid rgba(255,255,255,0.04)', textAlign: 'right',
+};
+const TD_L: React.CSSProperties = { ...TD, textAlign: 'left' };
+
+/* ── 요약 카드 ── */
+function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div style={{
+      flex: 1, minWidth: '130px', background: 'rgba(255,255,255,0.05)',
+      border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '0.85rem 1rem',
+    }}>
+      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>{label}</div>
+      <div style={{ fontSize: '1rem', fontWeight: 700, color: color ?? '#fff' }}>{value}</div>
+    </div>
+  );
+}
+
+/* ── 섹션 제목 ── */
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 style={{
+      fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.75rem',
+      background: 'linear-gradient(135deg,#fff 0%,#a8c4ff 100%)',
+      WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+    }}>{children}</h3>
+  );
+}
+
+/* ── 3단 아코디언 테이블 ── */
+interface AccordionTableProps {
+  title: string;
+  tree: L1[];
+  totalPresc: number;
+  totalSett: number;
+  totalCnt: number;
+  accentL1: string;   // rgba 색상 (L1 하이라이트)
+  accentL2: string;
+  accentL3: string;
+  colorPresc?: string;
+  colorSett?: string;
+  colorRate?: string;
+  l1Label: string;
+}
+
+function AccordionTable({
+  title, tree, totalPresc, totalSett, totalCnt,
+  accentL1, accentL2, accentL3,
+  colorPresc = '#a8c4ff', colorSett = '#4ade80', colorRate = '#fbbf24',
+  l1Label,
+}: AccordionTableProps) {
+  const [openL1, setOpenL1] = useState<string | null>(null);
+  const [openL2, setOpenL2] = useState<string | null>(null);
+
+  function toggleL1(name: string) {
+    const next = openL1 === name ? null : name;
+    setOpenL1(next);
+    setOpenL2(null);   // L1 바뀌면 L2 초기화
+  }
+  function toggleL2(key: string) {
+    setOpenL2(openL2 === key ? null : key);
+  }
+
+  return (
+    <div style={CARD}>
+      <SectionTitle>{title}</SectionTitle>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={TH_L}>{l1Label}</th>
+              <th style={TH}>처방금액 (천원)</th>
+              <th style={TH}>정산액 (천원)</th>
+              <th style={TH}>수수료율</th>
+              <th style={TH}>건수</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tree.map(l1 => {
+              const l1Open = openL1 === l1.name;
+              return (
+                <React.Fragment key={l1.name}>
+                  {/* ── L1 ── */}
+                  <tr onClick={() => toggleL1(l1.name)}
+                    style={{ cursor: 'pointer', background: l1Open ? accentL1 : undefined }}>
+                    <td style={{ ...TD_L, fontWeight: 600 }}>
+                      <span style={{ marginRight: '0.4rem', fontSize: '0.68rem', opacity: 0.55 }}>{l1Open ? '▲' : '▶'}</span>
+                      <span style={{ color: l1Open ? '#c4b5fd' : '#e2e8f0' }}>{l1.name}</span>
+                    </td>
+                    <td style={{ ...TD, color: colorPresc }}>{fmtChun(l1.presc)}</td>
+                    <td style={{ ...TD, color: colorSett, fontWeight: 600 }}>{fmtChun(l1.sett)}</td>
+                    <td style={{ ...TD, color: colorRate }}>{calcRate(l1.sett, l1.presc)}</td>
+                    <td style={TD}>{l1.cnt.toLocaleString()}</td>
+                  </tr>
+
+                  {/* ── L2 ── */}
+                  {l1Open && l1.sub.map(l2 => {
+                    const l2Key  = `${l1.name}||${l2.name}`;
+                    const l2Open = openL2 === l2Key;
+                    return (
+                      <React.Fragment key={l2Key}>
+                        <tr onClick={() => toggleL2(l2Key)}
+                          style={{ cursor: 'pointer', background: l2Open ? accentL2 : accentL3 }}>
+                          <td style={{ ...TD_L, paddingLeft: '1.7rem', fontSize: '0.75rem' }}>
+                            <span style={{ marginRight: '0.35rem', fontSize: '0.63rem', opacity: 0.5 }}>{l2Open ? '▲' : '▶'}</span>
+                            <span style={{ color: l2Open ? '#ddd6fe' : 'var(--text-muted)' }}>└ {l2.name}</span>
+                          </td>
+                          <td style={{ ...TD, color: '#8ab0e8', fontSize: '0.75rem' }}>{fmtChun(l2.presc)}</td>
+                          <td style={{ ...TD, color: '#3dd68c', fontSize: '0.75rem' }}>{fmtChun(l2.sett)}</td>
+                          <td style={{ ...TD, color: '#d4a843', fontSize: '0.75rem' }}>{calcRate(l2.sett, l2.presc)}</td>
+                          <td style={{ ...TD, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{l2.cnt.toLocaleString()}</td>
+                        </tr>
+
+                        {/* ── L3 ── */}
+                        {l2Open && l2.sub.map((l3, i) => (
+                          <tr key={l3.name}
+                            style={{ background: i % 2 === 0 ? 'rgba(120,100,200,0.04)' : undefined }}>
+                            <td style={{ ...TD_L, paddingLeft: '3.2rem', fontSize: '0.7rem',
+                              color: 'rgba(200,200,230,0.55)', maxWidth: '200px',
+                              overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              └└ {l3.name}
+                            </td>
+                            <td style={{ ...TD, color: '#7a9fd4', fontSize: '0.7rem' }}>{fmtChun(l3.presc)}</td>
+                            <td style={{ ...TD, color: '#34c472', fontSize: '0.7rem' }}>{fmtChun(l3.sett)}</td>
+                            <td style={{ ...TD, color: '#c49a30', fontSize: '0.7rem' }}>{calcRate(l3.sett, l3.presc)}</td>
+                            <td style={{ ...TD, fontSize: '0.7rem', color: 'var(--text-muted)' }}>{l3.cnt.toLocaleString()}</td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
+
+            {/* 합계 행 */}
+            <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+              <td style={{ ...TD_L, fontWeight: 700, color: '#fff' }}>합계</td>
+              <td style={{ ...TD, color: colorPresc, fontWeight: 700 }}>{fmtChun(totalPresc)}</td>
+              <td style={{ ...TD, color: colorSett,  fontWeight: 700 }}>{fmtChun(totalSett)}</td>
+              <td style={{ ...TD, color: colorRate,  fontWeight: 700 }}>{calcRate(totalSett, totalPresc)}</td>
+              <td style={{ ...TD, fontWeight: 700 }}>{totalCnt.toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ── 메인 컴포넌트 ── */
+export default function SettlementClient({ rows }: { rows: SettlementRowClient[] }) {
+  // 파일 목록 (최신순 정렬)
+  const files = useMemo(() => {
+    const seen = new Set<string>();
+    const list: { file: string; settMonth: string | null; prescMonth: string | null }[] = [];
+    for (const r of rows) {
+      if (!r.source_file || seen.has(r.source_file)) continue;
+      seen.add(r.source_file);
+      list.push({ file: r.source_file, settMonth: r.settlement_month, prescMonth: r.prescription_month });
+    }
+    return list;
+  }, [rows]);
+
+  const [selectedFile, setSelectedFile] = useState<string>(files[0]?.file ?? '');
+  const [dropOpen,     setDropOpen]     = useState(false);
+
+  const selectedMeta = files.find(f => f.file === selectedFile);
+
+  const monthRows = useMemo(
+    () => rows.filter(r => r.source_file === selectedFile),
+    [rows, selectedFile],
+  );
+
+  /* ── 요약 집계 ── */
+  const totalPresc = monthRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0);
+  const totalSett  = monthRows.reduce((s, r) => s + (r.settlement_amount   ?? 0), 0);
+  const avgRate    = totalPresc > 0 ? (totalSett / totalPresc) * 100 : 0;
+
+  /* ── 3단 트리 ── */
+  // CSO별: L1=담당CSO  L2=처방처명  L3=품목명
+  const csoTree = useMemo(() => buildTree(
+    monthRows,
+    r => r.cso_name      ?? '미상',
+    r => r.hospital_name ?? '미상',
+    r => r.product_name  ?? '미상',
+  ), [monthRows]);
+
+  // 담당자별: L1=내부담당자  L2=담당CSO  L3=처방처명
+  const mgrTree = useMemo(() => buildTree(
+    monthRows,
+    r => r.manager       ?? '미상',
+    r => r.cso_name      ?? '미상',
+    r => r.hospital_name ?? '미상',
+  ), [monthRows]);
+
+  // 종별: L1=기조실병의원구분  L2=종별구분  L3=처방처명
+  const typeTree = useMemo(() => buildTree(
+    monthRows,
+    r => r.hospital_category ?? '미분류',
+    r => r.hospital_type     ?? '미분류',
+    r => r.hospital_name     ?? '미상',
+  ), [monthRows]);
+
+  if (rows.length === 0) {
+    return (
+      <div style={{ ...CARD, textAlign: 'center', padding: '2rem',
+        color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '1rem' }}>
+        문서관리 &gt; 수수료정산 폴더에 파일을 업로드하면 자동으로 집계됩니다.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: '1rem' }}>
+
+      {/* ── 파일 선택 드롭다운 ── */}
+      <div style={{ position: 'relative', marginBottom: '1rem' }}>
+        {/* 선택된 파일 표시 버튼 */}
+        <button
+          onClick={() => setDropOpen(v => !v)}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '0.65rem 1rem', borderRadius: '10px', border: '1px solid rgba(99,102,241,0.4)',
+            background: 'rgba(99,102,241,0.15)', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+          }}
+        >
+          <div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#c4b5fd' }}>
+              {selectedFile || '파일을 선택하세요'}
+            </div>
+            {selectedMeta && (selectedMeta.settMonth || selectedMeta.prescMonth) && (
+              <div style={{ fontSize: '0.72rem', color: 'rgba(180,180,220,0.6)', marginTop: '0.15rem' }}>
+                {selectedMeta.settMonth  && <span>{fmtMonth(selectedMeta.settMonth)}(정산)</span>}
+                {selectedMeta.settMonth && selectedMeta.prescMonth && <span style={{ margin: '0 0.4rem', opacity: 0.4 }}>·</span>}
+                {selectedMeta.prescMonth && <span>{fmtMonth(selectedMeta.prescMonth)}(처방)</span>}
+              </div>
+            )}
+          </div>
+          <span style={{ fontSize: '0.75rem', color: 'rgba(180,180,220,0.5)', marginLeft: '0.5rem' }}>
+            {dropOpen ? '▲' : '▼'}
+          </span>
+        </button>
+
+        {/* 드롭다운 목록 */}
+        {dropOpen && (
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 50,
+            background: 'rgba(20,20,35,0.97)', border: '1px solid rgba(99,102,241,0.3)',
+            borderRadius: '10px', overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          }}>
+            {files.map((f, i) => {
+              const isActive = f.file === selectedFile;
+              return (
+                <button
+                  key={f.file}
+                  onClick={() => { setSelectedFile(f.file); setDropOpen(false); }}
+                  style={{
+                    width: '100%', display: 'block', textAlign: 'left', padding: '0.6rem 1rem',
+                    background: isActive ? 'rgba(99,102,241,0.25)' : 'transparent',
+                    border: 'none', borderBottom: i < files.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                    cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  <div style={{ fontSize: '0.8rem', fontWeight: 500, color: isActive ? '#c4b5fd' : '#e2e8f0' }}>
+                    {f.file}
+                  </div>
+                  {(f.settMonth || f.prescMonth) && (
+                    <div style={{ fontSize: '0.7rem', color: 'rgba(180,180,220,0.5)', marginTop: '0.1rem' }}>
+                      {f.settMonth  && <span>{fmtMonth(f.settMonth)}(정산)</span>}
+                      {f.settMonth && f.prescMonth && <span style={{ margin: '0 0.4rem', opacity: 0.4 }}>·</span>}
+                      {f.prescMonth && <span>{fmtMonth(f.prescMonth)}(처방)</span>}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {monthRows.length === 0 ? (
+        <div style={{ ...CARD, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          선택한 월의 정산 데이터가 없습니다.
+        </div>
+      ) : (
+        <>
+          {/* ── 요약 스탯 ── */}
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+            <StatCard label="총 처방금액 (천원)" value={fmtChunBig(totalPresc)} color="#a8c4ff" />
+            <StatCard label="총 정산액 (천원)"   value={fmtChunBig(totalSett)}  color="#4ade80" />
+            <StatCard label="평균 수수료율"       value={fmtPct(avgRate)}        color="#fbbf24" />
+            <StatCard label="처방 건수"           value={`${monthRows.length.toLocaleString()}건`} />
+          </div>
+
+          {/* 종별: L1=기조실병의원구분, L2=종별구분, L3=처방처명 */}
+          {typeTree.length > 0 && (
+            <AccordionTable
+              title="🏥 종별 현황"
+              tree={typeTree}
+              totalPresc={totalPresc} totalSett={totalSett} totalCnt={monthRows.length}
+              accentL1="rgba(167,139,250,0.14)"
+              accentL2="rgba(167,139,250,0.09)"
+              accentL3="rgba(167,139,250,0.04)"
+              colorSett="#4ade80" colorRate="#fbbf24"
+              l1Label="기조실병의원구분"
+            />
+          )}
+
+          {/* 담당자별: L1=내부담당자, L2=담당CSO, L3=처방처명 */}
+          {mgrTree.length > 0 && (
+            <AccordionTable
+              title="👤 담당자별 현황"
+              tree={mgrTree}
+              totalPresc={totalPresc} totalSett={totalSett} totalCnt={monthRows.length}
+              accentL1="rgba(251,191,36,0.14)"
+              accentL2="rgba(251,191,36,0.09)"
+              accentL3="rgba(251,191,36,0.04)"
+              colorSett="#4ade80" colorRate="#fbbf24"
+              l1Label="내부담당자"
+            />
+          )}
+
+          {/* CSO별: L1=담당CSO, L2=처방처명, L3=품목명 */}
+          <AccordionTable
+            title="🏢 CSO별 현황"
+            tree={csoTree}
+            totalPresc={totalPresc} totalSett={totalSett} totalCnt={monthRows.length}
+            accentL1="rgba(99,102,241,0.14)"
+            accentL2="rgba(99,102,241,0.09)"
+            accentL3="rgba(99,102,241,0.04)"
+            l1Label="담당CSO"
+          />
+        </>
+      )}
+    </div>
+  );
+}

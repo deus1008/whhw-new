@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { normalizeRole } from '@/lib/roles';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
 import { processEdi } from '@/lib/edi/process';
@@ -14,6 +15,73 @@ const CACHE_PREFIX = 'edi-';
 
 /** 한 파일에서 처리할 최대 행 수 (메모리 보호) */
 const MAX_ROWS = 100_000;
+
+/** trend_prescriptions 에 EDI 원본 행 동기화 (이미 존재하면 스킵) */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], data: EdiData, filename: string): Promise<void> {
+  try {
+    // 이미 DB에 저장됐으면 스킵
+    const { count } = await svc
+      .from('trend_prescriptions')
+      .select('id', { count: 'exact', head: true })
+      .eq('source_file', filename);
+    if ((count ?? 0) > 0) return;
+
+    const { detectedCols, period } = data;
+    // period "YYYY.MM" → "YYYYMM"
+    const prescMonth = period ? period.replace('.', '') : null;
+
+    type InsertRow = {
+      source_file: string;
+      prescription_month: string | null;
+      sales_rep: string | null;
+      cso_name: string | null;
+      hospital_name: string | null;
+      product_name: string | null;
+      prescription_amount: number | null;
+    };
+
+    const insertRows: InsertRow[] = [];
+    for (const r of rows) {
+      const sp  = detectedCols.salesperson ? String(r[detectedCols.salesperson] ?? '').trim() || null : null;
+      const cso = detectedCols.cso         ? String(r[detectedCols.cso]         ?? '').trim() || null : null;
+      const hos = detectedCols.hospital    ? String(r[detectedCols.hospital]    ?? '').trim() || null : null;
+      const itm = detectedCols.item        ? String(r[detectedCols.item]        ?? '').trim() || null : null;
+      const amt = detectedCols.finalAmount
+        ? (Number(r[detectedCols.finalAmount]) || 0)
+        : detectedCols.amount ? (Number(r[detectedCols.amount]) || 0) : 0;
+
+      // 의미 있는 데이터가 있는 행만 저장
+      if (!hos && !itm && amt === 0) continue;
+
+      insertRows.push({
+        source_file:          filename,
+        prescription_month:   prescMonth,
+        sales_rep:            sp,
+        cso_name:             cso,
+        hospital_name:        hos,
+        product_name:         itm,
+        prescription_amount:  amt > 0 ? amt : null,
+      });
+    }
+
+    if (insertRows.length === 0) return;
+
+    const CHUNK = 1000;
+    for (let i = 0; i < insertRows.length; i += CHUNK) {
+      const { error } = await svc
+        .from('trend_prescriptions')
+        .insert(insertRows.slice(i, i + CHUNK));
+      if (error) {
+        console.warn(`[syncEdiToDb] 삽입 오류 (chunk ${i}):`, error.message);
+        break;
+      }
+    }
+    console.log(`[syncEdiToDb] ${filename}: ${insertRows.length}행 저장 완료`);
+  } catch (e) {
+    console.warn('[syncEdiToDb] 스킵:', e instanceof Error ? e.message : e);
+  }
+}
 
 export interface EdiReport {
   period:     string;
@@ -162,6 +230,14 @@ export async function analyzeEdiFile(docId: string): Promise<{
       const cBlob = new Blob([JSON.stringify(report)], { type: 'application/json' });
       await svc.storage.from(BUCKET_CACHE).upload(cacheKey, cBlob, { upsert: true });
     } catch { /* ignore */ }
+    // DB 저장 (행 단위 구조화)
+    if (data) {
+      // 성공한 headerRow의 rows를 다시 파싱
+      const savedRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+        wb.Sheets[bestSheet], { defval: '', range: usedHeaderRow },
+      ).slice(0, MAX_ROWS);
+      await syncEdiToDb(svc, savedRows, data, d.filename);
+    }
     return { report };
   } catch (e) { return { error: e instanceof Error ? e.message : '분析 오류' }; }
 }
@@ -300,6 +376,9 @@ export async function getEdiData(): Promise<{
         console.warn('[getEdiData] cache write failed:', cacheErr);
       }
 
+      // DB 저장 (행 단위 구조화)
+      await syncEdiToDb(svc, rows, data, doc.filename as string);
+
       reports.push(report);
     } catch (e) {
       console.error('[getEdiData] doc:', doc.id, e);
@@ -324,7 +403,8 @@ export async function forceRefreshEdi(): Promise<{ error?: string }> {
 
   const { data: profile } = await supabase
     .from('profiles').select('role').eq('id', user.id).single();
-  if (!profile || profile.role !== 'admin')
+  const role = normalizeRole(profile?.role);
+  if (role !== '관리자' && role !== '영업관리총괄' && role !== '영업관리')
     return { error: '관리자만 새로고침할 수 있습니다.' };
 
   const svc = getSvc();

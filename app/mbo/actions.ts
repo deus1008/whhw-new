@@ -3,6 +3,7 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { normalizeRole } from '@/lib/roles';
 
 export type MboTarget = {
   id:           string;
@@ -47,7 +48,8 @@ async function getRole(): Promise<{ userId: string; isAdmin: boolean } | null> {
     .select('role')
     .eq('id', user.id)
     .single();
-  return { userId: user.id, isAdmin: profile?.role === 'admin' };
+  const role = normalizeRole(profile?.role);
+  return { userId: user.id, isAdmin: role === '관리자' || role === '사업총괄' || role === '영업관리총괄' };
 }
 
 /* ── 멤버 목록 (admin 전용) ── */

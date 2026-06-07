@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { normalizeRole } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import PerformanceClient from '@/components/PerformanceClient';
@@ -22,7 +23,8 @@ export default async function PerformancePage() {
 
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
-  const isAdmin = profile.role === 'admin';
+  const role = normalizeRole(profile.role);
+  const isAdmin = role === '관리자' || role === '영업관리총괄' || role === '영업관리';
 
   // 실적마감 폴더 파일 → 분석 결과 (캐시 활용)
   const { reports, errors } = await getPerformanceData();

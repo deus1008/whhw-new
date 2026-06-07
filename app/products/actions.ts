@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { normalizeRole } from '@/lib/roles';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
 import type { UpcomingProduct } from './page';
 
@@ -38,7 +39,7 @@ async function checkApproved(): Promise<{ userId: string; role: string } | { err
   if (!profile || profile.status !== 'approved')
     return { error: '승인된 계정이 아닙니다.' };
 
-  return { userId: user.id, role: profile.role as string };
+  return { userId: user.id, role: normalizeRole(profile.role) };
 }
 
 function clean(input: ProductInput) {
@@ -96,7 +97,7 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Re
 export async function deleteProduct(id: string): Promise<Result> {
   const auth = await checkApproved();
   if ('error' in auth) return { error: auth.error };
-  if (auth.role !== 'admin') return { error: '관리자만 삭제할 수 있습니다.' };
+  if (auth.role !== '관리자') return { error: '관리자만 삭제할 수 있습니다.' };
 
   const { error } = await sb()
     .from('upcoming_products')
