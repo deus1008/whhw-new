@@ -170,10 +170,8 @@ function fmtPeriod(s: string): string {
   return s;
 }
 
-function fmtWon(n: number, compact = false): string {
-  const thousands = Math.round(n / 1000);
-  if (compact) return `${thousands.toLocaleString()}천`;
-  return `${thousands.toLocaleString()}천원`;
+function fmtWon(n: number, _compact = false): string {
+  return Math.round(n / 1000).toLocaleString();
 }
 
 function fmtRate(r: number): string { return `${r.toFixed(1)}%`; }
@@ -419,9 +417,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         </p>
       </div>
 
-      {/* ── 인쇄 버튼 ──────────────────────────────────────────── */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="print-btn" onClick={() => window.print()}>
+      {/* ── 인쇄 버튼 + 단위 표기 ──────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+        <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600, letterSpacing: '0.03em' }}>
+          단위: 천원
+        </span>
+        <button className="print-btn" onClick={() => window.print()} style={{ marginBottom: 0 }}>
           🖨️ A4 인쇄
         </button>
       </div>
