@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
-import { getRoles } from '@/lib/roles';
+
 import * as XLSX from 'xlsx';
 import { processRaw } from '@/lib/performance/process';
 import type { PerfData } from '@/lib/performance/process';
@@ -189,11 +189,7 @@ export async function forceRefreshAnalysis(): Promise<{ error?: string }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: '로그인이 필요합니다.' };
 
-  const { data: profile } = await supabase
-    .from('profiles').select('role, roles').eq('id', user.id).single();
-  const userRoles = getRoles(profile ?? {});
-  if (!userRoles.some(r => ['관리자', '영업관리총괄', '영업관리'].includes(r)))
-    return { error: '관리자만 새로고침할 수 있습니다.' };
+  // 승인된 사용자라면 누구나 캐시 새로고침 가능
 
   const svc = getSvc();
 

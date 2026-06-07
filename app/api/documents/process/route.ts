@@ -1,6 +1,6 @@
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { profileCanUpload, profileIsAdmin } from '@/lib/roles';
+import { profileIsAdmin } from '@/lib/roles';
 import { extractText } from '@/lib/rag/extract';
 import { extractProductsFromText } from '@/lib/products/extract';
 import { parseDrugPriceBuffer }      from '@/lib/drug-prices/parse';
@@ -32,10 +32,10 @@ export async function POST(request: Request) {
     .eq('id', user.id)
     .single();
 
-  if (!profile || !profileCanUpload(profile)) {
+  if (!profile || !profileIsAdmin(profile)) {
     return Response.json({ error: '업로드 권한이 없습니다.' }, { status: 403 });
   }
-  const isAdmin = profileIsAdmin(profile);
+  const isAdmin = true;
 
   // ── 2. 요청 파싱 ────────────────────────────────────────────────────────
   let documentId: string;

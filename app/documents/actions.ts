@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-import { profileCanUpload, profileIsAdmin } from '@/lib/roles';
+import { profileIsAdmin } from '@/lib/roles';
 
 /** RLS를 우회하는 서비스 롤 클라이언트 */
 function createServiceClient() {
@@ -24,11 +24,11 @@ async function verifyUploaderOrAdmin() {
     .eq('id', user.id)
     .single();
 
-  if (!profile || !profileCanUpload(profile)) {
+  if (!profile || !profileIsAdmin(profile)) {
     throw new Error('Unauthorized');
   }
 
-  return { supabase, userId: user.id, isAdmin: profileIsAdmin(profile) };
+  return { supabase, userId: user.id, isAdmin: true };
 }
 
 export async function deleteDocument(formData: FormData) {

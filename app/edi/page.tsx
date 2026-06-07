@@ -24,7 +24,7 @@ export default async function EdiPage() {
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
   const role = normalizeRole(profile.role);
-  const isAdmin = role === '관리자' || role === '영업관리총괄' || role === '영업관리';
+  const isAdmin = role === '관리자';
   const { files } = await getEdiFileList();
 
   return (

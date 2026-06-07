@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { profileCanUpload, profileIsAdmin } from '@/lib/roles';
+import { profileIsAdmin } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import DocumentsClient from '@/components/DocumentsClient';
@@ -33,7 +33,7 @@ export default async function DocumentsPage() {
     .eq('id', user.id)
     .single();
 
-  if (!myProfile || !profileCanUpload(myProfile)) {
+  if (!myProfile || !profileIsAdmin(myProfile)) {
     redirect('/dashboard');
   }
   const isAdmin = profileIsAdmin(myProfile);

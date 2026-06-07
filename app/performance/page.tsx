@@ -24,7 +24,7 @@ export default async function PerformancePage() {
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
   const role = normalizeRole(profile.role);
-  const isAdmin = role === '관리자' || role === '영업관리총괄' || role === '영업관리';
+  const isAdmin = role === '관리자';
 
   // 실적마감 폴더 파일 → 분석 결과 (캐시 활용)
   const { reports, errors } = await getPerformanceData();

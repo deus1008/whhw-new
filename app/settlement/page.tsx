@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
-import { normalizeRole } from '@/lib/roles';
+
 import HomeButton from '@/components/HomeButton';
 import LogoutButton from '@/components/LogoutButton';
 import SettlementClient from '@/components/SettlementClient';
@@ -17,8 +17,7 @@ export default async function SettlementPage() {
     .from('profiles').select('role, status').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
-  const normRole = normalizeRole(profile.role as string);
-  const canUpload = ['관리자', '영업관리총괄', '영업관리', '마케팅총괄', 'PM'].includes(normRole);
+  const canUpload = true; // 모든 승인 사용자가 접근 가능
 
   const svc = createSvcClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

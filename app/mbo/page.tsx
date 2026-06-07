@@ -24,8 +24,8 @@ export default async function MBOPage() {
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
   const role = normalizeRole(profile.role);
-  const isAdmin = role === '관리자' || role === '사업총괄' || role === '영업관리총괄';
-  const members = isAdmin ? await getMembers() : [];
+  const isAdmin = role === '관리자';
+  const members = await getMembers();
 
   return (
     <>

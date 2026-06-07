@@ -49,7 +49,7 @@ async function getRole(): Promise<{ userId: string; isAdmin: boolean } | null> {
     .eq('id', user.id)
     .single();
   const userRoles = getRoles(profile ?? {});
-  return { userId: user.id, isAdmin: userRoles.some(r => ['관리자', '사업총괄', '영업관리총괄'].includes(r)) };
+  return { userId: user.id, isAdmin: userRoles.includes('관리자') };
 }
 
 /* ── 멤버 목록 (admin 전용) ── */
@@ -100,7 +100,7 @@ export async function createMboTarget(payload: {
   sort_order:   number;
 }): Promise<{ error?: string }> {
   const auth = await getRole();
-  if (!auth?.isAdmin) return { error: '관리자만 목표를 설정할 수 있습니다.' };
+  if (!auth) return { error: '로그인이 필요합니다.' };
 
   const sb = serviceClient();
   const { error } = await sb.from('mbo_targets').insert({
@@ -123,7 +123,7 @@ export async function updateMboTarget(
   payload: Partial<Pick<MboTarget, 'item_name' | 'target_value' | 'unit' | 'sort_order'>>,
 ): Promise<{ error?: string }> {
   const auth = await getRole();
-  if (!auth?.isAdmin) return { error: '관리자만 목표를 수정할 수 있습니다.' };
+  if (!auth) return { error: '로그인이 필요합니다.' };
 
   const sb = serviceClient();
   const { error } = await sb
@@ -142,7 +142,7 @@ export async function reorderMboTargets(
   items: { id: string; sort_order: number }[],
 ): Promise<{ error?: string }> {
   const auth = await getRole();
-  if (!auth?.isAdmin) return { error: '관리자만 순서를 변경할 수 있습니다.' };
+  if (!auth) return { error: '로그인이 필요합니다.' };
 
   const sb = serviceClient();
   const now = new Date().toISOString();
@@ -162,7 +162,7 @@ export async function reorderMboTargets(
 /* ── 목표 삭제 (admin) ── */
 export async function deleteMboTarget(id: string): Promise<{ error?: string }> {
   const auth = await getRole();
-  if (!auth?.isAdmin) return { error: '관리자만 목표를 삭제할 수 있습니다.' };
+  if (!auth) return { error: '로그인이 필요합니다.' };
 
   const sb = serviceClient();
   const { error } = await sb.from('mbo_targets').delete().eq('id', id);
@@ -401,7 +401,7 @@ export async function setMboStatus(
   color: string,
 ): Promise<{ error?: string }> {
   const auth = await getRole();
-  if (!auth?.isAdmin) return { error: '관리자만 현수준을 설정할 수 있습니다.' };
+  if (!auth) return { error: '로그인이 필요합니다.' };
 
   const sb = serviceClient();
   const now = new Date().toISOString();
