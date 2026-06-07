@@ -93,7 +93,7 @@ export default async function InventoryPage() {
           <HomeButton />
           <Link href="/dc"        style={nl('#c4b5fd','rgba(139,92,246,0.10)','rgba(139,92,246,0.28)')}>🏥 DC현황</Link>
           <Link href="/calendar"  style={nl('#fdba74','rgba(251,146,60,0.10)','rgba(251,146,60,0.28)')}>📅 주요일정</Link>
-          <Link href="/documents" style={nl('#fde68a','rgba(251,191,36,0.10)','rgba(251,191,36,0.28)')}>📁 문서관리</Link>
+          {isAdmin && <Link href="/documents" style={nl('#fde68a','rgba(251,191,36,0.10)','rgba(251,191,36,0.28)')}>📁 문서관리</Link>}
           {isAdmin && <Link href="/admin" style={nl('#a259ff','rgba(162,89,255,0.10)','rgba(162,89,255,0.28)')}>관리자</Link>}
           <LogoutButton compact />
         </div>

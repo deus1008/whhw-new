@@ -54,7 +54,6 @@ export default async function DashboardPage() {
 
   const normRole  = normalizeRole(myProfile.role as string);
   const isAdmin   = normRole === '관리자';
-  const canUpload = ['관리자', '영업관리총괄', '영업관리', '마케팅총괄', 'PM'].includes(normRole);
 
   const svc = getSvc();
 
@@ -544,7 +543,7 @@ export default async function DashboardPage() {
           <Link href="/commission"     style={nl('#6ee7b7', 'rgba(16,185,129,0.10)',  'rgba(16,185,129,0.28)')}>💰 수수료시뮬</Link>
           <a href="https://ajupharm-news.web.app/" target="_blank" rel="noopener noreferrer"
              style={nl('#fb7185', 'rgba(244,63,94,0.12)', 'rgba(244,63,94,0.28)')}>📰 기사검색</a>
-          {canUpload && <Link href="/documents" style={nl('#3b82f6', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.28)')}>문서</Link>}
+          {isAdmin   && <Link href="/documents" style={nl('#3b82f6', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.28)')}>문서</Link>}
           {isAdmin   && <Link href="/admin"     style={nl('#a259ff', 'rgba(162,89,255,0.12)', 'rgba(162,89,255,0.28)')}>관리자</Link>}
           {isAdmin   && <Link href="/errors"    style={nl('#f87171', 'rgba(239,68,68,0.12)',  'rgba(239,68,68,0.28)')}>오류신고함</Link>}
           <LogoutButton compact />

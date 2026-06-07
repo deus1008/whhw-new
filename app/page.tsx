@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { normalizeRole } from '@/lib/roles';
 import ErrorReportModal from '@/components/ErrorReportModal';
 
 type NavItem = {
@@ -225,7 +226,8 @@ export default function Home() {
       if (!userId) { setIsAdmin(false); return; }
       const { data } = await supabase.from('profiles').select('role, roles').eq('id', userId).single();
       if (!data) { setIsAdmin(false); return; }
-      const roles: string[] = data.roles?.length ? data.roles : (data.role ? [data.role] : []);
+      const rawRoles: string[] = data.roles?.length ? data.roles : (data.role ? [data.role] : []);
+      const roles = rawRoles.map(r => normalizeRole(r));
       setIsAdmin(roles.includes('관리자'));
     }
 

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
+import { profileIsAdmin } from '@/lib/roles';
 
 import HomeButton from '@/components/HomeButton';
 import LogoutButton from '@/components/LogoutButton';
@@ -14,10 +15,10 @@ export default async function SettlementPage() {
   if (!user) redirect('/login');
 
   const { data: profile } = await supabase
-    .from('profiles').select('role, status').eq('id', user.id).single();
+    .from('profiles').select('role, roles, status').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
-  const canUpload = true; // 모든 승인 사용자가 접근 가능
+  const isAdmin = profileIsAdmin(profile);
 
   const svc = createSvcClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -79,7 +80,7 @@ export default async function SettlementPage() {
         <div className="page-nav">
           <HomeButton />
           <Link href="/dashboard" style={nl('#93c5fd', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.28)')}>대시보드</Link>
-          {canUpload && (
+          {isAdmin && (
             <Link href="/documents" style={nl('#fde68a', 'rgba(251,191,36,0.12)', 'rgba(251,191,36,0.28)')}>문서관리</Link>
           )}
           <LogoutButton compact />
