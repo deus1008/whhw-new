@@ -4,8 +4,22 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import ErrorReportModal from '@/components/ErrorReportModal';
 
-const NAV_ITEMS = [
+type NavItem = {
+  href: string;
+  icon: string;
+  label: string;
+  color: string;
+  bg: string;
+  bd: string;
+  external?: boolean;
+  action?: 'error-modal';
+  adminOnly?: boolean;
+};
+
+const NAV_ITEMS: NavItem[] = [
+  // ① 대시보드
   {
     href: '/dashboard',
     icon: '🏠',
@@ -13,26 +27,27 @@ const NAV_ITEMS = [
     color: '#93c5fd',
     bg:   'rgba(59,130,246,0.10)',
     bd:   'rgba(59,130,246,0.22)',
-    external: false,
   },
+  // ② 기사검색 (구: 뉴스기사)
   {
     href: 'https://ajupharm-news.web.app/',
     icon: '📰',
-    label: '뉴스기사',
+    label: '기사검색',
     color: '#fda4af',
     bg:   'rgba(244,63,94,0.10)',
     bd:   'rgba(244,63,94,0.22)',
     external: true,
   },
+  // ③ 약품검색 (구: 의약품검색)
   {
     href: '/drug-search',
     icon: '💊',
-    label: '의약품검색',
+    label: '약품검색',
     color: '#6ee7b7',
     bg:   'rgba(52,211,153,0.10)',
     bd:   'rgba(52,211,153,0.22)',
-    external: false,
   },
+  // ④ 병원검색
   {
     href: '/medical-search',
     icon: '🏥',
@@ -40,8 +55,17 @@ const NAV_ITEMS = [
     color: '#67e8f9',
     bg:   'rgba(34,211,238,0.10)',
     bd:   'rgba(34,211,238,0.22)',
-    external: false,
   },
+  // ⑤ 신규계약
+  {
+    href: '/contracts',
+    icon: '🤝',
+    label: '신규계약',
+    color: '#67e8f9',
+    bg:   'rgba(34,211,238,0.10)',
+    bd:   'rgba(34,211,238,0.22)',
+  },
+  // ⑥ 거래처현황
   {
     href: '/customers',
     icon: '🏢',
@@ -49,53 +73,8 @@ const NAV_ITEMS = [
     color: '#fbbf24',
     bg:   'rgba(251,191,36,0.10)',
     bd:   'rgba(251,191,36,0.22)',
-    external: false,
   },
-  {
-    href: '/edi',
-    icon: '🗂',
-    label: 'EDI',
-    color: '#d8b4fe',
-    bg:   'rgba(168,85,247,0.10)',
-    bd:   'rgba(168,85,247,0.22)',
-    external: false,
-  },
-  {
-    href: '/performance',
-    icon: '📊',
-    label: '마감분석',
-    color: '#86efac',
-    bg:   'rgba(16,185,129,0.10)',
-    bd:   'rgba(16,185,129,0.22)',
-    external: false,
-  },
-  {
-    href: '/mbo',
-    icon: '🎯',
-    label: 'MBO',
-    color: '#fcd34d',
-    bg:   'rgba(245,158,11,0.10)',
-    bd:   'rgba(245,158,11,0.22)',
-    external: false,
-  },
-  {
-    href: '/visits',
-    icon: '📋',
-    label: '영업활동',
-    color: '#6ee7b7',
-    bg:   'rgba(16,185,129,0.10)',
-    bd:   'rgba(16,185,129,0.22)',
-    external: false,
-  },
-  {
-    href: '/calendar',
-    icon: '📅',
-    label: '주요일정',
-    color: '#fdba74',
-    bg:   'rgba(251,146,60,0.10)',
-    bd:   'rgba(251,146,60,0.22)',
-    external: false,
-  },
+  // ⑦ 발매예정
   {
     href: '/products',
     icon: '🚀',
@@ -103,8 +82,89 @@ const NAV_ITEMS = [
     color: '#a5b4fc',
     bg:   'rgba(99,102,241,0.10)',
     bd:   'rgba(99,102,241,0.22)',
-    external: false,
   },
+  // ⑧ DC현황
+  {
+    href: '/dc',
+    icon: '🏥',
+    label: 'DC현황',
+    color: '#c4b5fd',
+    bg:   'rgba(139,92,246,0.10)',
+    bd:   'rgba(139,92,246,0.22)',
+  },
+  // ⑧-1 재고현황
+  {
+    href: '/inventory',
+    icon: '📦',
+    label: '재고현황',
+    color: '#6ee7b7',
+    bg:   'rgba(52,211,153,0.10)',
+    bd:   'rgba(52,211,153,0.22)',
+  },
+  // ⑨ 주요일정
+  {
+    href: '/calendar',
+    icon: '📅',
+    label: '주요일정',
+    color: '#fdba74',
+    bg:   'rgba(251,146,60,0.10)',
+    bd:   'rgba(251,146,60,0.22)',
+  },
+  // ⑩ 영업활동
+  {
+    href: '/visits',
+    icon: '📋',
+    label: '영업활동',
+    color: '#6ee7b7',
+    bg:   'rgba(16,185,129,0.10)',
+    bd:   'rgba(16,185,129,0.22)',
+  },
+  // ⑪ 수수료시뮬
+  {
+    href: '/commission',
+    icon: '💰',
+    label: '수수료시뮬',
+    color: '#6ee7b7',
+    bg:   'rgba(16,185,129,0.10)',
+    bd:   'rgba(16,185,129,0.22)',
+  },
+  // ⑫ 목표관리 (구: MBO)
+  {
+    href: '/mbo',
+    icon: '🎯',
+    label: '목표관리',
+    color: '#fcd34d',
+    bg:   'rgba(245,158,11,0.10)',
+    bd:   'rgba(245,158,11,0.22)',
+  },
+  // ⑬ 처방실적 (구: EDI)
+  {
+    href: '/edi',
+    icon: '🗂',
+    label: '처방실적',
+    color: '#d8b4fe',
+    bg:   'rgba(168,85,247,0.10)',
+    bd:   'rgba(168,85,247,0.22)',
+  },
+  // ⑭ 마감분석
+  {
+    href: '/performance',
+    icon: '📊',
+    label: '마감분석',
+    color: '#86efac',
+    bg:   'rgba(16,185,129,0.10)',
+    bd:   'rgba(16,185,129,0.22)',
+  },
+  // ⑮ 수수료정산
+  {
+    href: '/settlement',
+    icon: '💵',
+    label: '수수료정산',
+    color: '#4ade80',
+    bg:   'rgba(74,222,128,0.10)',
+    bd:   'rgba(74,222,128,0.22)',
+  },
+  // ⑯ 문서관리
   {
     href: '/documents',
     icon: '📁',
@@ -112,8 +172,28 @@ const NAV_ITEMS = [
     color: '#fde68a',
     bg:   'rgba(251,191,36,0.10)',
     bd:   'rgba(251,191,36,0.22)',
-    external: false,
   },
+  // ⑰ 오류신고 (전체 사용자)
+  {
+    href: '#',
+    icon: '🐛',
+    label: '오류신고',
+    color: '#fca5a5',
+    bg:   'rgba(239,68,68,0.10)',
+    bd:   'rgba(239,68,68,0.22)',
+    action: 'error-modal',
+  },
+  // ⑱ 오류신고함 (관리자 전용)
+  {
+    href: '/errors',
+    icon: '📬',
+    label: '오류신고함',
+    color: '#f87171',
+    bg:   'rgba(239,68,68,0.08)',
+    bd:   'rgba(239,68,68,0.20)',
+    adminOnly: true,
+  },
+  // ⑲ 관리자
   {
     href: '/admin',
     icon: '⚙️',
@@ -121,7 +201,6 @@ const NAV_ITEMS = [
     color: '#c084fc',
     bg:   'rgba(162,89,255,0.10)',
     bd:   'rgba(162,89,255,0.22)',
-    external: false,
   },
 ];
 
@@ -132,17 +211,30 @@ export default function Home() {
 
   // 인증 상태: null=확인 중, false=비로그인, true=로그인됨
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [isAdmin,    setIsAdmin]    = useState(false);
   const [toast, setToast]           = useState('');
   const [toastVisible, setToastVisible] = useState(false);
+  const [showErrorModal, setShowErrorModal] = useState(false);
 
   /* ── 인증 상태 감지 ─────────────────────────────────────── */
   useEffect(() => {
     const supabase = createClient();
+
+    async function checkSession(userId: string | undefined) {
+      if (!userId) { setIsAdmin(false); return; }
+      const { data } = await supabase.from('profiles').select('role, roles').eq('id', userId).single();
+      if (!data) { setIsAdmin(false); return; }
+      const roles: string[] = data.roles?.length ? data.roles : (data.role ? [data.role] : []);
+      setIsAdmin(roles.includes('관리자'));
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       setIsLoggedIn(!!data.session);
+      checkSession(data.session?.user?.id);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setIsLoggedIn(!!session);
+      checkSession(session?.user?.id);
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -228,10 +320,17 @@ export default function Home() {
           display: 'flex', justifyContent: 'center', gap: '0.75rem',
           flexWrap: 'wrap', margin: '1.4rem 0 0.4rem',
         }}>
-          {NAV_ITEMS.map(({ href, icon, label, color, bg, bd, external }) => (
+          {NAV_ITEMS.filter(item => !item.adminOnly || isAdmin).map(({ href, icon, label, color, bg, bd, external, action }) => (
             <button
-              key={href}
-              onClick={() => handleNav(href, external)}
+              key={label}
+              onClick={() => {
+                if (action === 'error-modal') {
+                  if (!isLoggedIn) { showToast('로그인이 필요한 페이지입니다.\n우측 상단의 로그인 버튼을 눌러주세요.'); return; }
+                  setShowErrorModal(true);
+                  return;
+                }
+                handleNav(href, external);
+              }}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.45rem',
                 padding: '1rem 1.1rem',
@@ -284,6 +383,9 @@ export default function Home() {
           </p>
         </div>
       </div>
+
+      {/* 오류신고 모달 */}
+      {showErrorModal && <ErrorReportModal onClose={() => setShowErrorModal(false)} />}
 
       {/* 우측 상단: 로그인 상태에 따라 다르게 표시 */}
       <div className="fixed top-5 right-6 z-20 flex gap-3">
