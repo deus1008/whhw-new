@@ -25,11 +25,11 @@ function toYYYYMM(s: string): string {
   return s;
 }
 
-const CSO_KEYWORDS = ['CSO', '동향', '경쟁사', '경쟁', '시장현황', '시장동향'];
+const COMP_KEYWORDS = ['경쟁사', '경쟁동향', '시장동향', 'CSO동향', '경쟁현황'];
 
-function isCsoCategory(cat: string | null): boolean {
+function isCompCategory(cat: string | null): boolean {
   if (!cat) return false;
-  return CSO_KEYWORDS.some(k => cat.includes(k));
+  return COMP_KEYWORDS.some(k => cat.includes(k));
 }
 
 /** 의원 여부: hospital_category 우선, fallback hospital_type */
@@ -82,6 +82,7 @@ export default async function DashboardPage() {
     product_name:        string | null;
     prescription_amount: number | null;
     settlement_amount:   number | null;
+    cso_name:            string | null;
   };
 
   const PAGE  = 1000;
@@ -91,7 +92,7 @@ export default async function DashboardPage() {
   const { data: firstSett, count: settCount } = await svc
     .from('commission_settlements')
     .select(
-      'prescription_month,hospital_name,hospital_category,hospital_type,product_name,prescription_amount,settlement_amount',
+      'prescription_month,hospital_name,hospital_category,hospital_type,product_name,prescription_amount,settlement_amount,cso_name',
       { count: 'exact' },
     )
     .not('prescription_month', 'is', null)
@@ -109,7 +110,7 @@ export default async function DashboardPage() {
           const pg = bs + i;
           return svc
             .from('commission_settlements')
-            .select('prescription_month,hospital_name,hospital_category,hospital_type,product_name,prescription_amount,settlement_amount')
+            .select('prescription_month,hospital_name,hospital_category,hospital_type,product_name,prescription_amount,settlement_amount,cso_name')
             .not('prescription_month', 'is', null)
             .gte('prescription_month', since4mStr)
             .range(pg * PAGE, pg * PAGE + PAGE - 1);
@@ -154,10 +155,11 @@ export default async function DashboardPage() {
       .gte('created_at', since3mStr)
       .order('created_at', { ascending: false })
       .range(0, 2999),
-    // 발매예정: 단종 제외, 발매일 순
+    // 발매예정: 단종·발매완료 제외, 발매일 순
     svc.from('upcoming_products')
       .select('id,title,manufacturer,launch_date,status,indication,insurance_code,insurance_price')
       .not('status', 'eq', '단종')
+      .not('status', 'eq', '발매완료')
       .order('launch_date', { ascending: true })
       .limit(15),
     // 문서: 최근 3개월, CSO/동향 관련 카테고리 포함
@@ -199,7 +201,21 @@ export default async function DashboardPage() {
     };
   }
 
-  // ── [섹션 1] 거래처현황: 의원/병원별 집계 ─────────────────────────────────
+  // ── [섹션 2] 거래처현황: CSO별 집계 ──────────────────────────────────────
+  type CsoAcc = { prescAmt: number; settAmt: number; hosps: Set<string> };
+  const csoAccMap: Record<string, CsoAcc> = {};
+  for (const r of normSett.filter(r => recentSet.has(r.prescription_month))) {
+    const key = (r.cso_name ?? '').trim() || '미지정';
+    if (!csoAccMap[key]) csoAccMap[key] = { prescAmt: 0, settAmt: 0, hosps: new Set() };
+    csoAccMap[key].prescAmt += r.prescription_amount ?? 0;
+    csoAccMap[key].settAmt  += r.settlement_amount   ?? 0;
+    if (r.hospital_name) csoAccMap[key].hosps.add(r.hospital_name);
+  }
+  const csoStats = Object.entries(csoAccMap)
+    .map(([name, v]) => ({ name, prescAmt: v.prescAmt, settAmt: v.settAmt, hospCount: v.hosps.size }))
+    .sort((a, b) => b.prescAmt - a.prescAmt);
+
+  // ── [섹션 3] 처방처현황: 병원/의원 월별 분리 집계 ────────────────────────
   const settlementByCategory = recentMonths.map(month => {
     const rows   = normSett.filter(r => r.prescription_month === month);
     const clRows = rows.filter(r =>  isClinic(r.hospital_category, r.hospital_type));
@@ -207,7 +223,27 @@ export default async function DashboardPage() {
     return { month, clinic: aggRows(clRows), hospital: aggRows(hsRows) };
   });
 
-  // ── [섹션 1] 상위 10 거래처 ──────────────────────────────────────────────
+  const prescriptionMonthly = recentMonths.map(month => {
+    const rows    = normSett.filter(r => r.prescription_month === month);
+    const clRows  = rows.filter(r =>  isClinic(r.hospital_category, r.hospital_type));
+    const hsRows  = rows.filter(r => !isClinic(r.hospital_category, r.hospital_type));
+    const allH    = new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!));
+    const clH     = new Set(clRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
+    const hsH     = new Set(hsRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
+    const prods   = new Set(rows.filter(r => r.product_name).map(r => r.product_name!));
+    return {
+      month,
+      hospCount:        allH.size,
+      clinicCount:      clH.size,
+      hospitalCount:    hsH.size,
+      productCount:     prods.size,
+      totalPrescAmt:    rows.reduce((s, r)   => s + (r.prescription_amount ?? 0), 0),
+      clinicPrescAmt:   clRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+      hospitalPrescAmt: hsRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+    };
+  });
+
+  // ── [섹션 2] 상위 10 거래처 (병원/의원 처방액 기준) ───────────────────────
   type HospAcc = { category: string; prescAmt: number; settAmt: number };
   const hospAccMap: Record<string, HospAcc> = {};
   for (const r of normSett.filter(r => recentSet.has(r.prescription_month))) {
@@ -225,19 +261,6 @@ export default async function DashboardPage() {
     .sort(([, a], [, b]) => b.prescAmt - a.prescAmt)
     .slice(0, 10)
     .map(([name, v]) => ({ name, ...v }));
-
-  // ── [섹션 2] 처방처현황: 월별 처방처수/품목수/처방액 ──────────────────────
-  const prescriptionMonthly = recentMonths.map(month => {
-    const rows     = normSett.filter(r => r.prescription_month === month);
-    const hosps    = new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!));
-    const products = new Set(rows.filter(r => r.product_name).map(r => r.product_name!));
-    return {
-      month,
-      hospCount:     hosps.size,
-      productCount:  products.size,
-      totalPrescAmt: rows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
-    };
-  });
 
   // ── [섹션 2] 상위 10 처방처 ──────────────────────────────────────────────
   type PrescriberAcc = { category: string; prescAmt: number; months: Record<string, number> };
@@ -422,9 +445,9 @@ export default async function DashboardPage() {
     insurancePrice: p.insurance_price as string | null,
   }));
 
-  // ── I. 경쟁사 동향 (CSO동향 관련 문서) ───────────────────────────────────
+  // ── I. 경쟁사 동향 (경쟁사 관련 문서) ────────────────────────────────────
   const csoDocs = (docRows ?? [])
-    .filter(d => isCsoCategory(d.category as string | null))
+    .filter(d => isCompCategory(d.category as string | null))
     .slice(0, 10)
     .map(d => ({
       id:        d.id        as string,
@@ -461,16 +484,19 @@ export default async function DashboardPage() {
   const dashData: DashboardData = {
     reportDate: now.toISOString().slice(0, 10),
     recentMonths,
+    // 섹션2: 거래처현황
+    csoStats,
     settlementByCategory,
     top10Customers,
+    customerMonthly,
+    // 섹션3: 처방처현황
     prescriptionMonthly,
     top10Prescribers,
     settlementTrend,
-    customerMonthly,
     schedules,
     visitSummary,
     visitMonths,
-    // 새 섹션
+    // 처방실적(EDI)
     ediMonthly,
     top5Products,
     ediMonths,
