@@ -69,6 +69,38 @@ export type ScheduleItem = {
   assignee:  string | null;
 };
 
+export type EdiMonthStat = {
+  month:         string;
+  hospCount:     number;
+  productCount:  number;
+  totalPrescAmt: number;
+};
+
+export type TopProduct = {
+  name:          string;
+  totalPrescAmt: number;
+  months:        { month: string; prescAmt: number }[];
+};
+
+export type UpcomingProduct = {
+  id:            string;
+  title:         string;
+  manufacturer:  string | null;
+  launchDate:    string | null;
+  status:        string | null;
+  indication:    string | null;
+  insuranceCode:  string | null;
+  insurancePrice: string | null;
+};
+
+export type CsoDoc = {
+  id:        string;
+  filename:  string;
+  category:  string;
+  fileType:  string;
+  createdAt: string;
+};
+
 export type DashboardData = {
   reportDate:           string;
   recentMonths:         string[];          // 최근 3 처방월
@@ -85,6 +117,14 @@ export type DashboardData = {
   schedules:            ScheduleItem[];
   visitSummary:         VisitPersonStat[];
   visitMonths:          string[];
+  // 섹션5: 처방실적 현황 (EDI/실적마감)
+  ediMonthly:           EdiMonthStat[];
+  top5Products:         TopProduct[];
+  ediMonths:            string[];
+  // 섹션6: 발매예정
+  upcomingProducts:     UpcomingProduct[];
+  // 섹션7: 경쟁사 동향
+  csoDocs:              CsoDoc[];
 };
 
 /* ── 포맷 유틸 ─────────────────────────────────────────────────────── */
@@ -159,10 +199,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     prescriptionMonthly, top10Prescribers,
     settlementTrend,
     schedules, visitSummary, visitMonths,
+    ediMonthly, top5Products, ediMonths,
+    upcomingProducts,
+    csoDocs,
   } = data;
 
   const today = reportDate;
   const noSett = recentMonths.length === 0;
+  const noEdi  = ediMonths.length === 0;
 
   // 일정: 과거 / 예정 분류
   const todayStr = today;
@@ -709,6 +753,202 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             )}
           </div>
         </div>
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════
+          섹션 5: 처방실적 현황 (EDI/실적마감)
+      ══════════════════════════════════════════════════════════ */}
+      <Section title="📈 처방실적 현황" id="s5">
+        {noEdi ? (
+          <Empty msg="EDI 또는 실적마감 파일을 업로드하면 자동 집계됩니다." />
+        ) : (
+          <>
+            {/* 5-A: 월별 처방현황 */}
+            <SubTitle>▸ 월별 처방 집계 (3개월)</SubTitle>
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>월</th>
+                  <th className="right">처방처수</th>
+                  <th className="right">전월 대비</th>
+                  <th className="right">처방품목수</th>
+                  <th className="right">처방액 합계</th>
+                  <th className="right">전월 대비</th>
+                </tr>
+              </thead>
+              <tbody>
+                {ediMonthly.map((r, i) => (
+                  <tr key={r.month}>
+                    <td className="muted">{fmtPeriod(r.month)}</td>
+                    <td className="right bold">{r.hospCount.toLocaleString()}</td>
+                    <td className="right">
+                      <DeltaCount cur={r.hospCount} prev={ediMonthly[i - 1]?.hospCount} />
+                    </td>
+                    <td className="right">{r.productCount.toLocaleString()}</td>
+                    <td className="right bold">{fmtWon(r.totalPrescAmt)}</td>
+                    <td className="right">
+                      <DeltaAmt cur={r.totalPrescAmt} prev={ediMonthly[i - 1]?.totalPrescAmt} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* 5-B: 상위 5 품목 */}
+            {top5Products.length > 0 && (
+              <>
+                <SubTitle>▸ 주력 품목 TOP 5 (처방액 기준)</SubTitle>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="dash-table">
+                    <thead>
+                      <tr>
+                        <th className="center">순위</th>
+                        <th>품목명</th>
+                        {ediMonths.map(m => (
+                          <th key={m} className="right">{fmtPeriod(m)}</th>
+                        ))}
+                        <th className="right" style={{ color: '#a8c4ff' }}>합계</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {top5Products.map((p, i) => (
+                        <tr key={p.name}>
+                          <td className="center muted">{i + 1}</td>
+                          <td style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {p.name}
+                          </td>
+                          {p.months.map(m => (
+                            <td key={m.month} className="right" style={{ fontSize: '0.78rem' }}>
+                              {m.prescAmt > 0 ? fmtWon(m.prescAmt, true) : <span className="muted">-</span>}
+                            </td>
+                          ))}
+                          <td className="right bold" style={{ color: '#a8c4ff' }}>
+                            {fmtWon(p.totalPrescAmt, true)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════
+          섹션 6: 발매예정
+      ══════════════════════════════════════════════════════════ */}
+      <Section title="🚀 발매예정" id="s6">
+        {upcomingProducts.length === 0 ? (
+          <Empty msg="허가현황 폴더에 파일을 업로드하면 자동으로 등록됩니다." />
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>제품명</th>
+                  <th>제조사</th>
+                  <th className="center">발매예정일</th>
+                  <th>보험코드</th>
+                  <th className="right">보험가</th>
+                  <th className="center">상태</th>
+                </tr>
+              </thead>
+              <tbody>
+                {upcomingProducts.map(p => {
+                  const isPast = p.launchDate && p.launchDate < today;
+                  const statusColor =
+                    p.status === '발매완료' ? '#4ade80' :
+                    p.status === '보험등재' ? '#a5b4fc' :
+                    p.status === '허가완료' ? '#fbbf24' :
+                    'rgba(255,255,255,0.5)';
+                  return (
+                    <tr key={p.id} style={{ opacity: isPast ? 0.65 : 1 }}>
+                      <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                        {p.title}
+                        {p.indication && (
+                          <span className="muted" style={{ fontSize: '0.72rem', fontWeight: 400, marginLeft: '0.4rem' }}>
+                            {p.indication.length > 20 ? p.indication.slice(0, 20) + '…' : p.indication}
+                          </span>
+                        )}
+                      </td>
+                      <td className="muted" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                        {p.manufacturer ?? '-'}
+                      </td>
+                      <td className="center" style={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
+                        {p.launchDate ? fmtDate(p.launchDate.slice(0, 10)) : '-'}
+                      </td>
+                      <td className="muted" style={{ fontSize: '0.78rem' }}>
+                        {p.insuranceCode ?? '-'}
+                      </td>
+                      <td className="right" style={{ fontSize: '0.8rem' }}>
+                        {p.insurancePrice ?? '-'}
+                      </td>
+                      <td className="center">
+                        <span className="badge" style={{
+                          background: `${statusColor}22`,
+                          color: statusColor,
+                          border: `1px solid ${statusColor}44`,
+                        }}>
+                          {p.status ?? '예정'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════
+          섹션 7: 경쟁사 동향
+      ══════════════════════════════════════════════════════════ */}
+      <Section title="📄 경쟁사 동향" id="s7">
+        {csoDocs.length === 0 ? (
+          <Empty msg="'CSO동향' 등 관련 폴더에 파일을 업로드하면 목록이 표시됩니다." />
+        ) : (
+          <>
+            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: '0 0 0.7rem' }}>
+              문서관리에 업로드된 CSO/경쟁사 관련 최신 자료 목록입니다.
+            </p>
+            <table className="dash-table">
+              <thead>
+                <tr>
+                  <th>파일명</th>
+                  <th>폴더</th>
+                  <th className="center">형식</th>
+                  <th className="right">업로드일</th>
+                </tr>
+              </thead>
+              <tbody>
+                {csoDocs.map(d => (
+                  <tr key={d.id}>
+                    <td style={{ maxWidth: '260px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {d.filename}
+                    </td>
+                    <td>
+                      <span className="schedule-tag" style={{ background: 'rgba(168,85,247,0.12)', color: '#d8b4fe' }}>
+                        {d.category}
+                      </span>
+                    </td>
+                    <td className="center muted" style={{ fontSize: '0.75rem', textTransform: 'uppercase' }}>
+                      {d.fileType}
+                    </td>
+                    <td className="right muted" style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+                      {fmtDate(d.createdAt.slice(0, 10))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.5rem', textAlign: 'right' }}>
+              전체 파일 보기 → <a href="/documents" style={{ color: '#a5b4fc' }}>문서관리</a>
+            </p>
+          </>
+        )}
       </Section>
     </>
   );

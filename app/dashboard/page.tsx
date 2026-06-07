@@ -18,10 +18,18 @@ function getSvc() {
   );
 }
 
-/** "202604" → "2026-04", "2026-04" → "2026-04" */
+/** "202604" → "2026-04", "2026-04" → "2026-04", "2026.04" → "2026-04" */
 function toYYYYMM(s: string): string {
   if (/^\d{6}$/.test(s)) return `${s.slice(0, 4)}-${s.slice(4)}`;
+  if (/^\d{4}\.\d{2}$/.test(s)) return s.replace('.', '-');
   return s;
+}
+
+const CSO_KEYWORDS = ['CSO', '동향', '경쟁사', '경쟁', '시장현황', '시장동향'];
+
+function isCsoCategory(cat: string | null): boolean {
+  if (!cat) return false;
+  return CSO_KEYWORDS.some(k => cat.includes(k));
 }
 
 /** 의원 여부: hospital_category 우선, fallback hospital_type */
@@ -119,6 +127,9 @@ export default async function DashboardPage() {
     { data: visitRows },
     { data: profileRows },
     { data: scheduleRows },
+    { data: ediRows },
+    { data: upcomingRows },
+    { data: docRows },
   ] = await Promise.all([
     svc.from('customer_status')
       .select('source_file, created_at')
@@ -134,6 +145,25 @@ export default async function DashboardPage() {
       .gte('start_date', since3mStr)
       .lte('start_date', next2mStr)
       .order('start_date', { ascending: true })
+      .limit(60),
+    // 처방실적(EDI/실적마감): 최근 3개월
+    svc.from('trend_prescriptions')
+      .select('prescription_month,hospital_name,product_name,prescription_amount,hospital_type')
+      .not('prescription_month', 'is', null)
+      .gte('created_at', since3mStr)
+      .order('created_at', { ascending: false })
+      .range(0, 2999),
+    // 발매예정: 단종 제외, 발매일 순
+    svc.from('upcoming_products')
+      .select('id,title,manufacturer,launch_date,status,indication,insurance_code,insurance_price')
+      .not('status', 'eq', '단종')
+      .order('launch_date', { ascending: true })
+      .limit(15),
+    // 문서: 최근 3개월, CSO/동향 관련 카테고리 포함
+    svc.from('documents')
+      .select('id,filename,category,file_type,created_at,status')
+      .gte('created_at', since3mStr)
+      .order('created_at', { ascending: false })
       .limit(60),
   ]);
 
@@ -287,6 +317,80 @@ export default async function DashboardPage() {
     }))
     .sort((a, b) => b.total - a.total);
 
+  // ── G. 처방실적(EDI/실적마감) 집계 ──────────────────────────────────────────
+  type EdiRow = {
+    prescription_month: string;
+    hospital_name: string | null;
+    product_name: string | null;
+    prescription_amount: number | null;
+    hospital_type: string | null;
+  };
+
+  const normEdi = (ediRows as EdiRow[] ?? []).map(r => ({
+    ...r,
+    prescription_month: toYYYYMM(r.prescription_month ?? ''),
+  })).filter(r => /^\d{4}-\d{2}$/.test(r.prescription_month));
+
+  const ediAllMonths = [...new Set(normEdi.map(r => r.prescription_month))].sort();
+  const ediMonths    = ediAllMonths.slice(-3);
+  const ediMonthSet  = new Set(ediMonths);
+
+  const ediMonthly = ediMonths.map(month => {
+    const rows     = normEdi.filter(r => r.prescription_month === month);
+    const hosps    = new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!));
+    const products = new Set(rows.filter(r => r.product_name).map(r => r.product_name!));
+    return {
+      month,
+      hospCount:     hosps.size,
+      productCount:  products.size,
+      totalPrescAmt: rows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+    };
+  });
+
+  // 상위 5 품목
+  type ProdAcc = { prescAmt: number; months: Record<string, number> };
+  const prodMap: Record<string, ProdAcc> = {};
+  for (const r of normEdi.filter(r => ediMonthSet.has(r.prescription_month))) {
+    if (!r.product_name) continue;
+    if (!prodMap[r.product_name]) prodMap[r.product_name] = { prescAmt: 0, months: {} };
+    const amt = r.prescription_amount ?? 0;
+    prodMap[r.product_name].prescAmt += amt;
+    prodMap[r.product_name].months[r.prescription_month] =
+      (prodMap[r.product_name].months[r.prescription_month] ?? 0) + amt;
+  }
+  const top5Products = Object.entries(prodMap)
+    .sort(([, a], [, b]) => b.prescAmt - a.prescAmt)
+    .slice(0, 5)
+    .map(([name, v]) => ({
+      name,
+      totalPrescAmt: v.prescAmt,
+      months: ediMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
+    }));
+
+  // ── H. 발매예정 ───────────────────────────────────────────────────────────
+  const upcomingProducts = (upcomingRows ?? []).map(p => ({
+    id:           p.id           as string,
+    title:        p.title        as string,
+    manufacturer: p.manufacturer as string | null,
+    launchDate:   p.launch_date  as string | null,
+    status:       p.status       as string | null,
+    indication:   p.indication   as string | null,
+    insuranceCode: p.insurance_code  as string | null,
+    insurancePrice: p.insurance_price as string | null,
+  }));
+
+  // ── I. 경쟁사 동향 (CSO동향 관련 문서) ───────────────────────────────────
+  const csoDocs = (docRows ?? [])
+    .filter(d => isCsoCategory(d.category as string | null))
+    .slice(0, 10)
+    .map(d => ({
+      id:        d.id        as string,
+      filename:  d.filename  as string,
+      category:  (d.category ?? '기타') as string,
+      fileType:  d.file_type as string,
+      createdAt: d.created_at as string,
+    }));
+
   // ── F. 주요일정 ───────────────────────────────────────────────────────────
   const schedules = (scheduleRows ?? []).map(s => ({
     title:     s.title    as string,
@@ -309,6 +413,12 @@ export default async function DashboardPage() {
     schedules,
     visitSummary,
     visitMonths,
+    // 새 섹션
+    ediMonthly,
+    top5Products,
+    ediMonths,
+    upcomingProducts,
+    csoDocs,
   };
 
   return (
