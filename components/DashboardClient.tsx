@@ -101,6 +101,14 @@ export type CsoDoc = {
   createdAt: string;
 };
 
+export type ProductRankItem = {
+  name:          string;
+  totalPrescAmt: number;
+  latestAmt:     number;
+  delta:         number;   // 전월 대비 (최신월 - 전전월)
+  months:        { month: string; prescAmt: number }[];
+};
+
 export type DashboardData = {
   reportDate:           string;
   recentMonths:         string[];          // 최근 3 처방월
@@ -125,6 +133,9 @@ export type DashboardData = {
   upcomingProducts:     UpcomingProduct[];
   // 섹션7: 경쟁사 동향
   csoDocs:              CsoDoc[];
+  // 섹션8: 품목현황
+  top10Products:        ProductRankItem[];
+  bottom10Products:     ProductRankItem[];
 };
 
 /* ── 포맷 유틸 ─────────────────────────────────────────────────────── */
@@ -202,6 +213,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     ediMonthly, top5Products, ediMonths,
     upcomingProducts,
     csoDocs,
+    top10Products, bottom10Products,
   } = data;
 
   const today = reportDate;
@@ -900,6 +912,73 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </tbody>
             </table>
           </div>
+        )}
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════
+          섹션 8: 품목현황 — 상위/하위 10 품목 추이
+      ══════════════════════════════════════════════════════════ */}
+      <Section title="💊 품목현황" id="s8">
+        {top10Products.length === 0 ? (
+          <Empty msg="수수료정산 파일을 업로드하면 자동 집계됩니다." />
+        ) : (
+          <>
+            {/* 공통 테이블 렌더러 */}
+            {([
+              { label: '▸ 상위 10 품목 (최신월 처방액 기준)', items: top10Products,     isTop: true,  accentColor: '#4ade80' },
+              { label: '▸ 하위 10 품목 (최신월 처방액 기준)', items: bottom10Products,  isTop: false, accentColor: '#f87171' },
+            ] as { label: string; items: ProductRankItem[]; isTop: boolean; accentColor: string }[]).map(({ label, items, isTop, accentColor }) => (
+              items.length > 0 && (
+                <div key={label} style={{ marginBottom: '0.5rem' }}>
+                  <SubTitle>{label}</SubTitle>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="dash-table">
+                      <thead>
+                        <tr>
+                          <th className="center">순위</th>
+                          <th>품목명</th>
+                          {recentMonths.map(m => (
+                            <th key={m} className="right">{fmtPeriod(m)}</th>
+                          ))}
+                          <th className="right">합계</th>
+                          <th className="right">전월대비</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((p, i) => (
+                          <tr key={p.name}>
+                            <td className="center" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>
+                              {isTop ? i + 1 : `▼${i + 1}`}
+                            </td>
+                            <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                              {p.name}
+                            </td>
+                            {p.months.map(m => (
+                              <td key={m.month} className="right" style={{ fontSize: '0.80rem' }}>
+                                {m.prescAmt > 0
+                                  ? fmtWon(m.prescAmt, true)
+                                  : <span className="muted">-</span>}
+                              </td>
+                            ))}
+                            <td className="right bold" style={{ color: accentColor, fontSize: '0.80rem' }}>
+                              {fmtWon(p.totalPrescAmt, true)}
+                            </td>
+                            <td className="right" style={{ fontSize: '0.78rem' }}>
+                              {p.delta === 0
+                                ? <span className="muted">±0</span>
+                                : <span className={p.delta > 0 ? 'up' : 'dn'}>
+                                    {p.delta > 0 ? '▲' : '▼'}{fmtWon(Math.abs(p.delta), true)}
+                                  </span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )
+            ))}
+          </>
         )}
       </Section>
 

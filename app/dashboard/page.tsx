@@ -258,6 +258,42 @@ export default async function DashboardPage() {
       months: recentMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
     }));
 
+  // ── [섹션 8] 품목현황: 상위/하위 10 품목 추이 ────────────────────────────
+  // commission_settlements의 recentMonths 데이터 활용
+  type ProdStat = { prescAmt: number; months: Record<string, number> };
+  const prodStatMap: Record<string, ProdStat> = {};
+  const latestMonth = recentMonths[recentMonths.length - 1] ?? '';
+
+  for (const r of normSett.filter(r => recentSet.has(r.prescription_month))) {
+    if (!r.product_name) continue;
+    if (!prodStatMap[r.product_name]) prodStatMap[r.product_name] = { prescAmt: 0, months: {} };
+    const amt = r.prescription_amount ?? 0;
+    prodStatMap[r.product_name].prescAmt += amt;
+    prodStatMap[r.product_name].months[r.prescription_month] =
+      (prodStatMap[r.product_name].months[r.prescription_month] ?? 0) + amt;
+  }
+
+  // 최신월 기준 정렬 → 상위/하위 구분
+  const allProdsSorted = Object.entries(prodStatMap)
+    .map(([name, v]) => {
+      const latestAmt  = v.months[latestMonth] ?? 0;
+      const prevMonth  = recentMonths[recentMonths.length - 2] ?? '';
+      const prevAmt    = v.months[prevMonth] ?? 0;
+      return {
+        name,
+        totalPrescAmt: v.prescAmt,
+        latestAmt,
+        delta: latestAmt - prevAmt,
+        months: recentMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
+      };
+    })
+    // 최신월 데이터가 있는 품목만 포함 (전기 실적 없는 품목 제외)
+    .filter(p => p.totalPrescAmt > 0)
+    .sort((a, b) => b.latestAmt - a.latestAmt);
+
+  const top10Products    = allProdsSorted.slice(0, 10);
+  const bottom10Products = allProdsSorted.slice(-10).reverse(); // 하위에서 낮은 것부터
+
   // ── [섹션 3] 수수료정산현황: 월별 의원/병원/전체 추이 ────────────────────
   const settlementTrend = recentMonths.map(month => {
     const rows   = normSett.filter(r => r.prescription_month === month);
@@ -419,6 +455,8 @@ export default async function DashboardPage() {
     ediMonths,
     upcomingProducts,
     csoDocs,
+    top10Products,
+    bottom10Products,
   };
 
   return (
