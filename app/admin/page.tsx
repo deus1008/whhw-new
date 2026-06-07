@@ -5,7 +5,7 @@ import { updateStatus, updateRoles, updateName } from './actions';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
-import { ALL_ROLES, ROLE_META, getRoles, normalizeRole, type UserRole } from '@/lib/roles';
+import { ALL_ROLES, ROLE_META, getRoles, normalizeRole, profileIsAdmin, type UserRole } from '@/lib/roles';
 
 type Status = 'pending' | 'approved' | 'rejected';
 type Role   = UserRole;
@@ -256,14 +256,14 @@ export default async function AdminPage() {
 
   if (!user) redirect('/login');
 
-  // 관리자 확인 — role 단일 컬럼 (항상 존재)
+  // 관리자 확인 — role 단일 컬럼 + roles 배열 컬럼 모두 확인
   const { data: myProfile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, roles')
     .eq('id', user.id)
     .single();
 
-  if (!myProfile || normalizeRole(myProfile.role) !== '관리자') {
+  if (!myProfile || !profileIsAdmin(myProfile)) {
     redirect('/dashboard');
   }
 
