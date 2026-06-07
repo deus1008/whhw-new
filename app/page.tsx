@@ -193,7 +193,7 @@ const NAV_ITEMS: NavItem[] = [
     bd:   'rgba(239,68,68,0.20)',
     adminOnly: true,
   },
-  // ⑲ 관리자
+  // ⑲ 관리자 (관리자 전용)
   {
     href: '/admin',
     icon: '⚙️',
@@ -201,6 +201,7 @@ const NAV_ITEMS: NavItem[] = [
     color: '#c084fc',
     bg:   'rgba(162,89,255,0.10)',
     bd:   'rgba(162,89,255,0.22)',
+    adminOnly: true,
   },
 ];
 
