@@ -171,14 +171,9 @@ function fmtPeriod(s: string): string {
 }
 
 function fmtWon(n: number, compact = false): string {
-  if (compact) {
-    if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1)}억`;
-    if (n >= 10_000)      return `${Math.round(n / 10_000)}만`;
-    return String(Math.round(n));
-  }
-  if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1)}억원`;
-  if (n >= 10_000)      return `${Math.round(n / 10_000).toLocaleString()}만원`;
-  return n.toLocaleString() + '원';
+  const thousands = Math.round(n / 1000);
+  if (compact) return `${thousands.toLocaleString()}천`;
+  return `${thousands.toLocaleString()}천원`;
 }
 
 function fmtRate(r: number): string { return `${r.toFixed(1)}%`; }
