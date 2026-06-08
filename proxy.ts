@@ -18,46 +18,25 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // profile(status + role) 조회가 필요한 경로
-  const needsProfile =
+  // 승인 여부 확인이 필요한 경로 (role 체크는 서버 컴포넌트에 위임)
+  const needsApproval =
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/documents');
 
-  if (needsProfile) {
-    const { data: profile, error } = await supabase
+  if (needsApproval) {
+    const { data: profile } = await supabase
       .from('profiles')
-      .select('status, role')
+      .select('status')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      console.error('[proxy:getProfile error]', error);
+    if (!profile || profile.status !== 'approved') {
+      return NextResponse.redirect(new URL('/pending', request.url));
     }
-
-    // /admin: role = 'admin' 만 접근
-    if (pathname.startsWith('/admin')) {
-      if (!profile || profile.role !== 'admin') {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-      }
-    }
-
-    // /documents: role = 'admin' | 'uploader' 만 접근
-    if (pathname.startsWith('/documents')) {
-      if (!profile || profile.status !== 'approved') {
-        return NextResponse.redirect(new URL('/pending', request.url));
-      }
-      if (profile.role !== 'admin' && profile.role !== 'uploader') {
-        return NextResponse.redirect(new URL('/dashboard', request.url));
-      }
-    }
-
-    // /dashboard: 승인된 사용자만 접근
-    if (pathname.startsWith('/dashboard')) {
-      if (!profile || profile.status !== 'approved') {
-        return NextResponse.redirect(new URL('/pending', request.url));
-      }
-    }
+    // role 기반 접근 제어(/admin 관리자만, /documents 업로드 권한만)는
+    // 각 서버 컴포넌트에서 처리 — proxy에서 중복 role 체크 시
+    // 쿼리 실패로 profile=null이 되어 잘못된 redirect 발생 가능
   }
 
   return supabaseResponse;
