@@ -256,15 +256,36 @@ export default async function AdminPage() {
 
   if (!user) redirect('/login');
 
-  // 관리자 확인 — role 단일 컬럼 + roles 배열 컬럼 모두 확인
-  const { data: myProfile, error: profileErr } = await supabase
-    .from('profiles')
-    .select('role, roles')
-    .eq('id', user.id)
-    .single();
+  // 관리자 확인 — roles 배열 컬럼 우선 시도, 없으면 role 단일 컬럼으로 fallback
+  let myProfile: { role: string | null; roles: string[] | null } | null = null;
+  {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('role, roles')
+      .eq('id', user.id)
+      .single();
 
-  console.log('[admin:debug] profileErr=', JSON.stringify(profileErr), 'myProfile=', JSON.stringify(myProfile), 'isAdmin=', myProfile ? profileIsAdmin(myProfile) : 'no profile');
-  if (!myProfile || !profileIsAdmin(myProfile)) {
+    if (error) {
+      // roles 컬럼 미존재 등 오류 시 role 단일 컬럼으로 재시도
+      console.warn('[admin] roles query failed, fallback to role only:', error.message);
+      const { data: fallback } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      myProfile = fallback ? { role: (fallback as { role: string }).role, roles: null } : null;
+    } else {
+      myProfile = data as { role: string | null; roles: string[] | null } | null;
+    }
+  }
+
+  const isAdminUser = myProfile
+    ? (getRoles(myProfile).includes('관리자') || normalizeRole(myProfile.role) === '관리자')
+    : false;
+
+  console.log('[admin:debug] myProfile=', JSON.stringify(myProfile), 'isAdminUser=', isAdminUser);
+
+  if (!isAdminUser) {
     redirect('/dashboard');
   }
 
