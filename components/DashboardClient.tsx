@@ -819,7 +819,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                           <td style={{ fontWeight: 700, color: doc ? '#e9d5ff' : 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
                             {company}
                           </td>
-                          <td style={{ fontSize: '0.83rem', color: doc ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.3)' }}>
+                          <td style={{ fontSize: '0.83rem', color: doc ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.3)', whiteSpace: 'pre-line', lineHeight: 1.65 }}>
                             {displayText ?? '자료 없음'}
                           </td>
                           <td className="center" style={{ fontSize: '0.78rem', color: freshColor, whiteSpace: 'nowrap', fontWeight: 600 }}>
