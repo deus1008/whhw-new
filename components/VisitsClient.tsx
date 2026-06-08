@@ -212,11 +212,9 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.8rem' }}>
         <h1 style={pageTitle}>
           방문 기록
-          {isAdmin && (
-            <span style={{ fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
-              (관리자 — 전체 조회)
-            </span>
-          )}
+          <span style={{ fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
+            (전체 조회)
+          </span>
         </h1>
         {formMode === 'none' && (
           <button onClick={openCreate} style={primaryBtn}>
@@ -406,10 +404,10 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
                     </span>
                   )}
 
-                  {/* 관리자 작성자 표시 */}
-                  {isAdmin && rec.user_email && (
+                  {/* 작성자 표시 — 모든 사용자에게 공개 */}
+                  {(rec.user_name || rec.user_email) && (
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0, maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {rec.user_email}
+                      👤 {rec.user_name ?? rec.user_email}
                     </span>
                   )}
 

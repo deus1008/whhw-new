@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { normalizeRole } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
@@ -20,6 +20,7 @@ export type VisitRecord = {
   follow_up_date: string | null;
   created_at:     string;
   user_email?:    string;
+  user_name?:     string;
 };
 
 export default async function VisitsPage() {
@@ -39,36 +40,29 @@ export default async function VisitsPage() {
 
   const role = normalizeRole(myProfile.role);
   const isAdmin = role === '관리자' || role === '사업총괄' || role === '영업관리총괄';
-  let records: VisitRecord[] = [];
 
-  if (isAdmin) {
-    // 관리자: 전체 기록 + 작성자 이메일
-    const [{ data: all }, { data: profiles }] = await Promise.all([
-      supabase
-        .from('visit_records')
-        .select('*')
-        .order('visited_at', { ascending: false }),
-      supabase
-        .from('profiles')
-        .select('id, email'),
-    ]);
-
-    const emailMap: Record<string, string> =
-      Object.fromEntries((profiles ?? []).map(p => [p.id, p.email as string]));
-
-    records = (all ?? []).map(r => ({
-      ...(r as VisitRecord),
-      user_email: emailMap[r.user_id] ?? r.user_id,
-    }));
-  } else {
-    const { data } = await supabase
+  // 서비스 클라이언트로 RLS 우회 → 모든 사용자가 전체 기록 조회 가능
+  const svc = createServiceClient();
+  const [{ data: all }, { data: profiles }] = await Promise.all([
+    svc
       .from('visit_records')
       .select('*')
-      .eq('user_id', user.id)
-      .order('visited_at', { ascending: false });
+      .order('visited_at', { ascending: false }),
+    svc
+      .from('profiles')
+      .select('id, email, full_name'),
+  ]);
 
-    records = (data ?? []) as VisitRecord[];
-  }
+  const profileMap: Record<string, { email: string; full_name: string | null }> =
+    Object.fromEntries(
+      (profiles ?? []).map(p => [p.id, { email: p.email as string, full_name: p.full_name as string | null }]),
+    );
+
+  const records: VisitRecord[] = (all ?? []).map(r => ({
+    ...(r as VisitRecord),
+    user_email: profileMap[r.user_id]?.email ?? r.user_id,
+    user_name:  profileMap[r.user_id]?.full_name ?? undefined,
+  }));
 
   return (
     <>
