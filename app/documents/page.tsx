@@ -20,6 +20,7 @@ export type Document = {
   status: DocStatus;
   error_message: string | null;
   created_at: string;
+  summary: string | null;
 };
 
 export default async function DocumentsPage() {
@@ -46,7 +47,7 @@ export default async function DocumentsPage() {
 
   const { data: docs, error: docsError } = await supabase
     .from('documents')
-    .select('id, filename, file_type, storage_path, category, uploaded_by, status, error_message, created_at')
+    .select('id, filename, file_type, storage_path, category, uploaded_by, status, error_message, created_at, summary')
     .order('created_at', { ascending: false });
 
   if (docsError) console.error('[documents:getDocs error]', docsError);

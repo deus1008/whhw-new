@@ -83,6 +83,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
   const [isDragging, setIsDragging]       = useState(false);
   const [uploading, setUploading]         = useState(false);
   const [uploadError, setUploadError]     = useState('');
+  const [uploadSummary, setUploadSummary] = useState('');
   const [confirmId, setConfirmId]         = useState<string | null>(null);
   const [deleteError, setDeleteError]     = useState('');
   const [isPending, startTransition]      = useTransition();
@@ -201,6 +202,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
             category:    categoryValue,
             uploaded_by: user.id,
             status:      'processing',
+            summary:     uploadSummary.trim() || null,
           })
           .select()
           .single();
@@ -231,6 +233,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
       setFolder('');
       setNewFolder('');
       setShowNewFolder(false);
+      setUploadSummary('');
     }
 
     setUploading(false);
@@ -475,6 +478,26 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
           >
             {uploading ? <><span style={spinnerStyle} />업로드 중…</> : `업로드 (${selectedFiles.length}개)`}
           </button>
+        </div>
+
+        {/* 요약 메모 (경쟁사 동향 대시보드 표시용) */}
+        <div style={{ marginTop: '0.75rem' }}>
+          <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 500 }}>
+            📝 동향 요약 메모 <span style={{ color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}>(선택 · 경쟁사 동향 대시보드에 표시됩니다)</span>
+          </label>
+          <textarea
+            value={uploadSummary}
+            onChange={e => setUploadSummary(e.target.value)}
+            placeholder="예) Q2 실적 전분기 대비 12% 증가, 신규 CSO 3개 추가 계약..."
+            disabled={uploading}
+            rows={2}
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '8px', color: 'rgba(255,255,255,0.85)', fontSize: '0.84rem',
+              padding: '0.6rem 0.75rem', resize: 'vertical', outline: 'none', fontFamily: 'inherit',
+            }}
+          />
         </div>
       </div>
 

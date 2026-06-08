@@ -117,6 +117,7 @@ export type CsoDoc = {
   category:  string;
   fileType:  string;
   createdAt: string;
+  summary:   string | null;
 };
 
 export type ProductRankItem = {
@@ -766,47 +767,110 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           섹션 6: 경쟁사 동향
       ══════════════════════════════════════════════════════════ */}
       <Section title="📄 경쟁사 동향" id="s6">
-        {csoDocs.length === 0 ? (
-          <Empty msg="문서관리 > '경쟁사동향' 폴더에 파일을 업로드하면 핵심 내용이 표시됩니다." />
-        ) : (
-          <>
-            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: '0 0 0.7rem' }}>
-              경쟁사동향 폴더 최신 자료 · 클릭 시 문서관리에서 원본 확인 가능
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-              {csoDocs.map((d, idx) => {
-                const daysAgo = Math.floor((Date.now() - new Date(d.createdAt).getTime()) / 86400000);
-                const freshColor = daysAgo <= 7 ? '#4ade80' : daysAgo <= 30 ? '#fbbf24' : 'rgba(255,255,255,0.35)';
-                // 파일명에서 확장자 제거하여 "내용 제목"으로 표시
-                const title = d.filename.replace(/\.[^/.]+$/, '');
-                return (
-                  <div key={d.id} style={{
-                    display: 'flex', alignItems: 'center', gap: '0.7rem',
-                    padding: '0.55rem 0.75rem', borderRadius: '8px',
-                    background: idx === 0 ? 'rgba(168,85,247,0.07)' : 'rgba(255,255,255,0.025)',
-                    border: `1px solid ${idx === 0 ? 'rgba(168,85,247,0.25)' : 'rgba(255,255,255,0.06)'}`,
-                  }}>
-                    <span style={{ fontSize: '0.78rem', color: freshColor, minWidth: '48px', textAlign: 'right', fontWeight: 600 }}>
-                      {daysAgo === 0 ? '오늘' : `${daysAgo}일전`}
-                    </span>
-                    <span style={{ flex: 1, fontSize: '0.82rem', fontWeight: 600, color: idx === 0 ? '#e9d5ff' : 'rgba(255,255,255,0.8)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {title}
-                    </span>
-                    <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>
-                      {d.category}
-                    </span>
-                    <span className="muted" style={{ fontSize: '0.72rem', textTransform: 'uppercase', flexShrink: 0 }}>
-                      {d.fileType}
-                    </span>
+        {(() => {
+          const COMPETITOR_ORDER = [
+            '대웅바이오', '셀트리온제약', '안국약품', '동구바이오제약',
+            '마더스제약', '경동제약', '휴온스', '테라젠이텍스',
+          ];
+
+          const competitorRows = COMPETITOR_ORDER.map((company, idx) => {
+            const matches = csoDocs
+              .filter(d => d.filename.includes(company))
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            return { rank: idx + 1, company, doc: matches[0] ?? null };
+          });
+
+          // 8개사에 매칭되지 않는 기타 문서
+          const otherDocs = csoDocs.filter(d =>
+            !COMPETITOR_ORDER.some(c => d.filename.includes(c))
+          );
+
+          const hasAnyData = competitorRows.some(r => r.doc !== null);
+
+          return (
+            <>
+              <SubTitle>▸ CSO 경쟁사 8개사 동향 · 처방액 규모 기준</SubTitle>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="dash-table">
+                  <thead>
+                    <tr>
+                      <th className="center" style={{ width: '2.5rem' }}>순위</th>
+                      <th style={{ width: '8rem' }}>경쟁사</th>
+                      <th>최근 동향 요약</th>
+                      <th className="center" style={{ width: '5rem' }}>업데이트</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {competitorRows.map(({ rank, company, doc }) => {
+                      const daysAgo = doc
+                        ? Math.floor((Date.now() - new Date(doc.createdAt).getTime()) / 86400000)
+                        : null;
+                      const freshColor =
+                        daysAgo === null ? 'rgba(255,255,255,0.2)'
+                        : daysAgo <= 7   ? '#4ade80'
+                        : daysAgo <= 30  ? '#fbbf24'
+                        : 'rgba(255,255,255,0.35)';
+                      const displayText = doc
+                        ? (doc.summary ?? doc.filename.replace(/\.[^/.]+$/, ''))
+                        : null;
+                      return (
+                        <tr key={company} style={{ opacity: doc ? 1 : 0.45 }}>
+                          <td className="center muted">{rank}</td>
+                          <td style={{ fontWeight: 700, color: doc ? '#e9d5ff' : 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
+                            {company}
+                          </td>
+                          <td style={{ fontSize: '0.83rem', color: doc ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.3)' }}>
+                            {displayText ?? '자료 없음'}
+                          </td>
+                          <td className="center" style={{ fontSize: '0.78rem', color: freshColor, whiteSpace: 'nowrap', fontWeight: 600 }}>
+                            {daysAgo === null ? '-' : daysAgo === 0 ? '오늘' : `${daysAgo}일 전`}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 기타 경쟁사 문서 */}
+              {otherDocs.length > 0 && (
+                <>
+                  <div style={{ marginTop: '1rem' }}><SubTitle>▸ 기타 경쟁사 자료</SubTitle></div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    {otherDocs.map(d => {
+                      const daysAgo = Math.floor((Date.now() - new Date(d.createdAt).getTime()) / 86400000);
+                      const freshColor = daysAgo <= 7 ? '#4ade80' : daysAgo <= 30 ? '#fbbf24' : 'rgba(255,255,255,0.35)';
+                      const title = d.summary ?? d.filename.replace(/\.[^/.]+$/, '');
+                      return (
+                        <div key={d.id} style={{
+                          display: 'flex', alignItems: 'center', gap: '0.6rem',
+                          padding: '0.45rem 0.7rem', borderRadius: '7px',
+                          background: 'rgba(255,255,255,0.025)',
+                          border: '1px solid rgba(255,255,255,0.06)',
+                        }}>
+                          <span style={{ fontSize: '0.75rem', color: freshColor, minWidth: '44px', textAlign: 'right', fontWeight: 600 }}>
+                            {daysAgo === 0 ? '오늘' : `${daysAgo}일전`}
+                          </span>
+                          <span style={{ flex: 1, fontSize: '0.82rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {title}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
-            <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.6rem', textAlign: 'right' }}>
-              전체 파일 보기 → <a href="/documents" style={{ color: '#a5b4fc' }}>문서관리</a>
-            </p>
-          </>
-        )}
+                </>
+              )}
+
+              {!hasAnyData && otherDocs.length === 0 && (
+                <Empty msg="문서관리 > '경쟁사동향' 폴더에 파일을 업로드하면 자동 표시됩니다. 파일명에 회사명을 포함하면 해당 행에 연결됩니다." />
+              )}
+
+              <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.7rem', textAlign: 'right' }}>
+                파일명에 회사명 포함 시 자동 연결 · <a href="/documents" style={{ color: '#a5b4fc' }}>문서관리</a>
+              </p>
+            </>
+          );
+        })()}
       </Section>
 
       {/* ══════════════════════════════════════════════════════════

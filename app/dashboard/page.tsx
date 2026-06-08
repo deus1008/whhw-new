@@ -163,7 +163,7 @@ export default async function DashboardPage() {
       .limit(15),
     // 문서: 최근 3개월, CSO/동향 관련 카테고리 포함
     svc.from('documents')
-      .select('id,filename,category,file_type,created_at,status')
+      .select('id,filename,category,file_type,created_at,status,summary')
       .gte('created_at', since3mStr)
       .order('created_at', { ascending: false })
       .limit(60),
@@ -461,13 +461,14 @@ export default async function DashboardPage() {
   // ── I. 경쟁사 동향 (경쟁사 관련 문서) ────────────────────────────────────
   const csoDocs = (docRows ?? [])
     .filter(d => isCompCategory(d.category as string | null))
-    .slice(0, 10)
+    .slice(0, 30)
     .map(d => ({
       id:        d.id        as string,
       filename:  d.filename  as string,
       category:  (d.category ?? '기타') as string,
       fileType:  d.file_type as string,
       createdAt: d.created_at as string,
+      summary:   (d.summary ?? null) as string | null,
     }));
 
   // ── J. DC현황 ─────────────────────────────────────────────────────────────
