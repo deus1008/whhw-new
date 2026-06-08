@@ -257,13 +257,13 @@ export default async function AdminPage() {
   if (!user) redirect('/login');
 
   // 관리자 확인 — role 단일 컬럼 + roles 배열 컬럼 모두 확인
-  const { data: myProfile } = await supabase
+  const { data: myProfile, error: profileErr } = await supabase
     .from('profiles')
     .select('role, roles')
     .eq('id', user.id)
     .single();
 
-  console.log('[admin:debug] myProfile=', JSON.stringify(myProfile), 'isAdmin=', myProfile ? profileIsAdmin(myProfile) : 'no profile');
+  console.log('[admin:debug] profileErr=', JSON.stringify(profileErr), 'myProfile=', JSON.stringify(myProfile), 'isAdmin=', myProfile ? profileIsAdmin(myProfile) : 'no profile');
   if (!myProfile || !profileIsAdmin(myProfile)) {
     redirect('/dashboard');
   }
