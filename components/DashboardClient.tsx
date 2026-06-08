@@ -140,7 +140,8 @@ export type DashboardData = {
   reportDate:           string;
   recentMonths:         string[];          // 최근 3 처방월
   // 섹션2: 거래처현황 (CSO)
-  csoStats:             CsoStat[];
+  csoStats:             CsoStat[];         // 상위 10개
+  totalCsoCount:        number;            // 전체 CSO 수
   settlementByCategory: SettlementByCat[];
   top10Customers:       TopCustomer[];
   customerMonthly:      CustomerMonthStat[];
@@ -230,7 +231,7 @@ function SubTitle({ children }: { children: React.ReactNode }) {
 export default function DashboardClient({ data }: { data: DashboardData }) {
   const {
     reportDate, recentMonths,
-    csoStats,
+    csoStats, totalCsoCount,
     settlementByCategory, top10Customers, customerMonthly,
     prescriptionMonthly,
     settlementTrend,
@@ -511,7 +512,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <Empty msg="CSO 담당자 정보가 있는 파일을 업로드하면 집계됩니다." />
         ) : (
           <>
-            <SubTitle>▸ CSO별 집계 · CSO {csoStats.length}개 ({recentMonths.length > 0 ? `${fmtPeriod(recentMonths[0])} ~ ${fmtPeriod(recentMonths[recentMonths.length - 1])}` : '최근 3개월'})</SubTitle>
+            <SubTitle>▸ CSO별 집계 · 상위 {csoStats.length}개 / 전체 {totalCsoCount}개 ({recentMonths.length > 0 ? `${fmtPeriod(recentMonths[0])} ~ ${fmtPeriod(recentMonths[recentMonths.length - 1])}` : '최근 3개월'})</SubTitle>
             <div style={{ overflowX: 'auto' }}>
               <table className="dash-table">
                 <thead>
@@ -550,7 +551,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     return (
                       <>
                         <tr className="total-row">
-                          <td className="center" colSpan={2} style={{ fontWeight: 700 }}>합산 (CSO {n}개)</td>
+                          <td className="center" colSpan={2} style={{ fontWeight: 700 }}>합산 (상위 {n}개)</td>
                           <td className="right">{th.toLocaleString()}</td>
                           <td className="right">{fmtWon(tp)}</td>
                           <td className="right">{fmtWon(ts)}</td>
