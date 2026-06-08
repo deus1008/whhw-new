@@ -263,6 +263,7 @@ export default async function AdminPage() {
     .eq('id', user.id)
     .single();
 
+  console.log('[admin:debug] myProfile=', JSON.stringify(myProfile), 'isAdmin=', myProfile ? profileIsAdmin(myProfile) : 'no profile');
   if (!myProfile || !profileIsAdmin(myProfile)) {
     redirect('/dashboard');
   }
