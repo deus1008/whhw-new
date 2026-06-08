@@ -48,6 +48,7 @@ export default async function DocumentsPage() {
   const { data: docs, error: docsError } = await supabase
     .from('documents')
     .select('id, filename, file_type, storage_path, category, uploaded_by, status, error_message, created_at, summary')
+    .neq('file_type', 'summary')   // 경쟁사 동향 요약 항목은 문서관리에 표시 안 함
     .order('created_at', { ascending: false });
 
   if (docsError) console.error('[documents:getDocs error]', docsError);
