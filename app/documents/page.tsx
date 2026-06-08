@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { profileIsAdmin, normalizeRole } from '@/lib/roles';
+import { normalizeRole } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import DocumentsClient from '@/components/DocumentsClient';
@@ -27,22 +27,16 @@ export default async function DocumentsPage() {
   if (userError) console.error('[documents:getUser error]', userError);
   if (!user) redirect('/login');
 
-  let myProfile: { role: string | null; roles: string[] | null } | null = null;
-  {
-    const { data, error } = await supabase
-      .from('profiles').select('role, roles').eq('id', user.id).single();
-    if (error) {
-      const { data: fb } = await supabase
-        .from('profiles').select('role').eq('id', user.id).single();
-      myProfile = fb ? { role: (fb as { role: string }).role, roles: null } : null;
-    } else {
-      myProfile = data as { role: string | null; roles: string[] | null } | null;
-    }
-  }
+  // 관리자 확인 — role 컬럼만 조회 (대시보드와 동일한 방식)
+  const { data: myProfile } = await supabase
+    .from('profiles')
+    .select('role, status')
+    .eq('id', user.id)
+    .single();
 
-  const isAdmin = myProfile
-    ? (profileIsAdmin(myProfile) || normalizeRole(myProfile.role) === '관리자')
-    : false;
+  if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
+
+  const isAdmin = normalizeRole(myProfile.role as string) === '관리자';
 
   if (!isAdmin) {
     redirect('/dashboard');

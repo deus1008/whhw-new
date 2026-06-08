@@ -5,7 +5,7 @@ import { updateStatus, updateRoles, updateName } from './actions';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
-import { ALL_ROLES, ROLE_META, getRoles, normalizeRole, profileIsAdmin, type UserRole } from '@/lib/roles';
+import { ALL_ROLES, ROLE_META, getRoles, normalizeRole, type UserRole } from '@/lib/roles';
 
 type Status = 'pending' | 'approved' | 'rejected';
 type Role   = UserRole;
@@ -256,34 +256,16 @@ export default async function AdminPage() {
 
   if (!user) redirect('/login');
 
-  // 관리자 확인 — roles 배열 컬럼 우선 시도, 없으면 role 단일 컬럼으로 fallback
-  let myProfile: { role: string | null; roles: string[] | null } | null = null;
-  {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('role, roles')
-      .eq('id', user.id)
-      .single();
+  // 관리자 확인 — role 컬럼만 조회 (대시보드와 동일한 방식)
+  const { data: myProfile } = await supabase
+    .from('profiles')
+    .select('role, status')
+    .eq('id', user.id)
+    .single();
 
-    if (error) {
-      // roles 컬럼 미존재 등 오류 시 role 단일 컬럼으로 재시도
-      console.warn('[admin] roles query failed, fallback to role only:', error.message);
-      const { data: fallback } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      myProfile = fallback ? { role: (fallback as { role: string }).role, roles: null } : null;
-    } else {
-      myProfile = data as { role: string | null; roles: string[] | null } | null;
-    }
-  }
+  if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
 
-  const isAdminUser = myProfile
-    ? (getRoles(myProfile).includes('관리자') || normalizeRole(myProfile.role) === '관리자')
-    : false;
-
-  console.log('[admin:debug] myProfile=', JSON.stringify(myProfile), 'isAdminUser=', isAdminUser);
+  const isAdminUser = normalizeRole(myProfile.role as string) === '관리자';
 
   if (!isAdminUser) {
     redirect('/dashboard');
