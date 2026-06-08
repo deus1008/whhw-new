@@ -252,7 +252,9 @@ export default function Home() {
       showToast('로그인이 필요한 페이지입니다.\n우측 상단의 로그인 버튼을 눌러주세요.');
       return;
     }
-    router.push(href);
+    // router.push는 Next.js 클라이언트 캐시를 통해 이동하므로
+    // 이전 redirect 결과가 캐싱될 수 있음 → window.location으로 완전 새 요청
+    window.location.href = href;
   }
 
   function showToast(msg: string) {
