@@ -283,7 +283,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       const bi = PERSON_ORDER.indexOf(b.personName);
       const ao = ai === -1 ? PERSON_ORDER.length : ai;
       const bo = bi === -1 ? PERSON_ORDER.length : bi;
-      return ao !== bo ? ao - bo : a.visitedAt.localeCompare(b.visitedAt);
+      return ao !== bo ? ao - bo
+        : a.customerName.localeCompare(b.customerName, 'ko')
+          || a.visitedAt.localeCompare(b.visitedAt);
     });
 
   // DC 단계 상수
