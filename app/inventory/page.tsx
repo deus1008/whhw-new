@@ -3,12 +3,9 @@
  * - 문서관리 > 재고관리 폴더의 최신 품절예측현황 Excel을 Supabase Storage에서
  *   직접 다운로드 + 파싱하여 렌더링 (별도 DB 테이블 불필요)
  */
-import type { CSSProperties } from 'react';
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
-import { normalizeRole } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import InventoryClient from '@/components/InventoryClient';
@@ -23,13 +20,6 @@ function getSvc() {
   );
 }
 
-function nl(color: string, bg: string, border: string): CSSProperties {
-  return {
-    padding: '0.4rem 0.9rem', borderRadius: '8px', textDecoration: 'none',
-    background: bg, border: `1px solid ${border}`,
-    color, fontSize: '0.82rem', fontWeight: 600,
-  };
-}
 
 export default async function InventoryPage() {
   // ── 인증 ──────────────────────────────────────────────────────────────────
@@ -40,9 +30,6 @@ export default async function InventoryPage() {
   const { data: myProfile } = await supabase
     .from('profiles').select('role, status').eq('id', user.id).single();
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
-
-  const normRole = normalizeRole(myProfile.role as string);
-  const isAdmin  = normRole === '관리자';
 
   const svc = getSvc();
 
@@ -85,16 +72,12 @@ export default async function InventoryPage() {
       <div className="relative z-10 w-full px-4"
         style={{ maxWidth: '1100px', paddingTop: '2rem', paddingBottom: '2rem', alignSelf: 'flex-start' }}>
 
-        <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem,4vw,1.8rem)' }}>
+        <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>
           재고현황
         </p>
 
-        <div className="page-nav">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
-          <Link href="/dc"        style={nl('#c4b5fd','rgba(139,92,246,0.10)','rgba(139,92,246,0.28)')}>🏥 DC현황</Link>
-          <Link href="/calendar"  style={nl('#fdba74','rgba(251,146,60,0.10)','rgba(251,146,60,0.28)')}>📅 주요일정</Link>
-          {isAdmin && <Link href="/documents" style={nl('#fde68a','rgba(251,191,36,0.10)','rgba(251,191,36,0.28)')}>📁 문서관리</Link>}
-          {isAdmin && <Link href="/admin" style={nl('#a259ff','rgba(162,89,255,0.10)','rgba(162,89,255,0.28)')}>관리자</Link>}
           <LogoutButton compact />
         </div>
 
