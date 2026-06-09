@@ -76,6 +76,7 @@ export type VisitPersonStat = {
 
 export type VisitDetailRow = {
   month:        string;
+  visitedAt:    string;   // YYYY-MM-DD
   personName:   string;
   customerName: string;
   contactName:  string | null;
@@ -272,8 +273,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const upcomingSchedules = schedules.filter(s => s.startDate >= todayStr).slice(0, 8);
   const recentSchedules   = schedules.filter(s => s.startDate < todayStr).slice(-6).reverse();
 
-  // 방문 상세 월 목록
-  const visitDetailMonths = [...new Set((visitDetails ?? []).map(v => v.month))].sort().slice(-3);
+  // 당월 기준 방문 상세
+  const thisMonth = today.slice(0, 7);   // "2026-06"
+  const thisMonthVisits = (visitDetails ?? []).filter(v => v.month === thisMonth);
 
   // DC 단계 상수
   const DC_STAGES = ['준비중', '약속', '상정', '통과'] as const;
@@ -1088,49 +1090,42 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           섹션 9: 현장활동현황
       ══════════════════════════════════════════════════════════ */}
       <Section title="👥 현장활동현황" id="s9">
-        {/* ── 담당자별 방문 현황 (월별 테이블) ── */}
-        <SubTitle>▸ 담당자별 방문 현황</SubTitle>
-        {(visitDetails ?? []).length === 0 ? (
-          <Empty msg="영업활동 기록이 없습니다." />
+        {/* ── 담당자별 방문 현황 (당월) ── */}
+        <SubTitle>▸ 담당자별 방문 현황 ({fmtPeriod(thisMonth)})</SubTitle>
+        {thisMonthVisits.length === 0 ? (
+          <Empty msg="이번 달 영업활동 기록이 없습니다." />
         ) : (
-          visitDetailMonths.map(month => (
-            <div key={month} style={{ marginBottom: '1.4rem' }}>
-              <div style={{
-                fontSize: '0.78rem', fontWeight: 700, color: '#a8c4ff',
-                marginBottom: '0.4rem', letterSpacing: '0.04em',
-              }}>
-                {fmtPeriod(month)}
-              </div>
-              <table className="dash-table">
-                <colgroup>
-                  <col style={{ width: '80px' }} />
-                  <col style={{ width: '130px' }} />
-                  <col style={{ width: '90px' }} />
-                  <col />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>담당자</th>
-                    <th>방문한 업체</th>
-                    <th>CSO담당자명</th>
-                    <th>협의내용</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(visitDetails ?? []).filter(v => v.month === month).map((v, i) => (
-                    <tr key={i}>
-                      <td style={{ whiteSpace: 'nowrap' }}>{v.personName}</td>
-                      <td>{v.customerName}</td>
-                      <td style={{ color: v.contactName ? '#fff' : 'rgba(255,255,255,0.3)' }}>
-                        {v.contactName ?? '-'}
-                      </td>
-                      <td style={{ lineHeight: 1.5 }}>{v.content}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ))
+          <table className="dash-table" style={{ marginBottom: '1.4rem' }}>
+            <colgroup>
+              <col style={{ width: '72px' }} />
+              <col style={{ width: '120px' }} />
+              <col style={{ width: '84px' }} />
+              <col />
+              <col style={{ width: '68px' }} />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>담당자</th>
+                <th>방문한 업체</th>
+                <th>CSO담당자명</th>
+                <th>협의내용</th>
+                <th className="center">방문일자</th>
+              </tr>
+            </thead>
+            <tbody>
+              {thisMonthVisits.map((v, i) => (
+                <tr key={i}>
+                  <td style={{ whiteSpace: 'nowrap' }}>{v.personName}</td>
+                  <td>{v.customerName}</td>
+                  <td style={{ color: v.contactName ? '#fff' : 'rgba(255,255,255,0.3)' }}>
+                    {v.contactName ?? '-'}
+                  </td>
+                  <td style={{ lineHeight: 1.5 }}>{v.content}</td>
+                  <td className="center muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(v.visitedAt)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
 
         {/* ── 예정 일정 ── */}
@@ -1165,7 +1160,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </>
         )}
 
-        {upcomingSchedules.length === 0 && recentSchedules.length === 0 && (visitDetails ?? []).length === 0 && (
+        {upcomingSchedules.length === 0 && recentSchedules.length === 0 && (
           <Empty msg="등록된 일정이 없습니다." />
         )}
       </Section>

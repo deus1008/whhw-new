@@ -428,15 +428,16 @@ export default async function DashboardPage() {
     }))
     .sort((a, b) => b.total - a.total);
 
-  // 방문 상세: 담당자·업체·CSO담당자명·협의내용 (월별 테이블용)
+  // 방문 상세: 담당자·업체·CSO담당자명·협의내용·방문일자 (당월 테이블용)
   const visitDetails = (visitRows ?? []).map(r => ({
     month:        (r.visited_at as string).slice(0, 7),
+    visitedAt:    (r.visited_at as string).slice(0, 10),
     personName:   profMap[r.user_id as string] ?? (r.user_id as string),
     customerName: (r.customer_name as string) ?? '',
     contactName:  r.contact_name as string | null,
     content:      (r.content as string) ?? '',
   })).sort((a, b) =>
-    a.month.localeCompare(b.month) || a.personName.localeCompare(b.personName),
+    a.personName.localeCompare(b.personName) || a.visitedAt.localeCompare(b.visitedAt),
   );
 
   // ── G. 처방실적(EDI/실적마감) 집계 ──────────────────────────────────────────
