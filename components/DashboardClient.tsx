@@ -74,6 +74,14 @@ export type VisitPersonStat = {
   months: { month: string; count: number }[];
 };
 
+export type VisitDetailRow = {
+  month:        string;
+  personName:   string;
+  customerName: string;
+  contactName:  string | null;
+  content:      string;
+};
+
 export type ScheduleItem = {
   title:     string;
   startDate: string;
@@ -156,6 +164,7 @@ export type DashboardData = {
   schedules:            ScheduleItem[];
   visitSummary:         VisitPersonStat[];
   visitMonths:          string[];
+  visitDetails:         VisitDetailRow[];
   // 섹션1: 처방실적 현황 (수수료정산 기반)
   settPrescMonthly:     EdiMonthStat[];
   // 섹션1: 처방실적 현황 (EDI/실적마감, 미사용)
@@ -242,7 +251,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     settlementByCategory, top10Customers, customerMonthly,
     prescriptionMonthly,
     settlementTrend,
-    schedules, visitSummary, visitMonths,
+    schedules, visitSummary, visitMonths, visitDetails,
     settPrescMonthly,
     ediMonthly, ediMonths,
     upcomingProducts,
@@ -262,6 +271,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const todayStr = today;
   const upcomingSchedules = schedules.filter(s => s.startDate >= todayStr).slice(0, 8);
   const recentSchedules   = schedules.filter(s => s.startDate < todayStr).slice(-6).reverse();
+
+  // 방문 상세 월 목록
+  const visitDetailMonths = [...new Set((visitDetails ?? []).map(v => v.month))].sort().slice(-3);
 
   // DC 단계 상수
   const DC_STAGES = ['준비중', '약속', '상정', '통과'] as const;
@@ -1076,73 +1088,86 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           섹션 9: 현장활동현황
       ══════════════════════════════════════════════════════════ */}
       <Section title="👥 현장활동현황" id="s9">
-        <div className="two-col">
-          <div>
-            <SubTitle>▸ 담당자별 방문 현황</SubTitle>
-            {visitSummary.length === 0 ? (
-              <Empty msg="영업활동 기록이 없습니다." />
-            ) : (
+        {/* ── 담당자별 방문 현황 (월별 테이블) ── */}
+        <SubTitle>▸ 담당자별 방문 현황</SubTitle>
+        {(visitDetails ?? []).length === 0 ? (
+          <Empty msg="영업활동 기록이 없습니다." />
+        ) : (
+          visitDetailMonths.map(month => (
+            <div key={month} style={{ marginBottom: '1.4rem' }}>
+              <div style={{
+                fontSize: '0.78rem', fontWeight: 700, color: '#a8c4ff',
+                marginBottom: '0.4rem', letterSpacing: '0.04em',
+              }}>
+                {fmtPeriod(month)}
+              </div>
               <table className="dash-table">
+                <colgroup>
+                  <col style={{ width: '80px' }} />
+                  <col style={{ width: '130px' }} />
+                  <col style={{ width: '90px' }} />
+                  <col />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>담당자</th>
-                    {visitMonths.map(m => <th key={m} className="center">{fmtPeriod(m)}</th>)}
-                    <th className="center" style={{ color: '#a8c4ff' }}>합계</th>
+                    <th>방문한 업체</th>
+                    <th>CSO담당자명</th>
+                    <th>협의내용</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {visitSummary.map(v => (
-                    <tr key={v.name}>
-                      <td style={{ maxWidth: '80px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</td>
-                      {visitMonths.map(m => {
-                        const cnt = v.months.find(mv => mv.month === m)?.count ?? 0;
-                        return (
-                          <td key={m} className="center" style={{ color: cnt > 0 ? '#fff' : 'rgba(255,255,255,0.25)' }}>
-                            {cnt > 0 ? cnt : '-'}
-                          </td>
-                        );
-                      })}
-                      <td className="center bold" style={{ color: '#a8c4ff' }}>{v.total}</td>
+                  {(visitDetails ?? []).filter(v => v.month === month).map((v, i) => (
+                    <tr key={i}>
+                      <td style={{ whiteSpace: 'nowrap' }}>{v.personName}</td>
+                      <td>{v.customerName}</td>
+                      <td style={{ color: v.contactName ? '#fff' : 'rgba(255,255,255,0.3)' }}>
+                        {v.contactName ?? '-'}
+                      </td>
+                      <td style={{ lineHeight: 1.5 }}>{v.content}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
-          <div>
-            {upcomingSchedules.length > 0 && (
-              <>
-                <SubTitle>▸ 예정 일정</SubTitle>
-                <ul className="schedule-list">
-                  {upcomingSchedules.map((s, i) => (
-                    <li key={i} className="schedule-item">
-                      <span className="schedule-date">{fmtDate(s.startDate)}</span>
-                      <span className="schedule-title">{s.title}</span>
-                      {s.category && <span className="schedule-tag">{s.category}</span>}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            {recentSchedules.length > 0 && (
-              <>
-                <SubTitle>▸ 최근 완료 일정</SubTitle>
-                <ul className="schedule-list">
-                  {recentSchedules.map((s, i) => (
-                    <li key={i} className="schedule-item" style={{ opacity: 0.7 }}>
-                      <span className="schedule-date">{fmtDate(s.startDate)}</span>
-                      <span className="schedule-title">{s.title}</span>
-                      {s.category && <span className="schedule-tag">{s.category}</span>}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            {upcomingSchedules.length === 0 && recentSchedules.length === 0 && (
-              <Empty msg="등록된 일정이 없습니다." />
-            )}
-          </div>
-        </div>
+            </div>
+          ))
+        )}
+
+        {/* ── 예정 일정 ── */}
+        {upcomingSchedules.length > 0 && (
+          <>
+            <SubTitle>▸ 예정 일정</SubTitle>
+            <ul className="schedule-list">
+              {upcomingSchedules.map((s, i) => (
+                <li key={i} className="schedule-item">
+                  <span className="schedule-date">{fmtDate(s.startDate)}</span>
+                  <span className="schedule-title">{s.title}</span>
+                  {s.category && <span className="schedule-tag">{s.category}</span>}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {/* ── 최근 완료 일정 ── */}
+        {recentSchedules.length > 0 && (
+          <>
+            <SubTitle>▸ 최근 완료 일정</SubTitle>
+            <ul className="schedule-list">
+              {recentSchedules.map((s, i) => (
+                <li key={i} className="schedule-item" style={{ opacity: 0.7 }}>
+                  <span className="schedule-date">{fmtDate(s.startDate)}</span>
+                  <span className="schedule-title">{s.title}</span>
+                  {s.category && <span className="schedule-tag">{s.category}</span>}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {upcomingSchedules.length === 0 && recentSchedules.length === 0 && (visitDetails ?? []).length === 0 && (
+          <Empty msg="등록된 일정이 없습니다." />
+        )}
       </Section>
 
       {/* ══════════════════════════════════════════════════════════
