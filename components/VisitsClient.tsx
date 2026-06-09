@@ -88,6 +88,7 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
   const [search, setSearch]             = useState('');
   const [filterType, setFilterType]     = useState<FilterType>('전체');
   const [filterPeriod, setFilterPeriod] = useState<Period>('전체');
+  const [filterAuthor, setFilterAuthor] = useState<string>('전체');
 
   /* ── 통계 ────────────────────────────────────────────────── */
   const stats = useMemo(() => {
@@ -104,17 +105,32 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
     };
   }, [records]);
 
+  /* ── 작성자 목록 ─────────────────────────────────────────── */
+  const authorOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const r of records) {
+      const name = r.user_name ?? r.user_email ?? '';
+      if (name) names.add(name);
+    }
+    return ['전체', ...Array.from(names).sort((a, b) => a.localeCompare(b, 'ko'))];
+  }, [records]);
+
   /* ── 필터 ────────────────────────────────────────────────── */
   const filtered = useMemo(() => {
     let list = records;
     if (filterType !== '전체') list = list.filter(r => r.customer_type === filterType);
+    if (filterAuthor !== '전체') {
+      list = list.filter(r => (r.user_name ?? r.user_email ?? '') === filterAuthor);
+    }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       list = list.filter(r =>
         r.customer_name.toLowerCase().includes(q) ||
         (r.contact_name ?? '').toLowerCase().includes(q) ||
         r.content.toLowerCase().includes(q) ||
-        (r.products ?? '').toLowerCase().includes(q)
+        (r.products ?? '').toLowerCase().includes(q) ||
+        (r.user_name ?? '').toLowerCase().includes(q) ||
+        (r.user_email ?? '').toLowerCase().includes(q)
       );
     }
     if (filterPeriod !== '전체') {
@@ -126,7 +142,7 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
       }
     }
     return list;
-  }, [records, filterType, search, filterPeriod]);
+  }, [records, filterType, filterAuthor, search, filterPeriod]);
 
   /* ── 폼 제어 ─────────────────────────────────────────────── */
   function openCreate() {
@@ -334,11 +350,11 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
         <input
           type="text" value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="🔍  거래처 · 담당자 · 제품 검색"
+          placeholder="🔍  거래처 · 담당자 · 제품 · 작성자 검색"
           style={{ ...inputStyle, width: '100%', marginBottom: '0.7rem' }}
         />
-        {/* 거래처유형 + 기간 필터 — 가로 스크롤 */}
-        <div className="scroll-x">
+        {/* 거래처유형 + 기간 필터 */}
+        <div className="scroll-x" style={{ marginBottom: '0.5rem' }}>
           {(['전체', 'CSO법인', '딜러'] as FilterType[]).map(t => (
             <button key={t} onClick={() => setFilterType(t)} style={pillBtn(filterType === t)}>
               {t}
@@ -348,6 +364,17 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
           {(['전체', '이번주', '이번달', '지난달'] as Period[]).map(p => (
             <button key={p} onClick={() => setFilterPeriod(p)} style={pillBtn(filterPeriod === p)}>
               {p}
+            </button>
+          ))}
+        </div>
+        {/* 작성자 필터 */}
+        <div className="scroll-x">
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', alignSelf: 'center', flexShrink: 0, marginRight: '0.3rem' }}>
+            작성자
+          </span>
+          {authorOptions.map(name => (
+            <button key={name} onClick={() => setFilterAuthor(name)} style={pillBtn(filterAuthor === name)}>
+              {name}
             </button>
           ))}
         </div>
