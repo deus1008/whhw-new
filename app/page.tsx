@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { normalizeRole } from '@/lib/roles';
 import ErrorReportModal from '@/components/ErrorReportModal';
+import { getPendingCount } from '@/app/errors/actions';
 
 type NavItem = {
   href: string;
@@ -217,18 +218,21 @@ export default function Home() {
   const [toast, setToast]           = useState('');
   const [toastVisible, setToastVisible] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [errorBadge, setErrorBadge] = useState(0);
 
   /* ── 인증 상태 감지 ─────────────────────────────────────── */
   useEffect(() => {
     const supabase = createClient();
 
     async function checkSession(userId: string | undefined) {
-      if (!userId) { setIsAdmin(false); return; }
+      if (!userId) { setIsAdmin(false); setErrorBadge(0); return; }
       const { data } = await supabase.from('profiles').select('role, roles').eq('id', userId).single();
-      if (!data) { setIsAdmin(false); return; }
+      if (!data) { setIsAdmin(false); setErrorBadge(0); return; }
       const rawRoles: string[] = data.roles?.length ? data.roles : (data.role ? [data.role] : []);
       const roles = rawRoles.map(r => normalizeRole(r));
-      setIsAdmin(roles.includes('관리자'));
+      const admin = roles.includes('관리자');
+      setIsAdmin(admin);
+      if (admin) getPendingCount().then(setErrorBadge);
     }
 
     supabase.auth.getSession().then(({ data }) => {
@@ -325,44 +329,63 @@ export default function Home() {
           display: 'flex', justifyContent: 'center', gap: '0.75rem',
           flexWrap: 'wrap', margin: '1.4rem 0 0.4rem',
         }}>
-          {NAV_ITEMS.filter(item => !item.adminOnly || isAdmin).map(({ href, icon, label, color, bg, bd, external, action }) => (
-            <button
-              key={label}
-              onClick={() => {
-                if (action === 'error-modal') {
-                  if (!isLoggedIn) { showToast('로그인이 필요한 페이지입니다.\n우측 상단의 로그인 버튼을 눌러주세요.'); return; }
-                  setShowErrorModal(true);
-                  return;
-                }
-                handleNav(href, external);
-              }}
-              style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.45rem',
-                padding: '1rem 1.1rem',
-                borderRadius: '16px',
-                background: bg,
-                border: `1px solid ${bd}`,
-                minWidth: '68px',
-                minHeight: '80px',
-                cursor: 'pointer',
-                transition: 'transform 0.15s, box-shadow 0.15s',
-                fontFamily: 'inherit',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.transform = 'translateY(-3px)';
-                e.currentTarget.style.boxShadow = `0 8px 24px ${bd}`;
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.transform = '';
-                e.currentTarget.style.boxShadow = '';
-              }}
-            >
-              <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{icon}</span>
-              <span style={{ fontSize: '0.7rem', fontWeight: 600, color, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
-                {label}
-              </span>
-            </button>
-          ))}
+          {NAV_ITEMS.filter(item => !item.adminOnly || isAdmin).map(({ href, icon, label, color, bg, bd, external, action }) => {
+            const badge = label === '오류신고함' && errorBadge > 0 ? errorBadge : 0;
+            return (
+              <button
+                key={label}
+                onClick={() => {
+                  if (action === 'error-modal') {
+                    if (!isLoggedIn) { showToast('로그인이 필요한 페이지입니다.\n우측 상단의 로그인 버튼을 눌러주세요.'); return; }
+                    setShowErrorModal(true);
+                    return;
+                  }
+                  handleNav(href, external);
+                }}
+                style={{
+                  position: 'relative',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.45rem',
+                  padding: '1rem 1.1rem',
+                  borderRadius: '16px',
+                  background: bg,
+                  border: `1px solid ${bd}`,
+                  minWidth: '68px',
+                  minHeight: '80px',
+                  cursor: 'pointer',
+                  transition: 'transform 0.15s, box-shadow 0.15s',
+                  fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = `0 8px 24px ${bd}`;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = '';
+                  e.currentTarget.style.boxShadow = '';
+                }}
+              >
+                {/* 신규 접수 뱃지 */}
+                {badge > 0 && (
+                  <span style={{
+                    position: 'absolute', top: '-7px', right: '-7px',
+                    background: '#ef4444', color: '#fff',
+                    borderRadius: '100px', fontSize: '0.65rem', fontWeight: 700,
+                    padding: '0 5px', minWidth: '18px', height: '18px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    lineHeight: 1, border: '2px solid rgba(10,15,30,0.8)',
+                    boxShadow: '0 0 6px rgba(239,68,68,0.6)',
+                    pointerEvents: 'none',
+                  }}>
+                    {badge > 99 ? '99+' : badge}
+                  </span>
+                )}
+                <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{icon}</span>
+                <span style={{ fontSize: '0.7rem', fontWeight: 600, color, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
+                  {label}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* 비로그인 토스트 메시지 */}
