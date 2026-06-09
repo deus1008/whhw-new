@@ -273,9 +273,18 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const upcomingSchedules = schedules.filter(s => s.startDate >= todayStr).slice(0, 8);
   const recentSchedules   = schedules.filter(s => s.startDate < todayStr).slice(-6).reverse();
 
-  // 당월 기준 방문 상세
+  // 당월 기준 방문 상세 (지정 순서 정렬)
+  const PERSON_ORDER = ['박동수', '김윤성', '임경봉', '김양희', '이정원', '이훈섭'];
   const thisMonth = today.slice(0, 7);   // "2026-06"
-  const thisMonthVisits = (visitDetails ?? []).filter(v => v.month === thisMonth);
+  const thisMonthVisits = (visitDetails ?? [])
+    .filter(v => v.month === thisMonth)
+    .sort((a, b) => {
+      const ai = PERSON_ORDER.indexOf(a.personName);
+      const bi = PERSON_ORDER.indexOf(b.personName);
+      const ao = ai === -1 ? PERSON_ORDER.length : ai;
+      const bo = bi === -1 ? PERSON_ORDER.length : bi;
+      return ao !== bo ? ao - bo : a.visitedAt.localeCompare(b.visitedAt);
+    });
 
   // DC 단계 상수
   const DC_STAGES = ['준비중', '약속', '상정', '통과'] as const;
