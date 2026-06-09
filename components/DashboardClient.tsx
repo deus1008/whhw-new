@@ -479,7 +479,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         <h1>📊 판매대행사업 업무현황 보고</h1>
         <p>
           보고일: {today}
-          {recentMonths.length > 0 && ` | 기준기간: ${fmtPeriod(recentMonths[0])} ~ ${fmtPeriod(recentMonths[recentMonths.length - 1])}`}
         </p>
       </div>
 
