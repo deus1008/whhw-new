@@ -325,6 +325,31 @@ export default async function DashboardPage() {
   const top10Products    = allProdsSorted.slice(0, 10);
   const bottom10Products = allProdsSorted.slice(-10).reverse(); // 하위에서 낮은 것부터
 
+  // ── [섹션 1] 처방실적현황: 수수료정산 기반 월별 의원/병원 집계 ───────────────
+  const settPrescMonthly = recentMonths.map(month => {
+    const rows    = normSett.filter(r => r.prescription_month === month);
+    const clRows  = rows.filter(r =>  isClinic(r.hospital_category, r.hospital_type));
+    const hsRows  = rows.filter(r => !isClinic(r.hospital_category, r.hospital_type));
+    const allH    = new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!));
+    const clH     = new Set(clRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
+    const hsH     = new Set(hsRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
+    const allP    = new Set(rows.filter(r => r.product_name).map(r => r.product_name!));
+    const clP     = new Set(clRows.filter(r => r.product_name).map(r => r.product_name!));
+    const hsP     = new Set(hsRows.filter(r => r.product_name).map(r => r.product_name!));
+    return {
+      month,
+      hospCount:            allH.size,
+      clinicCount:          clH.size,
+      hospitalCount:        hsH.size,
+      productCount:         allP.size,
+      clinicProductCount:   clP.size,
+      hospitalProductCount: hsP.size,
+      totalPrescAmt:        rows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+      clinicPrescAmt:       clRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+      hospitalPrescAmt:     hsRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+    };
+  });
+
   // ── [섹션 3] 수수료정산현황: 월별 의원/병원/전체 추이 ────────────────────
   const settlementTrend = recentMonths.map(month => {
     const rows   = normSett.filter(r => r.prescription_month === month);
@@ -511,6 +536,8 @@ export default async function DashboardPage() {
     schedules,
     visitSummary,
     visitMonths,
+    // 처방실적현황 (수수료정산 기반)
+    settPrescMonthly,
     // 처방실적(EDI)
     ediMonthly,
     top5Products,

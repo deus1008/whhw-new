@@ -155,7 +155,9 @@ export type DashboardData = {
   schedules:            ScheduleItem[];
   visitSummary:         VisitPersonStat[];
   visitMonths:          string[];
-  // 섹션1: 처방실적 현황 (EDI/실적마감)
+  // 섹션1: 처방실적 현황 (수수료정산 기반)
+  settPrescMonthly:     EdiMonthStat[];
+  // 섹션1: 처방실적 현황 (EDI/실적마감, 미사용)
   ediMonthly:           EdiMonthStat[];
   top5Products:         TopProduct[];
   ediMonths:            string[];
@@ -237,6 +239,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     prescriptionMonthly,
     settlementTrend,
     schedules, visitSummary, visitMonths,
+    settPrescMonthly,
     ediMonthly, ediMonths,
     upcomingProducts,
     csoDocs,
@@ -436,62 +439,71 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          섹션 1: 처방실적 현황 (EDI/실적마감)
+          섹션 1: 처방실적 현황 (수수료정산 파일 기반)
       ══════════════════════════════════════════════════════════ */}
       <Section title="📈 처방실적 현황" id="s1">
-        {noEdi ? (
-          <Empty msg="EDI 또는 실적마감 파일을 업로드하면 자동 집계됩니다." />
+        {noSett ? (
+          <Empty msg="수수료 정산 파일을 업로드하면 자동 집계됩니다." />
         ) : (
           <>
-            <SubTitle>▸ 의원·병원별 처방 집계 (3개월)</SubTitle>
+            <SubTitle>▸ 의원·병원별 처방 집계 ({recentMonths.length > 0 ? `${fmtPeriod(recentMonths[0])} ~ ${fmtPeriod(recentMonths[recentMonths.length - 1])}` : '최근 3개월'})</SubTitle>
             <div style={{ overflowX: 'auto' }}>
-              <table className="dash-table">
+              <table className="dash-table" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '72px' }} />
+                  <col style={{ width: '64px' }} />
+                  <col style={{ width: '72px' }} />
+                  <col style={{ width: '80px' }} />
+                  <col style={{ width: '100px' }} />
+                  <col style={{ width: '90px' }} />
+                  <col style={{ width: '80px' }} />
+                </colgroup>
                 <thead>
                   <tr>
-                    <th>월</th>
-                    <th>구분</th>
-                    <th className="right">처방처수</th>
-                    <th className="right">처방품목수</th>
-                    <th className="right">처방액 합계</th>
-                    <th className="right">처방액 평균</th>
-                    <th className="right">전월대비</th>
+                    <th className="center">월</th>
+                    <th className="center">구분</th>
+                    <th className="center">처방처수</th>
+                    <th className="center">처방품목수</th>
+                    <th className="center">처방액 합계</th>
+                    <th className="center">처방액 평균</th>
+                    <th className="center">전월대비</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {ediMonthly.map((r, i) => {
-                    const prev = ediMonthly[i - 1];
+                  {settPrescMonthly.map((r, i) => {
+                    const prev = settPrescMonthly[i - 1];
                     return (
                       <Fragment key={r.month}>
                         <tr>
-                          <td className="muted" rowSpan={3}>{fmtPeriod(r.month)}</td>
-                          <td><span className="badge badge-clinic">의원</span></td>
-                          <td className="right">{r.clinicCount.toLocaleString()}</td>
-                          <td className="right">{r.clinicProductCount.toLocaleString()}</td>
-                          <td className="right">{fmtWon(r.clinicPrescAmt)}</td>
-                          <td className="right muted" style={{ fontSize: '0.78rem' }}>
+                          <td className="center muted" rowSpan={3} style={{ verticalAlign: 'middle', fontWeight: 600, fontSize: '0.8rem' }}>{fmtPeriod(r.month)}</td>
+                          <td className="center"><span className="badge badge-clinic">의원</span></td>
+                          <td className="center bold">{r.clinicCount.toLocaleString()}</td>
+                          <td className="center">{r.clinicProductCount.toLocaleString()}</td>
+                          <td className="center bold">{fmtWon(r.clinicPrescAmt)}</td>
+                          <td className="center muted" style={{ fontSize: '0.78rem' }}>
                             {r.clinicCount > 0 ? fmtWon(Math.round(r.clinicPrescAmt / r.clinicCount)) : '-'}
                           </td>
-                          <td className="right"><DeltaAmt cur={r.clinicPrescAmt} prev={prev?.clinicPrescAmt} /></td>
+                          <td className="center"><DeltaAmt cur={r.clinicPrescAmt} prev={prev?.clinicPrescAmt} /></td>
                         </tr>
                         <tr>
-                          <td><span className="badge badge-hosp">병원</span></td>
-                          <td className="right">{r.hospitalCount.toLocaleString()}</td>
-                          <td className="right">{r.hospitalProductCount.toLocaleString()}</td>
-                          <td className="right">{fmtWon(r.hospitalPrescAmt)}</td>
-                          <td className="right muted" style={{ fontSize: '0.78rem' }}>
+                          <td className="center"><span className="badge badge-hosp">병원</span></td>
+                          <td className="center bold">{r.hospitalCount.toLocaleString()}</td>
+                          <td className="center">{r.hospitalProductCount.toLocaleString()}</td>
+                          <td className="center bold">{fmtWon(r.hospitalPrescAmt)}</td>
+                          <td className="center muted" style={{ fontSize: '0.78rem' }}>
                             {r.hospitalCount > 0 ? fmtWon(Math.round(r.hospitalPrescAmt / r.hospitalCount)) : '-'}
                           </td>
-                          <td className="right"><DeltaAmt cur={r.hospitalPrescAmt} prev={prev?.hospitalPrescAmt} /></td>
+                          <td className="center"><DeltaAmt cur={r.hospitalPrescAmt} prev={prev?.hospitalPrescAmt} /></td>
                         </tr>
                         <tr className="total-row">
-                          <td>전체</td>
-                          <td className="right bold">{r.hospCount.toLocaleString()}</td>
-                          <td className="right">{r.productCount.toLocaleString()}</td>
-                          <td className="right bold">{fmtWon(r.totalPrescAmt)}</td>
-                          <td className="right muted" style={{ fontSize: '0.78rem' }}>
+                          <td className="center" style={{ letterSpacing: '0.02em' }}>전체</td>
+                          <td className="center">{r.hospCount.toLocaleString()}</td>
+                          <td className="center">{r.productCount.toLocaleString()}</td>
+                          <td className="center">{fmtWon(r.totalPrescAmt)}</td>
+                          <td className="center muted" style={{ fontSize: '0.78rem' }}>
                             {r.hospCount > 0 ? fmtWon(Math.round(r.totalPrescAmt / r.hospCount)) : '-'}
                           </td>
-                          <td className="right"><DeltaAmt cur={r.totalPrescAmt} prev={prev?.totalPrescAmt} /></td>
+                          <td className="center"><DeltaAmt cur={r.totalPrescAmt} prev={prev?.totalPrescAmt} /></td>
                         </tr>
                       </Fragment>
                     );
