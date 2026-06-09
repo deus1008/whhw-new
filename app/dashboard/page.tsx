@@ -1,8 +1,6 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
-import { normalizeRole } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import DashboardClient from '@/components/DashboardClient';
@@ -53,9 +51,6 @@ export default async function DashboardPage() {
     .single();
 
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
-
-  const normRole  = normalizeRole(myProfile.role as string);
-  const isAdmin   = normRole === '관리자';
 
   const svc = getSvc();
 
@@ -585,23 +580,11 @@ export default async function DashboardPage() {
         className="relative z-10 w-full px-4"
         style={{ maxWidth: '860px', paddingTop: '2rem', paddingBottom: '2rem', alignSelf: 'flex-start' }}
       >
-        <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem, 4vw, 1.8rem)' }}>
+        <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>
           판매대행사업
         </p>
-        <div className="page-nav">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
-          <Link href="/visits"         style={nl('#10b981', 'rgba(16,185,129,0.12)',  'rgba(16,185,129,0.28)')}>영업활동</Link>
-          <Link href="/medical-search" style={nl('#22d3ee', 'rgba(34,211,238,0.10)',  'rgba(34,211,238,0.28)')}>🏥 병원검색</Link>
-          <Link href="/customers"      style={nl('#fbbf24', 'rgba(251,191,36,0.10)',  'rgba(251,191,36,0.28)')}>🏢 거래처현황</Link>
-          <Link href="/performance"    style={nl('#4ade80', 'rgba(74,222,128,0.10)',  'rgba(74,222,128,0.25)')}>📊 마감분석</Link>
-          <Link href="/mbo"            style={nl('#f59e0b', 'rgba(245,158,11,0.10)',  'rgba(245,158,11,0.28)')}>🎯 목표관리</Link>
-          <Link href="/dc"             style={nl('#c4b5fd', 'rgba(139,92,246,0.10)',  'rgba(139,92,246,0.28)')}>🏥 DC현황</Link>
-          <Link href="/commission"     style={nl('#6ee7b7', 'rgba(16,185,129,0.10)',  'rgba(16,185,129,0.28)')}>💰 수수료시뮬</Link>
-          <a href="https://ajupharm-news.web.app/" target="_blank" rel="noopener noreferrer"
-             style={nl('#fb7185', 'rgba(244,63,94,0.12)', 'rgba(244,63,94,0.28)')}>📰 기사검색</a>
-          {isAdmin   && <Link href="/documents" style={nl('#3b82f6', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.28)')}>문서</Link>}
-          {isAdmin   && <Link href="/admin"     style={nl('#a259ff', 'rgba(162,89,255,0.12)', 'rgba(162,89,255,0.28)')}>관리자</Link>}
-          {isAdmin   && <Link href="/errors"    style={nl('#f87171', 'rgba(239,68,68,0.12)',  'rgba(239,68,68,0.28)')}>오류신고함</Link>}
           <LogoutButton compact />
         </div>
 
@@ -611,10 +594,3 @@ export default async function DashboardPage() {
   );
 }
 
-function nl(color: string, bg: string, border: string): React.CSSProperties {
-  return {
-    padding: '0.4rem 0.9rem', borderRadius: '8px', textDecoration: 'none',
-    background: bg, border: `1px solid ${border}`,
-    color, fontSize: '0.82rem', fontWeight: 600,
-  };
-}
