@@ -916,87 +916,61 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           섹션 8: DC현황
       ══════════════════════════════════════════════════════════ */}
       <Section title="🏥 DC현황" id="s8">
-        {/* 8-A: 단계별 요약 */}
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
+        {/* 단계별 요약 pill */}
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
           {DC_STAGES.map(stage => {
             const cnt = dcStageCounts[stage] ?? 0;
             const color = DC_COLORS[stage];
             return (
               <div key={stage} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                padding: '0.5rem 1rem', borderRadius: '8px',
+                display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                padding: '0.28rem 0.85rem', borderRadius: '100px',
                 background: `${color}14`, border: `1px solid ${color}33`,
-                minWidth: '70px',
               }}>
-                <span style={{ fontSize: '1.2rem', fontWeight: 700, color }}>{cnt}</span>
-                <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)', marginTop: '2px' }}>{stage}</span>
+                <span style={{ fontSize: '1rem', fontWeight: 700, color, lineHeight: 1 }}>{cnt}</span>
+                <span style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.6)' }}>{stage}</span>
               </div>
             );
           })}
         </div>
 
-        {/* 8-B: 진행 중 항목 (약속/상정) */}
-        {(['약속', '상정'] as const).map(stage => {
-          const items = dcItems.filter(d => d.category === stage).slice(0, 8);
-          if (items.length === 0) return null;
-          return (
-            <div key={stage} style={{ marginBottom: '0.6rem' }}>
-              <SubTitle>
-                ▸ {stage} 단계
-                <span className="badge" style={{ marginLeft: '0.4rem', background: `${DC_COLORS[stage]}22`, color: DC_COLORS[stage], border: `1px solid ${DC_COLORS[stage]}44` }}>
-                  {dcStageCounts[stage]}건
-                </span>
-              </SubTitle>
-              <table className="dash-table">
-                <thead>
-                  <tr>
-                    <th>제품명</th><th>병원명</th><th>진행현황</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map(d => (
-                    <tr key={d.id}>
-                      <td style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{d.productName}</td>
-                      <td style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.hospitalName}</td>
-                      <td className="muted" style={{ fontSize: '0.78rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {d.progress ?? '-'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          );
-        })}
-
-        {/* 8-C: 최근 통과 */}
-        {dcItems.filter(d => d.category === '통과').length > 0 && (
-          <>
-            <SubTitle>
-              ▸ 통과 완료
-              <span className="badge" style={{ marginLeft: '0.4rem', background: '#4ade8022', color: '#4ade80', border: '1px solid #4ade8044' }}>
-                {dcStageCounts['통과']}건
-              </span>
-            </SubTitle>
+        {/* 통합 테이블 */}
+        {dcItems.length === 0 ? (
+          <Empty msg="DC현황 페이지에서 데이터를 입력하면 표시됩니다." />
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
             <table className="dash-table">
               <thead>
-                <tr><th>제품명</th><th>병원명</th><th>진행현황</th></tr>
+                <tr>
+                  <th className="center" style={{ width: '4rem' }}>단계</th>
+                  <th>제품명</th>
+                  <th>병원명</th>
+                  <th>진행현황</th>
+                </tr>
               </thead>
               <tbody>
-                {dcItems.filter(d => d.category === '통과').slice(0, 8).map(d => (
+                {dcItems.slice(0, 30).map(d => (
                   <tr key={d.id}>
-                    <td style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{d.productName}</td>
-                    <td style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.hospitalName}</td>
-                    <td className="muted" style={{ fontSize: '0.78rem' }}>{d.progress ?? '-'}</td>
+                    <td className="center" style={{
+                      color: DC_COLORS[d.category] ?? 'rgba(255,255,255,0.5)',
+                      fontWeight: 600, fontSize: '0.78rem', whiteSpace: 'nowrap',
+                    }}>
+                      {d.category}
+                    </td>
+                    <td style={{ fontWeight: 600, maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {d.productName}
+                    </td>
+                    <td style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {d.hospitalName}
+                    </td>
+                    <td className="muted" style={{ fontSize: '0.78rem' }}>
+                      {d.progress ?? '-'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </>
-        )}
-
-        {dcItems.length === 0 && (
-          <Empty msg="DC현황 페이지에서 데이터를 입력하면 표시됩니다." />
+          </div>
         )}
 
         <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.5rem', textAlign: 'right' }}>
