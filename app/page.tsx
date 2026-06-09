@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { normalizeRole } from '@/lib/roles';
 import ErrorReportModal from '@/components/ErrorReportModal';
 import { getPendingCount } from '@/app/errors/actions';
+import { getPendingUsersCount } from '@/app/admin/actions';
 
 type NavItem = {
   href: string;
@@ -218,7 +219,8 @@ export default function Home() {
   const [toast, setToast]           = useState('');
   const [toastVisible, setToastVisible] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [errorBadge, setErrorBadge] = useState(0);
+  const [errorBadge, setErrorBadge]   = useState(0);
+  const [adminBadge, setAdminBadge]   = useState(0);
 
   /* ── 인증 상태 감지 ─────────────────────────────────────── */
   useEffect(() => {
@@ -232,7 +234,10 @@ export default function Home() {
       const roles = rawRoles.map(r => normalizeRole(r));
       const admin = roles.includes('관리자');
       setIsAdmin(admin);
-      if (admin) getPendingCount().then(setErrorBadge);
+      if (admin) {
+        getPendingCount().then(setErrorBadge);
+        getPendingUsersCount().then(setAdminBadge);
+      }
     }
 
     supabase.auth.getSession().then(({ data }) => {
@@ -330,7 +335,9 @@ export default function Home() {
           flexWrap: 'wrap', margin: '1.4rem 0 0.4rem',
         }}>
           {NAV_ITEMS.filter(item => !item.adminOnly || isAdmin).map(({ href, icon, label, color, bg, bd, external, action }) => {
-            const badge = label === '오류신고함' && errorBadge > 0 ? errorBadge : 0;
+            const badge =
+              (label === '오류신고함' && errorBadge > 0) ? errorBadge :
+              (label === '관리자'    && adminBadge  > 0) ? adminBadge  : 0;
             return (
               <button
                 key={label}

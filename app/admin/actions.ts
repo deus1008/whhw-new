@@ -2,7 +2,24 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSvc } from '@supabase/supabase-js';
 import { ALL_ROLES, normalizeRole, profileIsAdmin, type UserRole } from '@/lib/roles';
+
+function svc() {
+  return createSvc(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
+
+/** 승인 대기 사용자 수 (홈 뱃지용) */
+export async function getPendingUsersCount(): Promise<number> {
+  const { count } = await svc()
+    .from('profiles')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'pending');
+  return count ?? 0;
+}
 
 type Status = 'pending' | 'approved' | 'rejected';
 
