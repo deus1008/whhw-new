@@ -315,12 +315,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           font-size: 0.8rem; color: rgba(255,255,255,0.35);
           text-align: center; padding: 1rem 0; margin: 0;
         }
-        .badge {
-          display: inline-block; padding: 0.1rem 0.4rem;
-          border-radius: 4px; font-size: 0.7rem; font-weight: 600;
-        }
-        .badge-clinic  { background: rgba(52,211,153,0.15); color: #6ee7b7; }
-        .badge-hosp    { background: rgba(99,102,241,0.15); color: #a5b4fc; }
+        .badge-clinic  { }
+        .badge-hosp    { }
         .print-btn {
           display: flex; align-items: center; gap: 0.4rem;
           padding: 0.4rem 0.9rem; border-radius: 8px;
@@ -407,10 +403,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           .up  { color: #16a34a !important; }
           .dn  { color: #dc2626 !important; }
           .muted { color: #888 !important; }
-          .badge-clinic  { background: #d1fae5 !important; color: #065f46 !important;
-            -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .badge-hosp    { background: #e0e7ff !important; color: #3730a3 !important;
-            -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .two-col { grid-template-columns: 1fr 1fr !important; gap: 3mm !important; }
           .schedule-item { padding: 0.5mm 0 !important; font-size: 7.5pt !important; }
           .schedule-date { color: #555 !important; min-width: 14mm !important; }
@@ -478,7 +470,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       <Fragment key={r.month}>
                         <tr>
                           <td className="center muted" rowSpan={3} style={{ verticalAlign: 'middle', fontWeight: 600, fontSize: '0.8rem' }}>{fmtPeriod(r.month)}</td>
-                          <td className="center"><span className="badge badge-clinic">의원</span></td>
+                          <td className="center">의원</td>
                           <td className="center bold">{r.clinicCount.toLocaleString()}</td>
                           <td className="center">{r.clinicProductCount.toLocaleString()}</td>
                           <td className="center bold">{fmtWon(r.clinicPrescAmt)}</td>
@@ -488,7 +480,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                           <td className="center"><DeltaAmt cur={r.clinicPrescAmt} prev={prev?.clinicPrescAmt} /></td>
                         </tr>
                         <tr>
-                          <td className="center"><span className="badge badge-hosp">병원</span></td>
+                          <td className="center">병원</td>
                           <td className="center bold">{r.hospitalCount.toLocaleString()}</td>
                           <td className="center">{r.hospitalProductCount.toLocaleString()}</td>
                           <td className="center bold">{fmtWon(r.hospitalPrescAmt)}</td>
@@ -605,8 +597,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   <tr>
                     <th>월</th>
                     <th className="right">전체</th>
-                    <th className="right"><span className="badge badge-hosp" style={{ fontSize: '0.68rem' }}>병원</span></th>
-                    <th className="right"><span className="badge badge-clinic" style={{ fontSize: '0.68rem' }}>의원</span></th>
+                    <th className="right">병원</th>
+                    <th className="right">의원</th>
                     <th className="right">처방품목수</th>
                     <th className="right">병원 처방액</th>
                     <th className="right">의원 처방액</th>
@@ -735,7 +727,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       rows.push(
                         <tr key={`${row.month}-cl`}>
                           <td className="muted" rowSpan={[row.clinic, row.hospital, row.total].filter(Boolean).length}>{fmtPeriod(row.month)}</td>
-                          <td><span className="badge badge-clinic">의원</span></td>
+                          <td>의원</td>
                           <td className="right">{fmtWon(row.clinic.prescAmt)}</td>
                           <td className="right"><DeltaAmt cur={row.clinic.prescAmt} prev={prev?.clinic?.prescAmt} /></td>
                           <td className="right">{fmtWon(row.clinic.settAmt)}</td>
@@ -748,7 +740,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       rows.push(
                         <tr key={`${row.month}-hs`}>
                           {!row.clinic && <td className="muted">{fmtPeriod(row.month)}</td>}
-                          <td><span className="badge badge-hosp">병원</span></td>
+                          <td>병원</td>
                           <td className="right">{fmtWon(row.hospital.prescAmt)}</td>
                           <td className="right"><DeltaAmt cur={row.hospital.prescAmt} prev={prev?.hospital?.prescAmt} /></td>
                           <td className="right">{fmtWon(row.hospital.settAmt)}</td>
