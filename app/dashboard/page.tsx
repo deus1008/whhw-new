@@ -7,6 +7,8 @@ import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import DashboardClient from '@/components/DashboardClient';
 import type { DashboardData } from '@/components/DashboardClient';
+import { parseInventoryBuffer } from '@/lib/inventory/parse';
+import type { StockAlertItem } from '@/lib/inventory/parse';
 
 // ① ISR: 30분마다 자동 갱신
 export const revalidate = 1800;
@@ -131,6 +133,7 @@ export default async function DashboardPage() {
     { data: upcomingRows },
     { data: docRows },
     { data: dcRows },
+    { data: invDoc },
   ] = await Promise.all([
     svc.from('customer_status')
       .select('source_file, created_at')
@@ -173,7 +176,27 @@ export default async function DashboardPage() {
       .order('category', { ascending: true })
       .order('sort_order', { ascending: true })
       .limit(200),
+    // 재고관리: 최신 파일 메타
+    svc.from('documents')
+      .select('id,filename,storage_path,created_at')
+      .eq('category', '재고관리')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single(),
   ]);
+
+  // ── B-2. 재고관리 파일 다운로드 + 파싱 ───────────────────────────────────────
+  let stockItems: StockAlertItem[] = [];
+  let stockFileName: string | null = null;
+  if (invDoc?.storage_path) {
+    stockFileName = invDoc.filename as string;
+    const { data: blob } = await svc.storage.from('documents').download(invDoc.storage_path as string);
+    if (blob) {
+      const buf = Buffer.from(await blob.arrayBuffer());
+      const result = parseInventoryBuffer(buf);
+      if (!result.error) stockItems = result.items;
+    }
+  }
 
   // ── C. Settlement 데이터 가공 ─────────────────────────────────────────────
   const normSett = allSett.map(r => ({
@@ -544,6 +567,8 @@ export default async function DashboardPage() {
     ediMonths,
     upcomingProducts,
     csoDocs,
+    stockItems,
+    stockFileName,
     top10Products,
     bottom10Products,
     dcItems,

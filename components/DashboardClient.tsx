@@ -2,6 +2,7 @@
 
 import { useState, Fragment } from 'react';
 import type { ReactElement } from 'react';
+import type { StockAlertItem } from '@/lib/inventory/parse';
 
 /* ═══════════════════════════════════════════════════════════════════
    DashboardClient — 판매대행사업 월간 업무현황 보고서
@@ -165,6 +166,9 @@ export type DashboardData = {
   upcomingProducts:     UpcomingProduct[];
   // 섹션6: 경쟁사 동향
   csoDocs:              CsoDoc[];
+  // 섹션6b: 품절현황
+  stockItems:           StockAlertItem[];
+  stockFileName:        string | null;
   // 섹션4: 품목현황
   top10Products:        ProductRankItem[];
   bottom10Products:     ProductRankItem[];
@@ -243,6 +247,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     ediMonthly, ediMonths,
     upcomingProducts,
     csoDocs,
+    stockItems, stockFileName,
     top10Products, bottom10Products,
     dcItems, dcStageCounts,
   } = data;
@@ -863,6 +868,95 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </>
           );
         })()}
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════
+          섹션 6b: 품절현황
+      ══════════════════════════════════════════════════════════ */}
+      <Section title="⚠️ 품절현황" id="s6b">
+        {stockItems.length === 0 ? (
+          <Empty msg="문서관리 > '재고관리' 폴더에 파일을 업로드하면 자동 표시됩니다." />
+        ) : (
+          <>
+            {/* 요약 pill */}
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              {(['품절', '예측'] as const).map(type => {
+                const cnt = stockItems.filter(i => i.alert_type === type).length;
+                const color = type === '품절' ? '#ef4444' : '#f59e0b';
+                return (
+                  <div key={type} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                    padding: '0.28rem 0.85rem', borderRadius: '100px',
+                    background: `${color}14`, border: `1px solid ${color}33`,
+                  }}>
+                    <span style={{ fontSize: '1rem', fontWeight: 700, color, lineHeight: 1 }}>{cnt}</span>
+                    <span style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.6)' }}>{type}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table className="dash-table">
+                <thead>
+                  <tr>
+                    <th className="center" style={{ width: '3.5rem' }}>구분</th>
+                    <th>제품명</th>
+                    <th className="center" style={{ width: '4rem' }}>재고일</th>
+                    <th className="center" style={{ width: '6rem' }}>품절시작일</th>
+                    <th className="center" style={{ width: '6rem' }}>공급예정일</th>
+                    <th>발생유형</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stockItems.map((item, idx) => {
+                    const color = item.alert_type === '품절' ? '#ef4444' : '#f59e0b';
+                    const dayColor =
+                      item.stock_days === null   ? 'rgba(255,255,255,0.4)'
+                      : item.stock_days <= 0     ? '#ef4444'
+                      : item.stock_days < 7      ? '#f87171'
+                      : item.stock_days < 14     ? '#fb923c'
+                      : item.stock_days < 30     ? '#fbbf24'
+                      : '#4ade80';
+                    const fmtD = (s: string | null) => {
+                      if (!s) return '-';
+                      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                      return m ? `${m[1].slice(2)}.${m[2]}.${m[3]}` : s;
+                    };
+                    return (
+                      <tr key={idx}>
+                        <td className="center" style={{ color, fontWeight: 700, fontSize: '0.78rem' }}>
+                          {item.alert_type}
+                        </td>
+                        <td style={{ fontWeight: 600, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.product_name}
+                        </td>
+                        <td className="center" style={{ color: dayColor, fontWeight: 700 }}>
+                          {item.stock_days !== null ? `${item.stock_days}일` : '-'}
+                        </td>
+                        <td className="center" style={{ fontSize: '0.8rem' }}>
+                          {fmtD(item.stockout_start)}
+                        </td>
+                        <td className="center" style={{ fontSize: '0.8rem' }}>
+                          {fmtD(item.supply_date)}
+                        </td>
+                        <td className="muted" style={{ fontSize: '0.78rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.cause || '-'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {stockFileName && (
+              <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.5rem', textAlign: 'right' }}>
+                출처: {stockFileName} · <a href="/inventory" style={{ color: '#a5b4fc' }}>재고현황</a>
+              </p>
+            )}
+          </>
+        )}
       </Section>
 
       {/* ══════════════════════════════════════════════════════════
