@@ -664,7 +664,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                           <th className="center">순위</th>
                           <th>품목명</th>
                           {recentMonths.map(m => <th key={m} className="right">{fmtPeriod(m)}</th>)}
-                          <th className="right">합계</th>
                           <th className="right">전월대비</th>
                         </tr>
                       </thead>
@@ -680,7 +679,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                                 {m.prescAmt > 0 ? fmtWon(m.prescAmt, true) : <span className="muted">-</span>}
                               </td>
                             ))}
-                            <td className="right bold" style={{ color: accentColor, fontSize: '0.80rem' }}>{fmtWon(p.totalPrescAmt, true)}</td>
                             <td className="right" style={{ fontSize: '0.78rem' }}>
                               {p.delta === 0
                                 ? <span className="muted">±0</span>
@@ -803,19 +801,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       <th className="center" style={{ width: '2.5rem' }}>순위</th>
                       <th style={{ width: '8rem' }}>경쟁사</th>
                       <th>최근 동향 요약</th>
-                      <th className="center" style={{ width: '5rem' }}>업데이트</th>
                     </tr>
                   </thead>
                   <tbody>
                     {competitorRows.map(({ rank, company, doc }) => {
-                      const daysAgo = doc
-                        ? Math.floor((Date.now() - new Date(doc.createdAt).getTime()) / 86400000)
-                        : null;
-                      const freshColor =
-                        daysAgo === null ? 'rgba(255,255,255,0.2)'
-                        : daysAgo <= 7   ? '#4ade80'
-                        : daysAgo <= 30  ? '#fbbf24'
-                        : 'rgba(255,255,255,0.35)';
                       const displayText = doc
                         ? (doc.summary ?? doc.filename.replace(/\.[^/.]+$/, ''))
                         : null;
@@ -827,9 +816,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                           </td>
                           <td style={{ fontSize: '0.83rem', color: doc ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.3)', whiteSpace: 'pre-line', lineHeight: 1.65 }}>
                             {displayText ?? '자료 없음'}
-                          </td>
-                          <td className="center" style={{ fontSize: '0.78rem', color: freshColor, whiteSpace: 'nowrap', fontWeight: 600 }}>
-                            {daysAgo === null ? '-' : daysAgo === 0 ? '오늘' : `${daysAgo}일 전`}
                           </td>
                         </tr>
                       );
@@ -898,10 +884,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               <tbody>
                 {upcomingProducts.map(p => {
                   const isPast = p.launchDate && p.launchDate < today;
-                  const statusColor =
-                    p.status === '발매완료' ? '#4ade80' :
-                    p.status === '보험등재' ? '#a5b4fc' :
-                    p.status === '허가완료' ? '#fbbf24' : 'rgba(255,255,255,0.5)';
                   return (
                     <tr key={p.id} style={{ opacity: isPast ? 0.65 : 1 }}>
                       <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
@@ -919,9 +901,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       <td className="muted" style={{ fontSize: '0.78rem' }}>{p.insuranceCode ?? '-'}</td>
                       <td className="right" style={{ fontSize: '0.8rem' }}>{p.insurancePrice ?? '-'}</td>
                       <td className="center">
-                        <span className="badge" style={{ background: `${statusColor}22`, color: statusColor, border: `1px solid ${statusColor}44` }}>
-                          {p.status ?? '예정'}
-                        </span>
+                        {p.status ?? '예정'}
                       </td>
                     </tr>
                   );
