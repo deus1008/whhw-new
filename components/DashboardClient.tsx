@@ -297,6 +297,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         .dash-table td {
           padding: 0.4rem 0.5rem; font-size: 0.82rem;
           border-bottom: 1px solid rgba(255,255,255,0.04);
+          vertical-align: middle;
         }
         .dash-table tr:last-child td { border-bottom: none; }
         .dash-table .right { text-align: right; }
@@ -395,6 +396,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           .dash-table td {
             padding: 1mm 2mm !important; font-size: 7.5pt !important;
             border: 1px solid #ddd !important; color: #111 !important;
+            vertical-align: middle !important;
           }
           .dash-table tr:last-child td { border-bottom: 1px solid #ddd !important; }
           .dash-table .total-row td {
