@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { updateStatus, updateRoles, updateName } from './actions';
@@ -307,23 +306,10 @@ export default async function AdminPage() {
           className="domain"
           style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}
         >
-          판매대행사업
+          관리자
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', margin: 0 }}>
-            관리자 패널 · {ADMIN_EMAIL}
-          </p>
-          <Link
-            href="/documents"
-            style={{
-              padding: '0.3rem 0.8rem', borderRadius: '7px',
-              background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.28)',
-              color: '#93c5fd', fontSize: '0.78rem', fontWeight: 600, textDecoration: 'none',
-            }}
-          >
-            문서 →
-          </Link>
           <LogoutButton compact />
         </div>
 

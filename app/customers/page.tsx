@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
@@ -22,12 +21,11 @@ export default async function CustomersPage() {
 
       <div className="relative z-10 w-full px-4"
         style={{ maxWidth: '1200px', paddingTop: '2.5rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}>
-        <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem,4vw,1.8rem)' }}>
-          CSO Biz.
+        <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>
+          거래처현황
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
-          <Link href="/dashboard" style={navLink}>← 대시보드</Link>
           <LogoutButton compact />
         </div>
 
@@ -37,8 +35,3 @@ export default async function CustomersPage() {
   );
 }
 
-const navLink: React.CSSProperties = {
-  padding: '0.35rem 0.9rem', borderRadius: '8px',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)',
-  color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 500, textDecoration: 'none',
-};

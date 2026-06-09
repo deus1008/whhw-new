@@ -1,6 +1,5 @@
 export const dynamic = 'force-dynamic';
 
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeRole } from '@/lib/roles';
@@ -66,15 +65,11 @@ export default async function DocumentsPage() {
           className="domain"
           style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}
         >
-          판매대행사업
+          문서관리
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
-          <Link href="/dashboard" style={navLinkStyle}>← 대시보드</Link>
-          {isAdmin && (
-            <Link href="/admin" style={navLinkStyle}>관리자 →</Link>
-          )}
           <LogoutButton compact />
         </div>
 
@@ -87,13 +82,3 @@ export default async function DocumentsPage() {
   );
 }
 
-const navLinkStyle: React.CSSProperties = {
-  padding: '0.35rem 0.9rem',
-  borderRadius: '8px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.09)',
-  color: 'var(--text-muted)',
-  fontSize: '0.8rem',
-  fontWeight: 500,
-  textDecoration: 'none',
-};
