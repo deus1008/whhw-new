@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Fragment } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import type { ReactElement } from 'react';
 import type { StockAlertItem } from '@/lib/inventory/parse';
 
@@ -262,7 +262,38 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     dcItems, dcStageCounts,
   } = data;
 
-  const [memo, setMemo] = useState('');
+  const MEMO_KEY = 'whhw-dashboard-memo';
+  const [memo, setMemo]               = useState('');
+  const [savedMemo, setSavedMemo]     = useState('');
+  const [isEditingMemo, setIsEditing] = useState(false);
+  const [justSaved, setJustSaved]     = useState(false);
+  const textareaRef                   = useRef<HTMLTextAreaElement>(null);
+
+  // localStorage에서 메모 로드
+  useEffect(() => {
+    const saved = localStorage.getItem(MEMO_KEY) ?? '';
+    setMemo(saved);
+    setSavedMemo(saved);
+    if (!saved) setIsEditing(true); // 내용 없으면 편집 모드 시작
+  }, []);
+
+  const handleSave = () => {
+    localStorage.setItem(MEMO_KEY, memo);
+    setSavedMemo(memo);
+    setIsEditing(false);
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 2500);
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  };
+
+  const handleCancel = () => {
+    setMemo(savedMemo);
+    setIsEditing(false);
+  };
 
   const today = reportDate;
   const noSett = recentMonths.length === 0;
@@ -1180,25 +1211,64 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           섹션 10: 메모 (자유기술)
       ══════════════════════════════════════════════════════════ */}
       <Section title="📝 메모" id="s10">
-        <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', margin: '0 0 0.6rem' }}>
-          인쇄 전 자유롭게 내용을 입력하세요. 입력 내용은 저장되지 않습니다.
-        </p>
-        {/* 화면 전용: textarea */}
-        <textarea
-          className="memo-area no-print"
-          value={memo}
-          onChange={e => setMemo(e.target.value)}
-          placeholder="보고 내용, 특이사항, 향후 계획 등을 자유롭게 입력하세요..."
-          rows={6}
-          style={{
-            width: '100%', padding: '0.7rem 0.8rem',
-            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: '8px', color: 'rgba(255,255,255,0.85)',
-            fontSize: '0.83rem', lineHeight: 1.65, resize: 'vertical',
-            fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
-          }}
-        />
-        {/* 인쇄 전용: 입력된 텍스트를 줄바꿈 유지하여 표시 */}
+        {/* ── 툴바 ── */}
+        <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.6rem' }}>
+          {isEditingMemo ? (
+            <>
+              <button onClick={handleSave} style={memoBtn('#4ade80', 'rgba(74,222,128,0.15)', 'rgba(74,222,128,0.35)')}>
+                저장
+              </button>
+              {savedMemo && (
+                <button onClick={handleCancel} style={memoBtn('rgba(255,255,255,0.55)', 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.15)')}>
+                  취소
+                </button>
+              )}
+            </>
+          ) : (
+            <button onClick={handleEdit} style={memoBtn('#a8c4ff', 'rgba(168,196,255,0.1)', 'rgba(168,196,255,0.3)')}>
+              수정
+            </button>
+          )}
+          {justSaved && (
+            <span style={{ fontSize: '0.78rem', color: '#4ade80', marginLeft: '0.3rem' }}>✓ 저장됨</span>
+          )}
+        </div>
+
+        {/* ── 편집 모드 ── */}
+        {isEditingMemo && (
+          <textarea
+            ref={textareaRef}
+            className="memo-area no-print"
+            value={memo}
+            onChange={e => setMemo(e.target.value)}
+            placeholder="보고 내용, 특이사항, 향후 계획 등을 자유롭게 입력하세요..."
+            rows={6}
+            style={{
+              width: '100%', padding: '0.7rem 0.8rem',
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.18)',
+              borderRadius: '8px', color: 'rgba(255,255,255,0.85)',
+              fontSize: '0.83rem', lineHeight: 1.65, resize: 'vertical',
+              fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
+            }}
+          />
+        )}
+
+        {/* ── 보기 모드 ── */}
+        {!isEditingMemo && (
+          <div
+            className="no-print"
+            style={{
+              whiteSpace: 'pre-wrap', fontSize: '0.83rem', lineHeight: 1.7,
+              background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '8px', padding: '0.7rem 0.8rem',
+              minHeight: '80px', color: savedMemo ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.25)',
+            }}
+          >
+            {savedMemo || '저장된 메모가 없습니다.'}
+          </div>
+        )}
+
+        {/* ── 인쇄 전용 ── */}
         <div
           className="memo-print"
           style={{
@@ -1208,7 +1278,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             minHeight: '80px', color: '#111',
           }}
         >
-          {memo || '(내용 없음)'}
+          {savedMemo || '(내용 없음)'}
         </div>
       </Section>
 
@@ -1219,7 +1289,16 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         }
         .memo-area:focus { border-color: rgba(99,102,241,0.5) !important; box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
         .memo-area::placeholder { color: rgba(255,255,255,0.22); }
+        .memo-btn:hover { opacity: 0.8; }
       `}</style>
     </>
   );
+}
+
+function memoBtn(color: string, bg: string, border: string): React.CSSProperties {
+  return {
+    padding: '0.3rem 0.85rem', borderRadius: '7px', border: `1px solid ${border}`,
+    background: bg, color, fontSize: '0.8rem', fontWeight: 600,
+    cursor: 'pointer', transition: 'opacity 0.15s',
+  };
 }
