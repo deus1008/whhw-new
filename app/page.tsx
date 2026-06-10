@@ -31,7 +31,16 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(59,130,246,0.10)',
     bd:   'rgba(59,130,246,0.22)',
   },
-  // ② 기사검색 (구: 뉴스기사)
+  // ② 영업활동
+  {
+    href: '/visits',
+    icon: '📋',
+    label: '영업활동',
+    color: '#6ee7b7',
+    bg:   'rgba(16,185,129,0.10)',
+    bd:   'rgba(16,185,129,0.22)',
+  },
+  // ③ 기사검색 (구: 뉴스기사)
   {
     href: 'https://ajupharm-news.web.app/',
     icon: '📰',
@@ -112,15 +121,6 @@ const NAV_ITEMS: NavItem[] = [
     color: '#fdba74',
     bg:   'rgba(251,146,60,0.10)',
     bd:   'rgba(251,146,60,0.22)',
-  },
-  // ⑩ 영업활동
-  {
-    href: '/visits',
-    icon: '📋',
-    label: '영업활동',
-    color: '#6ee7b7',
-    bg:   'rgba(16,185,129,0.10)',
-    bd:   'rgba(16,185,129,0.22)',
   },
   // ⑪ 수수료시뮬
   {
