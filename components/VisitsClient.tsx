@@ -20,7 +20,12 @@ const TYPE_META: Record<string, { color: string; bg: string; bd: string }> = {
 type Period = '전체' | '이번주' | '이번달' | '지난달';
 type FilterType = '전체' | 'CSO법인' | '딜러';
 
-function todayStr() { return new Date().toISOString().slice(0, 10); }
+function todayStr() {
+  // KST(UTC+9) 기준 오전 6시 이전이면 전날을 "오늘"로 처리
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  if (kst.getUTCHours() < 6) kst.setUTCDate(kst.getUTCDate() - 1);
+  return kst.toISOString().slice(0, 10);
+}
 
 function weekStart() {
   const d = new Date();
@@ -242,7 +247,7 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
       {/* ── 통계 카드 ── */}
       <div className="visit-stats-grid">
         {[
-          { label: '오늘',   value: stats.today,     color: '#fde68a', rgba: 'rgba(251,191,36,' },
+          { label: '오늘(6시~)', value: stats.today,  color: '#fde68a', rgba: 'rgba(251,191,36,' },
           { label: '이번 주', value: stats.thisWeek,  color: '#86efac', rgba: 'rgba(34,197,94,'  },
           { label: '이번 달', value: stats.thisMonth, color: '#93c5fd', rgba: 'rgba(59,130,246,' },
           { label: '전체',   value: stats.total,     color: '#c084fc', rgba: 'rgba(162,89,255,' },
