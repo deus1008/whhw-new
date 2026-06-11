@@ -35,17 +35,27 @@ export async function searchUbistItems(query: string): Promise<UbistSearchItem[]
   if (!query.trim()) return [];
   const q = `%${query.trim()}%`;
 
-  const { data, error } = await svc()
-    .from('ubist_data')
-    .select('product_name, ingredient_name, manufacturer')
-    .or(`product_name.ilike.${q},ingredient_name.ilike.${q}`)
-    .limit(500);
+  // .or() 내 한글+% 패턴이 PostgREST에서 인코딩 문제를 일으킬 수 있어
+  // 두 개의 별도 쿼리로 분리 후 합산
+  const [r1, r2] = await Promise.all([
+    svc()
+      .from('ubist_data')
+      .select('product_name, ingredient_name, manufacturer')
+      .ilike('product_name', q)
+      .limit(300),
+    svc()
+      .from('ubist_data')
+      .select('product_name, ingredient_name, manufacturer')
+      .ilike('ingredient_name', q)
+      .limit(300),
+  ]);
 
-  if (error || !data) return [];
+  const combined = [...(r1.data ?? []), ...(r2.data ?? [])];
+  if (!combined.length) return [];
 
   // 제품명 기준 중복 제거 (가장 먼저 나온 행의 manufacturer/ingredient 사용)
   const seen = new Map<string, UbistSearchItem>();
-  for (const row of data) {
+  for (const row of combined) {
     const key = (row.product_name ?? '').trim();
     if (key && !seen.has(key)) {
       seen.set(key, {
