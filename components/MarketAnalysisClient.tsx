@@ -466,42 +466,77 @@ export default function MarketAnalysisClient() {
           </div>
 
           {/* 기간별 피벗 테이블 */}
-          <div className="auth-card" style={{ padding: '1rem', overflowX: 'auto' }}>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 600 }}>
-              기간별 처방액 (백만원)
-            </p>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', minWidth: 300 }}>
-              <thead>
-                <tr>
-                  <th style={TH_L}>제품명</th>
-                  <th style={TH_L}>판매사</th>
-                  {displayPeriods.map(p => (
-                    <th key={p} style={TH_R}>{p}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {analysis.map((prod, i) => {
-                  const color     = PRODUCT_COLORS[i % PRODUCT_COLORS.length];
-                  const periodMap = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
-                  return (
-                    <tr key={prod.product_name} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <td style={{ ...TD_L, color }}>
-                        <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: color, marginRight: 5 }} />
-                        {prod.product_name}
-                      </td>
-                      <td style={{ ...TD_L, color: 'var(--text-muted)' }}>{prod.manufacturer ?? '-'}</td>
+          {(() => {
+            // 열합계: 기간별 전체 합산
+            const colTotals = displayPeriods.map(p =>
+              analysis.reduce((s, prod) => {
+                const pm = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
+                return s + (pm[p] ?? 0);
+              }, 0)
+            );
+            // 행합계: 표시 기간 내 제품별 합산
+            const rowTotals = analysis.map(prod => {
+              const pm = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
+              return displayPeriods.reduce((s, p) => s + (pm[p] ?? 0), 0);
+            });
+            const grandTotal = colTotals.reduce((s, v) => s + v, 0);
+
+            return (
+              <div className="auth-card" style={{ padding: '1rem', overflowX: 'auto' }}>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 600 }}>
+                  기간별 처방액 (백만원)
+                </p>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', minWidth: 300 }}>
+                  <thead>
+                    <tr>
+                      <th style={TH_L}>제품명</th>
+                      <th style={TH_L}>판매사</th>
                       {displayPeriods.map(p => (
-                        <td key={p} style={TD_R}>
-                          {periodMap[p] != null ? fmt백만(periodMap[p]) : '-'}
+                        <th key={p} style={TH_R}>{p}</th>
+                      ))}
+                      <th style={{ ...TH_R, color: '#fde68a' }}>합계</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analysis.map((prod, i) => {
+                      const color     = PRODUCT_COLORS[i % PRODUCT_COLORS.length];
+                      const periodMap = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
+                      return (
+                        <tr key={prod.product_name} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td style={{ ...TD_L, color }}>
+                            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: color, marginRight: 5 }} />
+                            {prod.product_name}
+                          </td>
+                          <td style={{ ...TD_L, color: 'var(--text-muted)' }}>{prod.manufacturer ?? '-'}</td>
+                          {displayPeriods.map(p => (
+                            <td key={p} style={TD_R}>
+                              {periodMap[p] != null ? fmt백만(periodMap[p]) : '-'}
+                            </td>
+                          ))}
+                          <td style={{ ...TD_R, fontWeight: 700, color: '#fde68a' }}>
+                            {fmt백만(rowTotals[i])}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+                      <td colSpan={2} style={{ ...TD_L, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>합계</td>
+                      {colTotals.map((v, i) => (
+                        <td key={displayPeriods[i]} style={{ ...TD_R, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>
+                          {fmt백만(v)}
                         </td>
                       ))}
+                      <td style={{ ...TD_R, fontWeight: 700, color: '#fde68a' }}>
+                        {fmt백만(grandTotal)}
+                      </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </tfoot>
+                </table>
+              </div>
+            );
+          })()}
         </>
       )}
 
