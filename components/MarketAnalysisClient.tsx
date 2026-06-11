@@ -398,24 +398,6 @@ export default function MarketAnalysisClient() {
       {/* ── Step 3: 분석 결과 ── */}
       {analysis && analysis.length > 0 && (
         <>
-          {/* 요약 카드 */}
-          <div className="visit-stats-grid" style={{ marginBottom: '1rem' }}>
-            {[
-              { label: '분석 품목',  value: analysis.length + '개',              color: '#93c5fd', rgba: 'rgba(59,130,246,'  },
-              { label: '표시 기간',  value: displayPeriods.length + '개월',       color: '#86efac', rgba: 'rgba(34,197,94,'   },
-              { label: '데이터 기간', value: allPeriods.length + '개월 보유',      color: '#c4b5fd', rgba: 'rgba(139,92,246,'  },
-            ].map(({ label, value, color, rgba }) => (
-              <div key={label} style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                padding: '0.9rem 0.5rem', borderRadius: '14px', gap: '0.2rem',
-                background: `${rgba}0.07)`, border: `1px solid ${rgba}0.22)`,
-              }}>
-                <span style={{ fontSize: '1.1rem', fontWeight: 700, color, lineHeight: 1, textAlign: 'center' }}>{value}</span>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>{label}</span>
-              </div>
-            ))}
-          </div>
-
           {/* 월별 처방액 꺾은선 차트 */}
           <div className="auth-card" style={{ marginBottom: '1rem', padding: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
