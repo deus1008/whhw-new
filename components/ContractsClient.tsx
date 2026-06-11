@@ -384,25 +384,45 @@ export default function ContractsClient({
   const [showForm, setShowForm]   = useState(false);
   const [editTarget, setEditTarget] = useState<ContractRow | null>(null);
   const [search, setSearch]         = useState('');
-  const [filterFrom, setFilterFrom] = useState('');
-  const [filterTo,   setFilterTo]   = useState('');
+  const [activeTab, setActiveTab]   = useState<'전체' | '올해' | '이번달' | '유효중'>('전체');
   const [deleting, setDeleting]     = useState<string | null>(null);
+
+  /* 오늘 날짜 (KST) */
+  const today = (() => {
+    const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    return kst.toISOString().slice(0, 10);
+  })();
+  const thisYear  = today.slice(0, 4);
+  const thisMonth = today.slice(0, 7);
+
+  /* 탭별 카운트 */
+  const counts = useMemo(() => ({
+    전체:   contracts.length,
+    올해:   contracts.filter(c => c.contract_start.startsWith(thisYear)).length,
+    이번달: contracts.filter(c => c.contract_start.startsWith(thisMonth)).length,
+    유효중: contracts.filter(c => c.contract_start <= today && (!c.contract_end || c.contract_end >= today)).length,
+  }), [contracts, today, thisYear, thisMonth]);
 
   /* 클라이언트 필터 */
   const filtered = useMemo(() => {
     return contracts.filter(c => {
+      /* 탭 필터 */
+      if (activeTab === '올해'   && !c.contract_start.startsWith(thisYear))  return false;
+      if (activeTab === '이번달' && !c.contract_start.startsWith(thisMonth)) return false;
+      if (activeTab === '유효중' && !(c.contract_start <= today && (!c.contract_end || c.contract_end >= today))) return false;
+      /* 키워드 검색 */
       if (search) {
         const q = search.toLowerCase();
         if (!c.company_name.toLowerCase().includes(q) &&
             !c.manager.toLowerCase().includes(q) &&
-            !(c.hospitals ?? '').toLowerCase().includes(q))
+            !(c.hospitals ?? '').toLowerCase().includes(q) &&
+            !(c.contact_name ?? '').toLowerCase().includes(q) &&
+            !(c.memo ?? '').toLowerCase().includes(q))
           return false;
       }
-      if (filterFrom && c.contract_start < filterFrom) return false;
-      if (filterTo   && c.contract_start > filterTo)   return false;
       return true;
     });
-  }, [contracts, search, filterFrom, filterTo]);
+  }, [contracts, search, activeTab, today, thisYear, thisMonth]);
 
   async function handleDelete(id: string) {
     if (!confirm('계약을 삭제하시겠습니까?')) return;
@@ -440,40 +460,46 @@ export default function ContractsClient({
   return (
     <div style={{ marginTop: '1rem' }}>
 
-      {/* ── 필터 영역 ── */}
-      <div style={{ ...CARD, marginBottom: '0.75rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-          {/* 검색 */}
-          <input
-            style={INPUT_STYLE}
-            placeholder="🔍  업체명 · 담당자 · 병원 검색"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          {/* 기간 필터 */}
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flexShrink: 0 }}>계약시작</span>
-            <input type="date" style={{ ...INPUT_STYLE, flex: 1, minWidth: '130px' }}
-              value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flexShrink: 0 }}>~</span>
-            <input type="date" style={{ ...INPUT_STYLE, flex: 1, minWidth: '130px' }}
-              value={filterTo} onChange={e => setFilterTo(e.target.value)} />
-            {(filterFrom || filterTo) && (
-              <button style={{ ...BTN_GHOST, fontSize: '0.72rem', padding: '0.35rem 0.7rem', flexShrink: 0 }}
-                onClick={() => { setFilterFrom(''); setFilterTo(''); }}>초기화</button>
-            )}
-          </div>
-        </div>
+      {/* ── 카운트 카드 ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginBottom: '0.75rem' }}>
+        {(['전체', '올해', '이번달', '유효중'] as const).map(tab => {
+          const active = activeTab === tab;
+          return (
+            <button key={tab} onClick={() => setActiveTab(tab)} style={{
+              background: active ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${active ? 'rgba(99,102,241,0.6)' : 'rgba(255,255,255,0.08)'}`,
+              borderRadius: '12px', padding: '0.7rem 0.4rem',
+              cursor: 'pointer', textAlign: 'center' as const,
+              transition: 'all 0.15s',
+            }}>
+              <div style={{ fontSize: '1.3rem', fontWeight: 700, color: active ? '#a5b4fc' : '#fff', lineHeight: 1 }}>
+                {counts[tab]}
+              </div>
+              <div style={{ fontSize: '0.68rem', color: active ? '#a5b4fc' : 'var(--text-muted)', marginTop: '0.25rem' }}>
+                {tab}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      {/* ── 등록 버튼 + 건수 ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          {filtered.length}건{filtered.length !== contracts.length && ` / 전체 ${contracts.length}건`}
-        </span>
-        <button style={BTN_PRIMARY} onClick={() => { setEditTarget(null); setShowForm(true); }}>
-          + 신규 계약 등록
+      {/* ── 검색 + 등록 버튼 ── */}
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+        <input
+          style={{ ...INPUT_STYLE, flex: 1 }}
+          placeholder="🔍  업체명 · 담당자 · 병원 · 비고 검색"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+        <button style={{ ...BTN_PRIMARY, whiteSpace: 'nowrap' as const, flexShrink: 0 }}
+          onClick={() => { setEditTarget(null); setShowForm(true); }}>
+          + 신규 등록
         </button>
+      </div>
+
+      {/* ── 건수 ── */}
+      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+        {filtered.length}건{filtered.length !== contracts.length && ` / 전체 ${contracts.length}건`}
       </div>
 
       {/* ── 계약 목록 ── */}
