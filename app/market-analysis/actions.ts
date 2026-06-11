@@ -77,14 +77,21 @@ export async function searchUbistItems(query: string): Promise<UbistSearchItem[]
 /** 선택된 제품들의 기간별 처방 데이터 집계 */
 export async function analyzeUbistItems(
   productNames: string[],
+  hospitalTypes?: string[],   // 빈 배열 또는 미전달 = 전체
 ): Promise<UbistProductAnalysis[]> {
   if (!productNames.length) return [];
 
-  const { data, error } = await svc()
+  let query = svc()
     .from('ubist_data')
     .select('product_name, ingredient_name, manufacturer, period, prescription_amount, prescription_count')
     .in('product_name', productNames)
     .order('period', { ascending: true });
+
+  if (hospitalTypes && hospitalTypes.length > 0) {
+    query = query.in('hospital_type', hospitalTypes);
+  }
+
+  const { data, error } = await query;
 
   if (error || !data) return [];
 

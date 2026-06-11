@@ -31,6 +31,9 @@ const disabledBtn: React.CSSProperties = {
   cursor: 'not-allowed',
 };
 
+const ALL_HOSP_TYPES = ['상급종합병원', '종합병원', '병원', '의원', '보건소', '기타'] as const;
+type HospType = typeof ALL_HOSP_TYPES[number];
+
 /* ── 유틸 ────────────────────────────────────────────────────── */
 function fmt백만(won: number): string {
   const mil = won / 1_000_000;
@@ -159,8 +162,9 @@ export default function MarketAnalysisClient() {
   const [searched,    setSearched]    = useState(false);
   const [isPending,   startTransition] = useTransition();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [error,       setError]       = useState('');
-  const [periodLimit, setPeriodLimit] = useState(12);   // 0 = 전체
+  const [error,          setError]          = useState('');
+  const [periodLimit,    setPeriodLimit]    = useState(12);   // 0 = 전체
+  const [selectedHosp,   setSelectedHosp]  = useState<Set<HospType>>(new Set(ALL_HOSP_TYPES));
 
   /* ── 검색 ── */
   function handleSearch() {
@@ -201,13 +205,31 @@ export default function MarketAnalysisClient() {
     setIsAnalyzing(true);
     setError('');
     try {
-      const data = await analyzeUbistItems(Array.from(selected));
+      // 전체 선택이면 필터 없음, 일부 선택이면 해당 종별만
+      const hospFilter = selectedHosp.size === ALL_HOSP_TYPES.length
+        ? []
+        : Array.from(selectedHosp);
+      const data = await analyzeUbistItems(Array.from(selected), hospFilter);
       setAnalysis(data);
     } catch {
       setError('분석 중 오류가 발생했습니다.');
     } finally {
       setIsAnalyzing(false);
     }
+  }
+
+  /* ── 종별 토글 ── */
+  function toggleHosp(t: HospType) {
+    setSelectedHosp(prev => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t); else next.add(t);
+      return next;
+    });
+  }
+  function toggleAllHosp() {
+    setSelectedHosp(prev =>
+      prev.size === ALL_HOSP_TYPES.length ? new Set() : new Set(ALL_HOSP_TYPES)
+    );
   }
 
   /* ── 전체 기간 수집 ── */
@@ -316,6 +338,52 @@ export default function MarketAnalysisClient() {
                 )}
               </label>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Step 2.5: 종별 선택 ── */}
+      {searched && results.length > 0 && (
+        <div className="auth-card" style={{ marginBottom: '1rem', padding: '1rem' }}>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.6rem', fontWeight: 600 }}>
+            종별 선택
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {/* 전체선택 버튼 */}
+            <button
+              onClick={toggleAllHosp}
+              style={{
+                padding: '0.3rem 0.75rem', borderRadius: '7px', border: 'none',
+                fontSize: '0.78rem', fontFamily: 'inherit', cursor: 'pointer',
+                background: selectedHosp.size === ALL_HOSP_TYPES.length
+                  ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.07)',
+                color: selectedHosp.size === ALL_HOSP_TYPES.length
+                  ? '#a5b4fc' : 'var(--text-muted)',
+                fontWeight: selectedHosp.size === ALL_HOSP_TYPES.length ? 700 : 400,
+                transition: 'all 0.15s',
+              }}
+            >
+              전체선택
+            </button>
+            {ALL_HOSP_TYPES.map(t => {
+              const active = selectedHosp.has(t);
+              return (
+                <button
+                  key={t}
+                  onClick={() => toggleHosp(t)}
+                  style={{
+                    padding: '0.3rem 0.75rem', borderRadius: '7px', border: 'none',
+                    fontSize: '0.78rem', fontFamily: 'inherit', cursor: 'pointer',
+                    background: active ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.07)',
+                    color: active ? '#a5b4fc' : 'var(--text-muted)',
+                    fontWeight: active ? 700 : 400,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {t}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
