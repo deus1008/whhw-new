@@ -45,17 +45,21 @@ function fmtCount(n: number): string {
   return n.toLocaleString('ko-KR');
 }
 
-/* ── 막대 차트 (SVG inline) ──────────────────────────────────── */
-function BarChart({ data, maxVal }: {
-  data: { label: string; value: number; color: string }[];
-  maxVal: number;
+/* ── 월별 꺾은선 차트 (SVG inline) ──────────────────────────── */
+function LineChart({ products, periods }: {
+  products: { name: string; color: string; values: (number | null)[] }[];
+  periods: string[];
 }) {
-  const W = 600, H = 200, PAD_L = 50, PAD_B = 40, PAD_T = 16, PAD_R = 16;
+  const W = 640, H = 230, PAD_L = 58, PAD_B = 46, PAD_T = 20, PAD_R = 20;
   const chartW = W - PAD_L - PAD_R;
   const chartH = H - PAD_T - PAD_B;
-  const n = data.length;
-  const barW = Math.max(8, Math.min(40, (chartW / n) * 0.65));
-  const gap  = chartW / n;
+
+  const allVals = products.flatMap(p => p.values).filter((v): v is number => v != null);
+  const maxVal  = Math.max(...allVals, 1);
+
+  const n   = periods.length;
+  const xOf = (i: number) => n <= 1 ? PAD_L + chartW / 2 : PAD_L + (chartW / (n - 1)) * i;
+  const yOf = (v: number) => PAD_T + chartH * (1 - v / maxVal);
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, display: 'block' }}>
@@ -67,7 +71,7 @@ function BarChart({ data, maxVal }: {
             <line x1={PAD_L} y1={y} x2={W - PAD_R} y2={y}
               stroke="rgba(255,255,255,0.07)" strokeWidth={1} />
             {t > 0 && (
-              <text x={PAD_L - 4} y={y + 4} textAnchor="end"
+              <text x={PAD_L - 5} y={y + 4} textAnchor="end"
                 fontSize={9} fill="rgba(255,255,255,0.4)">
                 {fmt백만(maxVal * t)}
               </text>
@@ -75,23 +79,55 @@ function BarChart({ data, maxVal }: {
           </g>
         );
       })}
-      {/* 막대 */}
-      {data.map((d, i) => {
-        const bh  = maxVal > 0 ? (d.value / maxVal) * chartH : 0;
-        const x   = PAD_L + gap * i + (gap - barW) / 2;
-        const y   = PAD_T + chartH - bh;
-        const lbl = d.label.length > 7 ? d.label.slice(0, 5) + '…' : d.label;
+
+      {/* X축 레이블 + 연도 경계선 */}
+      {periods.map((p, i) => {
+        const x        = xOf(i);
+        const label    = p.slice(2).replace('-', '.');         // "2025-03" → "25.03"
+        const thisYear = p.slice(0, 4);
+        const prevYear = i > 0 ? periods[i - 1].slice(0, 4) : null;
+        const yearChanged = prevYear !== null && thisYear !== prevYear;
         return (
-          <g key={i}>
-            <rect x={x} y={y} width={barW} height={Math.max(0, bh)}
-              rx={3} fill={d.color} opacity={0.85} />
-            <text x={x + barW / 2} y={H - PAD_B + 14} textAnchor="middle"
-              fontSize={8.5} fill="rgba(255,255,255,0.55)" transform={`rotate(-35,${x + barW / 2},${H - PAD_B + 14})`}>
-              {lbl}
+          <g key={p}>
+            <text x={x} y={H - PAD_B + 14} textAnchor="middle"
+              fontSize={8.5} fill="rgba(255,255,255,0.5)">
+              {label}
             </text>
+            {yearChanged && (
+              <>
+                <line x1={x} y1={PAD_T} x2={x} y2={PAD_T + chartH}
+                  stroke="rgba(255,255,255,0.15)" strokeWidth={1} strokeDasharray="3,3" />
+                <text x={x + 3} y={PAD_T + 9} textAnchor="start"
+                  fontSize={8} fill="rgba(255,255,255,0.3)">
+                  {thisYear}
+                </text>
+              </>
+            )}
           </g>
         );
       })}
+
+      {/* 꺾은선 + 점 */}
+      {products.map(prod => {
+        let d = '';
+        let gap = true;
+        prod.values.forEach((v, i) => {
+          if (v == null) { gap = true; return; }
+          d += (gap ? `M${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}` : `L${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`) + ' ';
+          gap = false;
+        });
+        return (
+          <g key={prod.name}>
+            {d && <path d={d.trim()} fill="none" stroke={prod.color} strokeWidth={2.2}
+              strokeLinejoin="round" strokeLinecap="round" />}
+            {prod.values.map((v, i) => v != null ? (
+              <circle key={i} cx={xOf(i)} cy={yOf(v)} r={3.5}
+                fill={prod.color} stroke="rgba(12,12,28,0.9)" strokeWidth={1.2} />
+            ) : null)}
+          </g>
+        );
+      })}
+
       {/* X축 */}
       <line x1={PAD_L} y1={PAD_T + chartH} x2={W - PAD_R} y2={PAD_T + chartH}
         stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
@@ -99,9 +135,9 @@ function BarChart({ data, maxVal }: {
       <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={PAD_T + chartH}
         stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
       {/* Y축 레이블 */}
-      <text x={10} y={PAD_T + chartH / 2} textAnchor="middle"
+      <text x={12} y={PAD_T + chartH / 2} textAnchor="middle"
         fontSize={9} fill="rgba(255,255,255,0.4)"
-        transform={`rotate(-90,10,${PAD_T + chartH / 2})`}>
+        transform={`rotate(-90,12,${PAD_T + chartH / 2})`}>
         백만원
       </text>
     </svg>
@@ -190,8 +226,17 @@ export default function MarketAnalysisClient() {
 
   const grandTotal = (analysis ?? []).reduce((s, p) => s + p.grand_amount, 0);
 
-  /* ── 차트 데이터 (제품별 전체 합계 막대) ── */
-  const chartMax = analysis ? Math.max(...analysis.map(p => p.grand_amount), 1) : 1;
+  /* ── 꺾은선 차트 데이터 (월별 × 제품별) ── */
+  const lineProducts = analysis
+    ? analysis.map((prod, i) => {
+        const periodMap = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
+        return {
+          name:   prod.product_name,
+          color:  PRODUCT_COLORS[i % PRODUCT_COLORS.length],
+          values: allPeriods.map(p => periodMap[p] ?? null),
+        };
+      })
+    : [];
 
   return (
     <div>
@@ -308,19 +353,12 @@ export default function MarketAnalysisClient() {
             ))}
           </div>
 
-          {/* 제품별 총합 막대 차트 */}
+          {/* 월별 처방액 꺾은선 차트 */}
           <div className="auth-card" style={{ marginBottom: '1rem', padding: '1rem' }}>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 600 }}>
-              제품별 총 처방액 (백만원)
+              월별 처방액 추이 (백만원)
             </p>
-            <BarChart
-              maxVal={chartMax}
-              data={analysis.map((p, i) => ({
-                label: p.product_name,
-                value: p.grand_amount,
-                color: PRODUCT_COLORS[i % PRODUCT_COLORS.length],
-              }))}
-            />
+            <LineChart periods={allPeriods} products={lineProducts} />
           </div>
 
           {/* 범례 */}
