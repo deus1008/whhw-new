@@ -151,15 +151,16 @@ const PRODUCT_COLORS = [
 
 /* ── 메인 컴포넌트 ───────────────────────────────────────────── */
 export default function MarketAnalysisClient() {
-  const [query,     setQuery]     = useState('');
-  const [inputVal,  setInputVal]  = useState('');
-  const [results,   setResults]   = useState<UbistSearchItem[]>([]);
-  const [selected,  setSelected]  = useState<Set<string>>(new Set());
-  const [analysis,  setAnalysis]  = useState<UbistProductAnalysis[] | null>(null);
-  const [searched,  setSearched]  = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [query,       setQuery]       = useState('');
+  const [inputVal,    setInputVal]    = useState('');
+  const [results,     setResults]     = useState<UbistSearchItem[]>([]);
+  const [selected,    setSelected]    = useState<Set<string>>(new Set());
+  const [analysis,    setAnalysis]    = useState<UbistProductAnalysis[] | null>(null);
+  const [searched,    setSearched]    = useState(false);
+  const [isPending,   startTransition] = useTransition();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [error, setError]         = useState('');
+  const [error,       setError]       = useState('');
+  const [periodLimit, setPeriodLimit] = useState(12);   // 0 = 전체
 
   /* ── 검색 ── */
   function handleSearch() {
@@ -215,16 +216,10 @@ export default function MarketAnalysisClient() {
         .filter(Boolean).sort()
     : [];
 
-  /* ── 총계 행 ── */
-  const periodTotals = allPeriods.reduce<Record<string, number>>((acc, p) => {
-    acc[p] = (analysis ?? []).reduce((s, prod) => {
-      const row = prod.periods.find(r => r.period === p);
-      return s + (row?.total_amount ?? 0);
-    }, 0);
-    return acc;
-  }, {});
-
-  const grandTotal = (analysis ?? []).reduce((s, p) => s + p.grand_amount, 0);
+  /* ── 표시 기간 (최근 N개월, 0=전체) ── */
+  const displayPeriods = periodLimit === 0
+    ? allPeriods
+    : allPeriods.slice(-periodLimit);
 
   /* ── 꺾은선 차트 데이터 (월별 × 제품별) ── */
   const lineProducts = analysis
@@ -233,7 +228,7 @@ export default function MarketAnalysisClient() {
         return {
           name:   prod.product_name,
           color:  PRODUCT_COLORS[i % PRODUCT_COLORS.length],
-          values: allPeriods.map(p => periodMap[p] ?? null),
+          values: displayPeriods.map(p => periodMap[p] ?? null),
         };
       })
     : [];
@@ -338,9 +333,9 @@ export default function MarketAnalysisClient() {
           {/* 요약 카드 */}
           <div className="visit-stats-grid" style={{ marginBottom: '1rem' }}>
             {[
-              { label: '분석 품목', value: analysis.length + '개', color: '#93c5fd', rgba: 'rgba(59,130,246,' },
-              { label: '기간 수',   value: allPeriods.length + '개월', color: '#86efac', rgba: 'rgba(34,197,94,' },
-              { label: '합계 처방액', value: fmt백만(grandTotal) + '백만원', color: '#fde68a', rgba: 'rgba(251,191,36,' },
+              { label: '분석 품목',  value: analysis.length + '개',              color: '#93c5fd', rgba: 'rgba(59,130,246,'  },
+              { label: '표시 기간',  value: displayPeriods.length + '개월',       color: '#86efac', rgba: 'rgba(34,197,94,'   },
+              { label: '데이터 기간', value: allPeriods.length + '개월 보유',      color: '#c4b5fd', rgba: 'rgba(139,92,246,'  },
             ].map(({ label, value, color, rgba }) => (
               <div key={label} style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -355,10 +350,35 @@ export default function MarketAnalysisClient() {
 
           {/* 월별 처방액 꺾은선 차트 */}
           <div className="auth-card" style={{ marginBottom: '1rem', padding: '1rem' }}>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 600 }}>
-              월별 처방액 추이 (백만원)
-            </p>
-            <LineChart periods={allPeriods} products={lineProducts} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, margin: 0 }}>
+                월별 처방액 추이 (백만원)
+              </p>
+              {/* 기간 선택 버튼 */}
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                {([3, 6, 12, 0] as const).map(n => {
+                  const active = periodLimit === n;
+                  const label  = n === 0 ? '전체' : `${n}개월`;
+                  return (
+                    <button
+                      key={n}
+                      onClick={() => setPeriodLimit(n)}
+                      style={{
+                        padding: '0.25rem 0.6rem', borderRadius: '6px', border: 'none',
+                        fontSize: '0.75rem', fontFamily: 'inherit', cursor: 'pointer',
+                        background: active ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.07)',
+                        color: active ? '#a5b4fc' : 'var(--text-muted)',
+                        fontWeight: active ? 700 : 400,
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <LineChart periods={displayPeriods} products={lineProducts} />
           </div>
 
           {/* 범례 */}
@@ -380,25 +400,22 @@ export default function MarketAnalysisClient() {
           {/* 기간별 피벗 테이블 */}
           <div className="auth-card" style={{ padding: '1rem', overflowX: 'auto' }}>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 600 }}>
-              기간별 처방액 (백만원) — 원 단위 합산 후 백만원 환산
+              기간별 처방액 (백만원)
             </p>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', minWidth: 400 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', minWidth: 300 }}>
               <thead>
                 <tr>
                   <th style={TH_L}>제품명</th>
                   <th style={TH_L}>성분명</th>
-                  {allPeriods.map(p => (
+                  {displayPeriods.map(p => (
                     <th key={p} style={TH_R}>{p}</th>
                   ))}
-                  <th style={{ ...TH_R, color: '#fde68a' }}>합계</th>
                 </tr>
               </thead>
               <tbody>
                 {analysis.map((prod, i) => {
-                  const color = PRODUCT_COLORS[i % PRODUCT_COLORS.length];
-                  const periodMap = Object.fromEntries(
-                    prod.periods.map(r => [r.period, r.total_amount])
-                  );
+                  const color     = PRODUCT_COLORS[i % PRODUCT_COLORS.length];
+                  const periodMap = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
                   return (
                     <tr key={prod.product_name} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                       <td style={{ ...TD_L, color }}>
@@ -406,31 +423,15 @@ export default function MarketAnalysisClient() {
                         {prod.product_name}
                       </td>
                       <td style={{ ...TD_L, color: 'var(--text-muted)' }}>{prod.ingredient_name ?? '-'}</td>
-                      {allPeriods.map(p => (
+                      {displayPeriods.map(p => (
                         <td key={p} style={TD_R}>
                           {periodMap[p] != null ? fmt백만(periodMap[p]) : '-'}
                         </td>
                       ))}
-                      <td style={{ ...TD_R, fontWeight: 700, color: '#fde68a' }}>
-                        {fmt백만(prod.grand_amount)}
-                      </td>
                     </tr>
                   );
                 })}
               </tbody>
-              <tfoot>
-                <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-                  <td colSpan={2} style={{ ...TD_L, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>합계</td>
-                  {allPeriods.map(p => (
-                    <td key={p} style={{ ...TD_R, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>
-                      {fmt백만(periodTotals[p] ?? 0)}
-                    </td>
-                  ))}
-                  <td style={{ ...TD_R, fontWeight: 700, color: '#fde68a' }}>
-                    {fmt백만(grandTotal)}
-                  </td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         </>
