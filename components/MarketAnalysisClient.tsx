@@ -406,7 +406,7 @@ export default function MarketAnalysisClient() {
               <thead>
                 <tr>
                   <th style={TH_L}>제품명</th>
-                  <th style={TH_L}>성분명</th>
+                  <th style={TH_L}>판매사</th>
                   {displayPeriods.map(p => (
                     <th key={p} style={TH_R}>{p}</th>
                   ))}
@@ -422,7 +422,7 @@ export default function MarketAnalysisClient() {
                         <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: color, marginRight: 5 }} />
                         {prod.product_name}
                       </td>
-                      <td style={{ ...TD_L, color: 'var(--text-muted)' }}>{prod.ingredient_name ?? '-'}</td>
+                      <td style={{ ...TD_L, color: 'var(--text-muted)' }}>{prod.manufacturer ?? '-'}</td>
                       {displayPeriods.map(p => (
                         <td key={p} style={TD_R}>
                           {periodMap[p] != null ? fmt백만(periodMap[p]) : '-'}
