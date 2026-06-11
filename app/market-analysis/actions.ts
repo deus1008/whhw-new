@@ -67,7 +67,11 @@ export async function searchUbistItems(query: string): Promise<UbistSearchItem[]
   }
 
   return Array.from(seen.values())
-    .sort((a, b) => a.product_name.localeCompare(b.product_name, 'ko'));
+    .sort((a, b) => {
+      const mfr = (a.manufacturer ?? '').localeCompare(b.manufacturer ?? '', 'ko');
+      if (mfr !== 0) return mfr;
+      return a.product_name.localeCompare(b.product_name, 'ko');
+    });
 }
 
 /** 선택된 제품들의 기간별 처방 데이터 집계 */
