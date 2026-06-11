@@ -390,8 +390,8 @@ export default function MarketAnalysisClient() {
               }}>
                 <span style={{ width: 10, height: 10, borderRadius: 2, background: PRODUCT_COLORS[i % PRODUCT_COLORS.length], flexShrink: 0 }} />
                 {p.product_name}
-                {p.ingredient_name && (
-                  <span style={{ color: 'var(--text-muted)' }}>({p.ingredient_name})</span>
+                {p.manufacturer && (
+                  <span style={{ color: 'var(--text-muted)' }}>({p.manufacturer})</span>
                 )}
               </span>
             ))}
