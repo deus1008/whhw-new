@@ -7,6 +7,7 @@ import { parseDrugPriceBuffer }      from '@/lib/drug-prices/parse';
 import { parseCustomerBuffer }       from '@/lib/customers/parse';
 import { parseCommissionBuffer }     from '@/lib/commission/parse';
 import { parseSettlementBuffer, type SettlementColConfig } from '@/lib/commission-settlement/parse';
+import { parseUbistBuffer } from '@/lib/ubist/parse';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -252,6 +253,34 @@ export async function POST(request: Request) {
     }
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     return Response.json({ ok: true, inserted: rows.length, total });
+  }
+
+  // ── H. Ubist 폴더 → ubist_data 파싱 ────────────────────────────────────
+  if (category === 'Ubist') {
+    console.log(`[process:${documentId}] Ubist 폴더 → 처방 데이터 파싱`);
+    const { rows, total, error: parseError } = parseUbistBuffer(buffer, doc.filename, documentId);
+
+    if (parseError) return fail(`Ubist 파싱 실패: ${parseError}`);
+
+    if (rows.length === 0) {
+      console.warn(`[process:${documentId}] Ubist: 파싱된 행 없음 (헤더 인식 실패 가능성)`);
+      await supabase.from('documents').update({ status: 'ready', error_message: '파싱된 데이터 없음 — 헤더 형식을 확인하세요.' }).eq('id', documentId);
+      return Response.json({ ok: true, inserted: 0 });
+    }
+
+    // 동일 파일명 기존 데이터 삭제 후 재적재
+    await supabase.from('ubist_data').delete().eq('source_file', doc.filename);
+
+    const CHUNK = 500;
+    let inserted = 0;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const { error: insErr } = await supabase.from('ubist_data').insert(rows.slice(i, i + CHUNK));
+      if (insErr) console.warn(`[process:${documentId}] Ubist 삽입 오류(chunk ${i}):`, insErr.message);
+      else inserted += rows.slice(i, i + CHUNK).length;
+    }
+    console.log(`[process:${documentId}] Ubist ${inserted}/${total}건 저장 완료`);
+    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    return Response.json({ ok: true, inserted });
   }
 
   // ── G. 그 외 폴더 — 즉시 완료 ─────────────────────────────────────────

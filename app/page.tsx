@@ -140,7 +140,16 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(245,158,11,0.10)',
     bd:   'rgba(245,158,11,0.22)',
   },
-  // ⑬ 처방실적 (구: EDI)
+  // ⑬ 시장분석 (Ubist)
+  {
+    href: '/market-analysis',
+    icon: '📈',
+    label: '시장분석',
+    color: '#f9a8d4',
+    bg:   'rgba(236,72,153,0.10)',
+    bd:   'rgba(236,72,153,0.22)',
+  },
+  // ⑭ 처방실적 (구: EDI)
   {
     href: '/edi',
     icon: '🗂',
