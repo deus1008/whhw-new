@@ -381,11 +381,14 @@ export default function ContractsClient({
   userId:    string;
 }) {
   const [contracts, setContracts] = useState<ContractRow[]>(initialContracts);
-  const [showForm, setShowForm]   = useState(false);
+  const [showForm, setShowForm]     = useState(false);
   const [editTarget, setEditTarget] = useState<ContractRow | null>(null);
-  const [search, setSearch]         = useState('');
+  const [inputValue, setInputValue] = useState('');   // 입력 중인 텍스트
+  const [search, setSearch]         = useState('');   // 실제 적용된 검색어 (버튼/엔터 시 반영)
   const [activeTab, setActiveTab]   = useState<'전체' | '올해' | '이번달' | '유효중'>('전체');
   const [deleting, setDeleting]     = useState<string | null>(null);
+
+  function applySearch() { setSearch(inputValue.trim()); }
 
   /* 오늘 날짜 (KST) */
   const today = (() => {
@@ -461,40 +464,60 @@ export default function ContractsClient({
     <div style={{ marginTop: '1rem' }}>
 
       {/* ── 카운트 카드 ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', marginBottom: '0.75rem' }}>
-        {(['전체', '올해', '이번달', '유효중'] as const).map(tab => {
+      <div className="visit-stats-grid">
+        {([
+          { tab: '전체',   color: '#c084fc', rgba: 'rgba(162,89,255,' },
+          { tab: '올해',   color: '#93c5fd', rgba: 'rgba(59,130,246,'  },
+          { tab: '이번달', color: '#86efac', rgba: 'rgba(34,197,94,'   },
+          { tab: '유효중', color: '#fde68a', rgba: 'rgba(251,191,36,'  },
+        ] as const).map(({ tab, color, rgba }) => {
           const active = activeTab === tab;
           return (
             <button key={tab} onClick={() => setActiveTab(tab)} style={{
-              background: active ? 'rgba(99,102,241,0.25)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${active ? 'rgba(99,102,241,0.6)' : 'rgba(255,255,255,0.08)'}`,
-              borderRadius: '12px', padding: '0.7rem 0.4rem',
-              cursor: 'pointer', textAlign: 'center' as const,
-              transition: 'all 0.15s',
+              ...statCard,
+              background: active ? `${rgba}0.18)` : `${rgba}0.07)`,
+              border: `1px solid ${active ? `${rgba}0.55)` : `${rgba}0.22)`}`,
+              cursor: 'pointer',
+              outline: 'none',
             }}>
-              <div style={{ fontSize: '1.3rem', fontWeight: 700, color: active ? '#a5b4fc' : '#fff', lineHeight: 1 }}>
+              <span style={{ fontSize: '1.6rem', fontWeight: 700, color, lineHeight: 1 }}>
                 {counts[tab]}
-              </div>
-              <div style={{ fontSize: '0.68rem', color: active ? '#a5b4fc' : 'var(--text-muted)', marginTop: '0.25rem' }}>
+              </span>
+              <span style={{ fontSize: '0.72rem', color: active ? color : 'var(--text-muted)', marginTop: '0.2rem' }}>
                 {tab}
-              </div>
+              </span>
             </button>
           );
         })}
       </div>
 
-      {/* ── 검색 + 등록 버튼 ── */}
-      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}>
-        <input
-          style={{ ...INPUT_STYLE, flex: 1 }}
-          placeholder="🔍  업체명 · 담당자 · 병원 · 비고 검색"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <button style={{ ...BTN_PRIMARY, whiteSpace: 'nowrap' as const, flexShrink: 0 }}
-          onClick={() => { setEditTarget(null); setShowForm(true); }}>
-          + 신규 등록
-        </button>
+      {/* ── 검색 바 ── */}
+      <div className="auth-card" style={{ marginBottom: '1rem', padding: '0.9rem 1rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            style={{ ...inputStyle, flex: 1, marginBottom: 0 }}
+            placeholder="🔍  업체명 · 담당자 · 병원 · 비고 검색"
+            value={inputValue}
+            onChange={e => setInputValue(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && applySearch()}
+          />
+          <button style={{ ...primaryBtn, flexShrink: 0 }} onClick={applySearch}>
+            검색
+          </button>
+          <button style={{ ...primaryBtn, flexShrink: 0 }}
+            onClick={() => { setEditTarget(null); setShowForm(true); }}>
+            + 신규 등록
+          </button>
+        </div>
+        {search && (
+          <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            <span style={{ color: '#a5b4fc' }}>"{search}"</span> 검색 중
+            <button onClick={() => { setSearch(''); setInputValue(''); }}
+              style={{ marginLeft: '0.5rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.75rem' }}>
+              ✕ 초기화
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── 건수 ── */}
@@ -535,3 +558,24 @@ export default function ContractsClient({
     </div>
   );
 }
+
+/* ── 공유 스타일 상수 (VisitsClient와 동일) ── */
+const statCard: React.CSSProperties = {
+  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+  padding: '0.9rem 0.5rem', borderRadius: '14px', gap: '0.2rem',
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px',
+  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+  color: 'var(--text-primary)', fontSize: '16px', fontFamily: 'inherit',
+  outline: 'none', boxSizing: 'border-box', minHeight: '44px',
+};
+
+const primaryBtn: React.CSSProperties = {
+  padding: '0.62rem 1.2rem', borderRadius: '10px', border: 'none', fontFamily: 'inherit',
+  background: 'linear-gradient(135deg, var(--accent-1), var(--accent-2))',
+  color: '#fff', fontSize: '0.92rem', fontWeight: 600, cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: '0.4rem', minHeight: '44px',
+  whiteSpace: 'nowrap',
+};
