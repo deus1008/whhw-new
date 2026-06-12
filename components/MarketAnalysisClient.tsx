@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import {
   findUbistIngredientOptions,
   searchUbistByIngredients,
@@ -9,6 +9,35 @@ import {
   type UbistSearchItem,
   type UbistProductAnalysis,
 } from '@/app/market-analysis/actions';
+
+/* ── URL 상태 동기화 유틸 ── */
+function readUrlParams() {
+  if (typeof window === 'undefined') return null;
+  const p = new URLSearchParams(window.location.search);
+  return {
+    q:      p.get('q') ?? '',
+    ingrs:  p.getAll('ingr'),
+    prods:  p.getAll('prod'),
+    period: p.get('period') !== null ? Number(p.get('period')) : null,
+    hosps:  p.getAll('hosp'),
+  };
+}
+
+function writeUrlParams(params: {
+  q: string;
+  ingrs: string[];
+  prods: string[];
+  period: number;
+  hosps: string[];   // empty = 전체
+}) {
+  const p = new URLSearchParams();
+  if (params.q) p.set('q', params.q);
+  params.ingrs.forEach(v => p.append('ingr', v));
+  params.prods.forEach(v => p.append('prod', v));
+  p.set('period', String(params.period));
+  params.hosps.forEach(v => p.append('hosp', v));
+  window.history.replaceState(null, '', `?${p.toString()}`);
+}
 
 /* ── 스타일 상수 ─────────────────────────────────────────────── */
 const inputStyle: React.CSSProperties = {
@@ -172,6 +201,50 @@ export default function MarketAnalysisClient() {
   const [error,          setError]          = useState('');
   const [periodLimit,    setPeriodLimit]    = useState(12);
   const [selectedHosp,   setSelectedHosp]  = useState<Set<HospType>>(new Set(ALL_HOSP_TYPES));
+
+  /* ── URL → 상태 복원 (마운트 1회) ── */
+  useEffect(() => {
+    const saved = readUrlParams();
+    if (!saved || !saved.q) return;
+
+    setInputVal(saved.q);
+    setQuery(saved.q);
+    if (saved.period !== null) setPeriodLimit(saved.period);
+    if (saved.hosps.length > 0 && saved.hosps.length < ALL_HOSP_TYPES.length) {
+      setSelectedHosp(new Set(saved.hosps as HospType[]));
+    }
+
+    (async () => {
+      const opts = await findUbistIngredientOptions(saved.q);
+      setIngredientOptions(opts);
+
+      if (saved.ingrs.length === 0) return;
+      setSelectedIngr(new Set(saved.ingrs));
+
+      const items = await searchUbistByIngredients(saved.ingrs);
+      setResults(items);
+
+      if (saved.prods.length === 0) return;
+      setSelected(new Set(saved.prods));
+
+      const hospFilter = saved.hosps.length > 0 && saved.hosps.length < ALL_HOSP_TYPES.length
+        ? saved.hosps : [];
+      const data = await analyzeUbistItems(saved.prods, hospFilter);
+      setAnalysis(data);
+    })();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── 상태 → URL 동기화 ── */
+  useEffect(() => {
+    if (!query) return;
+    writeUrlParams({
+      q:      query,
+      ingrs:  Array.from(selectedIngr),
+      prods:  Array.from(selected),
+      period: periodLimit,
+      hosps:  selectedHosp.size < ALL_HOSP_TYPES.length ? Array.from(selectedHosp) : [],
+    });
+  }, [query, selectedIngr, selected, periodLimit, selectedHosp]);
 
   /* ── 1단계: 성분명 후보 검색 ── */
   function handleSearch() {
