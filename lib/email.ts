@@ -1,7 +1,4 @@
-import { Resend } from 'resend';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM   = process.env.RESEND_FROM_EMAIL ?? 'noreply@whhw.co.kr';
+import nodemailer from 'nodemailer';
 
 const STATUS_KO: Record<string, string> = {
   '접수':  '접수됨',
@@ -9,12 +6,22 @@ const STATUS_KO: Record<string, string> = {
   '완료':  '처리 완료',
 };
 
+function createTransporter() {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
+}
+
 export async function sendErrorReportReply(opts: {
-  to:           string;
-  reportTitle:  string;
+  to:            string;
+  reportTitle:   string;
   reportContent: string;
-  status:       string;
-  adminComment: string;
+  status:        string;
+  adminComment:  string;
 }): Promise<boolean> {
   const { to, reportTitle, reportContent, status, adminComment } = opts;
   const statusLabel = STATUS_KO[status] ?? status;
@@ -77,13 +84,13 @@ export async function sendErrorReportReply(opts: {
 </html>`;
 
   try {
-    const { error } = await resend.emails.send({
-      from:    FROM,
+    const transporter = createTransporter();
+    await transporter.sendMail({
+      from:    `"CSO Biz." <${process.env.GMAIL_USER}>`,
       to,
       subject: `[CSO Biz] 오류 신고 처리 결과: ${reportTitle}`,
       html,
     });
-    if (error) { console.error('[sendErrorReportReply]', error); return false; }
     return true;
   } catch (e) {
     console.error('[sendErrorReportReply] exception:', e);
