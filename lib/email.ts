@@ -83,6 +83,11 @@ export async function sendErrorReportReply(opts: {
 </body>
 </html>`;
 
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.error('[sendErrorReportReply] GMAIL_USER 또는 GMAIL_APP_PASSWORD 환경변수 없음');
+    return false;
+  }
+
   try {
     const transporter = createTransporter();
     await transporter.sendMail({
@@ -92,8 +97,9 @@ export async function sendErrorReportReply(opts: {
       html,
     });
     return true;
-  } catch (e) {
-    console.error('[sendErrorReportReply] exception:', e);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('[sendErrorReportReply] 발송 실패:', msg);
     return false;
   }
 }
