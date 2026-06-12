@@ -489,20 +489,20 @@ export default function MarketAnalysisClient() {
             ))}
           </div>
 
-          {/* 기간별 피벗 테이블 */}
+          {/* 기간별 피벗 테이블 — 행: 기간, 열: 제품 */}
           {(() => {
-            // 열합계: 기간별 전체 합산
-            const colTotals = displayPeriods.map(p =>
-              sortedAnalysis.reduce((s, prod) => {
-                const pm = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
-                return s + (pm[p] ?? 0);
-              }, 0)
+            // 제품별 periodMap 미리 계산
+            const prodMaps = sortedAnalysis.map(prod =>
+              Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]))
             );
-            // 행합계: 표시 기간 내 제품별 합산
-            const rowTotals = sortedAnalysis.map(prod => {
-              const pm = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
-              return displayPeriods.reduce((s, p) => s + (pm[p] ?? 0), 0);
-            });
+            // 열합계: 제품별 표시기간 합산
+            const colTotals = sortedAnalysis.map((_, i) =>
+              displayPeriods.reduce((s, p) => s + (prodMaps[i][p] ?? 0), 0)
+            );
+            // 행합계: 기간별 전체 제품 합산
+            const rowTotals = displayPeriods.map(p =>
+              sortedAnalysis.reduce((s, _, i) => s + (prodMaps[i][p] ?? 0), 0)
+            );
             const grandTotal = colTotals.reduce((s, v) => s + v, 0);
 
             return (
@@ -510,45 +510,46 @@ export default function MarketAnalysisClient() {
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 600 }}>
                   기간별 처방액 (백만원)
                 </p>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', minWidth: 300 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
                   <thead>
                     <tr>
-                      <th style={TH_L}>제품명</th>
-                      <th style={TH_L}>판매사</th>
-                      {displayPeriods.map(p => (
-                        <th key={p} style={TH_R}>{p}</th>
+                      <th style={TH_L}>기간</th>
+                      {sortedAnalysis.map((prod, i) => (
+                        <th key={prod.product_name} style={TH_R}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <span style={{ width: 7, height: 7, borderRadius: 2, background: PRODUCT_COLORS[i % PRODUCT_COLORS.length], flexShrink: 0, display: 'inline-block' }} />
+                            {prod.product_name}
+                          </span>
+                          {prod.manufacturer && (
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+                              {prod.manufacturer}
+                            </div>
+                          )}
+                        </th>
                       ))}
                       <th style={{ ...TH_R, color: '#fde68a' }}>합계</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {sortedAnalysis.map((prod, i) => {
-                      const color     = PRODUCT_COLORS[i % PRODUCT_COLORS.length];
-                      const periodMap = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
-                      return (
-                        <tr key={prod.product_name} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                          <td style={{ ...TD_L, color }}>
-                            <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2, background: color, marginRight: 5 }} />
-                            {prod.product_name}
+                    {displayPeriods.map((p, pi) => (
+                      <tr key={p} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ ...TD_L, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{p}</td>
+                        {sortedAnalysis.map((_, i) => (
+                          <td key={i} style={TD_R}>
+                            {prodMaps[i][p] != null ? fmt백만(prodMaps[i][p]) : '-'}
                           </td>
-                          <td style={{ ...TD_L, color: 'var(--text-muted)' }}>{prod.manufacturer ?? '-'}</td>
-                          {displayPeriods.map(p => (
-                            <td key={p} style={TD_R}>
-                              {periodMap[p] != null ? fmt백만(periodMap[p]) : '-'}
-                            </td>
-                          ))}
-                          <td style={{ ...TD_R, fontWeight: 700, color: '#fde68a' }}>
-                            {fmt백만(rowTotals[i])}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                        ))}
+                        <td style={{ ...TD_R, fontWeight: 700, color: '#fde68a' }}>
+                          {fmt백만(rowTotals[pi])}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-                      <td colSpan={2} style={{ ...TD_L, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>합계</td>
+                      <td style={{ ...TD_L, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>합계</td>
                       {colTotals.map((v, i) => (
-                        <td key={displayPeriods[i]} style={{ ...TD_R, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>
+                        <td key={i} style={{ ...TD_R, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>
                           {fmt백만(v)}
                         </td>
                       ))}
