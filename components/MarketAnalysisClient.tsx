@@ -251,17 +251,26 @@ export default function MarketAnalysisClient() {
     ? allPeriods
     : allPeriods.slice(-periodLimit);
 
-  /* ── 꺾은선 차트 데이터 (월별 × 제품별) ── */
-  const lineProducts = analysis
-    ? analysis.map((prod, i) => {
-        const periodMap = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
-        return {
-          name:   prod.product_name,
-          color:  PRODUCT_COLORS[i % PRODUCT_COLORS.length],
-          values: displayPeriods.map(p => periodMap[p] ?? null),
+  /* ── 합계 기준 내림차순 정렬 ── */
+  const sortedAnalysis = analysis
+    ? [...analysis].sort((a, b) => {
+        const sum = (prod: typeof a) => {
+          const pm = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
+          return displayPeriods.reduce((s, p) => s + (pm[p] ?? 0), 0);
         };
+        return sum(b) - sum(a);
       })
     : [];
+
+  /* ── 꺾은선 차트 데이터 (월별 × 제품별) ── */
+  const lineProducts = sortedAnalysis.map((prod, i) => {
+    const periodMap = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
+    return {
+      name:   prod.product_name,
+      color:  PRODUCT_COLORS[i % PRODUCT_COLORS.length],
+      values: displayPeriods.map(p => periodMap[p] ?? null),
+    };
+  });
 
   return (
     <div>
@@ -441,7 +450,7 @@ export default function MarketAnalysisClient() {
 
           {/* 범례 */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '1rem' }}>
-            {analysis.map((p, i) => (
+            {sortedAnalysis.map((p, i) => (
               <span key={p.product_name} style={{
                 display: 'flex', alignItems: 'center', gap: '0.3rem',
                 fontSize: '0.72rem', color: 'rgba(255,255,255,0.7)',
@@ -459,13 +468,13 @@ export default function MarketAnalysisClient() {
           {(() => {
             // 열합계: 기간별 전체 합산
             const colTotals = displayPeriods.map(p =>
-              analysis.reduce((s, prod) => {
+              sortedAnalysis.reduce((s, prod) => {
                 const pm = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
                 return s + (pm[p] ?? 0);
               }, 0)
             );
             // 행합계: 표시 기간 내 제품별 합산
-            const rowTotals = analysis.map(prod => {
+            const rowTotals = sortedAnalysis.map(prod => {
               const pm = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
               return displayPeriods.reduce((s, p) => s + (pm[p] ?? 0), 0);
             });
@@ -488,7 +497,7 @@ export default function MarketAnalysisClient() {
                     </tr>
                   </thead>
                   <tbody>
-                    {analysis.map((prod, i) => {
+                    {sortedAnalysis.map((prod, i) => {
                       const color     = PRODUCT_COLORS[i % PRODUCT_COLORS.length];
                       const periodMap = Object.fromEntries(prod.periods.map(r => [r.period, r.total_amount]));
                       return (
