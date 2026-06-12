@@ -221,15 +221,23 @@ export default function MarketAnalysisClient() {
   /* ── 종별 토글 ── */
   function toggleHosp(t: HospType) {
     setSelectedHosp(prev => {
+      // 전체 선택 상태에서 개별 항목 클릭 → 해당 항목만 선택
+      if (prev.size === ALL_HOSP_TYPES.length) return new Set([t]);
       const next = new Set(prev);
-      if (next.has(t)) next.delete(t); else next.add(t);
+      if (next.has(t)) {
+        next.delete(t);
+        // 마지막 항목 해제 시 전체 선택으로 복귀
+        if (next.size === 0) return new Set(ALL_HOSP_TYPES);
+      } else {
+        next.add(t);
+        // 모두 선택되면 전체 선택 상태로 복귀
+        if (next.size === ALL_HOSP_TYPES.length) return new Set(ALL_HOSP_TYPES);
+      }
       return next;
     });
   }
   function toggleAllHosp() {
-    setSelectedHosp(prev =>
-      prev.size === ALL_HOSP_TYPES.length ? new Set() : new Set(ALL_HOSP_TYPES)
-    );
+    setSelectedHosp(new Set(ALL_HOSP_TYPES));
   }
 
   /* ── 전체 기간 수집 ── */
