@@ -231,6 +231,12 @@ export default function Home() {
   const [errorBadge, setErrorBadge]   = useState(0);
   const [adminBadge, setAdminBadge]   = useState(0);
 
+  // 아이콘 배치 편집
+  const [editMode,   setEditMode]   = useState(false);
+  const [itemOrder,  setItemOrder]  = useState<string[]>([]);
+  const [dragging,   setDragging]   = useState<string | null>(null);
+  const [dragTarget, setDragTarget] = useState<string | null>(null);
+
   /* ── 인증 상태 감지 ─────────────────────────────────────── */
   useEffect(() => {
     const supabase = createClient();
@@ -273,6 +279,51 @@ export default function Home() {
     // router.push는 Next.js 클라이언트 캐시를 통해 이동하므로
     // 이전 redirect 결과가 캐싱될 수 있음 → window.location으로 완전 새 요청
     window.location.href = href;
+  }
+
+  /* ── 아이콘 순서 localStorage 복원 ── */
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('whhw-nav-order');
+      if (saved) setItemOrder(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  /* ── 편집 모드 순서 계산 ── */
+  const visibleItems = NAV_ITEMS.filter(item => !item.adminOnly || isAdmin);
+  const orderedItems = itemOrder.length
+    ? [
+        ...itemOrder
+          .map(l => visibleItems.find(i => i.label === l))
+          .filter(Boolean) as NavItem[],
+        ...visibleItems.filter(i => !itemOrder.includes(i.label)),
+      ]
+    : visibleItems;
+
+  function saveOrder(items: NavItem[]) {
+    const labels = items.map(i => i.label);
+    setItemOrder(labels);
+    localStorage.setItem('whhw-nav-order', JSON.stringify(labels));
+  }
+
+  function onDragStart(label: string) { setDragging(label); }
+  function onDragEnd()                { setDragging(null); setDragTarget(null); }
+
+  function onDragOver(e: React.DragEvent, label: string) {
+    e.preventDefault();
+    if (label !== dragging) setDragTarget(label);
+  }
+
+  function onDrop(toLabel: string) {
+    if (!dragging || dragging === toLabel) { setDragging(null); setDragTarget(null); return; }
+    const from = orderedItems.findIndex(i => i.label === dragging);
+    const to   = orderedItems.findIndex(i => i.label === toLabel);
+    const next = [...orderedItems];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    saveOrder(next);
+    setDragging(null);
+    setDragTarget(null);
   }
 
   function showToast(msg: string) {
@@ -341,16 +392,24 @@ export default function Home() {
         {/* 페이지 바로가기 아이콘 */}
         <div style={{
           display: 'flex', justifyContent: 'center', gap: '0.75rem',
-          flexWrap: 'wrap', margin: '1.4rem 0 0.4rem',
+          flexWrap: 'wrap', margin: '1.4rem 0 0',
         }}>
-          {NAV_ITEMS.filter(item => !item.adminOnly || isAdmin).map(({ href, icon, label, color, bg, bd, external, action }) => {
+          {orderedItems.map(({ href, icon, label, color, bg, bd, external, action }) => {
             const badge =
               (label === '오류신고함' && errorBadge > 0) ? errorBadge :
               (label === '관리자'    && adminBadge  > 0) ? adminBadge  : 0;
+            const isDragging = dragging === label;
+            const isTarget   = dragTarget === label;
             return (
               <button
                 key={label}
+                draggable={editMode}
+                onDragStart={() => onDragStart(label)}
+                onDragEnd={onDragEnd}
+                onDragOver={e => editMode && onDragOver(e, label)}
+                onDrop={() => editMode && onDrop(label)}
                 onClick={() => {
+                  if (editMode) return;
                   if (action === 'error-modal') {
                     if (!isLoggedIn) { showToast('로그인이 필요한 페이지입니다.\n우측 상단의 로그인 버튼을 눌러주세요.'); return; }
                     setShowErrorModal(true);
@@ -363,23 +422,39 @@ export default function Home() {
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.45rem',
                   padding: '1rem 1.1rem',
                   borderRadius: '16px',
-                  background: bg,
-                  border: `1px solid ${bd}`,
+                  background: isTarget ? 'rgba(99,102,241,0.25)' : bg,
+                  border: isTarget
+                    ? '2px dashed rgba(99,102,241,0.8)'
+                    : editMode
+                      ? `1px dashed ${bd}`
+                      : `1px solid ${bd}`,
                   minWidth: '68px',
                   minHeight: '80px',
-                  cursor: 'pointer',
-                  transition: 'transform 0.15s, box-shadow 0.15s',
+                  cursor: editMode ? 'grab' : 'pointer',
+                  transition: 'transform 0.15s, box-shadow 0.15s, opacity 0.15s',
                   fontFamily: 'inherit',
+                  opacity: isDragging ? 0.35 : 1,
+                  userSelect: 'none',
                 }}
                 onMouseEnter={e => {
+                  if (editMode) return;
                   e.currentTarget.style.transform = 'translateY(-3px)';
                   e.currentTarget.style.boxShadow = `0 8px 24px ${bd}`;
                 }}
                 onMouseLeave={e => {
+                  if (editMode) return;
                   e.currentTarget.style.transform = '';
                   e.currentTarget.style.boxShadow = '';
                 }}
               >
+                {/* 드래그 핸들 (편집 모드) */}
+                {editMode && (
+                  <span style={{
+                    position: 'absolute', top: '4px', right: '5px',
+                    fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)',
+                    lineHeight: 1, pointerEvents: 'none',
+                  }}>⠿</span>
+                )}
                 {/* 신규 접수 뱃지 */}
                 {badge > 0 && (
                   <span style={{
@@ -403,6 +478,29 @@ export default function Home() {
             );
           })}
         </div>
+
+        {/* 아이콘 편집 토글 */}
+        {isLoggedIn && (
+          <div style={{ textAlign: 'center', marginTop: '0.75rem' }}>
+            <button
+              onClick={() => setEditMode(m => !m)}
+              style={{
+                padding: '0.22rem 0.8rem', borderRadius: '20px',
+                border: editMode
+                  ? '1px solid rgba(99,102,241,0.5)'
+                  : '1px solid rgba(255,255,255,0.1)',
+                background: editMode
+                  ? 'rgba(99,102,241,0.18)'
+                  : 'rgba(255,255,255,0.04)',
+                color: editMode ? '#a5b4fc' : 'rgba(255,255,255,0.3)',
+                fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'all 0.15s',
+              }}
+            >
+              {editMode ? '✓ 편집 완료' : '⠿ 아이콘 배치'}
+            </button>
+          </div>
+        )}
 
         {/* 비로그인 토스트 메시지 */}
         <div style={{
