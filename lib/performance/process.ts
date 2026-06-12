@@ -25,6 +25,8 @@ export interface PerfData {
   totalDiffPct: number;
   sogeupAmount: number;
   prescriptionCount: number;
+  clinicPrescriptionCount?: number;
+  hospitalPrescriptionCount?: number;
   staffStats: StaffStat[];
   topIncreased: ItemStat[];
   topDecreased: ItemStat[];
@@ -34,6 +36,11 @@ export interface PerfData {
 }
 
 /* ── 유틸 ──────────────────────────────────────────────────── */
+function isClinicHospType(type: string): boolean {
+  const v = type.trim();
+  return v === '의원' || v.endsWith('의원');
+}
+
 function excelDateToYM(serial: number): string {
   const d = new Date(Math.round((serial - 25569) * 86400 * 1000));
   return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0');
@@ -121,6 +128,12 @@ export function processRaw(
     totalDiffPct: totalPrev ? (totalCurrent - totalPrev) / totalPrev : 0,
     sogeupAmount: sumAmt(sogeupRows),
     prescriptionCount: new Set(curRows.map(r => r['처방처코드'])).size,
+    clinicPrescriptionCount: new Set(
+      curRows.filter(r => isClinicHospType(String(r['병원구분'] ?? ''))).map(r => r['처방처코드']),
+    ).size,
+    hospitalPrescriptionCount: new Set(
+      curRows.filter(r => !isClinicHospType(String(r['병원구분'] ?? ''))).map(r => r['처방처코드']),
+    ).size,
     staffStats,
     topIncreased,
     topDecreased,

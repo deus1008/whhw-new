@@ -629,7 +629,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                           <td className="right">{n > 0 ? Math.round(th / n).toLocaleString() : '-'}</td>
                           <td className="right">{n > 0 ? fmtWon(Math.round(tp / n)) : '-'}</td>
                           <td className="right">{n > 0 ? fmtWon(Math.round(ts / n)) : '-'}</td>
-                          <td className="right muted">-</td>
+                          <td className="right" style={{ color: '#a8c4ff' }}>{n > 0 && tp > 0 ? fmtRate(Math.round(ts / tp * 1000) / 10) : '-'}</td>
                         </tr>
                       </>
                     );
@@ -637,67 +637,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </tbody>
               </table>
             </div>
-          </>
-        )}
-      </Section>
-
-      {/* ══════════════════════════════════════════════════════════
-          섹션 3: 처방처현황 (병원 / 의원)
-      ══════════════════════════════════════════════════════════ */}
-      <Section title="🏥 처방처현황" id="s3">
-        {noSett ? (
-          <Empty msg="수수료정산 파일을 업로드하면 자동 집계됩니다." />
-        ) : (
-          <>
-            {/* 3-A: 병원/의원 구분 월별 집계 */}
-            <SubTitle>▸ 병원·의원 처방처수·처방액 변동 (3개월)</SubTitle>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="dash-table">
-                <thead>
-                  <tr>
-                    <th>월</th>
-                    <th className="right">전체</th>
-                    <th className="right">병원</th>
-                    <th className="right">의원</th>
-                    <th className="right">처방품목수</th>
-                    <th className="right">병원 처방액</th>
-                    <th className="right">의원 처방액</th>
-                    <th className="right">전월대비(전체)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {prescriptionMonthly.map((r, i) => (
-                    <tr key={r.month}>
-                      <td className="muted">{fmtPeriod(r.month)}</td>
-                      <td className="right bold">{r.hospCount.toLocaleString()}</td>
-                      <td className="right" style={{ color: '#a5b4fc', fontSize: '0.82rem' }}>{r.hospitalCount.toLocaleString()}</td>
-                      <td className="right" style={{ color: '#6ee7b7', fontSize: '0.82rem' }}>{r.clinicCount.toLocaleString()}</td>
-                      <td className="right">{r.productCount.toLocaleString()}</td>
-                      <td className="right" style={{ fontSize: '0.80rem' }}>{fmtWon(r.hospitalPrescAmt, true)}</td>
-                      <td className="right" style={{ fontSize: '0.80rem' }}>{fmtWon(r.clinicPrescAmt, true)}</td>
-                      <td className="right"><DeltaAmt cur={r.totalPrescAmt} prev={prescriptionMonthly[i - 1]?.totalPrescAmt} /></td>
-                    </tr>
-                  ))}
-                  {/* 합계 */}
-                  {prescriptionMonthly.length > 0 && (() => {
-                    const last = prescriptionMonthly[prescriptionMonthly.length - 1];
-                    return (
-                      <tr className="total-row">
-                        <td>{fmtPeriod(last.month)} 기준</td>
-                        <td className="right">{last.hospCount.toLocaleString()}</td>
-                        <td className="right" style={{ color: '#a5b4fc' }}>{last.hospitalCount.toLocaleString()}</td>
-                        <td className="right" style={{ color: '#6ee7b7' }}>{last.clinicCount.toLocaleString()}</td>
-                        <td className="right">{last.productCount.toLocaleString()}</td>
-                        <td className="right">{fmtWon(last.hospitalPrescAmt)}</td>
-                        <td className="right">{fmtWon(last.clinicPrescAmt)}</td>
-                        <td className="right" style={{ color: '#a8c4ff' }}>{fmtWon(last.totalPrescAmt)}</td>
-                      </tr>
-                    );
-                  })()}
-                </tbody>
-              </table>
-            </div>
-
           </>
         )}
       </Section>

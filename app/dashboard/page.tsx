@@ -7,6 +7,7 @@ import DashboardClient from '@/components/DashboardClient';
 import type { DashboardData } from '@/components/DashboardClient';
 import { parseInventoryBuffer } from '@/lib/inventory/parse';
 import type { StockAlertItem } from '@/lib/inventory/parse';
+import { getPerformanceData } from '@/app/performance/actions';
 
 // ① ISR: 30분마다 자동 갱신
 export const revalidate = 1800;
@@ -118,7 +119,9 @@ export default async function DashboardPage() {
     }
   }
 
-  // ── B. 나머지 쿼리 병렬 실행 ─────────────────────────────────────────────
+  // ── B. 나머지 쿼리 병렬 실행 (마감분석 데이터도 함께 병렬 시작) ───────────────
+  const perfDataPromise = getPerformanceData();
+
   const [
     { data: custRows },
     { data: visitRows },
@@ -194,6 +197,19 @@ export default async function DashboardPage() {
     }
   }
 
+  // ── B-3. 마감분석 처방처수 맵 빌드 (기간 "YYYY.MM" → "YYYY-MM" 변환) ────────
+  const perfResult = await perfDataPromise;
+  type PerfCount = { total: number; clinic?: number; hospital?: number };
+  const perfMap: Record<string, PerfCount> = {};
+  for (const report of (perfResult?.reports ?? [])) {
+    const period = report.period.replace('.', '-'); // "2026.05" → "2026-05"
+    perfMap[period] = {
+      total:    report.data.prescriptionCount,
+      clinic:   report.data.clinicPrescriptionCount,
+      hospital: report.data.hospitalPrescriptionCount,
+    };
+  }
+
   // ── C. Settlement 데이터 가공 ─────────────────────────────────────────────
   const normSett = allSett.map(r => ({
     ...r,
@@ -251,11 +267,12 @@ export default async function DashboardPage() {
     const clH     = new Set(clRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
     const hsH     = new Set(hsRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
     const prods   = new Set(rows.filter(r => r.product_name).map(r => r.product_name!));
+    const perf    = perfMap[month];
     return {
       month,
-      hospCount:        allH.size,
-      clinicCount:      clH.size,
-      hospitalCount:    hsH.size,
+      hospCount:        perf?.total    ?? allH.size,
+      clinicCount:      perf?.clinic   ?? clH.size,
+      hospitalCount:    perf?.hospital ?? hsH.size,
       productCount:     prods.size,
       totalPrescAmt:    rows.reduce((s, r)   => s + (r.prescription_amount ?? 0), 0),
       clinicPrescAmt:   clRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
@@ -355,11 +372,12 @@ export default async function DashboardPage() {
     const allP    = new Set(rows.filter(r => r.product_name).map(r => r.product_name!));
     const clP     = new Set(clRows.filter(r => r.product_name).map(r => r.product_name!));
     const hsP     = new Set(hsRows.filter(r => r.product_name).map(r => r.product_name!));
+    const perf    = perfMap[month];
     return {
       month,
-      hospCount:            allH.size,
-      clinicCount:          clH.size,
-      hospitalCount:        hsH.size,
+      hospCount:            perf?.total    ?? allH.size,
+      clinicCount:          perf?.clinic   ?? clH.size,
+      hospitalCount:        perf?.hospital ?? hsH.size,
       productCount:         allP.size,
       clinicProductCount:   clP.size,
       hospitalProductCount: hsP.size,
