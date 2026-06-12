@@ -320,12 +320,11 @@ export default function MarketAnalysisClient() {
             </div>
           </div>
 
-          {/* 결과 목록 — 일부 선택 시 선택 항목만 표시 */}
+          {/* 결과 목록 — 선택 항목 상단 고정, 미선택 항목 하단 */}
           {(() => {
-            const isPartial = selected.size > 0 && selected.size < results.length;
-            const visibleResults = isPartial
-              ? results.filter(r => selected.has(r.product_name))
-              : results;
+            const selectedItems   = results.filter(r =>  selected.has(r.product_name));
+            const unselectedItems = results.filter(r => !selected.has(r.product_name));
+            const visibleResults  = [...selectedItems, ...unselectedItems];
             return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '320px', overflowY: 'auto' }}>
             {visibleResults.map(item => (
