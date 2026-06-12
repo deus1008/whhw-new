@@ -3,6 +3,7 @@
 import { createClient as createSvc } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { sendErrorReportReply } from '@/lib/email';
 
 function svc() {
   return createSvc(
@@ -68,10 +69,18 @@ export async function getErrorReports(): Promise<ErrorReport[]> {
 /* ── 상태/조치결과 업데이트 (관리자) ─────────────── */
 export async function updateErrorReport(
   formData: FormData,
-): Promise<{ error?: string }> {
+): Promise<{ error?: string; emailSent?: boolean }> {
   const id            = formData.get('id')            as string;
   const status        = formData.get('status')        as string;
   const admin_comment = (formData.get('admin_comment') as string)?.trim() || null;
+  const sendEmail     = formData.get('send_email') === '1';
+
+  // 이메일 발송 위해 기존 신고 데이터 조회
+  const { data: report } = await svc()
+    .from('error_reports')
+    .select('title, content, reporter_email')
+    .eq('id', id)
+    .single();
 
   const { error } = await svc()
     .from('error_reports')
@@ -79,8 +88,21 @@ export async function updateErrorReport(
     .eq('id', id);
 
   if (error) return { error: error.message };
+
+  // 이메일 발송: 체크박스 ON + 조치결과 있음 + 수신자 이메일 있음
+  let emailSent = false;
+  if (sendEmail && admin_comment && report?.reporter_email) {
+    emailSent = await sendErrorReportReply({
+      to:            report.reporter_email,
+      reportTitle:   report.title,
+      reportContent: report.content,
+      status,
+      adminComment:  admin_comment,
+    });
+  }
+
   revalidatePath('/errors');
-  return {};
+  return { emailSent };
 }
 
 /* ── 접수 건수 (대시보드 배지용) ─────────────────── */

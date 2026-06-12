@@ -16,10 +16,11 @@ function fmt(iso: string) {
 
 /* ── 개별 신고 카드 ──────────────────────────────── */
 function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r: ErrorReport) => void }) {
-  const [expanded,  setExpanded]  = useState(false);
-  const [editing,   setEditing]   = useState(false);
-  const [pending,   startTrans]   = useTransition();
-  const [err,       setErr]       = useState('');
+  const [expanded,   setExpanded]  = useState(false);
+  const [editing,    setEditing]   = useState(false);
+  const [pending,    startTrans]   = useTransition();
+  const [err,        setErr]       = useState('');
+  const [emailResult, setEmailResult] = useState<'sent' | 'failed' | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const meta = STATUS_META[report.status] ?? STATUS_META['접수'];
 
@@ -28,10 +29,13 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
     if (!formRef.current) return;
     const fd = new FormData(formRef.current);
     setErr('');
+    setEmailResult(null);
     startTrans(async () => {
       const res = await updateErrorReport(fd);
       if (res.error) { setErr(res.error); return; }
-      // optimistic update
+      if (fd.get('send_email') === '1') {
+        setEmailResult(res.emailSent ? 'sent' : 'failed');
+      }
       onUpdated({
         ...report,
         status:        fd.get('status') as ErrorReport['status'],
@@ -156,33 +160,56 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
 
               {err && <p style={{ color: '#fca5a5', fontSize: '0.8rem', margin: 0 }}>⚠ {err}</p>}
 
-              <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                <button type="button" onClick={() => setEditing(false)} style={{
-                  padding: '0.45rem 1rem', borderRadius: '7px', fontSize: '0.82rem',
-                  border: '1px solid rgba(255,255,255,0.1)', background: 'transparent',
-                  color: 'var(--text-muted)', cursor: 'pointer',
-                }}>취소</button>
-                <button type="submit" disabled={pending} style={{
-                  padding: '0.45rem 1.2rem', borderRadius: '7px', fontSize: '0.82rem', fontWeight: 700,
-                  border: '1px solid rgba(74,222,128,0.35)', background: 'rgba(74,222,128,0.15)',
-                  color: '#4ade80', cursor: pending ? 'not-allowed' : 'pointer',
-                }}>
-                  {pending ? '저장 중…' : '✔ 저장'}
-                </button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                {/* 메일 발송 체크박스 */}
+                {report.reporter_email && (
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    <input
+                      type="checkbox"
+                      name="send_email"
+                      value="1"
+                      defaultChecked
+                      style={{ accentColor: '#818cf8', width: 14, height: 14 }}
+                    />
+                    조치결과 메일 발송
+                    <span style={{ color: '#a5b4fc', fontSize: '0.7rem' }}>({report.reporter_email})</span>
+                  </label>
+                )}
+                <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+                  <button type="button" onClick={() => setEditing(false)} style={{
+                    padding: '0.45rem 1rem', borderRadius: '7px', fontSize: '0.82rem',
+                    border: '1px solid rgba(255,255,255,0.1)', background: 'transparent',
+                    color: 'var(--text-muted)', cursor: 'pointer',
+                  }}>취소</button>
+                  <button type="submit" disabled={pending} style={{
+                    padding: '0.45rem 1.2rem', borderRadius: '7px', fontSize: '0.82rem', fontWeight: 700,
+                    border: '1px solid rgba(74,222,128,0.35)', background: 'rgba(74,222,128,0.15)',
+                    color: '#4ade80', cursor: pending ? 'not-allowed' : 'pointer',
+                  }}>
+                    {pending ? '저장 중…' : '✔ 저장'}
+                  </button>
+                </div>
               </div>
             </form>
           ) : (
-            <button
-              onClick={() => setEditing(true)}
-              style={{
-                alignSelf: 'flex-start',
-                padding: '0.4rem 1rem', borderRadius: '7px', fontSize: '0.8rem', fontWeight: 600,
-                border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.1)',
-                color: '#a5b4fc', cursor: 'pointer',
-              }}
-            >
-              ✏️ {report.admin_comment ? '조치결과 수정' : '조치결과 입력'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => { setEditing(true); setEmailResult(null); }}
+                style={{
+                  padding: '0.4rem 1rem', borderRadius: '7px', fontSize: '0.8rem', fontWeight: 600,
+                  border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.1)',
+                  color: '#a5b4fc', cursor: 'pointer',
+                }}
+              >
+                ✏️ {report.admin_comment ? '조치결과 수정' : '조치결과 입력'}
+              </button>
+              {emailResult === 'sent' && (
+                <span style={{ fontSize: '0.75rem', color: '#4ade80' }}>✉ 메일 발송 완료</span>
+              )}
+              {emailResult === 'failed' && (
+                <span style={{ fontSize: '0.75rem', color: '#fca5a5' }}>⚠ 메일 발송 실패 (API 키 확인)</span>
+              )}
+            </div>
           )}
         </div>
       )}
