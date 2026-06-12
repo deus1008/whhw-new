@@ -1004,24 +1004,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           섹션 8: DC현황
       ══════════════════════════════════════════════════════════ */}
       <Section title="🏥 DC현황" id="s8">
-        {/* 단계별 요약 pill */}
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-          {DC_STAGES.map(stage => {
-            const cnt = dcStageCounts[stage] ?? 0;
-            const color = DC_COLORS[stage];
-            return (
-              <div key={stage} style={{
-                display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                padding: '0.28rem 0.85rem', borderRadius: '100px',
-                background: `${color}14`, border: `1px solid ${color}33`,
-              }}>
-                <span style={{ fontSize: '1rem', fontWeight: 700, color, lineHeight: 1 }}>{cnt}</span>
-                <span style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.6)' }}>{stage}</span>
-              </div>
-            );
-          })}
-        </div>
-
         {/* 통합 테이블 */}
         {dcItems.length === 0 ? (
           <Empty msg="DC현황 페이지에서 데이터를 입력하면 표시됩니다." />
