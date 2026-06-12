@@ -369,46 +369,57 @@ export default function MarketAnalysisClient() {
 
       {/* ── Step 2.5: 종별 선택 ── */}
       {searched && results.length > 0 && (
-        <div className="auth-card" style={{ marginBottom: '1rem', padding: '1rem' }}>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.6rem', fontWeight: 600 }}>
-            종별 선택
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-            {/* 전체선택 버튼 */}
-            <button
-              onClick={toggleAllHosp}
-              style={{
-                padding: '0.3rem 0.75rem', borderRadius: '7px', border: 'none',
-                fontSize: '0.78rem', fontFamily: 'inherit', cursor: 'pointer',
-                background: selectedHosp.size === ALL_HOSP_TYPES.length
-                  ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.07)',
-                color: selectedHosp.size === ALL_HOSP_TYPES.length
-                  ? '#a5b4fc' : 'var(--text-muted)',
-                fontWeight: selectedHosp.size === ALL_HOSP_TYPES.length ? 700 : 400,
-                transition: 'all 0.15s',
-              }}
-            >
-              전체선택
-            </button>
-            {ALL_HOSP_TYPES.map(t => {
-              const active = selectedHosp.has(t);
-              return (
-                <button
-                  key={t}
-                  onClick={() => toggleHosp(t)}
-                  style={{
-                    padding: '0.3rem 0.75rem', borderRadius: '7px', border: 'none',
-                    fontSize: '0.78rem', fontFamily: 'inherit', cursor: 'pointer',
-                    background: active ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.07)',
-                    color: active ? '#a5b4fc' : 'var(--text-muted)',
-                    fontWeight: active ? 700 : 400,
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  {t}
-                </button>
-              );
-            })}
+        <div className="auth-card" style={{ marginBottom: '1rem', padding: '0.65rem 1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>
+              종별
+            </span>
+            {/* 전체선택 */}
+            <div style={{
+              display: 'inline-flex',
+              background: 'rgba(255,255,255,0.06)',
+              borderRadius: '8px',
+              padding: '2px',
+              gap: '2px',
+              flexWrap: 'wrap',
+            }}>
+              <button
+                onClick={toggleAllHosp}
+                style={{
+                  padding: '0.18rem 0.55rem', borderRadius: '6px', border: 'none',
+                  fontSize: '0.72rem', fontFamily: 'inherit', cursor: 'pointer',
+                  background: selectedHosp.size === ALL_HOSP_TYPES.length
+                    ? 'rgba(99,102,241,0.45)' : 'transparent',
+                  color: selectedHosp.size === ALL_HOSP_TYPES.length
+                    ? '#c7d2fe' : 'var(--text-muted)',
+                  fontWeight: selectedHosp.size === ALL_HOSP_TYPES.length ? 700 : 400,
+                  transition: 'all 0.12s',
+                }}
+              >
+                전체
+              </button>
+              {ALL_HOSP_TYPES.map(t => {
+                const active = selectedHosp.has(t);
+                return (
+                  <button
+                    key={t}
+                    onClick={() => toggleHosp(t)}
+                    style={{
+                      padding: '0.18rem 0.55rem', borderRadius: '6px', border: 'none',
+                      fontSize: '0.72rem', fontFamily: 'inherit', cursor: 'pointer',
+                      background: active && selectedHosp.size < ALL_HOSP_TYPES.length
+                        ? 'rgba(99,102,241,0.45)' : 'transparent',
+                      color: active && selectedHosp.size < ALL_HOSP_TYPES.length
+                        ? '#c7d2fe' : 'var(--text-muted)',
+                      fontWeight: active && selectedHosp.size < ALL_HOSP_TYPES.length ? 700 : 400,
+                      transition: 'all 0.12s',
+                    }}
+                  >
+                    {t}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -429,8 +440,14 @@ export default function MarketAnalysisClient() {
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, margin: 0 }}>
                 월별 처방액 추이 (백만원)
               </p>
-              {/* 기간 선택 버튼 */}
-              <div style={{ display: 'flex', gap: '0.25rem' }}>
+              {/* 기간 선택 — 세그먼트 컨트롤 */}
+              <div style={{
+                display: 'inline-flex',
+                background: 'rgba(255,255,255,0.06)',
+                borderRadius: '8px',
+                padding: '2px',
+                gap: '2px',
+              }}>
                 {([3, 6, 12, 0] as const).map(n => {
                   const active = periodLimit === n;
                   const label  = n === 0 ? '전체' : `${n}개월`;
@@ -439,12 +456,13 @@ export default function MarketAnalysisClient() {
                       key={n}
                       onClick={() => setPeriodLimit(n)}
                       style={{
-                        padding: '0.25rem 0.6rem', borderRadius: '6px', border: 'none',
-                        fontSize: '0.75rem', fontFamily: 'inherit', cursor: 'pointer',
-                        background: active ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.07)',
-                        color: active ? '#a5b4fc' : 'var(--text-muted)',
+                        padding: '0.18rem 0.55rem', borderRadius: '6px', border: 'none',
+                        fontSize: '0.72rem', fontFamily: 'inherit', cursor: 'pointer',
+                        background: active ? 'rgba(99,102,241,0.45)' : 'transparent',
+                        color: active ? '#c7d2fe' : 'var(--text-muted)',
                         fontWeight: active ? 700 : 400,
-                        transition: 'all 0.15s',
+                        transition: 'all 0.12s',
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {label}
