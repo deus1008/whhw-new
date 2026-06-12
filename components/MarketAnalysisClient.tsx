@@ -320,9 +320,15 @@ export default function MarketAnalysisClient() {
             </div>
           </div>
 
-          {/* 결과 목록 */}
+          {/* 결과 목록 — 일부 선택 시 선택 항목만 표시 */}
+          {(() => {
+            const isPartial = selected.size > 0 && selected.size < results.length;
+            const visibleResults = isPartial
+              ? results.filter(r => selected.has(r.product_name))
+              : results;
+            return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '320px', overflowY: 'auto' }}>
-            {results.map(item => (
+            {visibleResults.map(item => (
               <label key={item.product_name} style={{
                 display: 'flex', alignItems: 'center', gap: '0.6rem',
                 padding: '0.5rem 0.7rem', borderRadius: '8px', cursor: 'pointer',
@@ -356,6 +362,8 @@ export default function MarketAnalysisClient() {
               </label>
             ))}
           </div>
+            );
+          })()}
         </div>
       )}
 
