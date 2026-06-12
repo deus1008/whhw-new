@@ -626,6 +626,15 @@ export default function MarketAnalysisClient() {
                         {fmt백만(grandTotal)}
                       </td>
                     </tr>
+                    <tr style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                      <td style={{ ...TD_L, color: 'var(--text-muted)', fontWeight: 600 }}>점유율</td>
+                      {colTotals.map((v, i) => (
+                        <td key={i} style={{ ...TD_R, color: 'var(--text-muted)' }}>
+                          {grandTotal > 0 ? `${Math.round(v / grandTotal * 100)}%` : '-'}
+                        </td>
+                      ))}
+                      <td style={{ ...TD_R, color: 'var(--text-muted)' }}>100%</td>
+                    </tr>
                   </tfoot>
                 </table>
               </div>
