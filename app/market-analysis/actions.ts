@@ -30,6 +30,68 @@ export type UbistProductAnalysis = {
   grand_count:     number;
 };
 
+export type UbistIngredientOption = {
+  ingredient_name: string;
+  count: number;  // 해당 성분의 고유 제품 수
+};
+
+/** 검색어로 성분명 후보 목록 반환 (성분명·제품명 모두 검색) */
+export async function findUbistIngredientOptions(query: string): Promise<UbistIngredientOption[]> {
+  if (!query.trim()) return [];
+  const q = `%${query.trim()}%`;
+
+  const [r1, r2] = await Promise.all([
+    svc().from('ubist_data').select('ingredient_name, product_name')
+      .ilike('ingredient_name', q).not('ingredient_name', 'is', null).limit(3000),
+    svc().from('ubist_data').select('ingredient_name, product_name')
+      .ilike('product_name', q).not('ingredient_name', 'is', null).limit(3000),
+  ]);
+
+  // 성분명별 고유 제품명 집합
+  const map = new Map<string, Set<string>>();
+  for (const row of [...(r1.data ?? []), ...(r2.data ?? [])]) {
+    const ing  = (row.ingredient_name as string)?.trim();
+    const prod = (row.product_name   as string)?.trim();
+    if (!ing || !prod) continue;
+    if (!map.has(ing)) map.set(ing, new Set());
+    map.get(ing)!.add(prod);
+  }
+
+  return Array.from(map.entries())
+    .sort((a, b) => b[1].size - a[1].size)
+    .slice(0, 40)
+    .map(([ingredient_name, prods]) => ({ ingredient_name, count: prods.size }));
+}
+
+/** 선택된 성분명 목록으로 고유 제품 목록 반환 */
+export async function searchUbistByIngredients(ingredientNames: string[]): Promise<UbistSearchItem[]> {
+  if (!ingredientNames.length) return [];
+
+  const { data } = await svc()
+    .from('ubist_data')
+    .select('product_name, ingredient_name, manufacturer')
+    .in('ingredient_name', ingredientNames)
+    .limit(2000);
+
+  const seen = new Map<string, UbistSearchItem>();
+  for (const row of data ?? []) {
+    const key = (row.product_name ?? '').trim();
+    if (key && !seen.has(key)) {
+      seen.set(key, {
+        product_name:    key,
+        ingredient_name: row.ingredient_name ?? null,
+        manufacturer:    row.manufacturer    ?? null,
+      });
+    }
+  }
+
+  return Array.from(seen.values()).sort((a, b) => {
+    const mfr = (a.manufacturer ?? '').localeCompare(b.manufacturer ?? '', 'ko');
+    if (mfr !== 0) return mfr;
+    return a.product_name.localeCompare(b.product_name, 'ko');
+  });
+}
+
 /** 의약품명/성분명으로 검색 → 고유 제품 목록 반환 */
 export async function searchUbistItems(query: string): Promise<UbistSearchItem[]> {
   if (!query.trim()) return [];

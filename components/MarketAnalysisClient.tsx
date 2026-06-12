@@ -2,8 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import {
-  searchUbistItems,
+  findUbistIngredientOptions,
+  searchUbistByIngredients,
   analyzeUbistItems,
+  type UbistIngredientOption,
   type UbistSearchItem,
   type UbistProductAnalysis,
 } from '@/app/market-analysis/actions';
@@ -154,31 +156,57 @@ const PRODUCT_COLORS = [
 
 /* ── 메인 컴포넌트 ───────────────────────────────────────────── */
 export default function MarketAnalysisClient() {
-  const [query,       setQuery]       = useState('');
-  const [inputVal,    setInputVal]    = useState('');
-  const [results,     setResults]     = useState<UbistSearchItem[]>([]);
-  const [selected,    setSelected]    = useState<Set<string>>(new Set());
+  const [inputVal,          setInputVal]         = useState('');
+  const [query,             setQuery]            = useState('');
+  // 1단계: 성분명 후보
+  const [ingredientOptions, setIngredientOptions] = useState<UbistIngredientOption[]>([]);
+  const [selectedIngr,      setSelectedIngr]     = useState<Set<string>>(new Set());
+  const [isSearching,       startSearchTransition] = useTransition();
+  // 2단계: 품목 목록
+  const [results,           setResults]          = useState<UbistSearchItem[]>([]);
+  const [selected,          setSelected]         = useState<Set<string>>(new Set());
+  const [isLoadingProducts, startProductTransition] = useTransition();
+  // 3단계: 분석
   const [analysis,    setAnalysis]    = useState<UbistProductAnalysis[] | null>(null);
-  const [searched,    setSearched]    = useState(false);
-  const [isPending,   startTransition] = useTransition();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error,          setError]          = useState('');
-  const [periodLimit,    setPeriodLimit]    = useState(12);   // 0 = 전체
+  const [periodLimit,    setPeriodLimit]    = useState(12);
   const [selectedHosp,   setSelectedHosp]  = useState<Set<HospType>>(new Set(ALL_HOSP_TYPES));
 
-  /* ── 검색 ── */
+  /* ── 1단계: 성분명 후보 검색 ── */
   function handleSearch() {
     const q = inputVal.trim();
     if (!q) return;
     setQuery(q);
     setError('');
     setAnalysis(null);
-    startTransition(async () => {
-      const items = await searchUbistItems(q);
-      setResults(items);
-      setSearched(true);
+    setIngredientOptions([]);
+    setSelectedIngr(new Set());
+    setResults([]);
+    setSelected(new Set());
+    startSearchTransition(async () => {
+      const opts = await findUbistIngredientOptions(q);
+      setIngredientOptions(opts);
+      if (opts.length === 0) setError('검색 결과가 없습니다. Ubist 폴더에 데이터를 먼저 업로드해 주세요.');
+    });
+  }
+
+  /* ── 2단계: 성분 선택 → 품목 자동 조회 ── */
+  function toggleIngredient(ing: string) {
+    setSelectedIngr(prev => {
+      const next = new Set(prev);
+      if (next.has(ing)) next.delete(ing); else next.add(ing);
+
       setSelected(new Set());
-      if (items.length === 0) setError('검색 결과가 없습니다. Ubist 폴더에 데이터를 먼저 업로드해 주세요.');
+      setAnalysis(null);
+
+      if (next.size === 0) { setResults([]); return next; }
+
+      startProductTransition(async () => {
+        const items = await searchUbistByIngredients(Array.from(next));
+        setResults(items);
+      });
+      return next;
     });
   }
 
@@ -274,10 +302,10 @@ export default function MarketAnalysisClient() {
 
   return (
     <div>
-      {/* ── Step 1: 검색 ── */}
+      {/* ── Step 1: 검색 + 성분명 칩 ── */}
       <div className="auth-card" style={{ marginBottom: '1rem', padding: '1rem' }}>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
-          의약품명 또는 성분명을 입력한 후 검색하세요.
+          의약품명 또는 성분명을 입력하면 성분 목록이 표시됩니다.
         </p>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <input
@@ -287,18 +315,58 @@ export default function MarketAnalysisClient() {
             onChange={e => setInputVal(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSearch()}
           />
-          <button style={primaryBtn} onClick={handleSearch} disabled={isPending}>
-            {isPending ? '검색 중…' : '검색'}
+          <button style={primaryBtn} onClick={handleSearch} disabled={isSearching}>
+            {isSearching ? '검색 중…' : '검색'}
           </button>
         </div>
+
+        {/* 성분명 후보 칩 목록 */}
+        {ingredientOptions.length > 0 && (
+          <div style={{ marginTop: '0.9rem' }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 600 }}>
+              성분 선택
+              {selectedIngr.size > 0 && (
+                <span style={{ marginLeft: '0.5rem', color: '#86efac' }}>— {selectedIngr.size}개 선택됨</span>
+              )}
+              {isLoadingProducts && (
+                <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)', fontWeight: 400 }}>품목 조회 중…</span>
+              )}
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+              {ingredientOptions.map(opt => {
+                const active = selectedIngr.has(opt.ingredient_name);
+                return (
+                  <button
+                    key={opt.ingredient_name}
+                    onClick={() => toggleIngredient(opt.ingredient_name)}
+                    style={{
+                      padding: '0.3rem 0.65rem', borderRadius: '999px',
+                      border: active ? '1px solid rgba(99,102,241,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                      fontSize: '0.75rem', fontFamily: 'inherit', cursor: 'pointer',
+                      background: active ? 'rgba(99,102,241,0.45)' : 'rgba(255,255,255,0.07)',
+                      color: active ? '#c7d2fe' : 'var(--text-muted)',
+                      fontWeight: active ? 700 : 400,
+                      transition: 'all 0.12s',
+                    }}
+                  >
+                    {opt.ingredient_name}
+                    <span style={{ marginLeft: '0.3rem', opacity: 0.6, fontSize: '0.7rem' }}>
+                      {opt.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ── Step 2: 검색 결과 + 선택 ── */}
-      {searched && results.length > 0 && (
+      {/* ── Step 2: 품목 목록 + 선택 ── */}
+      {results.length > 0 && (
         <div className="auth-card" style={{ marginBottom: '1rem', padding: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              <span style={{ color: '#a5b4fc', fontWeight: 700 }}>"{query}"</span> 검색 결과 {results.length}개
+              품목 {results.length}개
               {selected.size > 0 && (
                 <span style={{ marginLeft: '0.6rem', color: '#86efac' }}>— {selected.size}개 선택됨</span>
               )}
@@ -367,7 +435,7 @@ export default function MarketAnalysisClient() {
       )}
 
       {/* ── Step 2.5: 종별 선택 ── */}
-      {searched && results.length > 0 && (
+      {results.length > 0 && (
         <div className="auth-card" style={{ marginBottom: '1rem', padding: '0.65rem 1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>
