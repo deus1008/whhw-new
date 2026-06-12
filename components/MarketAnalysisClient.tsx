@@ -193,20 +193,21 @@ export default function MarketAnalysisClient() {
 
   /* ── 2단계: 성분 선택 → 품목 자동 조회 ── */
   function toggleIngredient(ing: string) {
-    setSelectedIngr(prev => {
-      const next = new Set(prev);
-      if (next.has(ing)) next.delete(ing); else next.add(ing);
+    const next = new Set(selectedIngr);
+    if (next.has(ing)) next.delete(ing); else next.add(ing);
 
-      setSelected(new Set());
-      setAnalysis(null);
+    setSelectedIngr(next);
+    setSelected(new Set());
+    setAnalysis(null);
 
-      if (next.size === 0) { setResults([]); return next; }
+    if (next.size === 0) {
+      setResults([]);
+      return;
+    }
 
-      startProductTransition(async () => {
-        const items = await searchUbistByIngredients(Array.from(next));
-        setResults(items);
-      });
-      return next;
+    startProductTransition(async () => {
+      const items = await searchUbistByIngredients(Array.from(next));
+      setResults(items);
     });
   }
 
