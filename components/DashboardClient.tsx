@@ -320,9 +320,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     });
 
   // DC 단계 상수
-  const DC_STAGES = ['준비중', '착수', '상정', '통과'] as const;
+  const DC_STAGES = ['준비중', '접수', '코드인', '탈락'] as const;
   const DC_COLORS: Record<string, string> = {
-    준비중: '#94a3b8', 착수: '#fbbf24', 상정: '#60a5fa', 통과: '#4ade80',
+    준비중: '#94a3b8', 접수: '#fbbf24', 코드인: '#4ade80', 탈락: '#f87171',
   };
 
   return (

@@ -4,7 +4,7 @@ import { useState, useTransition, useRef } from 'react';
 import { createDcItem, updateDcItem, deleteDcItem, type DcItem } from '@/app/dc/actions';
 
 /* ── 상수 ────────────────────────────────────────────────── */
-export const CATEGORIES = ['준비중', '착수', '상정', '통과'] as const;
+export const CATEGORIES = ['준비중', '접수', '코드인', '탈락'] as const;
 type CatKey = typeof CATEGORIES[number];
 
 export const CAT_META: Record<CatKey, {
@@ -17,20 +17,20 @@ export const CAT_META: Record<CatKey, {
     bg: 'rgba(148,163,184,0.06)', border: 'rgba(148,163,184,0.22)', headerBg: 'rgba(148,163,184,0.1)',
     icon: '🔄', emoji: '🔄',
   },
-  '착수': {
+  '접수': {
     color: '#fbbf24', dimColor: '#92400e',
     bg: 'rgba(251,191,36,0.06)', border: 'rgba(251,191,36,0.22)', headerBg: 'rgba(251,191,36,0.1)',
-    icon: '🤝', emoji: '🤝',
+    icon: '📩', emoji: '📩',
   },
-  '상정': {
-    color: '#60a5fa', dimColor: '#1e40af',
-    bg: 'rgba(96,165,250,0.06)', border: 'rgba(96,165,250,0.22)', headerBg: 'rgba(96,165,250,0.1)',
-    icon: '📋', emoji: '📋',
-  },
-  '통과': {
+  '코드인': {
     color: '#4ade80', dimColor: '#14532d',
     bg: 'rgba(74,222,128,0.06)', border: 'rgba(74,222,128,0.22)', headerBg: 'rgba(74,222,128,0.1)',
     icon: '✅', emoji: '✅',
+  },
+  '탈락': {
+    color: '#f87171', dimColor: '#7f1d1d',
+    bg: 'rgba(248,113,113,0.06)', border: 'rgba(248,113,113,0.22)', headerBg: 'rgba(248,113,113,0.1)',
+    icon: '❌', emoji: '❌',
   },
 };
 

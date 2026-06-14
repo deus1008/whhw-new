@@ -546,7 +546,7 @@ export default async function DashboardPage() {
     }));
 
   // ── J. DC현황 ─────────────────────────────────────────────────────────────
-  const DC_STAGES = ['준비중', '착수', '상정', '통과'] as const;
+  const DC_STAGES = ['준비중', '접수', '코드인', '탈락'] as const;
   const dcItems = (dcRows ?? []).map(r => ({
     id:           r.id           as string,
     category:     (r.category ?? '') as string,
