@@ -4,7 +4,7 @@ import { useState, useTransition, useRef } from 'react';
 import { createDcItem, updateDcItem, deleteDcItem, type DcItem } from '@/app/dc/actions';
 
 /* ── 상수 ────────────────────────────────────────────────── */
-export const CATEGORIES = ['준비중', '약속', '상정', '통과'] as const;
+export const CATEGORIES = ['준비중', '착수', '상정', '통과'] as const;
 type CatKey = typeof CATEGORIES[number];
 
 export const CAT_META: Record<CatKey, {
@@ -17,7 +17,7 @@ export const CAT_META: Record<CatKey, {
     bg: 'rgba(148,163,184,0.06)', border: 'rgba(148,163,184,0.22)', headerBg: 'rgba(148,163,184,0.1)',
     icon: '🔄', emoji: '🔄',
   },
-  '약속': {
+  '착수': {
     color: '#fbbf24', dimColor: '#92400e',
     bg: 'rgba(251,191,36,0.06)', border: 'rgba(251,191,36,0.22)', headerBg: 'rgba(251,191,36,0.1)',
     icon: '🤝', emoji: '🤝',

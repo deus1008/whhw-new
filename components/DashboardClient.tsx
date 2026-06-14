@@ -140,7 +140,7 @@ export type ProductRankItem = {
 
 export type DcStatusItem = {
   id:           string;
-  category:     string;   // 준비중 | 약속 | 상정 | 통과
+  category:     string;   // 준비중 | 착수 | 상정 | 통과
   productName:  string;
   hospitalName: string;
   progress:     string | null;
@@ -320,9 +320,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     });
 
   // DC 단계 상수
-  const DC_STAGES = ['준비중', '약속', '상정', '통과'] as const;
+  const DC_STAGES = ['준비중', '착수', '상정', '통과'] as const;
   const DC_COLORS: Record<string, string> = {
-    준비중: '#94a3b8', 약속: '#fbbf24', 상정: '#60a5fa', 통과: '#4ade80',
+    준비중: '#94a3b8', 착수: '#fbbf24', 상정: '#60a5fa', 통과: '#4ade80',
   };
 
   return (
