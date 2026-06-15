@@ -19,8 +19,10 @@ function fmtDate(s: string | null): string {
 // ── 경보 색상 ─────────────────────────────────────────────────────────────────
 type AlertColor = { badge: string; badgeBg: string; border: string; glow: string };
 const ALERT_COLORS: Record<string, AlertColor> = {
-  품절: { badge: '#ef4444', badgeBg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.35)', glow: 'rgba(239,68,68,0.08)' },
-  예측: { badge: '#f59e0b', badgeBg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.30)', glow: 'rgba(245,158,11,0.06)' },
+  품절:     { badge: '#ef4444', badgeBg: 'rgba(239,68,68,0.15)',   border: 'rgba(239,68,68,0.35)',   glow: 'rgba(239,68,68,0.08)' },
+  품절예측:  { badge: '#f59e0b', badgeBg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.30)', glow: 'rgba(245,158,11,0.06)' },
+  원활:     { badge: '#4ade80', badgeBg: 'rgba(74,222,128,0.12)',  border: 'rgba(74,222,128,0.28)',  glow: 'rgba(74,222,128,0.05)' },
+  과잉재고:  { badge: '#818cf8', badgeBg: 'rgba(129,140,248,0.12)', border: 'rgba(129,140,248,0.28)', glow: 'rgba(129,140,248,0.05)' },
 };
 function alertColor(type: string): AlertColor {
   return ALERT_COLORS[type] ?? { badge: '#60a5fa', badgeBg: 'rgba(96,165,250,0.15)', border: 'rgba(96,165,250,0.3)', glow: 'rgba(96,165,250,0.06)' };
@@ -191,7 +193,7 @@ const lStyle: CSSProperties = {
 };
 
 const EMPTY: StockAlertItem = {
-  alert_type: '예측', product_code: '', product_name: '',
+  alert_type: '품절예측', product_code: '', product_name: '',
   sales_3m: null, sales_month: null, stock_amount: null, stock_days: null,
   stockout_start: null, supply_date: null, stockout_days: null,
   manufacturer: '', cause: '',
@@ -236,8 +238,10 @@ function ItemFormModal({ initial, onSave, onClose, isPending }: {
           <div style={{ gridColumn: '1 / -1' }}>
             <p style={lStyle}>구분</p>
             <select value={form.alert_type} onChange={onStr('alert_type')} style={{ ...iStyle, cursor: 'pointer' }}>
-              <option value="예측">예측</option>
               <option value="품절">품절</option>
+              <option value="품절예측">품절예측</option>
+              <option value="원활">원활</option>
+              <option value="과잉재고">과잉재고</option>
             </select>
           </div>
 
@@ -335,15 +339,17 @@ export default function InventoryClient({
   const dbCodes = new Set(dbItems.map(i => i.product_code).filter(Boolean));
   const excelOnly = items.filter(i => !i.product_code || !dbCodes.has(i.product_code));
 
-  const allStockouts: DisplayItem[] = [
-    ...dbItems.filter(i => i.alert_type === '품절').map(i => ({ ...i, _dbId: i.id })),
-    ...excelOnly.filter(i => i.alert_type === '품절'),
-  ];
-  const allForecasts: DisplayItem[] = [
-    ...dbItems.filter(i => i.alert_type === '예측').map(i => ({ ...i, _dbId: i.id })),
-    ...excelOnly.filter(i => i.alert_type === '예측'),
-  ];
-  const totalCount = allStockouts.length + allForecasts.length;
+  function makeSection(type: string): DisplayItem[] {
+    return [
+      ...dbItems.filter(i => i.alert_type === type).map(i => ({ ...i, _dbId: i.id })),
+      ...excelOnly.filter(i => i.alert_type === type),
+    ];
+  }
+  const allStockouts  = makeSection('품절');
+  const allForecasts  = makeSection('품절예측');
+  const allSmooth     = makeSection('원활');
+  const allExcess     = makeSection('과잉재고');
+  const totalCount = allStockouts.length + allForecasts.length + allSmooth.length + allExcess.length;
 
   function openEdit(item: DisplayItem) {
     setActionError(null);
@@ -407,8 +413,10 @@ export default function InventoryClient({
           {totalCount > 0 && (
             <>
               <SummaryChip count={allStockouts.length} label="품절"     color="#ef4444" />
-              <SummaryChip count={allForecasts.length} label="예측"     color="#f59e0b" />
-              <SummaryChip count={totalCount}          label="전체 경보" color="#60a5fa" />
+              <SummaryChip count={allForecasts.length} label="품절예측" color="#f59e0b" />
+              <SummaryChip count={allSmooth.length}    label="원활"     color="#4ade80" />
+              <SummaryChip count={allExcess.length}    label="과잉재고" color="#818cf8" />
+              <SummaryChip count={totalCount}          label="전체"     color="#60a5fa" />
             </>
           )}
         </div>
@@ -436,7 +444,13 @@ export default function InventoryClient({
         <Section title="🔴 품절" items={allStockouts} color="#ef4444" onEdit={openEdit} onDelete={openDelete} />
       )}
       {allForecasts.length > 0 && (
-        <Section title="🟡 부족 예측" items={allForecasts} color="#f59e0b" onEdit={openEdit} onDelete={openDelete} />
+        <Section title="🟡 품절 예측" items={allForecasts} color="#f59e0b" onEdit={openEdit} onDelete={openDelete} />
+      )}
+      {allSmooth.length > 0 && (
+        <Section title="🟢 원활" items={allSmooth} color="#4ade80" onEdit={openEdit} onDelete={openDelete} />
+      )}
+      {allExcess.length > 0 && (
+        <Section title="🔵 과잉재고" items={allExcess} color="#818cf8" onEdit={openEdit} onDelete={openDelete} />
       )}
 
       {/* 폼 모달 */}
