@@ -170,7 +170,7 @@ function Section({ title, items, color, onEdit, onDelete }: {
           <AlertCard
             key={it._dbId ?? i}
             item={it}
-            onEdit={it._dbId ? () => onEdit(it) : undefined}
+            onEdit={() => onEdit(it)}
             onDelete={it._dbId ? () => onDelete(it) : undefined}
           />
         ))}
@@ -326,7 +326,7 @@ export default function InventoryClient({
   dbItems: DbItem[];
 }) {
   const [modalState, setModalState] = useState<
-    null | { mode: 'create' } | { mode: 'edit'; item: DbItem }
+    null | { mode: 'create' } | { mode: 'edit'; item: DbItem } | { mode: 'import'; item: StockAlertItem }
   >(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -346,8 +346,14 @@ export default function InventoryClient({
   const totalCount = allStockouts.length + allForecasts.length;
 
   function openEdit(item: DisplayItem) {
-    const db = dbItems.find(d => d.id === item._dbId);
-    if (db) { setActionError(null); setModalState({ mode: 'edit', item: db }); }
+    setActionError(null);
+    if (item._dbId) {
+      const db = dbItems.find(d => d.id === item._dbId);
+      if (db) setModalState({ mode: 'edit', item: db });
+    } else {
+      // Excel 항목: 내용을 미리 채운 뒤 DB에 새로 저장
+      setModalState({ mode: 'import', item: item });
+    }
   }
 
   function openDelete(item: DisplayItem) {
@@ -363,9 +369,12 @@ export default function InventoryClient({
 
   function handleSave(data: StockAlertItem) {
     startTransition(async () => {
-      const res = modalState?.mode === 'edit'
-        ? await updateInventoryItem(modalState.item.id, data)
-        : await createInventoryItem(data);
+      let res: { error?: string };
+      if (modalState?.mode === 'edit') {
+        res = await updateInventoryItem(modalState.item.id, data);
+      } else {
+        res = await createInventoryItem(data);
+      }
       if (res?.error) setActionError(res.error);
       else setModalState(null);
     });
@@ -433,7 +442,7 @@ export default function InventoryClient({
       {/* 폼 모달 */}
       {modalState && (
         <ItemFormModal
-          initial={modalState.mode === 'edit' ? modalState.item : undefined}
+          initial={modalState.mode === 'edit' || modalState.mode === 'import' ? modalState.item : undefined}
           onSave={handleSave}
           onClose={() => setModalState(null)}
           isPending={isPending}
