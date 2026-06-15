@@ -976,7 +976,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   const isPast = p.launchDate && p.launchDate < today;
                   return (
                     <tr key={p.id} style={{ opacity: isPast ? 0.65 : 1 }}>
-                      <td className="muted" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{p.ingredient ?? '-'}</td>
+                      <td className="muted" style={{ fontSize: '0.8rem', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.ingredient ?? '-'}</td>
                       <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
                         {p.title}
                         {p.indication && (
