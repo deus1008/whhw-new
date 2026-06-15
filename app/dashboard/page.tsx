@@ -251,6 +251,11 @@ export default async function DashboardPage() {
     .sort((a, b) => b.prescAmt - a.prescAmt);
   const totalCsoCount = allCsoStats.length;
   const csoStats = allCsoStats.slice(0, 10);
+  const csoAllTotals = {
+    hospCount: allCsoStats.reduce((s, r) => s + r.hospCount, 0),
+    prescAmt:  allCsoStats.reduce((s, r) => s + r.prescAmt,  0),
+    settAmt:   allCsoStats.reduce((s, r) => s + r.settAmt,   0),
+  };
 
   // ── [섹션 3] 처방처현황: 병원/의원 월별 분리 집계 ────────────────────────
   const settlementByCategory = recentMonths.map(month => {
@@ -576,6 +581,7 @@ export default async function DashboardPage() {
     // 섹션2: 거래처현황
     csoStats,
     totalCsoCount,
+    csoAllTotals,
     settlementByCategory,
     top10Customers,
     customerMonthly,

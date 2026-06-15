@@ -153,6 +153,7 @@ export type DashboardData = {
   // 섹션2: 거래처현황 (CSO)
   csoStats:             CsoStat[];         // 상위 10개
   totalCsoCount:        number;            // 전체 CSO 수
+  csoAllTotals:         { hospCount: number; prescAmt: number; settAmt: number };
   settlementByCategory: SettlementByCat[];
   top10Customers:       TopCustomer[];
   customerMonthly:      CustomerMonthStat[];
@@ -248,7 +249,7 @@ function SubTitle({ children }: { children: React.ReactNode }) {
 export default function DashboardClient({ data }: { data: DashboardData }) {
   const {
     reportDate, recentMonths,
-    csoStats, totalCsoCount,
+    csoStats, totalCsoCount, csoAllTotals,
     settlementByCategory, top10Customers, customerMonthly,
     prescriptionMonthly,
     settlementTrend,
@@ -611,15 +612,15 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   })}
                   {/* 합산 / 평균 행 */}
                   {(() => {
-                    const n  = csoStats.length;
-                    const th = csoStats.reduce((s, r) => s + r.hospCount, 0);
-                    const tp = csoStats.reduce((s, r) => s + r.prescAmt,  0);
-                    const ts = csoStats.reduce((s, r) => s + r.settAmt,   0);
+                    const n  = totalCsoCount;
+                    const th = csoAllTotals.hospCount;
+                    const tp = csoAllTotals.prescAmt;
+                    const ts = csoAllTotals.settAmt;
                     const overallRate = tp > 0 ? Math.round(ts / tp * 1000) / 10 : 0;
                     return (
                       <>
                         <tr className="total-row">
-                          <td className="center" colSpan={2} style={{ fontWeight: 700 }}>합산 (상위 {n}개)</td>
+                          <td className="center" colSpan={2} style={{ fontWeight: 700 }}>전체 합산 ({n}개사)</td>
                           <td className="right">{th.toLocaleString()}</td>
                           <td className="right">{fmtWon(tp)}</td>
                           <td className="right">{fmtWon(ts)}</td>
