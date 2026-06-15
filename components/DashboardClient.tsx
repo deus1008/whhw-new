@@ -985,7 +985,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                           </span>
                         )}
                       </td>
-                      <td className="muted" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{p.manufacturer ?? '-'}</td>
+                      <td className="muted" style={{ fontSize: '0.8rem', maxWidth: '65px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.manufacturer ?? '-'}</td>
                       <td className="center" style={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
                         {p.launchDate ? fmtDate(p.launchDate.slice(0, 10)) : '-'}
                       </td>
