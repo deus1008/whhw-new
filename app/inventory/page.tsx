@@ -68,6 +68,7 @@ export default async function InventoryPage() {
     stockout_days: r.stockout_days as string | null,
     manufacturer:  r.manufacturer as string,
     cause:         r.cause as string,
+    memo:          r.memo as string | null,
   }));
 
   if (doc?.storage_path) {

@@ -24,6 +24,7 @@ export type StockAlertItem = {
   stockout_days:  string | null; // "14일", "-", null
   manufacturer:   string;
   cause:          string;
+  memo:           string | null;
 };
 
 /**
@@ -109,6 +110,7 @@ export function parseInventoryBuffer(buffer: Buffer): {
       stockout_days:  stockoutDays,
       manufacturer:   toStr(row[12]),
       cause:          toStr(row[13]),
+      memo:           null,
     });
   }
 

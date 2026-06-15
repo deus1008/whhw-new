@@ -27,6 +27,7 @@ export async function createInventoryItem(data: StockAlertItem): Promise<Result>
     stockout_days:  data.stockout_days,
     manufacturer:   data.manufacturer,
     cause:          data.cause,
+    memo:           data.memo ?? null,
   }]);
   if (error) return { error: error.message };
   revalidatePath('/inventory');
@@ -48,6 +49,7 @@ export async function updateInventoryItem(id: string, data: StockAlertItem): Pro
     stockout_days:  data.stockout_days,
     manufacturer:   data.manufacturer,
     cause:          data.cause,
+    memo:           data.memo ?? null,
     updated_at:     new Date().toISOString(),
   }).eq('id', id);
   if (error) return { error: error.message };

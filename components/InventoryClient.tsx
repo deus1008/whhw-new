@@ -141,6 +141,16 @@ function AlertCard({ item, onEdit, onDelete }: {
       }}>
         원인: {item.cause || '-'}
       </div>
+      {item.memo && (
+        <div style={{
+          marginTop: '0.5rem', padding: '0.38rem 0.65rem', borderRadius: '7px',
+          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
+          fontSize: '0.73rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.5,
+          whiteSpace: 'pre-wrap',
+        }}>
+          메모: {item.memo}
+        </div>
+      )}
     </div>
   );
 }
@@ -196,7 +206,7 @@ const EMPTY: StockAlertItem = {
   alert_type: '품절예측', product_code: '', product_name: '',
   sales_3m: null, sales_month: null, stock_amount: null, stock_days: null,
   stockout_start: null, supply_date: null, stockout_days: null,
-  manufacturer: '', cause: '',
+  manufacturer: '', cause: '', memo: null,
 };
 
 // ── 폼 모달 ──────────────────────────────────────────────────────────────────
@@ -215,7 +225,7 @@ function ItemFormModal({ initial, onSave, onClose, isPending }: {
   const nullStr = (k: keyof StockAlertItem) => (form[k] as string | null) ?? '';
   const numVal  = (k: keyof StockAlertItem) => (form[k] !== null && form[k] !== undefined ? String(form[k]) : '');
 
-  const onStr     = (k: keyof StockAlertItem) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => upd(k, e.target.value);
+  const onStr     = (k: keyof StockAlertItem) => (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => upd(k, e.target.value);
   const onNullStr = (k: keyof StockAlertItem) => (e: ChangeEvent<HTMLInputElement>) => upd(k, e.target.value || null);
   const onNum     = (k: keyof StockAlertItem) => (e: ChangeEvent<HTMLInputElement>) => upd(k, e.target.value === '' ? null : Number(e.target.value));
 
@@ -293,6 +303,17 @@ function ItemFormModal({ initial, onSave, onClose, isPending }: {
           <div>
             <p style={lStyle}>발생유형/원인</p>
             <input type="text" placeholder="원인" value={strVal('cause')} onChange={onStr('cause')} style={iStyle} />
+          </div>
+
+          <div style={{ gridColumn: '1 / -1' }}>
+            <p style={lStyle}>메모</p>
+            <textarea
+              placeholder="메모 (선택)"
+              value={(form.memo as string | null) ?? ''}
+              onChange={e => upd('memo', e.target.value || null)}
+              rows={3}
+              style={{ ...iStyle, resize: 'vertical', lineHeight: 1.5 }}
+            />
           </div>
         </div>
 
