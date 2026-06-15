@@ -156,12 +156,13 @@ export default async function DashboardPage() {
       .gte('created_at', since3mStr)
       .order('created_at', { ascending: false })
       .range(0, 2999),
-    // 발매예정: 단종·발매완료 제외, 발매일 순
+    // 발매예정: 단종·발매완료 제외, 발매일 → 성분명 순
     svc.from('upcoming_products')
-      .select('id,title,manufacturer,launch_date,status,indication,insurance_code,insurance_price')
+      .select('id,title,manufacturer,launch_date,status,indication,insurance_code,insurance_price,memo')
       .not('status', 'eq', '단종')
       .not('status', 'eq', '발매완료')
       .order('launch_date', { ascending: true })
+      .order('memo',        { ascending: true, nullsFirst: false })
       .limit(15),
     // 문서: 최근 3개월, CSO/동향 관련 카테고리 포함
     svc.from('documents')
@@ -522,14 +523,14 @@ export default async function DashboardPage() {
 
   // ── H. 발매예정 ───────────────────────────────────────────────────────────
   const upcomingProducts = (upcomingRows ?? []).map(p => ({
-    id:           p.id           as string,
-    title:        p.title        as string,
-    manufacturer: p.manufacturer as string | null,
-    launchDate:   p.launch_date  as string | null,
-    status:       p.status       as string | null,
-    indication:   p.indication   as string | null,
-    insuranceCode: p.insurance_code  as string | null,
+    id:             p.id             as string,
+    title:          p.title          as string,
+    manufacturer:   p.manufacturer   as string | null,
+    launchDate:     p.launch_date    as string | null,
+    status:         p.status         as string | null,
+    indication:     p.indication     as string | null,
     insurancePrice: p.insurance_price as string | null,
+    ingredient:     p.memo           as string | null,
   }));
 
   // ── I. 경쟁사 동향 (경쟁사 관련 문서) ────────────────────────────────────

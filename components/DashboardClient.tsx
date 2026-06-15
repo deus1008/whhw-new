@@ -111,14 +111,14 @@ export type TopProduct = {
 };
 
 export type UpcomingProduct = {
-  id:            string;
-  title:         string;
-  manufacturer:  string | null;
-  launchDate:    string | null;
-  status:        string | null;
-  indication:    string | null;
-  insuranceCode:  string | null;
+  id:             string;
+  title:          string;
+  manufacturer:   string | null;
+  launchDate:     string | null;
+  status:         string | null;
+  indication:     string | null;
   insurancePrice: string | null;
+  ingredient:     string | null;
 };
 
 export type CsoDoc = {
@@ -965,8 +965,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             <table className="dash-table">
               <thead>
                 <tr>
-                  <th>제품명</th><th>제조사</th>
-                  <th className="center">발매예정일</th><th>보험코드</th>
+                  <th>성분명</th><th>제품명</th><th>제조사</th>
+                  <th className="center">발매예정일</th>
                   <th className="right">보험가</th><th className="center">상태</th>
                 </tr>
               </thead>
@@ -975,6 +975,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   const isPast = p.launchDate && p.launchDate < today;
                   return (
                     <tr key={p.id} style={{ opacity: isPast ? 0.65 : 1 }}>
+                      <td className="muted" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{p.ingredient ?? '-'}</td>
                       <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
                         {p.title}
                         {p.indication && (
@@ -987,7 +988,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       <td className="center" style={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
                         {p.launchDate ? fmtDate(p.launchDate.slice(0, 10)) : '-'}
                       </td>
-                      <td className="muted" style={{ fontSize: '0.78rem' }}>{p.insuranceCode ?? '-'}</td>
                       <td className="right" style={{ fontSize: '0.8rem' }}>{p.insurancePrice ?? '-'}</td>
                       <td className="center">
                         {p.status ?? '예정'}
