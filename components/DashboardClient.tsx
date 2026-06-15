@@ -1080,11 +1080,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               {thisMonthVisits.map((v, i) => (
                 <tr key={i}>
                   <td style={{ whiteSpace: 'nowrap' }}>{v.personName}</td>
-                  <td>{v.customerName}</td>
-                  <td style={{ color: v.contactName ? '#fff' : 'rgba(255,255,255,0.3)' }}>
+                  <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.customerName}</td>
+                  <td style={{ maxWidth: '84px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: v.contactName ? '#fff' : 'rgba(255,255,255,0.3)' }}>
                     {v.contactName ?? '-'}
                   </td>
-                  <td style={{ lineHeight: 1.5 }}>{v.content}</td>
+                  <td style={{ lineHeight: 1.5, maxWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.content}</td>
                   <td className="center muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(v.visitedAt)}</td>
                 </tr>
               ))}
