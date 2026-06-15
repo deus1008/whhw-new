@@ -251,10 +251,15 @@ export default async function DashboardPage() {
     .sort((a, b) => b.prescAmt - a.prescAmt);
   const totalCsoCount = allCsoStats.length;
   const csoStats = allCsoStats.slice(0, 10);
+  // 처방처수는 CSO별 Set 합산(중복 발생) 대신 전체 unique 병원명 Set으로 계산
+  const csoAllHospSet = new Set<string>();
+  for (const r of normSett.filter(r => recentSet.has(r.prescription_month))) {
+    if (r.hospital_name) csoAllHospSet.add(r.hospital_name);
+  }
   const csoAllTotals = {
-    hospCount: allCsoStats.reduce((s, r) => s + r.hospCount, 0),
-    prescAmt:  allCsoStats.reduce((s, r) => s + r.prescAmt,  0),
-    settAmt:   allCsoStats.reduce((s, r) => s + r.settAmt,   0),
+    hospCount: csoAllHospSet.size,
+    prescAmt:  allCsoStats.reduce((s, r) => s + r.prescAmt, 0),
+    settAmt:   allCsoStats.reduce((s, r) => s + r.settAmt,  0),
   };
 
   // ── [섹션 3] 처방처현황: 병원/의원 월별 분리 집계 ────────────────────────
@@ -273,12 +278,11 @@ export default async function DashboardPage() {
     const clH     = new Set(clRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
     const hsH     = new Set(hsRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
     const prods   = new Set(rows.filter(r => r.product_name).map(r => r.product_name!));
-    const perf    = perfMap[month];
     return {
       month,
-      hospCount:        perf?.total    ?? allH.size,
-      clinicCount:      perf?.clinic   ?? clH.size,
-      hospitalCount:    perf?.hospital ?? hsH.size,
+      hospCount:        allH.size,
+      clinicCount:      clH.size,
+      hospitalCount:    hsH.size,
       productCount:     prods.size,
       totalPrescAmt:    rows.reduce((s, r)   => s + (r.prescription_amount ?? 0), 0),
       clinicPrescAmt:   clRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
@@ -378,12 +382,11 @@ export default async function DashboardPage() {
     const allP    = new Set(rows.filter(r => r.product_name).map(r => r.product_name!));
     const clP     = new Set(clRows.filter(r => r.product_name).map(r => r.product_name!));
     const hsP     = new Set(hsRows.filter(r => r.product_name).map(r => r.product_name!));
-    const perf    = perfMap[month];
     return {
       month,
-      hospCount:            perf?.total    ?? allH.size,
-      clinicCount:          perf?.clinic   ?? clH.size,
-      hospitalCount:        perf?.hospital ?? hsH.size,
+      hospCount:            allH.size,
+      clinicCount:          clH.size,
+      hospitalCount:        hsH.size,
       productCount:         allP.size,
       clinicProductCount:   clP.size,
       hospitalProductCount: hsP.size,
