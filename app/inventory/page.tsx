@@ -10,6 +10,7 @@ import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import InventoryClient from '@/components/InventoryClient';
 import { parseInventoryBuffer, type StockAlertItem } from '@/lib/inventory/parse';
+import type { DbItem } from '@/components/InventoryClient';
 
 export const revalidate = 1800;
 
@@ -46,6 +47,28 @@ export default async function InventoryPage() {
   let parseError: string | null = null;
   let fileName: string | null   = null;
   let uploadDate: string | null = null;
+
+  // ── DB 항목 조회 ──────────────────────────────────────────────────────────────
+  const { data: dbRaw } = await svc
+    .from('inventory_items')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  const dbItems: DbItem[] = (dbRaw ?? []).map((r: Record<string, unknown>) => ({
+    id:            r.id as string,
+    alert_type:    r.alert_type as string,
+    product_code:  r.product_code as string,
+    product_name:  r.product_name as string,
+    sales_3m:      r.sales_3m as number | null,
+    sales_month:   r.sales_month as number | null,
+    stock_amount:  r.stock_amount as number | null,
+    stock_days:    r.stock_days as number | null,
+    stockout_start: r.stockout_start as string | null,
+    supply_date:   r.supply_date as string | null,
+    stockout_days: r.stockout_days as string | null,
+    manufacturer:  r.manufacturer as string,
+    cause:         r.cause as string,
+  }));
 
   if (doc?.storage_path) {
     fileName   = doc.filename;
@@ -86,6 +109,7 @@ export default async function InventoryPage() {
           fileName={fileName}
           uploadDate={uploadDate}
           error={parseError}
+          dbItems={dbItems}
         />
       </div>
     </>
