@@ -355,16 +355,24 @@ export default function InventoryClient({
   >(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [query, setQuery] = useState('');
 
   // DB items take priority; Excel items without a matching product_code show as read-only
   const dbCodes = new Set(dbItems.map(i => i.product_code).filter(Boolean));
   const excelOnly = items.filter(i => !i.product_code || !dbCodes.has(i.product_code));
 
+  const needle = query.trim().toLowerCase();
+  function matchesQuery(i: DisplayItem): boolean {
+    if (!needle) return true;
+    return [i.product_name, i.product_code, i.manufacturer, i.cause, i.memo ?? '']
+      .some(f => f.toLowerCase().includes(needle));
+  }
+
   function makeSection(type: string): DisplayItem[] {
     return [
       ...dbItems.filter(i => i.alert_type === type).map(i => ({ ...i, _dbId: i.id })),
       ...excelOnly.filter(i => i.alert_type === type),
-    ];
+    ].filter(matchesQuery);
   }
   const allStockouts  = makeSection('품절');
   const allForecasts  = makeSection('품절예측');
@@ -453,10 +461,44 @@ export default function InventoryClient({
         </button>
       </div>
 
+      {/* 검색창 */}
+      <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
+        <span style={{
+          position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)',
+          fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none',
+        }}>🔍</span>
+        <input
+          type="text"
+          placeholder="제품명, 제품코드, 제조처, 원인, 메모 검색…"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            padding: '0.55rem 2.4rem 0.55rem 2.2rem',
+            borderRadius: '10px', fontSize: '0.85rem',
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            color: '#fff', outline: 'none',
+          }}
+        />
+        {query && (
+          <button
+            onClick={() => setQuery('')}
+            style={{
+              position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)',
+              background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)',
+              cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1, padding: 0,
+            }}
+          >✕</button>
+        )}
+      </div>
+
       {/* 데이터 없음 */}
       {totalCount === 0 && !error && (
         <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.28)', fontSize: '0.83rem' }}>
-          문서관리 &gt; 재고관리 폴더에 파일을 업로드하거나 항목을 직접 추가하세요.
+          {needle
+            ? `"${query}"에 해당하는 항목이 없습니다.`
+            : '문서관리 > 재고관리 폴더에 파일을 업로드하거나 항목을 직접 추가하세요.'}
         </div>
       )}
 
