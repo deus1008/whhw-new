@@ -471,6 +471,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           .schedule-tag { background: #ede9fe !important; color: #4c1d95 !important;
             -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           .empty-msg { color: #888 !important; font-size: 7.5pt !important; }
+          .unit-label { color: #111 !important; font-size: 8pt !important; }
         }
       `}</style>
 
@@ -484,7 +485,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
       {/* ── 인쇄 버튼 + 단위 표기 ──────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-        <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600, letterSpacing: '0.03em' }}>
+        <span className="unit-label" style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600, letterSpacing: '0.03em' }}>
           단위: 천원
         </span>
         <button className="print-btn" onClick={() => window.print()} style={{ marginBottom: 0 }}>
