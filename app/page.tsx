@@ -185,6 +185,15 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(251,191,36,0.10)',
     bd:   'rgba(251,191,36,0.22)',
   },
+  // ⑯-1 분석리포트
+  {
+    href: '/reports',
+    icon: '📝',
+    label: '분석리포트',
+    color: '#a5f3fc',
+    bg:   'rgba(6,182,212,0.10)',
+    bd:   'rgba(6,182,212,0.22)',
+  },
   // ⑰ 오류신고 (전체 사용자)
   {
     href: '#',
