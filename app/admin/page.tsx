@@ -27,12 +27,6 @@ const sectionMeta: Record<Status, { label: string; color: string; rgba: string }
   rejected: { label: '거부됨',   color: '#fca5a5', rgba: 'rgba(239,68,68,'  },
 };
 
-const buttonDefs: Record<Status, [string, Status, boolean][]> = {
-  pending:  [['승인', 'approved', true],  ['거부', 'rejected', false]],
-  approved: [['승인 취소', 'pending', false], ['거부', 'rejected', false]],
-  rejected: [['승인', 'approved', true],  ['대기로', 'pending', false]],
-};
-
 /** 역할 정렬 우선순위 (숫자가 낮을수록 상단) */
 const ROLE_SORT: Record<string, number> = Object.fromEntries(
   ALL_ROLES.map((r, i) => [r, i])
@@ -87,24 +81,6 @@ function ActionButtons({ profile }: { profile: Profile }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-      {/* 상태 변경 버튼 */}
-      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-        {buttonDefs[profile.status].map(([label, target, isGreen]) => (
-          <form key={target} action={updateStatus}>
-            <input type="hidden" name="userId" value={profile.id} />
-            <input type="hidden" name="status" value={target} />
-            <button type="submit" style={{
-              padding: '0.38rem 0.9rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
-              border: isGreen ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(239,68,68,0.25)',
-              background: isGreen ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.09)',
-              color: isGreen ? '#86efac' : '#fca5a5',
-            }}>
-              {label}
-            </button>
-          </form>
-        ))}
-      </div>
-
       {/* 역할 변경 — 체크박스 다중 선택 */}
       <form action={updateRoles} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
         <input type="hidden" name="userId" value={profile.id} />
@@ -145,6 +121,30 @@ function ActionButtons({ profile }: { profile: Profile }) {
           역할 저장
         </button>
       </form>
+
+      {/* 승인취소 / 거부 — 모든 상태 동일 */}
+      <div style={{ display: 'flex', gap: '0.4rem' }}>
+        <form action={updateStatus}>
+          <input type="hidden" name="userId" value={profile.id} />
+          <input type="hidden" name="status" value="pending" />
+          <button type="submit" style={{
+            padding: '0.38rem 0.9rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+            border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.09)', color: '#fca5a5',
+          }}>
+            승인 취소
+          </button>
+        </form>
+        <form action={updateStatus}>
+          <input type="hidden" name="userId" value={profile.id} />
+          <input type="hidden" name="status" value="rejected" />
+          <button type="submit" style={{
+            padding: '0.38rem 0.9rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+            border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.09)', color: '#fca5a5',
+          }}>
+            거부
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
