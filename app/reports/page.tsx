@@ -31,10 +31,16 @@ export default async function ReportsPage() {
   const isAdmin = rawRoles.map(r => normalizeRole(r)).includes('관리자');
 
   const svc = getSvc();
-  const { data: rows } = await svc
-    .from('reports')
-    .select('id, title, content, created_at, updated_at')
-    .order('created_at', { ascending: false });
+
+  const [{ data: rows }, { data: docRows }] = await Promise.all([
+    svc.from('reports')
+      .select('id, title, content, created_at, updated_at')
+      .order('created_at', { ascending: false }),
+    svc.from('documents')
+      .select('id, filename, file_type, storage_path, created_at')
+      .eq('category', '분석리포트')
+      .order('created_at', { ascending: false }),
+  ]);
 
   const reports = (rows ?? []).map((r: Record<string, unknown>) => ({
     id:         r.id         as string,
@@ -42,6 +48,13 @@ export default async function ReportsPage() {
     content:    r.content    as string,
     created_at: r.created_at as string,
     updated_at: r.updated_at as string,
+  }));
+
+  const docFiles = (docRows ?? []).map((r: Record<string, unknown>) => ({
+    id:         r.id         as string,
+    filename:   r.filename   as string,
+    file_type:  r.file_type  as string,
+    created_at: r.created_at as string,
   }));
 
   return (
@@ -59,7 +72,7 @@ export default async function ReportsPage() {
           <LogoutButton compact />
         </div>
 
-        <ReportsClient reports={reports} isAdmin={isAdmin} />
+        <ReportsClient reports={reports} docFiles={docFiles} isAdmin={isAdmin} />
       </div>
     </>
   );
