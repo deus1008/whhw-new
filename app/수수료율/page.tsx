@@ -20,13 +20,43 @@ export type CommissionDoc = {
   created_at: string;
 };
 
-const FOLDER_NAME = '수수료율(아주약품)';
+export type CommissionFolderGroup = {
+  key: 'dealer' | 'ajou';
+  folderName: string;
+  label: string;
+  description: string;
+  docs: CommissionDoc[];
+};
+
+const FOLDERS: { key: CommissionFolderGroup['key']; folderName: string; label: string; description: string }[] = [
+  {
+    key: 'dealer',
+    folderName: '수수료율',
+    label: '전체 수수료율',
+    description: 'CSO 딜러 수수료 (법인수수료 제외) — 전체 제약사 비교용',
+  },
+  {
+    key: 'ajou',
+    folderName: '수수료율(아주약품)',
+    label: '아주약품 수수료율',
+    description: '아주약품이 CSO 법인에 제공하는 수수료 — 정산 기준 참조용',
+  },
+];
 
 function getSvc() {
   return createSvcClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
+}
+
+function mapDocs(rows: Record<string, unknown>[] | null): CommissionDoc[] {
+  return (rows ?? []).map(r => ({
+    id:         r.id         as string,
+    filename:   r.filename   as string,
+    file_type:  r.file_type  as string,
+    created_at: r.created_at as string,
+  }));
 }
 
 export default async function CommissionRatePage() {
@@ -38,19 +68,26 @@ export default async function CommissionRatePage() {
     .from('profiles').select('status').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
-  const { data: rows } = await getSvc()
-    .from('documents')
-    .select('id, filename, file_type, created_at')
-    .eq('category', FOLDER_NAME)
-    .in('file_type', ['xlsx', 'xls', 'xlsb'])
-    .order('created_at', { ascending: false });
+  const svc = getSvc();
 
-  const docs: CommissionDoc[] = (rows ?? []).map((r: Record<string, unknown>) => ({
-    id:         r.id         as string,
-    filename:   r.filename   as string,
-    file_type:  r.file_type  as string,
-    created_at: r.created_at as string,
-  }));
+  // 두 폴더 병렬 조회
+  const [{ data: dealerRows }, { data: ajouRows }] = await Promise.all([
+    svc.from('documents')
+      .select('id, filename, file_type, created_at')
+      .eq('category', '수수료율')
+      .in('file_type', ['xlsx', 'xls', 'xlsb'])
+      .order('created_at', { ascending: false }),
+    svc.from('documents')
+      .select('id, filename, file_type, created_at')
+      .eq('category', '수수료율(아주약품)')
+      .in('file_type', ['xlsx', 'xls', 'xlsb'])
+      .order('created_at', { ascending: false }),
+  ]);
+
+  const folderGroups: CommissionFolderGroup[] = [
+    { ...FOLDERS[0], docs: mapDocs(dealerRows as Record<string, unknown>[] | null) },
+    { ...FOLDERS[1], docs: mapDocs(ajouRows  as Record<string, unknown>[] | null) },
+  ];
 
   return (
     <>
@@ -67,7 +104,7 @@ export default async function CommissionRatePage() {
           <LogoutButton compact />
         </div>
 
-        <CommissionRateClient docs={docs} folderName={FOLDER_NAME} />
+        <CommissionRateClient folderGroups={folderGroups} />
       </div>
     </>
   );
