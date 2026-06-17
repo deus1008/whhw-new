@@ -1,15 +1,9 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
-import dynamic from 'next/dynamic';
+import CommissionRateClient from '@/components/CommissionRateClient';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
-
-// xlsx는 SSR에서 초기화 오류를 일으키므로 클라이언트 전용 렌더링
-const CommissionRateClient = dynamic(
-  () => import('@/components/CommissionRateClient'),
-  { ssr: false },
-);
 
 export const revalidate = 0;
 

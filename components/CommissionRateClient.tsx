@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import * as XLSX from 'xlsx';
 import { getCommissionFileUrl } from '@/app/수수료율/actions';
 import type { CommissionDoc, CommissionFolderGroup } from '@/app/수수료율/page';
 
@@ -49,6 +48,7 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
       if (!resp.ok) throw new Error(`파일 다운로드 실패 (HTTP ${resp.status})`);
 
       const buf  = await resp.arrayBuffer();
+      const XLSX = await import('xlsx');
       const wb   = XLSX.read(buf, { type: 'array', cellDates: true });
       const ws   = wb.Sheets[wb.SheetNames[0]];
       const raw: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
