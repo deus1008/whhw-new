@@ -194,6 +194,15 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(6,182,212,0.10)',
     bd:   'rgba(6,182,212,0.22)',
   },
+  // ⑯-2 공지사항
+  {
+    href: '/notices',
+    icon: '📢',
+    label: '공지사항',
+    color: '#fde68a',
+    bg:   'rgba(251,191,36,0.10)',
+    bd:   'rgba(251,191,36,0.22)',
+  },
   // ⑰ 오류신고 (전체 사용자)
   {
     href: '#',
