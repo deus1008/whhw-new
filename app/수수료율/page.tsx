@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
-import CommissionRateClient from '@/components/CommissionRateClient';
+import CommissionRateWrapper from '@/components/CommissionRateWrapper';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 
@@ -98,7 +98,7 @@ export default async function CommissionRatePage() {
           <LogoutButton compact />
         </div>
 
-        <CommissionRateClient folderGroups={folderGroups} />
+        <CommissionRateWrapper folderGroups={folderGroups} />
       </div>
     </>
   );
