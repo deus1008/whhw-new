@@ -96,7 +96,7 @@ export default function NoticesClient({
       )}
 
       {notices.length === 0 && (
-        <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', padding: '4rem 0', fontSize: '0.9rem' }}>
+        <div style={{ textAlign: 'left', color: 'rgba(255,255,255,0.3)', padding: '4rem 0', fontSize: '0.9rem' }}>
           등록된 공지사항이 없습니다.
         </div>
       )}
@@ -192,7 +192,7 @@ function NoticeRow({
       )}
       <a
         href={`/notices/${notice.id}`}
-        style={{ flex: 1, color: '#e2e8f0', textDecoration: 'none', fontWeight: 500, fontSize: '0.92rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        style={{ flex: 1, color: '#e2e8f0', textDecoration: 'none', fontWeight: 500, fontSize: '0.92rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}
       >
         {notice.title}
       </a>
