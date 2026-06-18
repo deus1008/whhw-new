@@ -200,9 +200,11 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
                         const val = row[h] ?? '';
                         const isSearch = SEARCH_COLS.includes(h);
                         const isNumeric = /^[\d,]+$/.test(val);
+                        const isPct = /^[\d,]+%$/.test(val);
+                        const align = isPct ? 'center' : isNumeric ? 'right' : 'left';
                         const hl = query ? highlight(val, query) : null;
                         return (
-                          <td key={h} style={{ ...TD, maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: isNumeric ? 'right' : 'left' }}>
+                          <td key={h} style={{ ...TD, maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: align }}>
                             {hl ? <span dangerouslySetInnerHTML={{ __html: hl }} /> : <span style={{ color: isSearch ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.45)' }}>{val}</span>}
                           </td>
                         );
