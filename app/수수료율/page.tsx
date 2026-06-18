@@ -4,23 +4,11 @@ import { createClient as createSvcClient } from '@supabase/supabase-js';
 import CommissionRateWrapper from '@/components/CommissionRateWrapper';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
+import type { CommissionDoc, CommissionFolderGroup } from './types';
+
+export type { CommissionDoc, CommissionFolderGroup };
 
 export const revalidate = 0;
-
-export type CommissionDoc = {
-  id: string;
-  filename: string;
-  file_type: string;
-  created_at: string;
-};
-
-export type CommissionFolderGroup = {
-  key: 'dealer' | 'ajou';
-  folderName: string;
-  label: string;
-  description: string;
-  docs: CommissionDoc[];
-};
 
 const FOLDERS: { key: CommissionFolderGroup['key']; folderName: string; label: string; description: string }[] = [
   {

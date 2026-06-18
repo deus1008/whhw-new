@@ -1,6 +1,6 @@
 'use client';
 import dynamic from 'next/dynamic';
-import type { CommissionFolderGroup } from '@/app/수수료율/page';
+import type { CommissionFolderGroup } from '@/app/수수료율/types';
 
 const CommissionRateClient = dynamic(
   () => import('@/components/CommissionRateClient'),
