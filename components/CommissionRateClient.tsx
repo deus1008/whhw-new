@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { getCommissionFileUrl } from '@/app/수수료율/actions';
-import type { CommissionDoc, CommissionFolderGroup } from '@/app/수수료율/types';
+import { getCommissionFileUrl } from '@/app/commission-rate/actions';
+import type { CommissionDoc, CommissionFolderGroup } from '@/app/commission-rate/types';
 
 /* ── 검색 대상 컬럼 ── */
 const SEARCH_COLS = ['구분', '계열', '제품군별', '품목명', '성분명(한글)', '성분명(영문)', '위탁여부'];
