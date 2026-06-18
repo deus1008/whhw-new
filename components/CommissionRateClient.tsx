@@ -84,6 +84,8 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
           const raw_val = cells[j];
           if (rateColIdx.has(j) && typeof raw_val === 'number' && raw_val > 0 && raw_val < 1) {
             obj[rawHeaders[j]] = `${Math.round(raw_val * 100)}%`;
+          } else if (typeof raw_val === 'number') {
+            obj[rawHeaders[j]] = Math.round(raw_val).toLocaleString('ko-KR');
           } else {
             obj[rawHeaders[j]] = String(raw_val ?? '').trim();
           }
@@ -197,9 +199,10 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
                       {displayHeaders.map(h => {
                         const val = row[h] ?? '';
                         const isSearch = SEARCH_COLS.includes(h);
+                        const isNumeric = /^[\d,]+$/.test(val);
                         const hl = query ? highlight(val, query) : null;
                         return (
-                          <td key={h} style={{ ...TD, maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <td key={h} style={{ ...TD, maxWidth: '220px', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: isNumeric ? 'right' : 'left' }}>
                             {hl ? <span dangerouslySetInnerHTML={{ __html: hl }} /> : <span style={{ color: isSearch ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.45)' }}>{val}</span>}
                           </td>
                         );
