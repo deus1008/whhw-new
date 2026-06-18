@@ -376,7 +376,7 @@ const LOAD_BTN: React.CSSProperties = {
 };
 
 const TH: React.CSSProperties = {
-  padding: '0.6rem 0.85rem', textAlign: 'left', fontWeight: 700,
+  padding: '0.6rem 0.85rem', textAlign: 'center', fontWeight: 700,
   fontSize: '0.75rem', letterSpacing: '0.02em',
   borderBottom: '1px solid rgba(255,255,255,0.08)',
   color: 'rgba(255,255,255,0.5)',
