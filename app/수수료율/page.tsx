@@ -1,19 +1,7 @@
-import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
-
-export const revalidate = 0;
-
-export type { CommissionDoc, CommissionFolderGroup } from './types';
-
-export default async function CommissionRatePage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
-
+export default function CommissionRatePage() {
   return (
     <div style={{ padding: '2rem', color: 'white' }}>
-      <h1>수수료율 — 테스트 (인증 OK)</h1>
-      <p>user: {user.email}</p>
+      <h1>수수료율 — 제로 임포트 테스트</h1>
     </div>
   );
 }
