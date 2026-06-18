@@ -101,7 +101,7 @@ export default function NoticesClient({
         {/* 헤더 */}
         <div style={HEADER_ROW}>
           <span style={{ ...COL_NO, color: 'rgba(255,255,255,0.35)' }}>No.</span>
-          <span style={{ ...COL_TITLE, color: 'rgba(255,255,255,0.35)' }}>제목</span>
+          <span style={{ ...COL_TITLE, color: 'rgba(255,255,255,0.35)', textAlign: 'center' }}>제목</span>
           <span style={{ ...COL_DATE, color: 'rgba(255,255,255,0.35)' }}>날짜</span>
           {isAdmin && <span style={{ ...COL_ADMIN, color: 'rgba(255,255,255,0.35)' }}>관리</span>}
         </div>
@@ -241,6 +241,7 @@ function BoardRow({
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          textAlign: 'left',
         }}
       >
         {notice.title}
