@@ -6,6 +6,7 @@ import type { CommissionDoc, CommissionFolderGroup } from '@/app/commission-rate
 
 /* ── 검색 대상 컬럼 ── */
 const SEARCH_COLS = ['구분', '계열', '제품군별', '품목명', '성분명(한글)', '성분명(영문)', '위탁여부'];
+const HIDDEN_COLS = ['보험코드', '대표코드'];
 
 function normalizeHeader(s: string): string {
   return s.replace(/\s/g, '').replace(/（/g, '(').replace(/）/g, ')').toLowerCase();
@@ -120,8 +121,9 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
 
   const displayHeaders = useMemo(() => {
     if (!headers.length) return [];
-    const searchOnes = headers.filter((_, i) => NORM_SEARCH.includes(normHeaders[i]));
-    const rest = headers.filter((_, i) => !NORM_SEARCH.includes(normHeaders[i]));
+    const visible = headers.filter(h => !HIDDEN_COLS.includes(h));
+    const searchOnes = visible.filter((_, i) => NORM_SEARCH.includes(normalizeHeader(visible[i])));
+    const rest = visible.filter((_, i) => !NORM_SEARCH.includes(normalizeHeader(visible[i])));
     return [...searchOnes, ...rest];
   }, [headers, normHeaders]);
 
