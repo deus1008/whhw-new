@@ -27,6 +27,7 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
   const [headers, setHeaders]       = useState<string[]>([]);
   const [normHeaders, setNormHeaders] = useState<string[]>([]);
   const [query, setQuery]           = useState('');
+  const [appliedQuery, setAppliedQuery] = useState('');
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
   const [loaded, setLoaded]         = useState(false);
@@ -34,7 +35,11 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
   function handleDocChange(id: string) {
     setSelectedId(id);
     setRows([]); setHeaders([]); setNormHeaders([]);
-    setQuery(''); setLoaded(false); setError('');
+    setQuery(''); setAppliedQuery(''); setLoaded(false); setError('');
+  }
+
+  function handleSearch() {
+    setAppliedQuery(query.trim());
   }
 
   async function handleLoad() {
@@ -106,12 +111,12 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
   }
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = appliedQuery.toLowerCase();
     if (!q) return rows;
     return rows.filter(row =>
       headers.some((h, i) => NORM_SEARCH.includes(normHeaders[i]) && row[h]?.toLowerCase().includes(q))
     );
-  }, [rows, query, headers, normHeaders]);
+  }, [rows, appliedQuery, headers, normHeaders]);
 
   const displayHeaders = useMemo(() => {
     if (!headers.length) return [];
@@ -159,19 +164,27 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.8rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#e2e8f0', flexShrink: 0 }}>
               총 {rows.length.toLocaleString()}건
-              {query && ` · 검색 ${filtered.length.toLocaleString()}건`}
+              {appliedQuery && ` · 검색 ${filtered.length.toLocaleString()}건`}
             </span>
             <div style={{ flex: 1, minWidth: '200px', maxWidth: '400px', position: 'relative' }}>
               <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none' }}>🔍</span>
               <input
-                type="text" value={query} onChange={e => setQuery(e.target.value)}
+                type="text" value={query}
+                onChange={e => setQuery(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
                 placeholder="구분·계열·제품군·품목명·성분명·위탁여부 검색"
                 style={{ width: '100%', boxSizing: 'border-box', paddingLeft: '2rem', paddingRight: query ? '2rem' : '0.75rem', paddingTop: '0.42rem', paddingBottom: '0.42rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
               />
               {query && (
-                <button onClick={() => setQuery('')} style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem', cursor: 'pointer', lineHeight: 1, padding: 0 }}>×</button>
+                <button onClick={() => { setQuery(''); setAppliedQuery(''); }} style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem', cursor: 'pointer', lineHeight: 1, padding: 0 }}>×</button>
               )}
             </div>
+            <button
+              onClick={handleSearch}
+              style={{ padding: '0.42rem 1rem', borderRadius: '8px', flexShrink: 0, background: 'linear-gradient(135deg, var(--accent-1), var(--accent-2))', border: 'none', color: '#fff', fontSize: '0.82rem', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}
+            >
+              검색
+            </button>
             <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
               {SEARCH_COLS.map(col => (
                 <span key={col} style={{ padding: '0.12rem 0.5rem', borderRadius: '100px', fontSize: '0.67rem', fontWeight: 600, background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.25)', color: '#93c5fd' }}>{col}</span>
