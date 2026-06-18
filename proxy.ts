@@ -2,6 +2,16 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
 export async function proxy(request: NextRequest) {
+  // /수수료율 → /commission-rate 리다이렉트 (한국어 경로 Lambda 충돌 우회)
+  try {
+    const decoded = decodeURIComponent(request.nextUrl.pathname);
+    if (decoded === '/수수료율') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/commission-rate';
+      return NextResponse.redirect(url, { status: 308 });
+    }
+  } catch {}
+
   const { supabaseResponse, user, supabase } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
