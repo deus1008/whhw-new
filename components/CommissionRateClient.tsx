@@ -219,8 +219,9 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
                         const align = isPct ? 'center' : isNumeric ? 'right' : 'left';
                         const isIngredient = h === '성분명(한글)' || h === '성분명(영문)';
                         const isCategory = h === '구분';
+                        const isProductGroup = h === '제품군별';
                         const hl = appliedQuery ? highlight(val, appliedQuery) : null;
-                        const colMax = isCategory ? '100px' : isIngredient ? '132px' : '220px';
+                        const colMax = isCategory ? '100px' : isIngredient || isProductGroup ? '132px' : '220px';
                         return (
                           <td key={h} style={{ ...TD, maxWidth: colMax, overflow: 'hidden', textOverflow: 'ellipsis', textAlign: align }}>
                             {hl ? <span dangerouslySetInnerHTML={{ __html: hl }} /> : <span style={{ color: isSearch ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.45)' }}>{val}</span>}
