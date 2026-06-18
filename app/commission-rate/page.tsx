@@ -11,13 +11,13 @@ export const revalidate = 0;
 const FOLDERS: { key: CommissionFolderGroup['key']; folderName: string; label: string; description: string }[] = [
   {
     key: 'dealer',
-    folderName: '수수료율',
+    folderName: '수수료율(딜러)',
     label: '전체 수수료율',
     description: 'CSO 딜러 수수료 (법인수수료 제외) — 전체 제약사 비교용',
   },
   {
     key: 'ajou',
-    folderName: '수수료율(아주약품)',
+    folderName: '수수료율(제약사)',
     label: '아주약품 수수료율',
     description: '아주약품이 CSO 법인에 제공하는 수수료 — 정산 기준 참조용',
   },
@@ -53,12 +53,12 @@ export default async function CommissionRatePage() {
   const [{ data: dealerRows }, { data: ajouRows }] = await Promise.all([
     svc.from('documents')
       .select('id, filename, file_type, created_at')
-      .eq('category', '수수료율')
+      .eq('category', '수수료율(딜러)')
       .in('file_type', ['xlsx', 'xls', 'xlsb'])
       .order('created_at', { ascending: false }),
     svc.from('documents')
       .select('id, filename, file_type, created_at')
-      .eq('category', '수수료율(아주약품)')
+      .eq('category', '수수료율(제약사)')
       .in('file_type', ['xlsx', 'xls', 'xlsb'])
       .order('created_at', { ascending: false }),
   ]);

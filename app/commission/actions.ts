@@ -89,7 +89,7 @@ export async function getCommissionRates(): Promise<CommissionRateResult> {
   const { data: latest } = await svc()
     .from('documents')
     .select('filename, created_at')
-    .eq('category', '수수료율')
+    .eq('category', '수수료율(딜러)')
     .eq('status', 'ready')
     .order('created_at', { ascending: false })
     .limit(1)

@@ -186,7 +186,7 @@ export async function POST(request: Request) {
   }
 
   // ── E. 수수료율 폴더 → commission_rates 파싱 ────────────────────────────
-  if (category === '수수료율') {
+  if (category === '수수료율' || category === '수수료율(딜러)' || category === '수수료율(제약사)') {
     console.log(`[process:${documentId}] 수수료율 폴더 → 수수료 데이터 파싱`);
     const { rows, total, error: parseError } = parseCommissionBuffer(buffer, doc.filename);
 
