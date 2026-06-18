@@ -54,6 +54,7 @@ function mapDocs(rows: Record<string, unknown>[] | null): CommissionDoc[] {
 }
 
 export default async function CommissionRatePage() {
+  try {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
@@ -102,4 +103,8 @@ export default async function CommissionRatePage() {
       </div>
     </>
   );
+  } catch (err) {
+    console.error('[수수료율 page ERROR]', err);
+    throw err;
+  }
 }
