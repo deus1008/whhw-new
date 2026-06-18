@@ -72,17 +72,21 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
       const rawHeaders = (raw[headerRowIdx] as string[]).map(c => String(c ?? '').trim());
       const normalizedHdrs = rawHeaders.map(normalizeHeader);
 
-      // 수수료율 컬럼 감지: Excel 퍼센트 셀은 소수로 저장됨 (0.70 = 70%)
+      // 퍼센트 컬럼 감지: 수수료율·요율 계열 컬럼 (소수 0.70 또는 정수 1 모두 처리)
       const rateColIdx = new Set<number>();
       for (let j = 0; j < rawHeaders.length; j++) {
         const norm = normalizeHeader(rawHeaders[j]);
-        if (norm.includes('수수료율') || norm.includes('수수료(%)') || norm.endsWith('율(%)')) {
+        if (norm.includes('수수료율') || norm.includes('수수료(%)') || norm.endsWith('율(%)') || norm.endsWith('요율')) {
           rateColIdx.add(j);
         }
       }
 
       const priceColIdx = rawHeaders.findIndex(h => normalizeHeader(h) === '보험약가');
-      const firstRateIdx = rateColIdx.size > 0 ? [...rateColIdx][0] : -1;
+      // 정산액 계산에는 수수료율 컬럼만 사용 (기본요율 등 제외)
+      const firstRateIdx = rawHeaders.findIndex(h => {
+        const n = normalizeHeader(h);
+        return n.includes('수수료율') || n.includes('수수료(%)') || n.endsWith('율(%)');
+      });
 
       const dataRows: Row[] = [];
       for (let i = headerRowIdx + 1; i < raw.length; i++) {
@@ -97,6 +101,9 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
           if (rateColIdx.has(j) && typeof raw_val === 'number' && raw_val > 0 && raw_val < 1) {
             obj[rawHeaders[j]] = `${Math.round(raw_val * 100)}%`;
             if (j === firstRateIdx) rawRate = raw_val;
+          } else if (rateColIdx.has(j) && typeof raw_val === 'number') {
+            obj[rawHeaders[j]] = `${Math.round(raw_val)}%`;
+            if (j === firstRateIdx) rawRate = Math.round(raw_val) / 100;
           } else if (typeof raw_val === 'number') {
             obj[rawHeaders[j]] = Math.round(raw_val).toLocaleString('ko-KR');
             if (j === priceColIdx) rawPrice = Math.round(raw_val);
