@@ -205,7 +205,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   // ⑯-3 수수료율
   {
-    href: '/수수료율',
+    href: '/commission-rate',
     icon: '📑',
     label: '수수료율',
     color: '#fde68a',
