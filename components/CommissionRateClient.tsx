@@ -81,27 +81,42 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
         }
       }
 
+      const priceColIdx = rawHeaders.findIndex(h => normalizeHeader(h) === '보험약가');
+      const firstRateIdx = rateColIdx.size > 0 ? [...rateColIdx][0] : -1;
+
       const dataRows: Row[] = [];
       for (let i = headerRowIdx + 1; i < raw.length; i++) {
         const cells = raw[i] as unknown[];
         const obj: Row = {};
+        let rawPrice: number | null = null;
+        let rawRate: number | null = null;
+
         for (let j = 0; j < rawHeaders.length; j++) {
           if (!rawHeaders[j]) continue;
           const raw_val = cells[j];
           if (rateColIdx.has(j) && typeof raw_val === 'number' && raw_val > 0 && raw_val < 1) {
             obj[rawHeaders[j]] = `${Math.round(raw_val * 100)}%`;
+            if (j === firstRateIdx) rawRate = raw_val;
           } else if (typeof raw_val === 'number') {
             obj[rawHeaders[j]] = Math.round(raw_val).toLocaleString('ko-KR');
+            if (j === priceColIdx) rawPrice = Math.round(raw_val);
           } else {
             obj[rawHeaders[j]] = String(raw_val ?? '').trim();
           }
         }
+
+        if (rawPrice !== null && rawRate !== null) {
+          obj['정산액'] = Math.round(rawPrice * rawRate).toLocaleString('ko-KR');
+        }
+
         if (Object.values(obj).every(v => v === '')) continue;
         dataRows.push(obj);
       }
 
-      setHeaders(rawHeaders.filter(Boolean));
-      setNormHeaders(normalizedHdrs);
+      const hasSynthetic = priceColIdx >= 0 && firstRateIdx >= 0;
+      const baseHeaders = rawHeaders.filter(Boolean);
+      setHeaders(hasSynthetic ? [...baseHeaders, '정산액'] : baseHeaders);
+      setNormHeaders(hasSynthetic ? [...normalizedHdrs, '정산액'] : normalizedHdrs);
       setRows(dataRows);
       setLoaded(true);
     } catch (e) {
@@ -122,10 +137,27 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
   const displayHeaders = useMemo(() => {
     if (!headers.length) return [];
     const visible = headers.filter(h => !HIDDEN_COLS.includes(h));
-    const searchOnes = visible.filter((_, i) => NORM_SEARCH.includes(normalizeHeader(visible[i])));
-    const rest = visible.filter((_, i) => !NORM_SEARCH.includes(normalizeHeader(visible[i])));
-    return [...searchOnes, ...rest];
-  }, [headers, normHeaders]);
+    const n = (h: string) => normalizeHeader(h);
+    const isRateH = (h: string) => { const v = n(h); return v.includes('수수료율') || v.includes('수수료(%)') || v.endsWith('율(%)'); };
+    const findOne = (pred: (h: string) => boolean) => visible.find(pred);
+
+    // 구분·계열·제품군별·품목명 → 보험약가·수수료율·정산액 순으로 고정, 나머지는 뒤에
+    const priority = [
+      findOne(h => n(h) === '구분'),
+      findOne(h => n(h) === '계열'),
+      findOne(h => n(h) === '제품군별'),
+      findOne(h => n(h) === '품목명'),
+      findOne(h => n(h) === '보험약가'),
+      findOne(h => isRateH(h)),
+      findOne(h => n(h) === '정산액'),
+    ].filter((h): h is string => h !== undefined);
+
+    const prioritySet = new Set(priority);
+    const remaining = visible.filter(h => !prioritySet.has(h));
+    const remainSearch = remaining.filter(h => NORM_SEARCH.includes(n(h)));
+    const remainRest   = remaining.filter(h => !NORM_SEARCH.includes(n(h)));
+    return [...priority, ...remainSearch, ...remainRest];
+  }, [headers]);
 
   if (docs.length === 0) {
     return (
@@ -144,7 +176,7 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
   return (
     <div>
       {/* 파일 선택 */}
-      <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
+      <div className="no-print" style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
         <select value={selectedId} onChange={e => handleDocChange(e.target.value)} style={SELECT_STYLE}>
           {docs.map(d => (
             <option key={d.id} value={d.id}>{d.filename}  ({fmtDate(d.created_at)})</option>
@@ -163,7 +195,7 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
       {/* 데이터 테이블 */}
       {loaded && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.8rem', flexWrap: 'wrap' }}>
+          <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.8rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#e2e8f0', flexShrink: 0 }}>
               총 {rows.length.toLocaleString()}건
               {appliedQuery && ` · 검색 ${filtered.length.toLocaleString()}건`}
@@ -186,6 +218,12 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
               style={{ padding: '0.42rem 1rem', borderRadius: '8px', flexShrink: 0, background: 'linear-gradient(135deg, var(--accent-1), var(--accent-2))', border: 'none', color: '#fff', fontSize: '0.82rem', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}
             >
               검색
+            </button>
+            <button
+              onClick={() => window.print()}
+              style={{ padding: '0.42rem 1rem', borderRadius: '8px', flexShrink: 0, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.75)', fontSize: '0.82rem', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}
+            >
+              🖨️ 인쇄
             </button>
             <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
               {SEARCH_COLS.map(col => (
@@ -242,13 +280,26 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
 
 /* ── 메인 컴포넌트 ── */
 export default function CommissionRateClient({ folderGroups }: { folderGroups: CommissionFolderGroup[] }) {
-  const [activeKey, setActiveKey] = useState<CommissionFolderGroup['key']>('dealer');
+  const [activeKey, setActiveKey] = useState<CommissionFolderGroup['key']>('ajou');
   const active = folderGroups.find(g => g.key === activeKey) ?? folderGroups[0];
 
   return (
     <div>
+      <style>{`
+        @media print {
+          .orb, .orb-1, .orb-2, .orb-3, [class*="orb"],
+          .domain, .no-print { display: none !important; }
+          body { background: #fff !important; color: #000 !important; }
+          .auth-card { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
+          table { font-size: 10pt !important; color: #000 !important; border-collapse: collapse !important; width: 100% !important; }
+          th, td { border: 1px solid #bbb !important; padding: 3px 6px !important; color: #000 !important; background: #fff !important; white-space: normal !important; }
+          th { background: #f0f0f0 !important; font-weight: 700 !important; }
+          tr:nth-child(even) td { background: #f9f9f9 !important; }
+          span[style*="color: rgba(255"] { color: #000 !important; }
+        }
+      `}</style>
       {/* 탭 */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+      <div className="no-print" style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         {folderGroups.map(g => (
           <button
             key={g.key}
@@ -277,7 +328,7 @@ export default function CommissionRateClient({ folderGroups }: { folderGroups: C
 
       {/* 설명 */}
       {active && (
-        <div style={{
+        <div className="no-print" style={{
           padding: '0.65rem 1rem', borderRadius: '8px', marginBottom: '1rem',
           background: activeKey === 'dealer' ? 'rgba(96,165,250,0.07)' : 'rgba(251,191,36,0.07)',
           border: activeKey === 'dealer' ? '1px solid rgba(96,165,250,0.2)' : '1px solid rgba(251,191,36,0.2)',
