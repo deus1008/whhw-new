@@ -6,7 +6,7 @@ import type { CommissionDoc, CommissionFolderGroup } from '@/app/commission-rate
 
 /* ── 검색 대상 컬럼 ── */
 const SEARCH_COLS = ['구분', '계열', '제품군별', '품목명', '성분명(한글)', '성분명(영문)', '위탁여부'];
-const HIDDEN_COLS = ['보험코드', '대표코드'];
+const HIDDEN_COLS = ['보험코드', '대표코드', '비고', '효능'];
 
 function normalizeHeader(s: string): string {
   return s.replace(/\s/g, '').replace(/（/g, '(').replace(/）/g, ')').toLowerCase();
@@ -267,7 +267,16 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
                         const isProductGroup = h === '제품군별';
                         const isManufacturer = h === '제약사명';
                         const hl = appliedQuery ? highlight(val, appliedQuery) : null;
-                        const colMax = isCategory ? '100px' : isIngredient || isProductGroup ? '132px' : isManufacturer ? '110px' : '220px';
+                        const colMax =
+                          isCategory         ? '100px' :
+                          isIngredient || isProductGroup ? '132px' :
+                          isManufacturer     ? '110px' :
+                          h === '유통이슈'   ? '66px'  :
+                          h === '효능명'     ? '88px'  :
+                          h === '자체생산여부' ? '44px' :
+                          h === '생동'       ? '44px'  :
+                          h === '대조의약품' ? '154px' :
+                          '220px';
                         return (
                           <td key={h} style={{ ...TD, maxWidth: colMax, overflow: 'hidden', textOverflow: 'ellipsis', textAlign: align }}>
                             {hl ? <span dangerouslySetInnerHTML={{ __html: hl }} /> : <span style={{ color: isSearch ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.45)' }}>{val}</span>}
