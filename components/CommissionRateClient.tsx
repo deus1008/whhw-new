@@ -66,12 +66,27 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
       const rawHeaders = (raw[headerRowIdx] as string[]).map(c => String(c ?? '').trim());
       const normalizedHdrs = rawHeaders.map(normalizeHeader);
 
+      // 수수료율 컬럼 감지: Excel 퍼센트 셀은 소수로 저장됨 (0.70 = 70%)
+      const rateColIdx = new Set<number>();
+      for (let j = 0; j < rawHeaders.length; j++) {
+        const norm = normalizeHeader(rawHeaders[j]);
+        if (norm.includes('수수료율') || norm.includes('수수료(%)') || norm.endsWith('율(%)')) {
+          rateColIdx.add(j);
+        }
+      }
+
       const dataRows: Row[] = [];
       for (let i = headerRowIdx + 1; i < raw.length; i++) {
         const cells = raw[i] as unknown[];
         const obj: Row = {};
         for (let j = 0; j < rawHeaders.length; j++) {
-          if (rawHeaders[j]) obj[rawHeaders[j]] = String(cells[j] ?? '').trim();
+          if (!rawHeaders[j]) continue;
+          const raw_val = cells[j];
+          if (rateColIdx.has(j) && typeof raw_val === 'number' && raw_val > 0 && raw_val < 1) {
+            obj[rawHeaders[j]] = `${Math.round(raw_val * 100)}%`;
+          } else {
+            obj[rawHeaders[j]] = String(raw_val ?? '').trim();
+          }
         }
         if (Object.values(obj).every(v => v === '')) continue;
         dataRows.push(obj);
