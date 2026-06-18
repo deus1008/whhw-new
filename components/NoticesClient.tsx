@@ -83,39 +83,61 @@ export default function NoticesClient({
     });
   }
 
-  const pinned = notices.filter(n => n.is_pinned);
+  const pinned  = notices.filter(n => n.is_pinned);
   const regular = notices.filter(n => !n.is_pinned);
+  const total   = notices.length;
 
   return (
     <>
-      {/* 관리자 버튼 */}
+      {/* 관리자 작성 버튼 */}
       {isAdmin && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
           <button onClick={openCreate} style={BTN_PRIMARY}>+ 공지 작성</button>
         </div>
       )}
 
-      {notices.length === 0 && (
-        <div style={{ textAlign: 'left', color: 'rgba(255,255,255,0.3)', padding: '4rem 0', fontSize: '0.9rem' }}>
-          등록된 공지사항이 없습니다.
+      {/* 게시판 테이블 */}
+      <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
+        {/* 헤더 */}
+        <div style={HEADER_ROW}>
+          <span style={{ ...COL_NO, color: 'rgba(255,255,255,0.35)' }}>No.</span>
+          <span style={{ ...COL_TITLE, color: 'rgba(255,255,255,0.35)' }}>제목</span>
+          <span style={{ ...COL_DATE, color: 'rgba(255,255,255,0.35)' }}>날짜</span>
+          {isAdmin && <span style={{ ...COL_ADMIN, color: 'rgba(255,255,255,0.35)' }}>관리</span>}
         </div>
-      )}
 
-      {/* 고정 공지 */}
-      {pinned.length > 0 && (
-        <section style={{ marginBottom: '1.5rem' }}>
-          <div style={SECTION_LABEL}>📌 중요 공지</div>
-          {pinned.map(n => <NoticeRow key={n.id} notice={n} isAdmin={isAdmin} onEdit={openEdit} onDelete={handleDelete} />)}
-        </section>
-      )}
+        {notices.length === 0 && (
+          <div style={{ padding: '3rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.88rem' }}>
+            등록된 공지사항이 없습니다.
+          </div>
+        )}
 
-      {/* 일반 공지 */}
-      {regular.length > 0 && (
-        <section>
-          {pinned.length > 0 && <div style={SECTION_LABEL}>공지사항</div>}
-          {regular.map(n => <NoticeRow key={n.id} notice={n} isAdmin={isAdmin} onEdit={openEdit} onDelete={handleDelete} />)}
-        </section>
-      )}
+        {/* 고정 공지 */}
+        {pinned.map(n => (
+          <BoardRow
+            key={n.id}
+            notice={n}
+            no="📌"
+            isAdmin={isAdmin}
+            onEdit={openEdit}
+            onDelete={handleDelete}
+            pinned
+          />
+        ))}
+
+        {/* 일반 공지 — 번호는 최신순으로 total부터 역산 */}
+        {regular.map((n, i) => (
+          <BoardRow
+            key={n.id}
+            notice={n}
+            no={String(total - pinned.length - i)}
+            isAdmin={isAdmin}
+            onEdit={openEdit}
+            onDelete={handleDelete}
+            pinned={false}
+          />
+        ))}
+      </div>
 
       {/* 모달 */}
       {modal && (
@@ -167,59 +189,91 @@ export default function NoticesClient({
   );
 }
 
-function NoticeRow({
+function BoardRow({
   notice,
+  no,
   isAdmin,
   onEdit,
   onDelete,
+  pinned,
 }: {
   notice: Notice;
+  no: string;
   isAdmin: boolean;
   onEdit: (n: Notice) => void;
   onDelete: (id: string) => void;
+  pinned: boolean;
 }) {
+  const [hover, setHover] = useState(false);
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: '0.75rem',
-      padding: '0.85rem 1rem',
-      marginBottom: '0.5rem',
-      borderRadius: '10px',
-      background: notice.is_pinned ? 'rgba(251,191,36,0.06)' : 'rgba(255,255,255,0.04)',
-      border: notice.is_pinned ? '1px solid rgba(251,191,36,0.22)' : '1px solid rgba(255,255,255,0.08)',
-    }}>
-      {notice.is_pinned && (
-        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#fbbf24', flexShrink: 0 }}>📌</span>
-      )}
+    <div
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        display: 'flex', alignItems: 'center',
+        borderTop: '1px solid rgba(255,255,255,0.07)',
+        padding: '0.7rem 1rem',
+        background: hover
+          ? 'rgba(255,255,255,0.05)'
+          : pinned
+          ? 'rgba(251,191,36,0.04)'
+          : 'transparent',
+        transition: 'background 0.12s',
+      }}
+    >
+      <span style={{
+        ...COL_NO,
+        color: pinned ? '#fbbf24' : 'rgba(255,255,255,0.3)',
+        fontWeight: pinned ? 700 : 400,
+        fontSize: pinned ? '0.85rem' : '0.8rem',
+      }}>
+        {no}
+      </span>
+
       <a
         href={`/notices/${notice.id}`}
-        style={{ flex: 1, color: '#e2e8f0', textDecoration: 'none', fontWeight: 500, fontSize: '0.92rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}
+        style={{
+          ...COL_TITLE,
+          color: pinned ? '#fde68a' : '#e2e8f0',
+          textDecoration: 'none',
+          fontWeight: pinned ? 600 : 400,
+          fontSize: '0.88rem',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
       >
         {notice.title}
       </a>
-      <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>
+
+      <span style={{ ...COL_DATE, color: 'rgba(255,255,255,0.35)', fontSize: '0.78rem' }}>
         {fmtDate(notice.created_at)}
       </span>
-      <a
-        href={`/notices/${notice.id}`}
-        style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)', textDecoration: 'none', flexShrink: 0 }}
-      >
-        열람 →
-      </a>
+
       {isAdmin && (
-        <>
+        <span style={COL_ADMIN}>
           <button onClick={() => onEdit(notice)} style={BTN_SM_EDIT}>수정</button>
           <button onClick={() => onDelete(notice.id)} style={BTN_SM_DEL}>삭제</button>
-        </>
+        </span>
       )}
     </div>
   );
 }
 
-const SECTION_LABEL: React.CSSProperties = {
-  fontSize: '0.72rem', fontWeight: 700, color: 'rgba(255,255,255,0.35)',
-  letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.5rem', paddingLeft: '0.1rem',
+/* ── 열 레이아웃 ── */
+const HEADER_ROW: React.CSSProperties = {
+  display: 'flex', alignItems: 'center',
+  padding: '0.55rem 1rem',
+  background: 'rgba(255,255,255,0.04)',
+  fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.05em',
 };
 
+const COL_NO: React.CSSProperties    = { width: '3.5rem', flexShrink: 0, textAlign: 'center' };
+const COL_TITLE: React.CSSProperties = { flex: 1, minWidth: 0, paddingRight: '1rem' };
+const COL_DATE: React.CSSProperties  = { width: '6rem', flexShrink: 0, textAlign: 'center' };
+const COL_ADMIN: React.CSSProperties = { width: '7rem', flexShrink: 0, display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' };
+
+/* ── 공통 스타일 ── */
 const OVERLAY: React.CSSProperties = {
   position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
   display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: '1rem',
@@ -252,11 +306,11 @@ const BTN_CANCEL: React.CSSProperties = {
 };
 
 const BTN_SM_EDIT: React.CSSProperties = {
-  padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.72rem', cursor: 'pointer',
+  padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit',
   background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.3)', color: '#93c5fd',
 };
 
 const BTN_SM_DEL: React.CSSProperties = {
-  padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.72rem', cursor: 'pointer',
+  padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit',
   background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171',
 };
