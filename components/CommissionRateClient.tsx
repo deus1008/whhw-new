@@ -217,7 +217,7 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
                         const isNumeric = /^[\d,]+$/.test(val);
                         const isPct = /^[\d,]+%$/.test(val);
                         const align = isPct ? 'center' : isNumeric ? 'right' : 'left';
-                        const isIngredient = h === '성분명(한글)' || h === '성분명(영문)';
+                        const isIngredient = h === '성분명(한글)' || h === '성분명(영문)' || h === '구분';
                         const hl = appliedQuery ? highlight(val, appliedQuery) : null;
                         return (
                           <td key={h} style={{ ...TD, maxWidth: isIngredient ? '132px' : '220px', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: align }}>
