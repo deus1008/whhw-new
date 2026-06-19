@@ -33,6 +33,17 @@ export default async function MeetingsPage() {
           <LogoutButton compact />
         </div>
 
+        <p style={{
+          textAlign: 'center', fontSize: '0.75rem',
+          color: 'rgba(251,191,36,0.7)',
+          background: 'rgba(251,191,36,0.07)',
+          border: '1px solid rgba(251,191,36,0.18)',
+          borderRadius: '8px', padding: '0.5rem 1rem',
+          marginBottom: '1.25rem',
+        }}>
+          🔒 회의내용은 사용자 업무참조에만 활용하고, 내/외부 유출은 금지합니다.
+        </p>
+
         <MeetingsClient meetings={meetings} />
       </div>
     </>
