@@ -4,8 +4,6 @@ import { createClient as createSvc } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import type { Todo, MeetingRow } from './types';
 
-export type { Todo, MeetingRow };
-
 function svc() {
   return createSvc(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

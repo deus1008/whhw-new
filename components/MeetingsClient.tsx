@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { createMeeting, deleteMeeting, type MeetingRow } from '@/app/meetings/actions';
-import { CATEGORIES } from '@/app/meetings/types';
+import { createMeeting, deleteMeeting } from '@/app/meetings/actions';
+import { CATEGORIES, type MeetingRow } from '@/app/meetings/types';
 
 function fmtDate(s: string) {
   const d = new Date(s.length === 10 ? s + 'T00:00:00' : s);
