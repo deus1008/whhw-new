@@ -20,6 +20,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/documents') ||
+    pathname.startsWith('/meetings') ||
     pathname.startsWith('/pending');
 
   if (!isProtected) return supabaseResponse;
