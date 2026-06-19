@@ -1,9 +1,6 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import type { Components } from 'react-markdown';
 import { updateMeeting } from '@/app/meetings/actions';
 import { CATEGORIES, type MeetingRow, type Todo } from '@/app/meetings/types';
 
@@ -148,8 +145,8 @@ export default function MeetingDetailClient({ meeting: initial }: { meeting: Mee
             value={draft.content}
             onChange={e => setDraft(d => ({ ...d, content: e.target.value }))}
             rows={18}
-            placeholder="회의 내용을 자유롭게 작성하세요.&#10;마크다운 문법을 지원합니다 (# 제목, - 목록, **굵게**, > 인용 등)"
-            style={{ ...INPUT, resize: 'vertical', fontFamily: 'monospace', fontSize: '0.82rem', minHeight: '280px', lineHeight: 1.7 }}
+            placeholder="회의 내용을 자유롭게 작성하세요."
+            style={{ ...INPUT, resize: 'vertical', fontFamily: 'inherit', fontSize: '0.88rem', minHeight: '280px', lineHeight: 1.8 }}
           />
         ) : (
           <div style={{
@@ -158,11 +155,13 @@ export default function MeetingDetailClient({ meeting: initial }: { meeting: Mee
             border: '1px solid rgba(255,255,255,0.08)',
           }}>
             {meeting.content ? (
-              <div style={{ color: '#cbd5e1', fontSize: '0.88rem', lineHeight: 1.8 }}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
-                  {meeting.content}
-                </ReactMarkdown>
-              </div>
+              <pre style={{
+                color: '#cbd5e1', fontSize: '0.88rem', lineHeight: 1.8,
+                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                fontFamily: 'inherit', margin: 0,
+              }}>
+                {meeting.content}
+              </pre>
             ) : (
               <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.85rem' }}>
                 내용이 없습니다. 수정 버튼을 눌러 작성해주세요.
@@ -234,27 +233,6 @@ export default function MeetingDetailClient({ meeting: initial }: { meeting: Mee
     </div>
   );
 }
-
-/* ── 마크다운 스타일 컴포넌트 ── */
-const MD_COMPONENTS: Components = {
-  h1: ({ children }) => <h1 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f1f5f9', margin: '1rem 0 0.45rem', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '0.3rem' }}>{children}</h1>,
-  h2: ({ children }) => <h2 style={{ fontSize: '0.97rem', fontWeight: 700, color: '#e2e8f0', margin: '0.85rem 0 0.35rem' }}>{children}</h2>,
-  h3: ({ children }) => <h3 style={{ fontSize: '0.88rem', fontWeight: 600, color: '#cbd5e1', margin: '0.65rem 0 0.25rem' }}>{children}</h3>,
-  p:  ({ children }) => <p style={{ margin: '0.35rem 0', color: '#cbd5e1', lineHeight: 1.85 }}>{children}</p>,
-  ul: ({ children }) => <ul style={{ paddingLeft: '1.4rem', margin: '0.35rem 0', color: '#cbd5e1' }}>{children}</ul>,
-  ol: ({ children }) => <ol style={{ paddingLeft: '1.4rem', margin: '0.35rem 0', color: '#cbd5e1' }}>{children}</ol>,
-  li: ({ children }) => <li style={{ margin: '0.18rem 0', lineHeight: 1.75 }}>{children}</li>,
-  blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid rgba(99,102,241,0.5)', paddingLeft: '0.8rem', margin: '0.5rem 0', color: 'rgba(255,255,255,0.5)', fontStyle: 'italic' }}>{children}</blockquote>,
-  pre: ({ children }) => <pre style={{ background: 'rgba(0,0,0,0.35)', padding: '0.75rem 1rem', borderRadius: '6px', overflowX: 'auto', margin: '0.5rem 0', fontSize: '0.8rem' }}>{children}</pre>,
-  code: ({ children, className }) => className
-    ? <code style={{ color: '#e2e8f0', fontFamily: 'monospace' }}>{children}</code>
-    : <code style={{ background: 'rgba(255,255,255,0.1)', padding: '0.1em 0.4em', borderRadius: '4px', fontSize: '0.82em', color: '#a5b4fc' }}>{children}</code>,
-  strong: ({ children }) => <strong style={{ color: '#f1f5f9', fontWeight: 700 }}>{children}</strong>,
-  hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '0.8rem 0' }} />,
-  table: ({ children }) => <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.82rem', margin: '0.5rem 0' }}>{children}</table>,
-  th: ({ children }) => <th style={{ border: '1px solid rgba(255,255,255,0.15)', padding: '0.4rem 0.7rem', background: 'rgba(255,255,255,0.06)', color: '#e2e8f0', fontWeight: 600, textAlign: 'left' }}>{children}</th>,
-  td: ({ children }) => <td style={{ border: '1px solid rgba(255,255,255,0.1)', padding: '0.4rem 0.7rem', color: '#cbd5e1' }}>{children}</td>,
-};
 
 /* ── 스타일 상수 ── */
 const SEC_LABEL: React.CSSProperties = {
