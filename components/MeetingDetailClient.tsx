@@ -4,7 +4,8 @@ import { useState, useTransition } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
-import { updateMeeting, CATEGORIES, type MeetingRow, type Todo } from '@/app/meetings/actions';
+import { updateMeeting, type MeetingRow, type Todo } from '@/app/meetings/actions';
+import { CATEGORIES } from '@/app/meetings/types';
 
 function fmtDate(s: string) {
   const d = new Date(s.length === 10 ? s + 'T00:00:00' : s);
