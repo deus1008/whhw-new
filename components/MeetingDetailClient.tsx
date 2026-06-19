@@ -155,13 +155,12 @@ export default function MeetingDetailClient({ meeting: initial }: { meeting: Mee
             border: '1px solid rgba(255,255,255,0.08)',
           }}>
             {meeting.content ? (
-              <pre style={{
+              <div style={{
                 color: '#cbd5e1', fontSize: '0.88rem', lineHeight: 1.8,
                 whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                fontFamily: 'inherit', margin: 0,
               }}>
                 {meeting.content}
-              </pre>
+              </div>
             ) : (
               <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.85rem' }}>
                 내용이 없습니다. 수정 버튼을 눌러 작성해주세요.
