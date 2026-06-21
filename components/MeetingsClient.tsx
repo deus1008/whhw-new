@@ -105,7 +105,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
         <div style={HEADER_ROW}>
           <span style={{ ...COL_DATE, textAlign: 'center', color: 'rgba(255,255,255,0.35)' }}>회의일</span>
           <span style={{ ...COL_CAT,  textAlign: 'center', color: 'rgba(255,255,255,0.35)' }}>분류</span>
-          <span style={{ ...COL_TITLE, color: 'rgba(255,255,255,0.35)' }}>제목</span>
+          <span style={{ ...COL_TITLE, color: 'rgba(255,255,255,0.35)', textAlign: 'center' }}>제목</span>
           <span style={{ ...COL_TODO, textAlign: 'center', color: 'rgba(255,255,255,0.35)' }}>할일</span>
           <span style={{ ...COL_ACT,  textAlign: 'right',  color: 'rgba(255,255,255,0.35)' }}>관리</span>
         </div>
@@ -226,8 +226,8 @@ const HEADER_ROW: React.CSSProperties = {
 };
 const COL_DATE:  React.CSSProperties = { width: '5.5rem', flexShrink: 0 };
 const COL_CAT:   React.CSSProperties = { width: '7rem',  flexShrink: 0 };
-const COL_TITLE: React.CSSProperties = { flex: 1, minWidth: 0, paddingRight: '0.75rem' };
-const COL_TODO:  React.CSSProperties = { width: '5rem',  flexShrink: 0 };
+const COL_TITLE: React.CSSProperties = { flex: 1, minWidth: 0, maxWidth: '35%', paddingRight: '0.75rem' };
+const COL_TODO:  React.CSSProperties = { width: '5rem',  flexShrink: 0, marginLeft: 'auto' };
 const COL_ACT:   React.CSSProperties = { width: '6.5rem', flexShrink: 0 };
 
 /* ── 공통 스타일 ── */
