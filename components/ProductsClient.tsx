@@ -44,9 +44,11 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
   const [form, setForm]                 = useState<ProductInput>(EMPTY_FORM);
   const [formError, setFormError]       = useState('');
   const [isPending, startTransition]    = useTransition();
-  const [filterStatus, setFilterStatus] = useState('');
-  const [search, setSearch]             = useState('');
-  const [filterCompany, setFilterCompany] = useState('');  // 회사 필터
+  const [filterStatus, setFilterStatus]   = useState('');
+  const [search, setSearch]               = useState('');
+  const [filterCompany, setFilterCompany] = useState('');
+  const [sortKey, setSortKey]             = useState<string>('launch_date');
+  const [sortDir, setSortDir]             = useState<'asc' | 'desc'>('asc');
 
   /* ── 회사 목록 (중복 제거) ─────────────────────────────────── */
   const companyList = useMemo(() => {
@@ -104,19 +106,51 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
     });
   }
 
+  /* ── 정렬 토글 ─────────────────────────────────────────────── */
+  function toggleSort(key: string) {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  }
+
   /* ── filter ─────────────────────────────────────────────────── */
-  const filtered = products.filter(p => {
-    const matchStatus  = !filterStatus  || p.status === filterStatus;
-    const matchCompany = !filterCompany || (p.manufacturer ?? '') === filterCompany;
-    const q = search.trim().toLowerCase();
-    const matchSearch  = !q
-      || (p.memo          ?? '').toLowerCase().includes(q)   // 성분명
-      || p.title.toLowerCase().includes(q)                    // 제품명
-      || (p.indication    ?? '').toLowerCase().includes(q)
-      || (p.manufacturer  ?? '').toLowerCase().includes(q)
-      || (p.insurance_code ?? '').toLowerCase().includes(q);
-    return matchStatus && matchCompany && matchSearch;
-  });
+  const filtered = useMemo(() => {
+    const base = products.filter(p => {
+      const matchStatus  = !filterStatus  || p.status === filterStatus;
+      const matchCompany = !filterCompany || (p.manufacturer ?? '') === filterCompany;
+      const q = search.trim().toLowerCase();
+      const matchSearch  = !q
+        || (p.memo          ?? '').toLowerCase().includes(q)
+        || p.title.toLowerCase().includes(q)
+        || (p.indication    ?? '').toLowerCase().includes(q)
+        || (p.manufacturer  ?? '').toLowerCase().includes(q)
+        || (p.insurance_code ?? '').toLowerCase().includes(q);
+      return matchStatus && matchCompany && matchSearch;
+    });
+
+    const STATUS_ORDER = Object.fromEntries(STATUS_LIST.map((s, i) => [s, i]));
+
+    return [...base].sort((a, b) => {
+      let va = '';
+      let vb = '';
+      switch (sortKey) {
+        case 'memo':         va = a.memo         ?? ''; vb = b.memo         ?? ''; break;
+        case 'title':        va = a.title        ?? ''; vb = b.title        ?? ''; break;
+        case 'launch_date':  va = a.launch_date  ?? ''; vb = b.launch_date  ?? ''; break;
+        case 'indication':   va = a.indication   ?? ''; vb = b.indication   ?? ''; break;
+        case 'manufacturer': va = a.manufacturer ?? ''; vb = b.manufacturer ?? ''; break;
+        case 'status':
+          va = String(STATUS_ORDER[a.status ?? ''] ?? 99);
+          vb = String(STATUS_ORDER[b.status ?? ''] ?? 99);
+          break;
+      }
+      const cmp = va.localeCompare(vb, 'ko');
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [products, filterStatus, filterCompany, search, sortKey, sortDir]);
 
   /* ══ RENDER ══════════════════════════════════════════════════ */
   return (
@@ -211,8 +245,36 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
             <thead>
               <tr style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                {['성분명', '제품명', '발매(예정)일', '계열', '회사', '보험코드', '보험가', '진행상태', ''].map(h => (
-                  <th key={h} style={{ padding: '0.65rem 0.9rem', textAlign: 'left', color: '#64748b', fontWeight: 700, fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{h}</th>
+                {([
+                  { label: '성분명',      key: 'memo'         },
+                  { label: '제품명',      key: 'title'        },
+                  { label: '발매(예정)일', key: 'launch_date'  },
+                  { label: '계열',        key: 'indication'   },
+                  { label: '회사',        key: 'manufacturer' },
+                  { label: '보험코드',    key: null           },
+                  { label: '보험가',      key: null           },
+                  { label: '진행상태',    key: 'status'       },
+                  { label: '',           key: null           },
+                ] as { label: string; key: string | null }[]).map(({ label, key }) => (
+                  <th
+                    key={label || 'action'}
+                    onClick={key ? () => toggleSort(key) : undefined}
+                    style={{
+                      padding: '0.65rem 0.9rem', textAlign: 'left',
+                      color: key && sortKey === key ? '#e2e8f0' : '#64748b',
+                      fontWeight: 700, fontSize: '0.78rem', whiteSpace: 'nowrap',
+                      cursor: key ? 'pointer' : 'default',
+                      userSelect: 'none',
+                      transition: 'color 0.12s',
+                    }}
+                  >
+                    {label}
+                    {key && (
+                      <span style={{ marginLeft: '0.3rem', fontSize: '0.65rem', opacity: sortKey === key ? 1 : 0.3 }}>
+                        {sortKey === key ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}
+                      </span>
+                    )}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -227,8 +289,10 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
                     onMouseLeave={e => (e.currentTarget.style.background = rowBg)}>
 
                     {/* ① 성분명 — 주요 */}
-                    <td style={{ padding: '0.7rem 0.9rem', color: '#e2e8f0', fontWeight: 700, minWidth: '160px' }}>
-                      {p.memo || <span style={{ color: '#475569' }}>—</span>}
+                    <td style={{ padding: '0.7rem 0.9rem', color: '#e2e8f0', fontWeight: 700, minWidth: '80px', maxWidth: '160px' }}>
+                      <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>
+                        {p.memo || <span style={{ color: '#475569' }}>—</span>}
+                      </span>
                     </td>
 
                     {/* ② 제품명 */}
