@@ -1,9 +1,11 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { createMeeting, deleteMeeting } from '@/app/meetings/actions';
+import { createMeeting, deleteMeeting, updateMeeting } from '@/app/meetings/actions';
 import { CATEGORIES, type MeetingRow } from '@/app/meetings/types';
+
+const DEFAULT_CATS: string[] = [...CATEGORIES];
 
 function useIsMobile(breakpoint = 640) {
   const [isMobile, setIsMobile] = useState(false);
@@ -41,15 +43,47 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
   const [meetings, setMeetings] = useState<MeetingRow[]>(initial);
   const [activeCategory, setActiveCategory] = useState('전체');
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ title: '', category: CATEGORIES[0] as string, meeting_date: todayStr() });
+  const [form, setForm] = useState({ title: '', category: DEFAULT_CATS[0], meeting_date: todayStr() });
   const [err, setErr] = useState('');
   const [isPending, startTransition] = useTransition();
 
-  const cats = ['전체', ...CATEGORIES];
+  /* ── 동적 분류 목록 ──────────────────────────────────────────── */
+  const [localCats, setLocalCats] = useState<string[]>([]);
+
+  const allCategories = useMemo(() => {
+    const fromMeetings = meetings.map(m => m.category).filter((c): c is string => !!c);
+    return Array.from(new Set([...DEFAULT_CATS, ...localCats, ...fromMeetings]));
+  }, [meetings, localCats]);
+
+  /* ── 모달 새 분류 입력 ───────────────────────────────────────── */
+  const [showCustom, setShowCustom] = useState(false);
+  const [customCatInput, setCustomCatInput] = useState('');
+
+  function handleModalCatSelect(val: string) {
+    if (val === '__new__') {
+      setShowCustom(true);
+    } else {
+      setShowCustom(false);
+      setForm(f => ({ ...f, category: val }));
+    }
+  }
+
+  function confirmModalCustom() {
+    const v = customCatInput.trim();
+    if (!v) return;
+    if (!allCategories.includes(v)) setLocalCats(prev => [...prev, v]);
+    setForm(f => ({ ...f, category: v }));
+    setShowCustom(false);
+    setCustomCatInput('');
+  }
+
+  const cats = ['전체', ...allCategories];
   const filtered = activeCategory === '전체' ? meetings : meetings.filter(m => m.category === activeCategory);
 
   function openModal() {
-    setForm({ title: '', category: CATEGORIES[0], meeting_date: todayStr() });
+    setForm({ title: '', category: DEFAULT_CATS[0], meeting_date: todayStr() });
+    setShowCustom(false);
+    setCustomCatInput('');
     setErr('');
     setModal(true);
   }
@@ -74,9 +108,19 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
     });
   }
 
+  function handleCategoryChange(id: string, cat: string) {
+    /* 새 분류면 localCats에 추가 */
+    if (!allCategories.includes(cat)) setLocalCats(prev => [...prev, cat]);
+    startTransition(async () => {
+      const res = await updateMeeting(id, { category: cat });
+      if (res.error) { alert(res.error); return; }
+      setMeetings(prev => prev.map(m => m.id === id ? { ...m, category: cat } : m));
+    });
+  }
+
   return (
     <>
-      {/* 분류 탭 + 새 회의록 버튼 */}
+      {/* ── 분류 탭 + 새 회의록 버튼 ─────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.6rem' }}>
         <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
           {cats.map(cat => {
@@ -111,7 +155,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
         <button onClick={openModal} style={BTN_PRIMARY}>+ 새 회의록</button>
       </div>
 
-      {/* 게시판 — 데스크톱: 테이블 / 모바일: 카드 */}
+      {/* ── 게시판 — 데스크톱: 테이블 / 모바일: 카드 ──────────── */}
       {isMobile ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
           {filtered.length === 0 && (
@@ -128,14 +172,15 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
                 meeting={m}
                 pending={pending}
                 total={todos.length}
+                allCategories={allCategories}
                 onDelete={() => handleDelete(m.id)}
+                onCategoryChange={cat => handleCategoryChange(m.id, cat)}
               />
             );
           })}
         </div>
       ) : (
         <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
-          {/* 헤더 행 */}
           <div style={HEADER_ROW}>
             <span style={{ ...COL_DATE, textAlign: 'center', color: 'rgba(255,255,255,0.35)' }}>회의일</span>
             <span style={{ ...COL_CAT,  textAlign: 'center', color: 'rgba(255,255,255,0.35)' }}>분류</span>
@@ -160,14 +205,16 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
                 pending={pending}
                 total={todos.length}
                 isEven={i % 2 === 0}
+                allCategories={allCategories}
                 onDelete={() => handleDelete(m.id)}
+                onCategoryChange={cat => handleCategoryChange(m.id, cat)}
               />
             );
           })}
         </div>
       )}
 
-      {/* 생성 모달 */}
+      {/* ── 생성 모달 ─────────────────────────────────────────── */}
       {modal && (
         <div style={OVERLAY} onClick={() => setModal(false)}>
           <div style={MODAL} onClick={e => e.stopPropagation()}>
@@ -184,9 +231,34 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
             />
 
             <label style={LABEL}>분류</label>
-            <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={INPUT}>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+            <select
+              value={showCustom ? '__new__' : form.category}
+              onChange={e => handleModalCatSelect(e.target.value)}
+              style={INPUT}
+            >
+              {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
+              <option value="__new__">＋ 새 분류 추가…</option>
             </select>
+
+            {showCustom && (
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '-0.75rem', marginBottom: '1rem' }}>
+                <input
+                  value={customCatInput}
+                  onChange={e => setCustomCatInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') confirmModalCustom();
+                    if (e.key === 'Escape') { setShowCustom(false); setCustomCatInput(''); }
+                  }}
+                  placeholder="새 분류명 입력 후 Enter"
+                  autoFocus
+                  style={{ ...INPUT, marginBottom: 0, flex: 1 }}
+                />
+                <button
+                  onClick={confirmModalCustom}
+                  style={{ ...BTN_PRIMARY, flexShrink: 0, padding: '0.6rem 0.9rem' }}
+                >추가</button>
+              </div>
+            )}
 
             <label style={LABEL}>회의일</label>
             <input type="date" value={form.meeting_date} onChange={e => setForm(f => ({ ...f, meeting_date: e.target.value }))} style={INPUT} />
@@ -206,11 +278,43 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
   );
 }
 
-function MeetingRow({ meeting, pending, total, isEven, onDelete }: {
-  meeting: MeetingRow; pending: number; total: number; isEven: boolean; onDelete: () => void;
+/* ── 테이블 행 ─────────────────────────────────────────────────── */
+function MeetingRow({ meeting, pending, total, isEven, allCategories, onDelete, onCategoryChange }: {
+  meeting: MeetingRow; pending: number; total: number; isEven: boolean;
+  allCategories: string[];
+  onDelete: () => void;
+  onCategoryChange: (cat: string) => void;
 }) {
   const [hover, setHover] = useState(false);
+  const [editingCat, setEditingCat] = useState(false);
+  const [customCat, setCustomCat] = useState('');
+  const [showCatInput, setShowCatInput] = useState(false);
   const style = cs(meeting.category);
+
+  function handleCatChange(val: string) {
+    if (val === '__new__') {
+      setShowCatInput(true);
+    } else {
+      onCategoryChange(val);
+      setEditingCat(false);
+    }
+  }
+
+  function confirmCat() {
+    const v = customCat.trim();
+    if (!v) return;
+    onCategoryChange(v);
+    setCustomCat('');
+    setShowCatInput(false);
+    setEditingCat(false);
+  }
+
+  function cancelCatEdit() {
+    setEditingCat(false);
+    setShowCatInput(false);
+    setCustomCat('');
+  }
+
   return (
     <div
       onMouseEnter={() => setHover(true)}
@@ -226,22 +330,57 @@ function MeetingRow({ meeting, pending, total, isEven, onDelete }: {
       <span style={{ ...COL_DATE, color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem', textAlign: 'center' }}>
         {fmtDate(meeting.meeting_date)}
       </span>
+
+      {/* 분류 — 클릭하면 인라인 편집 */}
       <span style={{ ...COL_CAT, display: 'flex', justifyContent: 'center' }}>
-        <span style={{ padding: '0.15rem 0.55rem', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 600, color: style.color, background: style.bg, whiteSpace: 'nowrap' }}>
-          {meeting.category}
-        </span>
+        {editingCat ? (
+          showCatInput ? (
+            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+              <input
+                value={customCat}
+                onChange={e => setCustomCat(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') confirmCat(); if (e.key === 'Escape') cancelCatEdit(); }}
+                placeholder="새 분류명"
+                autoFocus
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', padding: '0.15rem 0.4rem', color: '#fff', fontSize: '0.7rem', width: '72px', outline: 'none', fontFamily: 'inherit' }}
+              />
+              <button onClick={confirmCat}    style={CAT_MICRO_BTN}>✓</button>
+              <button onClick={cancelCatEdit} style={CAT_MICRO_BTN}>×</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+              <select
+                value={meeting.category}
+                onChange={e => handleCatChange(e.target.value)}
+                autoFocus
+                style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', padding: '0.15rem 0.3rem', color: '#fff', fontSize: '0.7rem', outline: 'none', fontFamily: 'inherit' }}
+              >
+                {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                <option value="__new__">＋ 새 분류…</option>
+              </select>
+              <button onClick={cancelCatEdit} style={CAT_MICRO_BTN}>×</button>
+            </div>
+          )
+        ) : (
+          <button
+            onClick={() => setEditingCat(true)}
+            title="분류 수정"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          >
+            <span style={{ padding: '0.15rem 0.55rem', borderRadius: '100px', fontSize: '0.7rem', fontWeight: 600, color: style.color, background: style.bg, whiteSpace: 'nowrap' }}>
+              {meeting.category}
+            </span>
+            <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.25)', lineHeight: 1 }}>✎</span>
+          </button>
+        )}
       </span>
+
       <a href={`/meetings/${meeting.id}`} style={{ ...COL_TITLE, color: '#e2e8f0', textDecoration: 'none', fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {meeting.title}
       </a>
       <span style={{ ...COL_TODO, textAlign: 'center' }}>
         {total > 0 ? (
-          <span style={{
-            fontSize: '0.72rem', fontWeight: 700,
-            color: pending > 0 ? '#fbbf24' : '#4ade80',
-            background: pending > 0 ? 'rgba(251,191,36,0.1)' : 'rgba(74,222,128,0.1)',
-            padding: '0.1rem 0.45rem', borderRadius: '100px',
-          }}>
+          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: pending > 0 ? '#fbbf24' : '#4ade80', background: pending > 0 ? 'rgba(251,191,36,0.1)' : 'rgba(74,222,128,0.1)', padding: '0.1rem 0.45rem', borderRadius: '100px' }}>
             {pending > 0 ? `${pending}/${total}` : `✓${total}`}
           </span>
         ) : <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.78rem' }}>—</span>}
@@ -254,40 +393,102 @@ function MeetingRow({ meeting, pending, total, isEven, onDelete }: {
   );
 }
 
-function MeetingCard({ meeting, pending, total, onDelete }: {
-  meeting: MeetingRow; pending: number; total: number; onDelete: () => void;
+/* ── 모바일 카드 ────────────────────────────────────────────────── */
+function MeetingCard({ meeting, pending, total, allCategories, onDelete, onCategoryChange }: {
+  meeting: MeetingRow; pending: number; total: number;
+  allCategories: string[];
+  onDelete: () => void;
+  onCategoryChange: (cat: string) => void;
 }) {
   const style = cs(meeting.category);
+  const [editingCat, setEditingCat] = useState(false);
+  const [customCat, setCustomCat] = useState('');
+  const [showCatInput, setShowCatInput] = useState(false);
+
+  function handleCatChange(val: string) {
+    if (val === '__new__') {
+      setShowCatInput(true);
+    } else {
+      onCategoryChange(val);
+      setEditingCat(false);
+    }
+  }
+
+  function confirmCat() {
+    const v = customCat.trim();
+    if (!v) return;
+    onCategoryChange(v);
+    setCustomCat('');
+    setShowCatInput(false);
+    setEditingCat(false);
+  }
+
+  function cancelCatEdit() {
+    setEditingCat(false);
+    setShowCatInput(false);
+    setCustomCat('');
+  }
+
   return (
-    <div style={{
-      border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px',
-      padding: '0.9rem 1rem', background: 'rgba(255,255,255,0.03)',
-    }}>
-      {/* 상단: 날짜 + 분류 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+    <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.9rem 1rem', background: 'rgba(255,255,255,0.03)' }}>
+      {/* 상단: 날짜 + 분류 + 할일 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>{fmtDate(meeting.meeting_date)}</span>
-        <span style={{ padding: '0.12rem 0.5rem', borderRadius: '100px', fontSize: '0.68rem', fontWeight: 600, color: style.color, background: style.bg, whiteSpace: 'nowrap' }}>
-          {meeting.category}
-        </span>
+
+        {/* 분류 인라인 편집 */}
+        {editingCat ? (
+          showCatInput ? (
+            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+              <input
+                value={customCat}
+                onChange={e => setCustomCat(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') confirmCat(); if (e.key === 'Escape') cancelCatEdit(); }}
+                placeholder="새 분류명"
+                autoFocus
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', padding: '0.2rem 0.5rem', color: '#fff', fontSize: '0.72rem', width: '90px', outline: 'none', fontFamily: 'inherit' }}
+              />
+              <button onClick={confirmCat}    style={CAT_MICRO_BTN}>✓</button>
+              <button onClick={cancelCatEdit} style={CAT_MICRO_BTN}>×</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+              <select
+                value={meeting.category}
+                onChange={e => handleCatChange(e.target.value)}
+                autoFocus
+                style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '6px', padding: '0.2rem 0.4rem', color: '#fff', fontSize: '0.72rem', outline: 'none', fontFamily: 'inherit' }}
+              >
+                {allCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                <option value="__new__">＋ 새 분류…</option>
+              </select>
+              <button onClick={cancelCatEdit} style={CAT_MICRO_BTN}>×</button>
+            </div>
+          )
+        ) : (
+          <button
+            onClick={() => setEditingCat(true)}
+            title="분류 수정"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+          >
+            <span style={{ padding: '0.12rem 0.5rem', borderRadius: '100px', fontSize: '0.68rem', fontWeight: 600, color: style.color, background: style.bg, whiteSpace: 'nowrap' }}>
+              {meeting.category}
+            </span>
+            <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.25)' }}>✎</span>
+          </button>
+        )}
+
         {total > 0 && (
-          <span style={{
-            marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 700,
-            color: pending > 0 ? '#fbbf24' : '#4ade80',
-            background: pending > 0 ? 'rgba(251,191,36,0.1)' : 'rgba(74,222,128,0.1)',
-            padding: '0.1rem 0.4rem', borderRadius: '100px',
-          }}>
+          <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 700, color: pending > 0 ? '#fbbf24' : '#4ade80', background: pending > 0 ? 'rgba(251,191,36,0.1)' : 'rgba(74,222,128,0.1)', padding: '0.1rem 0.4rem', borderRadius: '100px' }}>
             {pending > 0 ? `할일 ${pending}/${total}` : `✓${total}`}
           </span>
         )}
       </div>
+
       {/* 제목 */}
-      <a href={`/meetings/${meeting.id}`} style={{
-        display: 'block', fontSize: '0.95rem', fontWeight: 600,
-        color: '#e2e8f0', textDecoration: 'none', marginBottom: '0.75rem',
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-      }}>
+      <a href={`/meetings/${meeting.id}`} style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600, color: '#e2e8f0', textDecoration: 'none', marginBottom: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {meeting.title}
       </a>
+
       {/* 버튼 */}
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         <a href={`/meetings/${meeting.id}`} style={{ ...BTN_SM, flex: 1, justifyContent: 'center', padding: '0.45rem 0' }}>
@@ -307,7 +508,7 @@ const HEADER_ROW: React.CSSProperties = {
   background: 'rgba(255,255,255,0.04)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.05em',
 };
 const COL_DATE:  React.CSSProperties = { width: '5.5rem', flexShrink: 0 };
-const COL_CAT:   React.CSSProperties = { width: '7rem',  flexShrink: 0 };
+const COL_CAT:   React.CSSProperties = { width: '8rem',  flexShrink: 0 };
 const COL_TITLE: React.CSSProperties = { flex: 1, minWidth: 0, maxWidth: '35%', paddingRight: '0.75rem' };
 const COL_TODO:  React.CSSProperties = { width: '5rem',  flexShrink: 0, marginLeft: 'auto' };
 const COL_ACT:   React.CSSProperties = { width: '6.5rem', flexShrink: 0 };
@@ -346,4 +547,9 @@ const BTN_SM: React.CSSProperties = {
 const BTN_SM_DEL: React.CSSProperties = {
   padding: '0.2rem 0.55rem', borderRadius: '6px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit',
   background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.28)', color: '#f87171',
+};
+const CAT_MICRO_BTN: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)',
+  borderRadius: '4px', color: 'rgba(255,255,255,0.6)', fontSize: '0.7rem',
+  cursor: 'pointer', padding: '0.1rem 0.3rem', fontFamily: 'inherit', lineHeight: 1.4,
 };
