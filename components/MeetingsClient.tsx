@@ -1,9 +1,20 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createMeeting, deleteMeeting } from '@/app/meetings/actions';
 import { CATEGORIES, type MeetingRow } from '@/app/meetings/types';
+
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < breakpoint);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [breakpoint]);
+  return isMobile;
+}
 
 function fmtDate(s: string) {
   const d = new Date(s.length === 10 ? s + 'T00:00:00' : s);
@@ -26,6 +37,7 @@ function cs(cat: string) { return CAT_STYLE[cat] ?? { color: '#94a3b8', bg: 'rgb
 
 export default function MeetingsClient({ meetings: initial }: { meetings: MeetingRow[] }) {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const [meetings, setMeetings] = useState<MeetingRow[]>(initial);
   const [activeCategory, setActiveCategory] = useState('전체');
   const [modal, setModal] = useState(false);
@@ -99,38 +111,61 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
         <button onClick={openModal} style={BTN_PRIMARY}>+ 새 회의록</button>
       </div>
 
-      {/* 게시판 테이블 */}
-      <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
-        {/* 헤더 행 */}
-        <div style={HEADER_ROW}>
-          <span style={{ ...COL_DATE, textAlign: 'center', color: 'rgba(255,255,255,0.35)' }}>회의일</span>
-          <span style={{ ...COL_CAT,  textAlign: 'center', color: 'rgba(255,255,255,0.35)' }}>분류</span>
-          <span style={{ ...COL_TITLE, color: 'rgba(255,255,255,0.35)', textAlign: 'center' }}>제목</span>
-          <span style={{ ...COL_TODO, textAlign: 'center', color: 'rgba(255,255,255,0.35)' }}>할일</span>
-          <span style={{ ...COL_ACT,  textAlign: 'right',  color: 'rgba(255,255,255,0.35)' }}>관리</span>
+      {/* 게시판 — 데스크톱: 테이블 / 모바일: 카드 */}
+      {isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+          {filtered.length === 0 && (
+            <div style={{ padding: '3rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.88rem' }}>
+              {activeCategory === '전체' ? '회의록이 없습니다.' : `${activeCategory} 회의록이 없습니다.`}
+            </div>
+          )}
+          {filtered.map(m => {
+            const todos = m.todos ?? [];
+            const pending = todos.filter(t => !t.done).length;
+            return (
+              <MeetingCard
+                key={m.id}
+                meeting={m}
+                pending={pending}
+                total={todos.length}
+                onDelete={() => handleDelete(m.id)}
+              />
+            );
+          })}
         </div>
-
-        {filtered.length === 0 && (
-          <div style={{ padding: '3rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.88rem' }}>
-            {activeCategory === '전체' ? '회의록이 없습니다.' : `${activeCategory} 회의록이 없습니다.`}
+      ) : (
+        <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
+          {/* 헤더 행 */}
+          <div style={HEADER_ROW}>
+            <span style={{ ...COL_DATE, textAlign: 'center', color: 'rgba(255,255,255,0.35)' }}>회의일</span>
+            <span style={{ ...COL_CAT,  textAlign: 'center', color: 'rgba(255,255,255,0.35)' }}>분류</span>
+            <span style={{ ...COL_TITLE, color: 'rgba(255,255,255,0.35)', textAlign: 'center' }}>제목</span>
+            <span style={{ ...COL_TODO, textAlign: 'center', color: 'rgba(255,255,255,0.35)' }}>할일</span>
+            <span style={{ ...COL_ACT,  textAlign: 'right',  color: 'rgba(255,255,255,0.35)' }}>관리</span>
           </div>
-        )}
 
-        {filtered.map((m, i) => {
-          const todos = m.todos ?? [];
-          const pending = todos.filter(t => !t.done).length;
-          return (
-            <MeetingRow
-              key={m.id}
-              meeting={m}
-              pending={pending}
-              total={todos.length}
-              isEven={i % 2 === 0}
-              onDelete={() => handleDelete(m.id)}
-            />
-          );
-        })}
-      </div>
+          {filtered.length === 0 && (
+            <div style={{ padding: '3rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.88rem' }}>
+              {activeCategory === '전체' ? '회의록이 없습니다.' : `${activeCategory} 회의록이 없습니다.`}
+            </div>
+          )}
+
+          {filtered.map((m, i) => {
+            const todos = m.todos ?? [];
+            const pending = todos.filter(t => !t.done).length;
+            return (
+              <MeetingRow
+                key={m.id}
+                meeting={m}
+                pending={pending}
+                total={todos.length}
+                isEven={i % 2 === 0}
+                onDelete={() => handleDelete(m.id)}
+              />
+            );
+          })}
+        </div>
+      )}
 
       {/* 생성 모달 */}
       {modal && (
@@ -215,6 +250,53 @@ function MeetingRow({ meeting, pending, total, isEven, onDelete }: {
         <a href={`/meetings/${meeting.id}`} style={BTN_SM}>열람</a>
         <button onClick={onDelete} style={BTN_SM_DEL}>삭제</button>
       </span>
+    </div>
+  );
+}
+
+function MeetingCard({ meeting, pending, total, onDelete }: {
+  meeting: MeetingRow; pending: number; total: number; onDelete: () => void;
+}) {
+  const style = cs(meeting.category);
+  return (
+    <div style={{
+      border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px',
+      padding: '0.9rem 1rem', background: 'rgba(255,255,255,0.03)',
+    }}>
+      {/* 상단: 날짜 + 분류 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>{fmtDate(meeting.meeting_date)}</span>
+        <span style={{ padding: '0.12rem 0.5rem', borderRadius: '100px', fontSize: '0.68rem', fontWeight: 600, color: style.color, background: style.bg, whiteSpace: 'nowrap' }}>
+          {meeting.category}
+        </span>
+        {total > 0 && (
+          <span style={{
+            marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 700,
+            color: pending > 0 ? '#fbbf24' : '#4ade80',
+            background: pending > 0 ? 'rgba(251,191,36,0.1)' : 'rgba(74,222,128,0.1)',
+            padding: '0.1rem 0.4rem', borderRadius: '100px',
+          }}>
+            {pending > 0 ? `할일 ${pending}/${total}` : `✓${total}`}
+          </span>
+        )}
+      </div>
+      {/* 제목 */}
+      <a href={`/meetings/${meeting.id}`} style={{
+        display: 'block', fontSize: '0.95rem', fontWeight: 600,
+        color: '#e2e8f0', textDecoration: 'none', marginBottom: '0.75rem',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+      }}>
+        {meeting.title}
+      </a>
+      {/* 버튼 */}
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <a href={`/meetings/${meeting.id}`} style={{ ...BTN_SM, flex: 1, justifyContent: 'center', padding: '0.45rem 0' }}>
+          열람
+        </a>
+        <button onClick={onDelete} style={{ ...BTN_SM_DEL, flex: 1, padding: '0.45rem 0' }}>
+          삭제
+        </button>
+      </div>
     </div>
   );
 }
