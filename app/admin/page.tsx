@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { updateStatus, updateRoles, updateName } from './actions';
 import { ADMIN_EMAIL } from '@/lib/constants';
@@ -343,6 +344,21 @@ export default async function AdminPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
           <LogoutButton compact />
+        </div>
+
+        {/* 관리 도구 */}
+        <div style={{
+          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: '12px', padding: '1rem 1.25rem', marginBottom: '1.5rem',
+        }}>
+          <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#475569', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 0.65rem' }}>관리 도구</p>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <Link href="/admin/customer-aliases" style={{
+              padding: '0.48rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600,
+              background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)',
+              color: '#fde68a', textDecoration: 'none',
+            }}>🔗 거래처 별칭 매핑</Link>
+          </div>
         </div>
 
         <Section title="승인 대기" profiles={pending}  status="pending"  />

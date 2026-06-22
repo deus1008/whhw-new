@@ -47,16 +47,20 @@ function selectTables(topic: string): Set<string> {
   if (/ubist|처방|처방량|처방액|처방건/.test(t))
     tables.add('ubist_data');
 
-  // 영업활동 관련 (처방실적 + 정산 + 거래처)
-  if (/영업|영업활동|영업현황|영업분석|영업보고|주간|월간|분기|반기|주차/.test(t)) {
-    tables.add('ubist_data');
+  // 영업활동·방문기록
+  if (/영업|영업활동|영업현황|영업분석|영업보고|주간|월간|분기|반기|주차|방문|활동/.test(t)) {
+    tables.add('visit_records');
     tables.add('commission_settlements');
     tables.add('customer_status');
   }
 
+  // 처방 데이터 (ubist)
+  if (/ubist|처방|처방량|처방액|처방건/.test(t))
+    tables.add('ubist_data');
+
   // 키워드 미감지 시 → 영업 실적 중심 테이블
   if (tables.size === 0) {
-    ['commission_settlements', 'ubist_data', 'customer_status', 'commission_rates'].forEach(t => tables.add(t));
+    ['visit_records', 'commission_settlements', 'customer_status', 'commission_rates'].forEach(t => tables.add(t));
   }
   return tables;
 }
@@ -182,6 +186,64 @@ async function gatherContext(db: ReturnType<typeof svc>, tables: Set<string>): P
         rows.slice(0, 80).map(r =>
           `| ${r.product_name ?? ''} | ${r.ingredient_name ?? ''} | ${r.period ?? ''} | ${Number(r.prescription_amount||0).toLocaleString()} | ${r.prescription_count ?? ''} | ${r.manufacturer ?? ''} | ${r.hospital_type ?? ''} | ${r.region ?? ''} |`
         ).join('\n'));
+    }
+  }
+
+  if (tables.has('visit_records')) {
+    const { data: visits } = await db
+      .from('visit_records')
+      .select('visited_at, customer_name, customer_type, contact_name, purpose, products, content, next_action')
+      .order('visited_at', { ascending: false })
+      .limit(300);
+
+    // 별칭 매핑 로드
+    const { data: aliases } = await db
+      .from('customer_aliases')
+      .select('alias_norm, customer_id');
+    const { data: canonicals } = await db
+      .from('customer_status')
+      .select('id, customer_name');
+
+    const canonicalMap = Object.fromEntries(
+      (canonicals ?? []).map(c => [c.id, c.customer_name as string]),
+    );
+    const aliasMap = new Map<string, string>(
+      (aliases ?? []).map(a => {
+        const canonical = canonicalMap[a.customer_id] ?? null;
+        return [a.alias_norm as string, canonical ?? ''] as [string, string];
+      }).filter(([, v]) => v),
+    );
+
+    const rows = (visits ?? []) as Row[];
+    if (rows.length) {
+      // 정규화된 거래처명으로 집계
+      const byCustomer: Record<string, { count: number; last: string; products: Set<string> }> = {};
+      for (const r of rows) {
+        const raw  = String(r.customer_name ?? '').trim();
+        const norm = raw.toLowerCase();
+        const name = aliasMap.get(norm) ?? raw;
+        if (!byCustomer[name]) byCustomer[name] = { count: 0, last: String(r.visited_at ?? ''), products: new Set() };
+        byCustomer[name].count += 1;
+        if (String(r.visited_at ?? '') > byCustomer[name].last) byCustomer[name].last = String(r.visited_at ?? '');
+        String(r.products ?? '').split(/[,，\n]+/).map(p => p.trim()).filter(Boolean).forEach(p => byCustomer[name].products.add(p));
+      }
+      const sortedCustomers = Object.entries(byCustomer).sort((a, b) => b[1].count - a[1].count);
+
+      sections.push(
+        `## 영업 방문 기록 (총 ${rows.length}건, 정규화 적용)\n\n` +
+        `### 거래처별 방문 현황 (상위 30개)\n` +
+        `| 거래처명 | 방문 횟수 | 최근 방문일 | 주요 논의 제품 |\n|---|---|---|---|\n` +
+        sortedCustomers.slice(0, 30).map(([name, d]) =>
+          `| ${name} | ${d.count} | ${d.last} | ${[...d.products].slice(0, 3).join(', ') || '—'} |`
+        ).join('\n') +
+        `\n\n### 최근 방문 상세 (50건)\n` +
+        `| 방문일 | 거래처명(정규화) | 담당자 | 방문목적 | 논의제품 |\n|---|---|---|---|---|\n` +
+        rows.slice(0, 50).map(r => {
+          const raw  = String(r.customer_name ?? '').trim();
+          const name = aliasMap.get(raw.toLowerCase()) ?? raw;
+          return `| ${r.visited_at ?? ''} | ${name} | ${r.contact_name ?? '—'} | ${String(r.purpose ?? '').slice(0, 30)} | ${String(r.products ?? '').slice(0, 40)} |`;
+        }).join('\n'),
+      );
     }
   }
 
