@@ -19,17 +19,44 @@ function selectTables(topic: string): Set<string> {
   const t = topic.toLowerCase();
   const tables = new Set<string>();
 
-  if (/약가|가격|상한가|급여|보험/.test(t))             tables.add('drug_prices');
-  if (/수수료율?|cso|채널|딜러|제약사/.test(t))         tables.add('commission_rates');
-  if (/정산|수수료정산|매출/.test(t))                   tables.add('commission_settlements');
-  if (/생동|생물학적동등성|자사생동/.test(t))           tables.add('drug_bioequiv');
-  if (/dmf|원료dmf|원료/.test(t))                       tables.add('drug_dmf');
-  if (/거래처|병원|약국|거래처현황/.test(t))            tables.add('customer_status');
-  if (/ubist|처방|처방량|처방액/.test(t))               tables.add('ubist_data');
+  // 약가·보험
+  if (/약가|가격|상한가|급여|보험/.test(t))
+    tables.add('drug_prices');
 
-  // 키워드 미감지 시 핵심 테이블 전부
+  // 수수료율 (CSO 계약)
+  if (/수수료율?|cso|채널|딜러|제약사/.test(t))
+    tables.add('commission_rates');
+
+  // 수수료 정산·영업 실적
+  if (/정산|수수료정산|매출|영업실적|실적|성과/.test(t))
+    tables.add('commission_settlements');
+
+  // 생동
+  if (/생동|생물학적동등성|자사생동/.test(t))
+    tables.add('drug_bioequiv');
+
+  // 원료 DMF
+  if (/dmf|원료dmf|원료/.test(t))
+    tables.add('drug_dmf');
+
+  // 거래처·병원·약국
+  if (/거래처|병원|약국|거래처현황|고객/.test(t))
+    tables.add('customer_status');
+
+  // 처방 데이터
+  if (/ubist|처방|처방량|처방액|처방건/.test(t))
+    tables.add('ubist_data');
+
+  // 영업활동 관련 (처방실적 + 정산 + 거래처)
+  if (/영업|영업활동|영업현황|영업분석|영업보고|주간|월간|분기|반기|주차/.test(t)) {
+    tables.add('ubist_data');
+    tables.add('commission_settlements');
+    tables.add('customer_status');
+  }
+
+  // 키워드 미감지 시 → 영업 실적 중심 테이블
   if (tables.size === 0) {
-    ['drug_prices', 'commission_rates', 'drug_bioequiv', 'drug_dmf', 'customer_status'].forEach(t => tables.add(t));
+    ['commission_settlements', 'ubist_data', 'customer_status', 'commission_rates'].forEach(t => tables.add(t));
   }
   return tables;
 }
