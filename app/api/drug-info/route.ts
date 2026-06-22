@@ -186,6 +186,113 @@ function extractBaseDrugName(itemName: string): string {
   return m ? m[1].trim() : clean;
 }
 
+/* ── 생동성인정품목 1순위: DB (drug_bioequiv 테이블) ── */
+async function fetchBioEqFromDB(itemName: string): Promise<BioEqItem[]> {
+  const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return [];
+
+  try {
+    const sb = createSupabaseClient(url, key);
+
+    const { data, error } = await sb
+      .from('drug_bioequiv')
+      .select('item_name, company_name, ingredient_name, notice_date')
+      .ilike('item_name', `%${itemName}%`)
+      .order('notice_date', { ascending: false })
+      .limit(30);
+
+    if (error?.code === '42P01') return [];
+    if (error) { console.warn('[drug-info] DB 생동 오류:', error.message); return []; }
+
+    if (data && data.length > 0) {
+      console.log(`[drug-info] DB 생동 직접 검색: ${data.length}건 ("${itemName}")`);
+      return (data as Record<string, unknown>[]).map(r => ({
+        itemName:        String(r.item_name ?? ''),
+        ingrName:        r.ingredient_name ? String(r.ingredient_name) : null,
+        noticeDate:      r.notice_date     ? String(r.notice_date)     : null,
+        entpName:        r.company_name    ? String(r.company_name)    : null,
+        crossRecognized: false,
+      }));
+    }
+
+    // 기본명(숫자 이전)으로 재검색
+    const baseOnly = itemName.replace(/\s*[(\（（].*$/, '').trim().replace(/[\d.\/]+.*$/, '').trim();
+    if (baseOnly.length >= 3 && baseOnly !== itemName) {
+      const { data: baseData, error: e2 } = await sb
+        .from('drug_bioequiv')
+        .select('item_name, company_name, ingredient_name, notice_date')
+        .ilike('item_name', `%${baseOnly}%`)
+        .order('notice_date', { ascending: false })
+        .limit(30);
+
+      if (e2) console.warn('[drug-info] DB 생동 기본명 오류:', e2.message);
+      if (baseData && baseData.length > 0) {
+        console.log(`[drug-info] DB 생동 기본명 검색: ${baseData.length}건 ("${baseOnly}")`);
+        return (baseData as Record<string, unknown>[]).map(r => ({
+          itemName:        String(r.item_name ?? ''),
+          ingrName:        r.ingredient_name ? String(r.ingredient_name) : null,
+          noticeDate:      r.notice_date     ? String(r.notice_date)     : null,
+          entpName:        r.company_name    ? String(r.company_name)    : null,
+          crossRecognized: true,
+        }));
+      }
+    }
+
+    return [];
+  } catch (e) {
+    console.warn('[drug-info] fetchBioEqFromDB error:', e);
+    return [];
+  }
+}
+
+/* ── 원료DMF 1순위: DB (drug_dmf 테이블) ── */
+async function fetchDmfFromDB(ingrName: string): Promise<DmfItem[]> {
+  const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key  = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return [];
+
+  const ingredients = ingrName
+    .split('/')
+    .map(s => s.replace(/\([^)]*\)/g, '').trim())
+    .filter(Boolean);
+
+  try {
+    const sb = createSupabaseClient(url, key);
+    const results: DmfItem[] = [];
+
+    for (const ingr of ingredients) {
+      const { data, error } = await sb
+        .from('drug_dmf')
+        .select('ingredient_name, company_name, manufacturer_name, manufacturer_address, country, registration_date, dmf_number')
+        .ilike('ingredient_name', `%${ingr}%`)
+        .order('registration_date', { ascending: false })
+        .limit(50);
+
+      if (error?.code === '42P01') return [];
+      if (error) { console.warn('[drug-info] DB DMF 오류:', error.message); continue; }
+
+      if (data && data.length > 0) {
+        console.log(`[drug-info] DB DMF: ${data.length}건 ("${ingr}")`);
+        results.push(...(data as Record<string, unknown>[]).map(r => ({
+          ingrName:    String(r.ingredient_name ?? ingr),
+          entpName:    r.company_name         ? String(r.company_name)         : null,
+          mnfctrName:  r.manufacturer_name    ? String(r.manufacturer_name)    : null,
+          mnfctrPlace: r.manufacturer_address ? String(r.manufacturer_address) : null,
+          country:     r.country              ? String(r.country)              : null,
+          permitDate:  r.registration_date    ? String(r.registration_date)    : null,
+          dmfNo:       r.dmf_number           ? String(r.dmf_number)           : null,
+        })));
+      }
+    }
+
+    return results;
+  } catch (e) {
+    console.warn('[drug-info] fetchDmfFromDB error:', e);
+    return [];
+  }
+}
+
 /* ── 생동성인정품목 (MFDS) ── */
 async function fetchBioEq(apiKey: string, itemName: string): Promise<BioEqItem[]> {
   async function doFetch(name: string): Promise<Omit<BioEqItem, 'crossRecognized'>[]> {
@@ -295,10 +402,25 @@ export async function GET(req: NextRequest) {
 
   try {
     console.log(`[drug-info] item="${itemName}" ingr="${ingrName}"`);
+    // 생동·DMF: DB 우선 → DB에 없으면 MFDS API 폴백
+    async function resolveBioEq(): Promise<BioEqItem[]> {
+      const db = await fetchBioEqFromDB(itemName);
+      if (db.length > 0) { console.log(`[drug-info] 생동 DB: ${db.length}건`); return db; }
+      console.log('[drug-info] 생동 DB 없음 → MFDS API 폴백');
+      return fetchBioEq(apiKey!, itemName);
+    }
+    async function resolveDmf(): Promise<DmfItem[]> {
+      if (!ingrName) return [];
+      const db = await fetchDmfFromDB(ingrName);
+      if (db.length > 0) { console.log(`[drug-info] DMF DB: ${db.length}건`); return db; }
+      console.log('[drug-info] DMF DB 없음 → MFDS API 폴백');
+      return fetchDmf(apiKey!, ingrName);
+    }
+
     const [prices, bioEq, dmf] = await Promise.all([
       fetchPrices(apiKey, itemName),
-      fetchBioEq(apiKey, itemName),
-      ingrName ? fetchDmf(apiKey, ingrName) : Promise.resolve([] as DmfItem[]),
+      resolveBioEq(),
+      resolveDmf(),
     ]);
 
     // 약가 용량 높은 순 정렬 (ingrName에서 숫자+단위 추출 후 정규화)

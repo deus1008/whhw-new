@@ -8,6 +8,8 @@ import { parseCustomerBuffer }       from '@/lib/customers/parse';
 import { parseCommissionBuffer }     from '@/lib/commission/parse';
 import { parseSettlementBuffer, type SettlementColConfig } from '@/lib/commission-settlement/parse';
 import { parseUbistBuffer } from '@/lib/ubist/parse';
+import { parseBioequivBuffer } from '@/lib/bioequiv/parse';
+import { parseDmfBuffer }      from '@/lib/dmf/parse';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -281,6 +283,50 @@ export async function POST(request: Request) {
     console.log(`[process:${documentId}] Ubist ${inserted}/${total}건 저장 완료`);
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     return Response.json({ ok: true, inserted });
+  }
+
+  // ── I. 생동품목 폴더 → drug_bioequiv 파싱 ──────────────────────────────
+  if (category === '생동품목') {
+    console.log(`[process:${documentId}] 생동품목 폴더 → 생동 데이터 파싱`);
+    const { rows, total, error: parseError } = parseBioequivBuffer(buffer, doc.filename);
+
+    if (parseError) return fail(`생동품목 파싱 실패: ${parseError}`);
+
+    if (rows.length > 0) {
+      await supabase.from('drug_bioequiv').delete().eq('source_file', doc.filename);
+      const CHUNK = 500;
+      let inserted = 0;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const { error: insErr } = await supabase.from('drug_bioequiv').insert(rows.slice(i, i + CHUNK));
+        if (insErr) console.warn(`[process:${documentId}] 생동 삽입 오류(chunk ${i}):`, insErr.message);
+        else inserted += rows.slice(i, i + CHUNK).length;
+      }
+      console.log(`[process:${documentId}] 생동품목 ${inserted}/${total}건 저장 완료`);
+    }
+    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    return Response.json({ ok: true, inserted: rows.length });
+  }
+
+  // ── J. 원료DMF 폴더 → drug_dmf 파싱 ───────────────────────────────────
+  if (category === '원료DMF') {
+    console.log(`[process:${documentId}] 원료DMF 폴더 → DMF 데이터 파싱`);
+    const { rows, total, error: parseError } = parseDmfBuffer(buffer, doc.filename);
+
+    if (parseError) return fail(`원료DMF 파싱 실패: ${parseError}`);
+
+    if (rows.length > 0) {
+      await supabase.from('drug_dmf').delete().eq('source_file', doc.filename);
+      const CHUNK = 500;
+      let inserted = 0;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const { error: insErr } = await supabase.from('drug_dmf').insert(rows.slice(i, i + CHUNK));
+        if (insErr) console.warn(`[process:${documentId}] DMF 삽입 오류(chunk ${i}):`, insErr.message);
+        else inserted += rows.slice(i, i + CHUNK).length;
+      }
+      console.log(`[process:${documentId}] 원료DMF ${inserted}/${total}건 저장 완료`);
+    }
+    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    return Response.json({ ok: true, inserted: rows.length });
   }
 
   // ── G. 그 외 폴더 — 즉시 완료 ─────────────────────────────────────────

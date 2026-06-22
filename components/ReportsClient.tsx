@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useRef } from 'react';
 import type { CSSProperties } from 'react';
 import { createReport, updateReport, deleteReport, getDocFileUrl } from '@/app/reports/actions';
 
@@ -148,6 +148,146 @@ function FileViewerModal({ file, onClose }: { file: DocFile; onClose: () => void
   );
 }
 
+// ── AI 리포트 생성 모달 ───────────────────────────────────────────────────────
+const AI_EXAMPLES = [
+  'CSO 채널별 수수료율 현황 분석',
+  '자사 생동인정품목 성분별 현황',
+  '약가 상위 품목 및 급여구분 분석',
+  '원료 DMF 제조국별 분포 현황',
+  '거래처 지역·종별 분포 현황',
+];
+
+function AiReportModal({ onClose, onDone }: { onClose: () => void; onDone: (filename: string) => void }) {
+  const [topic,   setTopic]   = useState('');
+  const [status,  setStatus]  = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [msg,     setMsg]     = useState('');
+  const textRef = useRef<HTMLTextAreaElement>(null);
+
+  const canGenerate = topic.trim().length >= 5 && status !== 'loading';
+
+  async function handleGenerate() {
+    if (!canGenerate) return;
+    setStatus('loading');
+    setMsg('DB 데이터 수집 및 AI 분석 중… (최대 1~2분 소요)');
+    try {
+      const res = await fetch('/api/reports/generate', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ topic: topic.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        setStatus('error');
+        setMsg(json.error ?? '생성 실패');
+        return;
+      }
+      setStatus('done');
+      setMsg(`✅ "${json.filename}" 생성 완료!`);
+      setTimeout(() => { onClose(); onDone(json.filename); }, 1200);
+    } catch (e) {
+      setStatus('error');
+      setMsg(e instanceof Error ? e.message : '네트워크 오류');
+    }
+  }
+
+  const iStyle: CSSProperties = {
+    width: '100%', boxSizing: 'border-box', padding: '0.6rem 0.75rem',
+    borderRadius: '8px', background: 'rgba(255,255,255,0.06)',
+    border: '1px solid rgba(255,255,255,0.12)', color: '#fff',
+    fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit', resize: 'vertical',
+  };
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(5px)' }}
+      onClick={onClose}
+    >
+      <div
+        style={{ width: '100%', maxWidth: '620px', margin: '1rem', borderRadius: '18px', background: '#131929', border: '1px solid rgba(167,139,250,0.25)', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.1rem' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* 헤더 */}
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+            <span style={{ fontSize: '1.2rem' }}>✨</span>
+            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>AI 분석 리포트 생성</h2>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
+            분석할 주제나 질문을 입력하면 DB 데이터를 기반으로 HTML 리포트를 자동 생성합니다.
+          </p>
+        </div>
+
+        {/* 예시 주제 */}
+        <div>
+          <p style={{ margin: '0 0 0.45rem', fontSize: '0.7rem', color: 'rgba(167,139,250,0.7)', letterSpacing: '0.04em', fontWeight: 700 }}>예시 주제</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+            {AI_EXAMPLES.map(ex => (
+              <button
+                key={ex}
+                onClick={() => { setTopic(ex); textRef.current?.focus(); }}
+                style={{
+                  padding: '0.25rem 0.65rem', borderRadius: '100px', fontSize: '0.72rem',
+                  background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.22)',
+                  color: '#c4b5fd', cursor: 'pointer', fontFamily: 'inherit',
+                }}
+              >{ex}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* 분석 주제 입력 */}
+        <div>
+          <p style={{ margin: '0 0 0.35rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.04em' }}>분석 주제 / 질문 *</p>
+          <textarea
+            ref={textRef}
+            rows={3}
+            value={topic}
+            onChange={e => setTopic(e.target.value)}
+            placeholder="예) 2026년 상반기 CSO 채널별 수수료 현황 및 개선 방향"
+            style={iStyle}
+            disabled={status === 'loading'}
+          />
+        </div>
+
+        {/* 상태 메시지 */}
+        {msg && (
+          <div style={{
+            padding: '0.7rem 1rem', borderRadius: '8px', fontSize: '0.82rem', lineHeight: 1.5,
+            background: status === 'error' ? 'rgba(239,68,68,0.1)' : status === 'done' ? 'rgba(74,222,128,0.1)' : 'rgba(167,139,250,0.1)',
+            border: `1px solid ${status === 'error' ? 'rgba(239,68,68,0.28)' : status === 'done' ? 'rgba(74,222,128,0.28)' : 'rgba(167,139,250,0.28)'}`,
+            color: status === 'error' ? '#fca5a5' : status === 'done' ? '#86efac' : '#c4b5fd',
+            display: 'flex', alignItems: 'center', gap: '0.6rem',
+          }}>
+            {status === 'loading' && (
+              <span style={{ display: 'inline-block', width: '14px', height: '14px', border: '2px solid rgba(167,139,250,0.3)', borderTopColor: '#a78bfa', borderRadius: '50%', flexShrink: 0, animation: 'spin 0.8s linear infinite' }} />
+            )}
+            {msg}
+          </div>
+        )}
+
+        {/* 버튼 */}
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} disabled={status === 'loading'} style={{
+            padding: '0.55rem 1.1rem', borderRadius: '8px', fontSize: '0.83rem',
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+            color: 'rgba(255,255,255,0.6)', cursor: 'pointer',
+          }}>취소</button>
+          <button onClick={handleGenerate} disabled={!canGenerate} style={{
+            padding: '0.55rem 1.3rem', borderRadius: '8px', fontSize: '0.83rem', fontWeight: 700,
+            background: canGenerate ? 'rgba(167,139,250,0.2)' : 'rgba(255,255,255,0.05)',
+            border: `1px solid ${canGenerate ? 'rgba(167,139,250,0.45)' : 'rgba(255,255,255,0.1)'}`,
+            color: canGenerate ? '#c4b5fd' : 'rgba(255,255,255,0.3)',
+            cursor: canGenerate ? 'pointer' : 'not-allowed',
+            transition: 'all 0.15s',
+          }}>
+            {status === 'loading' ? '생성 중…' : '✨ 리포트 생성'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── 작성/수정 모달 ────────────────────────────────────────────────────────────
 function ReportModal({ initial, onClose, onDone }: {
   initial?: Report;
@@ -263,8 +403,9 @@ export default function ReportsClient({
   docFiles: DocFile[];
   isAdmin: boolean;
 }) {
-  const [modal, setModal] = useState<null | 'create' | Report>(null);
-  const [viewer, setViewer] = useState<DocFile | null>(null);
+  const [modal,   setModal]   = useState<null | 'create' | Report>(null);
+  const [aiModal, setAiModal] = useState(false);
+  const [viewer,  setViewer]  = useState<DocFile | null>(null);
   const [, start] = useTransition();
 
   function handleDelete(r: Report) {
@@ -276,9 +417,17 @@ export default function ReportsClient({
 
   return (
     <div style={{ marginTop: '1rem' }}>
-      {/* 관리자: 새 리포트 버튼 */}
+      {/* 관리자: 버튼 그룹 */}
       {isAdmin && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setAiModal(true)}
+            style={{
+              padding: '0.55rem 1.1rem', borderRadius: '8px', fontSize: '0.83rem', fontWeight: 600,
+              background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)',
+              color: '#c4b5fd', cursor: 'pointer',
+            }}
+          >✨ AI 리포트 생성</button>
           <button
             onClick={() => setModal('create')}
             style={{
@@ -400,6 +549,14 @@ export default function ReportsClient({
             ))}
           </div>
         </>
+      )}
+
+      {/* AI 리포트 생성 모달 */}
+      {aiModal && (
+        <AiReportModal
+          onClose={() => setAiModal(false)}
+          onDone={() => window.location.reload()}
+        />
       )}
 
       {/* 리포트 작성 모달 */}
