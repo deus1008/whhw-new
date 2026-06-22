@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type { VisitRecord } from '@/app/visits/page';
 import {
   createVisitRecord,
@@ -80,6 +81,7 @@ interface Props {
 }
 
 export default function VisitsClient({ initialRecords, userId, isAdmin }: Props) {
+  const searchParams = useSearchParams();
   const [records, setRecords]           = useState<VisitRecord[]>(initialRecords);
   const [formMode, setFormMode]         = useState<'none' | 'create' | 'edit'>('none');
   const [editId, setEditId]             = useState<string | null>(null);
@@ -90,7 +92,7 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
   const [deleting, setDeleting]         = useState(false);
   const [formError, setFormError]       = useState('');
   const [actionError, setActionError]   = useState('');
-  const [search, setSearch]             = useState('');
+  const [search, setSearch]             = useState(searchParams.get('q') ?? '');
   const [filterType, setFilterType]     = useState<FilterType>('전체');
   const [filterPeriod, setFilterPeriod] = useState<Period>('전체');
   const [filterAuthor, setFilterAuthor] = useState<string>('전체');

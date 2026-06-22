@@ -166,10 +166,16 @@ function UnmappedRowItem({
       {/* 별칭명 + 방문 횟수 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.7rem', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#fde68a' }}>{row.name}</span>
-        <span style={{
-          fontSize: '0.65rem', fontWeight: 700, padding: '1px 7px', borderRadius: '100px',
-          background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.25)', color: '#fbbf24',
-        }}>방문 {row.visit_count}건</span>
+        <a
+          href={`/visits?q=${encodeURIComponent(row.name)}`}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            fontSize: '0.65rem', fontWeight: 700, padding: '1px 7px', borderRadius: '100px',
+            background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.25)', color: '#fbbf24',
+            textDecoration: 'none', cursor: 'pointer',
+          }}
+        >방문 {row.visit_count}건 →</a>
         <span style={{ fontSize: '0.65rem', color: '#64748b', marginLeft: 'auto' }}>최근: {row.last_visit}</span>
       </div>
 

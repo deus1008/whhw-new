@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { normalizeRole } from '@/lib/roles';
@@ -82,11 +83,13 @@ export default async function VisitsPage() {
           <LogoutButton compact />
         </div>
 
-        <VisitsClient
-          initialRecords={records}
-          userId={user.id}
-          isAdmin={isAdmin}
-        />
+        <Suspense>
+          <VisitsClient
+            initialRecords={records}
+            userId={user.id}
+            isAdmin={isAdmin}
+          />
+        </Suspense>
       </div>
     </>
   );
