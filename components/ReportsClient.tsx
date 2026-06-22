@@ -149,21 +149,22 @@ function FileViewerModal({ file, onClose }: { file: DocFile; onClose: () => void
 }
 
 // ── AI 리포트 생성 모달 ───────────────────────────────────────────────────────
-const AI_EXAMPLES = [
-  'CSO 채널별 수수료율 현황 분석',
-  '자사 생동인정품목 성분별 현황',
-  '약가 상위 품목 및 급여구분 분석',
-  '원료 DMF 제조국별 분포 현황',
-  '거래처 지역·종별 분포 현황',
+const AI_EXAMPLES: { title: string; topic: string }[] = [
+  { title: 'CSO 채널별 수수료율 현황 분석',       topic: 'CSO 채널별 수수료율 현황을 분석하고 채널 간 차이 및 시사점을 도출해줘' },
+  { title: '자사 생동인정품목 성분별 현황',        topic: '자사 생동인정품목을 성분별로 분류하고 현황과 특이사항을 분석해줘' },
+  { title: '약가 상위 품목 및 급여구분 분석',      topic: '약가 상위 품목과 급여구분별 분포를 분석하고 인사이트를 도출해줘' },
+  { title: '원료 DMF 제조국별 분포 현황',          topic: '원료 DMF 데이터를 제조국별로 분류하고 의존도 현황을 분석해줘' },
+  { title: '거래처 지역·종별 분포 현황',           topic: '거래처를 지역 및 종별로 분류하고 분포 현황과 영업 집중도를 분석해줘' },
 ];
 
 function AiReportModal({ onClose, onDone }: { onClose: () => void; onDone: (filename: string) => void }) {
+  const [title,   setTitle]   = useState('');
   const [topic,   setTopic]   = useState('');
   const [status,  setStatus]  = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [msg,     setMsg]     = useState('');
-  const textRef = useRef<HTMLTextAreaElement>(null);
+  const topicRef = useRef<HTMLTextAreaElement>(null);
 
-  const canGenerate = topic.trim().length >= 5 && status !== 'loading';
+  const canGenerate = title.trim().length >= 2 && topic.trim().length >= 5 && status !== 'loading';
 
   async function handleGenerate() {
     if (!canGenerate) return;
@@ -173,7 +174,7 @@ function AiReportModal({ onClose, onDone }: { onClose: () => void; onDone: (file
       const res = await fetch('/api/reports/generate', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ topic: topic.trim() }),
+        body:    JSON.stringify({ title: title.trim(), topic: topic.trim() }),
       });
       const json = await res.json();
       if (!res.ok || json.error) {
@@ -194,7 +195,7 @@ function AiReportModal({ onClose, onDone }: { onClose: () => void; onDone: (file
     width: '100%', boxSizing: 'border-box', padding: '0.6rem 0.75rem',
     borderRadius: '8px', background: 'rgba(255,255,255,0.06)',
     border: '1px solid rgba(255,255,255,0.12)', color: '#fff',
-    fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit', resize: 'vertical',
+    fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit',
   };
 
   return (
@@ -213,38 +214,56 @@ function AiReportModal({ onClose, onDone }: { onClose: () => void; onDone: (file
             <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>AI 분석 리포트 생성</h2>
           </div>
           <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
-            분석할 주제나 질문을 입력하면 DB 데이터를 기반으로 HTML 리포트를 자동 생성합니다.
+            리포트 제목과 분석할 내용을 입력하면 DB 데이터를 기반으로 HTML 리포트를 자동 생성합니다.
           </p>
         </div>
 
         {/* 예시 주제 */}
         <div>
-          <p style={{ margin: '0 0 0.45rem', fontSize: '0.7rem', color: 'rgba(167,139,250,0.7)', letterSpacing: '0.04em', fontWeight: 700 }}>예시 주제</p>
+          <p style={{ margin: '0 0 0.45rem', fontSize: '0.7rem', color: 'rgba(167,139,250,0.7)', letterSpacing: '0.04em', fontWeight: 700 }}>예시 선택</p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
             {AI_EXAMPLES.map(ex => (
               <button
-                key={ex}
-                onClick={() => { setTopic(ex); textRef.current?.focus(); }}
+                key={ex.title}
+                onClick={() => { setTitle(ex.title); setTopic(ex.topic); topicRef.current?.focus(); }}
                 style={{
                   padding: '0.25rem 0.65rem', borderRadius: '100px', fontSize: '0.72rem',
                   background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.22)',
                   color: '#c4b5fd', cursor: 'pointer', fontFamily: 'inherit',
                 }}
-              >{ex}</button>
+              >{ex.title}</button>
             ))}
           </div>
         </div>
 
-        {/* 분석 주제 입력 */}
+        {/* 리포트 제목 */}
         <div>
-          <p style={{ margin: '0 0 0.35rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.04em' }}>분석 주제 / 질문 *</p>
+          <p style={{ margin: '0 0 0.35rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.04em' }}>
+            리포트 제목 <span style={{ color: '#f87171' }}>*</span>
+          </p>
+          <input
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="예) 2026년 상반기 CSO 채널별 수수료 현황 분석"
+            style={iStyle}
+            disabled={status === 'loading'}
+          />
+        </div>
+
+        {/* 분석 내용 */}
+        <div>
+          <p style={{ margin: '0 0 0.35rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.04em' }}>
+            분석 내용 <span style={{ color: '#f87171' }}>*</span>
+            <span style={{ marginLeft: '0.5rem', color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>어떤 내용을 분석할지 구체적으로 작성할수록 정확한 리포트가 생성됩니다</span>
+          </p>
           <textarea
-            ref={textRef}
-            rows={3}
+            ref={topicRef}
+            rows={4}
             value={topic}
             onChange={e => setTopic(e.target.value)}
-            placeholder="예) 2026년 상반기 CSO 채널별 수수료 현황 및 개선 방향"
-            style={iStyle}
+            placeholder="예) CSO 채널별 수수료율 현황을 분석하고 채널 간 차이 및 시사점을 도출해줘"
+            style={{ ...iStyle, resize: 'vertical' }}
             disabled={status === 'loading'}
           />
         </div>
