@@ -1,12 +1,17 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { updateMeeting } from '@/app/meetings/actions';
+import { updateMeeting, addTodoToCalendar } from '@/app/meetings/actions';
 import { CATEGORIES, type MeetingRow, type Todo } from '@/app/meetings/types';
 
 function fmtDate(s: string) {
   const d = new Date(s.length === 10 ? s + 'T00:00:00' : s);
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function fmtDue(s: string) {
+  const [, m, d] = s.split('-');
+  return `${parseInt(m)}/${parseInt(d)}`;
 }
 
 function genId() {
@@ -29,8 +34,10 @@ export default function MeetingDetailClient({ meeting: initial }: { meeting: Mee
     title: initial.title, category: initial.category,
     content: initial.content, meeting_date: initial.meeting_date,
   });
-  const [todoInput, setTodoInput] = useState('');
-  const [saveMsg, setSaveMsg]     = useState('');
+  const [todoInput, setTodoInput]   = useState('');
+  const [dueDate, setDueDate]       = useState('');
+  const [saveMsg, setSaveMsg]       = useState('');
+  const [calMsg, setCalMsg]         = useState('');
   const [isPending, startTransition]       = useTransition();
   const [todosPending, startTodoTransition] = useTransition();
 
@@ -77,11 +84,27 @@ export default function MeetingDetailClient({ meeting: initial }: { meeting: Mee
 
   function addTodo() {
     if (!todoInput.trim()) return;
-    const todo: Todo = { id: genId(), text: todoInput.trim(), done: false };
+    const todo: Todo = { id: genId(), text: todoInput.trim(), done: false, due_date: dueDate || undefined };
     const todos = [...meeting.todos, todo];
     setMeeting(m => ({ ...m, todos }));
     setTodoInput('');
+    setDueDate('');
     saveTodos(todos);
+
+    // 주요일정 자동 등록
+    addTodoToCalendar({
+      todoText:     todo.text,
+      meetingTitle: meeting.title,
+      meetingDate:  meeting.meeting_date,
+      dueDate:      todo.due_date,
+    }).then(res => {
+      if (res.error) {
+        setCalMsg('📅 일정 등록 실패');
+      } else {
+        setCalMsg('📅 주요일정 등록됨');
+      }
+      setTimeout(() => setCalMsg(''), 2500);
+    });
   }
 
   const pendingCount = meeting.todos.filter(t => !t.done).length;
@@ -206,6 +229,17 @@ export default function MeetingDetailClient({ meeting: initial }: { meeting: Mee
                 }}>
                   {todo.text}
                 </span>
+                {todo.due_date && (
+                  <span style={{
+                    fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0,
+                    padding: '0.1rem 0.4rem', borderRadius: '100px',
+                    color: todo.done ? 'rgba(167,139,250,0.4)' : '#a78bfa',
+                    background: todo.done ? 'rgba(167,139,250,0.04)' : 'rgba(167,139,250,0.1)',
+                    border: '1px solid rgba(167,139,250,0.2)',
+                  }}>
+                    📅 {fmtDue(todo.due_date)}
+                  </span>
+                )}
                 <button
                   onClick={() => deleteTodo(todo.id)}
                   style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: '1rem', padding: '0 0.2rem', lineHeight: 1, flexShrink: 0 }}
@@ -218,16 +252,28 @@ export default function MeetingDetailClient({ meeting: initial }: { meeting: Mee
         )}
 
         {/* 할일 입력 */}
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <input
             value={todoInput}
             onChange={e => setTodoInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') addTodo(); }}
             placeholder="다음 할일을 입력하고 Enter…"
-            style={{ ...INPUT, flex: 1, marginBottom: 0, fontSize: '0.83rem' }}
+            style={{ ...INPUT, flex: '1 1 200px', marginBottom: 0, fontSize: '0.83rem' }}
+          />
+          <input
+            type="date"
+            value={dueDate}
+            onChange={e => setDueDate(e.target.value)}
+            title="기한 설정 (선택)"
+            style={{ ...INPUT_SM, flex: '0 0 auto', marginBottom: 0, width: '132px' }}
           />
           <button onClick={addTodo} style={{ ...BTN_SAVE, flexShrink: 0 }}>추가</button>
         </div>
+        {calMsg && (
+          <p style={{ margin: '0.4rem 0 0', fontSize: '0.72rem', color: calMsg.includes('실패') ? '#f87171' : '#4ade80' }}>
+            {calMsg}
+          </p>
+        )}
       </div>
     </div>
   );

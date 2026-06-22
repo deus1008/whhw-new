@@ -1,4 +1,4 @@
-export type Todo = { id: string; text: string; done: boolean };
+export type Todo = { id: string; text: string; done: boolean; due_date?: string };
 
 export type MeetingRow = {
   id: string;

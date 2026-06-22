@@ -72,3 +72,26 @@ export async function deleteMeeting(id: string): Promise<{ error?: string }> {
   if (error) return { error: error.message };
   return {};
 }
+
+export async function addTodoToCalendar(params: {
+  todoText:     string;
+  meetingTitle: string;
+  meetingDate:  string;   // YYYY-MM-DD (fallback)
+  dueDate?:     string;   // YYYY-MM-DD (우선 사용)
+}): Promise<{ error?: string }> {
+  const user = await getUser();
+  if (!user) return { error: '인증이 필요합니다.' };
+
+  const { error } = await svc()
+    .from('marketing_schedules')
+    .insert({
+      user_id:    user.id,
+      title:      params.todoText,
+      start_date: params.dueDate ?? params.meetingDate,
+      category:   '영업관리',
+      memo:       `📝 회의록 "${params.meetingTitle}"`,
+    });
+
+  if (error) return { error: error.message };
+  return {};
+}
