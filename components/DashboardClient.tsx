@@ -769,9 +769,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </Section>
 
       {/* ══════════════════════════════════════════════════════════
-          섹션 6: 경쟁사 동향
+          섹션 6: CSO 제약사 동향
       ══════════════════════════════════════════════════════════ */}
-      <Section title="📄 경쟁사 동향" id="s6">
+      <Section title="📄 CSO 제약사 동향" id="s6">
         {(() => {
           const COMPETITOR_ORDER = [
             '대웅바이오', '셀트리온제약', '안국약품', '동구바이오제약',
@@ -794,7 +794,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
           return (
             <>
-              <SubTitle>▸ CSO 경쟁사 8개사 동향 · 처방액 규모 기준</SubTitle>
+              <SubTitle>▸ CSO제약사 8개사 동향 · 처방액 규모 기준</SubTitle>
               <div style={{ overflowX: 'auto' }}>
                 <table className="dash-table">
                   <thead>
