@@ -64,6 +64,7 @@ function str(v: unknown): string | null {
 
 export function parseDmfBuffer(buffer: Buffer, fileName: string): ParseDmfResult {
   let rawRows: Record<string, unknown>[];
+  let headerIdx = 0;
   try {
     const wb = XLSX.read(buffer, {
       type: 'buffer', cellFormula: false, cellHTML: false,
@@ -74,7 +75,7 @@ export function parseDmfBuffer(buffer: Buffer, fileName: string): ParseDmfResult
     // 헤더 행 자동 탐색 (최대 10행)
     const arrays = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: '' });
     const ALL_KW = [...INGR_KW, ...COMPANY_KW, ...MFG_KW, ...ADDR_KW, ...COUNTRY_KW, ...DATE_KW, ...DMF_KW].map(norm);
-    let headerIdx = 0, bestHits = 0;
+    let bestHits = 0;
     for (let ri = 0; ri < Math.min(arrays.length, 10); ri++) {
       const cells = (arrays[ri] as unknown[]).map(c => norm(String(c ?? '')));
       const hits = cells.filter(c => c.length >= 2 && ALL_KW.some(k => c === k || c.includes(k) || k.includes(c))).length;
