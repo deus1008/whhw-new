@@ -326,7 +326,10 @@ export async function POST(request: Request) {
       }
       console.log(`[process:${documentId}] 원료DMF ${inserted}/${total}건 저장 완료`);
     }
-    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    const debugMsg = dmfDebug
+      ? `[DEBUG] cols: ${dmfDebug.allCols.join(' | ')} | mapping: ${JSON.stringify(dmfDebug.colMapping)}`
+      : null;
+    await supabase.from('documents').update({ status: 'ready', error_message: debugMsg }).eq('id', documentId);
     return Response.json({ ok: true, inserted: rows.length, debug: dmfDebug });
   }
 
