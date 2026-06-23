@@ -458,23 +458,31 @@ function DrugInfoPanel({ data, ingrName, bioeqYn }: {
           )
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-            {/* 계열 생동 인정 안내 배너 */}
-            {bioEq[0]?.crossRecognized && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '0.4rem',
-                padding: '0.28rem 0.65rem', borderRadius: 7, marginBottom: '0.15rem',
-                background: 'rgba(251,191,36,0.08)',
-                border: '1px solid rgba(251,191,36,0.25)',
-              }}>
-                <span style={{ fontSize: '0.9rem' }}>↔</span>
-                <span style={{ fontSize: '0.73rem', color: '#fde68a', fontWeight: 600 }}>
-                  동일계열 성분 기준 생동 인정
+            {/* 생동 등재 배지 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.15rem', flexWrap: 'wrap' }}>
+              {bioEq[0]?.crossRecognized ? (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                  padding: '0.22rem 0.65rem', borderRadius: 6, fontSize: '0.78rem', fontWeight: 700,
+                  background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)',
+                  color: '#fde68a',
+                }}>
+                  ↔ 동일계열 생동인정
                 </span>
-                <span style={{ fontSize: '0.68rem', color: 'rgba(253,230,138,0.7)' }}>
-                  (동일 제형의 다른 용량 품목에서 생동 확인됨)
+              ) : (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                  padding: '0.22rem 0.65rem', borderRadius: 6, fontSize: '0.78rem', fontWeight: 700,
+                  background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.3)',
+                  color: '#4ade80',
+                }}>
+                  ✓ 자사생동
                 </span>
-              </div>
-            )}
+              )}
+              <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                {bioEq.length}건 등재
+              </span>
+            </div>
 
             {bioEq.slice(0, 3).map((b, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.4rem' }}>
