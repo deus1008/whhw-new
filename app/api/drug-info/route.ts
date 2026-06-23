@@ -246,16 +246,26 @@ async function fetchBioEqFromDB(itemName: string): Promise<BioEqItem[]> {
   }
 }
 
+/* ── 성분명 문자열 → DMF 검색 키워드 배열 ── */
+// "ezetimibe 10mg, rosuvastatin calcium (as rosuvastatin 10mg)"
+//   → ["ezetimibe", "rosuvastatin calcium"]
+// "에제티미브/로수바스타틴칼슘(로수바스타틴으로서)"
+//   → ["에제티미브", "로수바스타틴칼슘"]
+function extractDmfKeywords(raw: string): string[] {
+  return raw
+    .replace(/\([^)]*\)/g, '')          // (as rosuvastatin 10mg) 등 괄호+내용 제거
+    .split(/[,\/]/)                      // 쉼표·슬래시 분리
+    .map(s => s.replace(/\s+\d[\s\S]*$/, '').trim())  // " 10mg" 이후 용량 제거
+    .filter(s => s.length >= 3);
+}
+
 /* ── 원료DMF 1순위: DB (drug_dmf 테이블) ── */
 async function fetchDmfFromDB(ingrName: string): Promise<DmfItem[]> {
   const url  = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key  = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return [];
 
-  const ingredients = ingrName
-    .split('/')
-    .map(s => s.replace(/\([^)]*\)/g, '').trim())
-    .filter(Boolean);
+  const ingredients = extractDmfKeywords(ingrName);
 
   try {
     const sb = createSupabaseClient(url, key);
@@ -335,11 +345,7 @@ async function fetchBioEq(apiKey: string, itemName: string): Promise<BioEqItem[]
 
 /* ── 원료 DMF (MFDS) — 성분명별 병렬 검색 ── */
 async function fetchDmf(apiKey: string, ingrName: string): Promise<DmfItem[]> {
-  // "에제티미브/로수바스타틴칼슘(로수바스타틴으로서)" 형태의 복합 성분 분리
-  const ingredients = ingrName
-    .split('/')
-    .map(s => s.replace(/\([^)]*\)/g, '').trim())  // 괄호 제거
-    .filter(Boolean);
+  const ingredients = extractDmfKeywords(ingrName);
 
   const results = await Promise.allSettled(
     ingredients.map(async (ingr) => {
@@ -409,19 +415,23 @@ export async function GET(req: NextRequest) {
       console.log('[drug-info] 생동 DB 없음 → MFDS API 폴백');
       return fetchBioEq(apiKey!, itemName);
     }
-    async function resolveDmf(): Promise<DmfItem[]> {
-      if (!ingrName) return [];
-      const db = await fetchDmfFromDB(ingrName);
-      if (db.length > 0) { console.log(`[drug-info] DMF DB: ${db.length}건`); return db; }
-      console.log('[drug-info] DMF DB 없음 → MFDS API 폴백');
-      return fetchDmf(apiKey!, ingrName);
-    }
-
-    const [prices, bioEq, dmf] = await Promise.all([
+    // prices · bioEq 먼저 — prices의 ingredient를 DMF 폴백 소스로 활용
+    const [prices, bioEq] = await Promise.all([
       fetchPrices(apiKey, itemName),
       resolveBioEq(),
-      resolveDmf(),
     ]);
+
+    // ingr 파라미터 없으면 prices[0].ingrName을 사용 (easyDrug 소스 대응)
+    const effectiveIngr = ingrName || prices.find(p => p.ingrName)?.ingrName || '';
+    async function resolveDmf(): Promise<DmfItem[]> {
+      if (!effectiveIngr) return [];
+      const db = await fetchDmfFromDB(effectiveIngr);
+      if (db.length > 0) { console.log(`[drug-info] DMF DB: ${db.length}건`); return db; }
+      console.log('[drug-info] DMF DB 없음 → MFDS API 폴백');
+      return fetchDmf(apiKey!, effectiveIngr);
+    }
+
+    const dmf = await resolveDmf();
 
     // 약가 용량 높은 순 정렬 (ingrName에서 숫자+단위 추출 후 정규화)
     prices.sort((a, b) => extractDosageValue(b.ingrName) - extractDosageValue(a.ingrName));

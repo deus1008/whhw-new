@@ -283,6 +283,7 @@ function DrugCard({ item, drugInfo }: {
 
   const displayIngrName =
     item.ingrName ||
+    drugInfo?.data?.prices?.find(p => p.ingrName)?.ingrName ||
     drugInfo?.data?.bioEq?.[0]?.ingrName ||
     null;
 
@@ -522,6 +523,20 @@ function DrugInfoPanel({ data, ingrName, bioeqYn }: {
           <NoData text="등록된 원료 DMF 이력이 없습니다." />
         ) : (
           <>
+            {/* DMF등록원료 배지 */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.65rem', flexWrap: 'wrap' }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+                padding: '0.22rem 0.65rem', borderRadius: 6, fontSize: '0.78rem', fontWeight: 700,
+                background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.3)',
+                color: '#4ade80',
+              }}>
+                ✓ DMF등록원료
+              </span>
+              <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
+                {dmf.length}건 등록
+              </span>
+            </div>
             <div style={{ overflowX: 'auto', borderRadius: 7, border: '1px solid rgba(255,255,255,0.06)' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
                 <thead>
