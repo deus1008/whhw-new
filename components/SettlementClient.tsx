@@ -26,11 +26,12 @@ type L3 = { name: string; presc: number; sett: number; cnt: number };
 type L2 = { name: string; presc: number; sett: number; cnt: number; sub: L3[] };
 type L1 = { name: string; presc: number; sett: number; cnt: number; sub: L2[] };
 
-/* ── 4단 집계 트리 타입 ── */
-type L4   = { name: string; presc: number; sett: number; cnt: number };
-type L3_4 = { name: string; presc: number; sett: number; cnt: number; sub: L4[] };
-type L2_4 = { name: string; presc: number; sett: number; cnt: number; sub: L3_4[] };
-type L1_4 = { name: string; presc: number; sett: number; cnt: number; sub: L2_4[] };
+/* ── 5단 집계 트리 타입 ── */
+type L5   = { name: string; presc: number; sett: number; cnt: number };
+type L4_5 = { name: string; presc: number; sett: number; cnt: number; sub: L5[] };
+type L3_5 = { name: string; presc: number; sett: number; cnt: number; sub: L4_5[] };
+type L2_5 = { name: string; presc: number; sett: number; cnt: number; sub: L3_5[] };
+type L1_5 = { name: string; presc: number; sett: number; cnt: number; sub: L2_5[] };
 
 /* ── 3단 집계 빌더 ── */
 function buildTree(
@@ -72,37 +73,42 @@ function buildTree(
   }).sort((a, b) => b.sett - a.sett);
 }
 
-/* ── 4단 집계 빌더 ── */
-function buildTree4(
+/* ── 5단 집계 빌더 ── */
+type D5 = Record<string, Record<string, Record<string, Record<string, Record<string, { p: number; s: number; c: number }>>>>>;
+function buildTree5(
   rows: SettlementRowClient[],
   getL1: (r: SettlementRowClient) => string,
   getL2: (r: SettlementRowClient) => string,
   getL3: (r: SettlementRowClient) => string,
   getL4: (r: SettlementRowClient) => string,
-): L1_4[] {
-  const data: Record<string, Record<string, Record<string, Record<string, { p: number; s: number; c: number }>>>> = {};
+  getL5: (r: SettlementRowClient) => string,
+): L1_5[] {
+  const data: D5 = {};
   for (const r of rows) {
-    const k1 = getL1(r); const k2 = getL2(r); const k3 = getL3(r); const k4 = getL4(r);
-    if (!data[k1])             data[k1]             = {};
-    if (!data[k1][k2])         data[k1][k2]         = {};
-    if (!data[k1][k2][k3])     data[k1][k2][k3]     = {};
-    if (!data[k1][k2][k3][k4]) data[k1][k2][k3][k4] = { p: 0, s: 0, c: 0 };
-    data[k1][k2][k3][k4].p += r.prescription_amount ?? 0;
-    data[k1][k2][k3][k4].s += r.settlement_amount   ?? 0;
-    data[k1][k2][k3][k4].c++;
+    const k1=getL1(r), k2=getL2(r), k3=getL3(r), k4=getL4(r), k5=getL5(r);
+    if (!data[k1])                 data[k1]                 = {};
+    if (!data[k1][k2])             data[k1][k2]             = {};
+    if (!data[k1][k2][k3])         data[k1][k2][k3]         = {};
+    if (!data[k1][k2][k3][k4])     data[k1][k2][k3][k4]     = {};
+    if (!data[k1][k2][k3][k4][k5]) data[k1][k2][k3][k4][k5] = { p: 0, s: 0, c: 0 };
+    data[k1][k2][k3][k4][k5].p += r.prescription_amount ?? 0;
+    data[k1][k2][k3][k4][k5].s += r.settlement_amount   ?? 0;
+    data[k1][k2][k3][k4][k5].c++;
   }
-  return Object.entries(data).map(([n1, l2map]) => {
-    const sub2: L2_4[] = Object.entries(l2map).map(([n2, l3map]) => {
-      const sub3: L3_4[] = Object.entries(l3map).map(([n3, l4map]) => {
-        const sub4: L4[] = Object.entries(l4map)
-          .map(([n4, v]) => ({ name: n4, presc: v.p, sett: v.s, cnt: v.c }))
-          .sort((a, b) => b.sett - a.sett);
-        return { name: n3, presc: sub4.reduce((s,x)=>s+x.presc,0), sett: sub4.reduce((s,x)=>s+x.sett,0), cnt: sub4.reduce((s,x)=>s+x.cnt,0), sub: sub4 };
-      }).sort((a, b) => b.sett - a.sett);
-      return { name: n2, presc: sub3.reduce((s,x)=>s+x.presc,0), sett: sub3.reduce((s,x)=>s+x.sett,0), cnt: sub3.reduce((s,x)=>s+x.cnt,0), sub: sub3 };
-    }).sort((a, b) => b.sett - a.sett);
-    return { name: n1, presc: sub2.reduce((s,x)=>s+x.presc,0), sett: sub2.reduce((s,x)=>s+x.sett,0), cnt: sub2.reduce((s,x)=>s+x.cnt,0), sub: sub2 };
-  }).sort((a, b) => b.sett - a.sett);
+  const agg = (vs: { p:number; s:number; c:number }[]) => ({ presc: vs.reduce((s,x)=>s+x.p,0), sett: vs.reduce((s,x)=>s+x.s,0), cnt: vs.reduce((s,x)=>s+x.c,0) });
+  return Object.entries(data).map(([n1, m2]) => {
+    const sub2: L2_5[] = Object.entries(m2).map(([n2, m3]) => {
+      const sub3: L3_5[] = Object.entries(m3).map(([n3, m4]) => {
+        const sub4: L4_5[] = Object.entries(m4).map(([n4, m5]) => {
+          const sub5: L5[] = Object.entries(m5).map(([n5, v]) => ({ name: n5, presc: v.p, sett: v.s, cnt: v.c })).sort((a,b)=>b.sett-a.sett);
+          return { name: n4, ...agg(sub5.map(x=>({p:x.presc,s:x.sett,c:x.cnt}))), sub: sub5 };
+        }).sort((a,b)=>b.sett-a.sett);
+        return { name: n3, ...agg(sub4.map(x=>({p:x.presc,s:x.sett,c:x.cnt}))), sub: sub4 };
+      }).sort((a,b)=>b.sett-a.sett);
+      return { name: n2, ...agg(sub3.map(x=>({p:x.presc,s:x.sett,c:x.cnt}))), sub: sub3 };
+    }).sort((a,b)=>b.sett-a.sett);
+    return { name: n1, ...agg(sub2.map(x=>({p:x.presc,s:x.sett,c:x.cnt}))), sub: sub2 };
+  }).sort((a,b)=>b.sett-a.sett);
 }
 
 /* ── 포맷 유틸 ── */
@@ -294,10 +300,10 @@ function AccordionTable({
   );
 }
 
-/* ── 4단 아코디언 테이블 (품목→병원→담당자→CSO) ── */
-interface AccordionTable4Props {
+/* ── 5단 아코디언 테이블 (품목→기조실병의원→병원→담당자→CSO) ── */
+interface AccordionTable5Props {
   title: string;
-  tree: L1_4[];
+  tree: L1_5[];
   totalPresc: number;
   totalSett: number;
   totalCnt: number;
@@ -312,38 +318,37 @@ interface AccordionTable4Props {
   l2Label: string;
   l3Label: string;
   l4Label: string;
+  l5Label: string;
 }
 
-function AccordionTable4({
+function AccordionTable5({
   title, tree, totalPresc, totalSett, totalCnt,
   accentL1, accentL2, accentL3, accentL4,
   colorPresc = '#a8c4ff', colorSett = '#4ade80', colorRate = '#fbbf24',
-  l1Label, l2Label, l3Label, l4Label,
-}: AccordionTable4Props) {
-  const [search, setSearch]   = useState('');
-  const [openL1, setOpenL1]   = useState<string | null>(null);
-  const [openL2, setOpenL2]   = useState<string | null>(null);
-  const [openL3, setOpenL3]   = useState<string | null>(null);
+  l1Label,
+}: AccordionTable5Props) {
+  const [search, setSearch] = useState('');
+  const [openL1, setOpenL1] = useState<string | null>(null);
+  const [openL2, setOpenL2] = useState<string | null>(null);
+  const [openL3, setOpenL3] = useState<string | null>(null);
+  const [openL4, setOpenL4] = useState<string | null>(null);
 
-  function toggleL1(name: string) { const n = openL1 === name ? null : name; setOpenL1(n); setOpenL2(null); setOpenL3(null); }
-  function toggleL2(key: string)  { const n = openL2 === key  ? null : key;  setOpenL2(n); setOpenL3(null); }
-  function toggleL3(key: string)  { setOpenL3(openL3 === key  ? null : key); }
+  function toggleL1(n: string) { const v = openL1===n ? null : n; setOpenL1(v); setOpenL2(null); setOpenL3(null); setOpenL4(null); }
+  function toggleL2(k: string) { const v = openL2===k ? null : k; setOpenL2(v); setOpenL3(null); setOpenL4(null); }
+  function toggleL3(k: string) { const v = openL3===k ? null : k; setOpenL3(v); setOpenL4(null); }
+  function toggleL4(k: string) { setOpenL4(openL4===k ? null : k); }
 
-  const filtered = search.trim()
-    ? tree.filter(l1 => l1.name.includes(search.trim()))
-    : tree;
+  const filtered = search.trim() ? tree.filter(l1 => l1.name.includes(search.trim())) : tree;
 
   return (
     <div style={CARD}>
       <SectionTitle>{title}</SectionTitle>
-
-      {/* 품목 검색 입력 */}
       <div style={{ marginBottom: '0.6rem' }}>
         <input
           type="text"
           placeholder={`${l1Label} 검색…`}
           value={search}
-          onChange={e => { setSearch(e.target.value); setOpenL1(null); setOpenL2(null); setOpenL3(null); }}
+          onChange={e => { setSearch(e.target.value); setOpenL1(null); setOpenL2(null); setOpenL3(null); setOpenL4(null); }}
           style={{
             width: '100%', padding: '0.45rem 0.8rem', fontSize: '0.8rem',
             background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
@@ -351,7 +356,6 @@ function AccordionTable4({
           }}
         />
       </div>
-
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
@@ -385,9 +389,9 @@ function AccordionTable4({
                     const l2Open = openL2 === l2Key;
                     return (
                       <React.Fragment key={l2Key}>
-                        {/* L2: 병원 */}
+                        {/* L2: 기조실병의원구분 */}
                         <tr onClick={() => toggleL2(l2Key)} style={{ cursor: 'pointer', background: l2Open ? accentL2 : accentL3 }}>
-                          <td style={{ ...TD_L, paddingLeft: '1.7rem', fontSize: '0.75rem' }}>
+                          <td style={{ ...TD_L, paddingLeft: '1.5rem', fontSize: '0.75rem' }}>
                             <span style={{ marginRight: '0.35rem', fontSize: '0.63rem', opacity: 0.5 }}>{l2Open ? '▲' : '▶'}</span>
                             <span style={{ color: l2Open ? '#a7f3d0' : 'var(--text-muted)' }}>└ {l2.name}</span>
                           </td>
@@ -402,32 +406,52 @@ function AccordionTable4({
                           const l3Open = openL3 === l3Key;
                           return (
                             <React.Fragment key={l3Key}>
-                              {/* L3: 담당자 */}
+                              {/* L3: 병원 */}
                               <tr onClick={() => toggleL3(l3Key)} style={{ cursor: 'pointer', background: l3Open ? accentL4 : undefined }}>
-                                <td style={{ ...TD_L, paddingLeft: '3.2rem', fontSize: '0.7rem' }}>
+                                <td style={{ ...TD_L, paddingLeft: '2.8rem', fontSize: '0.72rem' }}>
                                   <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.45 }}>{l3Open ? '▲' : '▶'}</span>
-                                  <span style={{ color: l3Open ? '#d1fae5' : 'rgba(200,220,210,0.55)' }}>└└ {l3.name}</span>
+                                  <span style={{ color: l3Open ? '#d1fae5' : 'rgba(200,220,210,0.6)' }}>└└ {l3.name}</span>
                                 </td>
-                                <td style={{ ...TD, color: '#7a9fd4', fontSize: '0.7rem' }}>{fmtChun(l3.presc)}</td>
-                                <td style={{ ...TD, color: '#34c472', fontSize: '0.7rem' }}>{fmtChun(l3.sett)}</td>
-                                <td style={{ ...TD, color: '#c49a30', fontSize: '0.7rem' }}>{calcRate(l3.sett, l3.presc)}</td>
-                                <td style={{ ...TD, fontSize: '0.7rem', color: 'var(--text-muted)' }}>{l3.cnt.toLocaleString()}</td>
+                                <td style={{ ...TD, color: '#7a9fd4', fontSize: '0.72rem' }}>{fmtChun(l3.presc)}</td>
+                                <td style={{ ...TD, color: '#34c472', fontSize: '0.72rem' }}>{fmtChun(l3.sett)}</td>
+                                <td style={{ ...TD, color: '#c49a30', fontSize: '0.72rem' }}>{calcRate(l3.sett, l3.presc)}</td>
+                                <td style={{ ...TD, fontSize: '0.72rem', color: 'var(--text-muted)' }}>{l3.cnt.toLocaleString()}</td>
                               </tr>
 
-                              {/* L4: CSO (리프) */}
-                              {l3Open && l3.sub.map((l4, i) => (
-                                <tr key={l4.name} style={{ background: i % 2 === 0 ? 'rgba(16,185,129,0.04)' : undefined }}>
-                                  <td style={{ ...TD_L, paddingLeft: '4.8rem', fontSize: '0.67rem',
-                                    color: 'rgba(160,210,190,0.45)', maxWidth: '180px',
-                                    overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    └└└ {l4.name}
-                                  </td>
-                                  <td style={{ ...TD, color: '#6a8fc4', fontSize: '0.67rem' }}>{fmtChun(l4.presc)}</td>
-                                  <td style={{ ...TD, color: '#2ab460', fontSize: '0.67rem' }}>{fmtChun(l4.sett)}</td>
-                                  <td style={{ ...TD, color: '#b48820', fontSize: '0.67rem' }}>{calcRate(l4.sett, l4.presc)}</td>
-                                  <td style={{ ...TD, fontSize: '0.67rem', color: 'var(--text-muted)' }}>{l4.cnt.toLocaleString()}</td>
-                                </tr>
-                              ))}
+                              {l3Open && l3.sub.map(l4 => {
+                                const l4Key  = `${l3Key}||${l4.name}`;
+                                const l4Open = openL4 === l4Key;
+                                return (
+                                  <React.Fragment key={l4Key}>
+                                    {/* L4: 담당자 */}
+                                    <tr onClick={() => toggleL4(l4Key)} style={{ cursor: 'pointer', background: l4Open ? 'rgba(16,185,129,0.07)' : 'rgba(16,185,129,0.02)' }}>
+                                      <td style={{ ...TD_L, paddingLeft: '4.2rem', fontSize: '0.69rem' }}>
+                                        <span style={{ marginRight: '0.28rem', fontSize: '0.58rem', opacity: 0.4 }}>{l4Open ? '▲' : '▶'}</span>
+                                        <span style={{ color: l4Open ? '#ecfdf5' : 'rgba(180,210,195,0.5)' }}>└└└ {l4.name}</span>
+                                      </td>
+                                      <td style={{ ...TD, color: '#6a8fc4', fontSize: '0.69rem' }}>{fmtChun(l4.presc)}</td>
+                                      <td style={{ ...TD, color: '#2ab460', fontSize: '0.69rem' }}>{fmtChun(l4.sett)}</td>
+                                      <td style={{ ...TD, color: '#b48820', fontSize: '0.69rem' }}>{calcRate(l4.sett, l4.presc)}</td>
+                                      <td style={{ ...TD, fontSize: '0.69rem', color: 'var(--text-muted)' }}>{l4.cnt.toLocaleString()}</td>
+                                    </tr>
+
+                                    {/* L5: CSO (리프) */}
+                                    {l4Open && l4.sub.map((l5, i) => (
+                                      <tr key={l5.name} style={{ background: i % 2 === 0 ? 'rgba(16,185,129,0.03)' : undefined }}>
+                                        <td style={{ ...TD_L, paddingLeft: '5.6rem', fontSize: '0.66rem',
+                                          color: 'rgba(150,200,175,0.4)', maxWidth: '160px',
+                                          overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                          └└└└ {l5.name}
+                                        </td>
+                                        <td style={{ ...TD, color: '#5a7fb4', fontSize: '0.66rem' }}>{fmtChun(l5.presc)}</td>
+                                        <td style={{ ...TD, color: '#22a050', fontSize: '0.66rem' }}>{fmtChun(l5.sett)}</td>
+                                        <td style={{ ...TD, color: '#a07810', fontSize: '0.66rem' }}>{calcRate(l5.sett, l5.presc)}</td>
+                                        <td style={{ ...TD, fontSize: '0.66rem', color: 'var(--text-muted)' }}>{l5.cnt.toLocaleString()}</td>
+                                      </tr>
+                                    ))}
+                                  </React.Fragment>
+                                );
+                              })}
                             </React.Fragment>
                           );
                         })}
@@ -499,13 +523,14 @@ export default function SettlementClient({ rows }: { rows: SettlementRowClient[]
     r => r.hospital_name ?? '미상',
   ), [monthRows]);
 
-  // 품목별: L1=품목  L2=병원  L3=담당자  L4=CSO
-  const productTree = useMemo(() => buildTree4(
+  // 품목별: L1=품목  L2=기조실병의원구분  L3=병원  L4=담당자  L5=CSO
+  const productTree = useMemo(() => buildTree5(
     monthRows,
-    r => r.product_name  ?? '미상',
-    r => r.hospital_name ?? '미상',
-    r => r.manager       ?? '미상',
-    r => r.cso_name      ?? '미상',
+    r => r.product_name      ?? '미상',
+    r => r.hospital_category ?? '미분류',
+    r => r.hospital_name     ?? '미상',
+    r => r.manager           ?? '미상',
+    r => r.cso_name          ?? '미상',
   ), [monthRows]);
 
   // 종별: L1=기조실병의원구분  L2=종별구분  L3=처방처명
@@ -647,9 +672,9 @@ export default function SettlementClient({ rows }: { rows: SettlementRowClient[]
             l1Label="담당CSO"
           />
 
-          {/* 품목별: L1=품목, L2=병원, L3=담당자, L4=CSO */}
+          {/* 품목별: L1=품목, L2=기조실병의원구분, L3=병원, L4=담당자, L5=CSO */}
           {productTree.length > 0 && (
-            <AccordionTable4
+            <AccordionTable5
               title="📦 품목별 현황"
               tree={productTree}
               totalPresc={totalPresc} totalSett={totalSett} totalCnt={monthRows.length}
@@ -657,7 +682,7 @@ export default function SettlementClient({ rows }: { rows: SettlementRowClient[]
               accentL2="rgba(16,185,129,0.09)"
               accentL3="rgba(16,185,129,0.05)"
               accentL4="rgba(16,185,129,0.02)"
-              l1Label="품목" l2Label="병원" l3Label="담당자" l4Label="CSO"
+              l1Label="품목" l2Label="기조실병의원구분" l3Label="병원" l4Label="담당자" l5Label="CSO"
             />
           )}
         </>
