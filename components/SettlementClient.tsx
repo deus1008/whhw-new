@@ -290,7 +290,7 @@ function AccordionTable({
                           style={{ cursor: 'pointer', background: l2Open ? accentL2 : accentL3 }}>
                           <td style={{ ...TD_L, paddingLeft: '1.7rem', fontSize: '0.75rem' }}>
                             <span style={{ marginRight: '0.35rem', fontSize: '0.63rem', opacity: 0.5 }}>{l2Open ? '▲' : '▶'}</span>
-                            <span style={{ color: l2Open ? '#ddd6fe' : 'var(--text-muted)' }}>└ {l2.name}</span>
+                            <span style={{ color: l2Open ? '#ddd6fe' : 'var(--text-muted)' }}>{l2.name}</span>
                           </td>
                           <td style={{ ...TD, color: '#8ab0e8', fontSize: '0.75rem' }}>{fmtChun(l2.presc)}</td>
                           <td style={{ ...TD, color: '#3dd68c', fontSize: '0.75rem' }}>{fmtChun(l2.sett)}</td>
@@ -305,7 +305,7 @@ function AccordionTable({
                             <td style={{ ...TD_L, paddingLeft: '3.2rem', fontSize: '0.7rem',
                               color: 'rgba(200,200,230,0.55)', maxWidth: '200px',
                               overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              └└ {l3.name}
+                              {l3.name}
                             </td>
                             <td style={{ ...TD, color: '#7a9fd4', fontSize: '0.7rem' }}>{fmtChun(l3.presc)}</td>
                             <td style={{ ...TD, color: '#34c472', fontSize: '0.7rem' }}>{fmtChun(l3.sett)}</td>
@@ -436,7 +436,7 @@ function AccordionTable5({
                         <tr onClick={() => toggleL2(l2Key)} style={{ cursor: 'pointer', background: l2Open ? accentL2 : accentL3 }}>
                           <td style={{ ...TD_L, paddingLeft: '1.5rem', fontSize: '0.75rem' }}>
                             <span style={{ marginRight: '0.35rem', fontSize: '0.63rem', opacity: 0.5 }}>{l2Open ? '▲' : '▶'}</span>
-                            <span style={{ color: l2Open ? '#a7f3d0' : 'var(--text-muted)' }}>└ {l2.name}</span>
+                            <span style={{ color: l2Open ? '#a7f3d0' : 'var(--text-muted)' }}>{l2.name}</span>
                           </td>
                           <td style={{ ...TD, color: '#8ab0e8', fontSize: '0.75rem' }}>{fmtChun(l2.presc)}</td>
                           <td style={{ ...TD, color: '#3dd68c', fontSize: '0.75rem' }}>{fmtChun(l2.sett)}</td>
@@ -453,7 +453,7 @@ function AccordionTable5({
                               <tr onClick={() => toggleL3(l3Key)} style={{ cursor: 'pointer', background: l3Open ? accentL4 : undefined }}>
                                 <td style={{ ...TD_L, paddingLeft: '2.8rem', fontSize: '0.72rem' }}>
                                   <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.45 }}>{l3Open ? '▲' : '▶'}</span>
-                                  <span style={{ color: l3Open ? '#d1fae5' : 'rgba(200,220,210,0.6)' }}>└└ {l3.name}</span>
+                                  <span style={{ color: l3Open ? '#d1fae5' : 'rgba(200,220,210,0.6)' }}>{l3.name}</span>
                                 </td>
                                 <td style={{ ...TD, color: '#7a9fd4', fontSize: '0.72rem' }}>{fmtChun(l3.presc)}</td>
                                 <td style={{ ...TD, color: '#34c472', fontSize: '0.72rem' }}>{fmtChun(l3.sett)}</td>
@@ -470,7 +470,7 @@ function AccordionTable5({
                                     <tr onClick={() => toggleL4(l4Key)} style={{ cursor: 'pointer', background: l4Open ? 'rgba(16,185,129,0.07)' : 'rgba(16,185,129,0.02)' }}>
                                       <td style={{ ...TD_L, paddingLeft: '4.2rem', fontSize: '0.69rem' }}>
                                         <span style={{ marginRight: '0.28rem', fontSize: '0.58rem', opacity: 0.4 }}>{l4Open ? '▲' : '▶'}</span>
-                                        <span style={{ color: l4Open ? '#ecfdf5' : 'rgba(180,210,195,0.5)' }}>└└└ {l4.name}</span>
+                                        <span style={{ color: l4Open ? '#ecfdf5' : 'rgba(180,210,195,0.5)' }}>{l4.name}</span>
                                       </td>
                                       <td style={{ ...TD, color: '#6a8fc4', fontSize: '0.69rem' }}>{fmtChun(l4.presc)}</td>
                                       <td style={{ ...TD, color: '#2ab460', fontSize: '0.69rem' }}>{fmtChun(l4.sett)}</td>
@@ -484,7 +484,7 @@ function AccordionTable5({
                                         <td style={{ ...TD_L, paddingLeft: '5.6rem', fontSize: '0.66rem',
                                           color: 'rgba(150,200,175,0.4)', maxWidth: '160px',
                                           overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                          └└└└ {l5.name}
+                                          {l5.name}
                                         </td>
                                         <td style={{ ...TD, color: '#5a7fb4', fontSize: '0.66rem' }}>{fmtChun(l5.presc)}</td>
                                         <td style={{ ...TD, color: '#22a050', fontSize: '0.66rem' }}>{fmtChun(l5.sett)}</td>
