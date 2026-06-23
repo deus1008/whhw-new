@@ -26,6 +26,12 @@ type L3 = { name: string; presc: number; sett: number; cnt: number };
 type L2 = { name: string; presc: number; sett: number; cnt: number; sub: L3[] };
 type L1 = { name: string; presc: number; sett: number; cnt: number; sub: L2[] };
 
+/* ── 4단 집계 트리 타입 ── */
+type L4   = { name: string; presc: number; sett: number; cnt: number };
+type L3_4 = { name: string; presc: number; sett: number; cnt: number; sub: L4[] };
+type L2_4 = { name: string; presc: number; sett: number; cnt: number; sub: L3_4[] };
+type L1_4 = { name: string; presc: number; sett: number; cnt: number; sub: L2_4[] };
+
 /* ── 3단 집계 빌더 ── */
 function buildTree(
   rows: SettlementRowClient[],
@@ -63,6 +69,39 @@ function buildTree(
       cnt:   sub2.reduce((s, x) => s + x.cnt,   0),
       sub:   sub2,
     };
+  }).sort((a, b) => b.sett - a.sett);
+}
+
+/* ── 4단 집계 빌더 ── */
+function buildTree4(
+  rows: SettlementRowClient[],
+  getL1: (r: SettlementRowClient) => string,
+  getL2: (r: SettlementRowClient) => string,
+  getL3: (r: SettlementRowClient) => string,
+  getL4: (r: SettlementRowClient) => string,
+): L1_4[] {
+  const data: Record<string, Record<string, Record<string, Record<string, { p: number; s: number; c: number }>>>> = {};
+  for (const r of rows) {
+    const k1 = getL1(r); const k2 = getL2(r); const k3 = getL3(r); const k4 = getL4(r);
+    if (!data[k1])             data[k1]             = {};
+    if (!data[k1][k2])         data[k1][k2]         = {};
+    if (!data[k1][k2][k3])     data[k1][k2][k3]     = {};
+    if (!data[k1][k2][k3][k4]) data[k1][k2][k3][k4] = { p: 0, s: 0, c: 0 };
+    data[k1][k2][k3][k4].p += r.prescription_amount ?? 0;
+    data[k1][k2][k3][k4].s += r.settlement_amount   ?? 0;
+    data[k1][k2][k3][k4].c++;
+  }
+  return Object.entries(data).map(([n1, l2map]) => {
+    const sub2: L2_4[] = Object.entries(l2map).map(([n2, l3map]) => {
+      const sub3: L3_4[] = Object.entries(l3map).map(([n3, l4map]) => {
+        const sub4: L4[] = Object.entries(l4map)
+          .map(([n4, v]) => ({ name: n4, presc: v.p, sett: v.s, cnt: v.c }))
+          .sort((a, b) => b.sett - a.sett);
+        return { name: n3, presc: sub4.reduce((s,x)=>s+x.presc,0), sett: sub4.reduce((s,x)=>s+x.sett,0), cnt: sub4.reduce((s,x)=>s+x.cnt,0), sub: sub4 };
+      }).sort((a, b) => b.sett - a.sett);
+      return { name: n2, presc: sub3.reduce((s,x)=>s+x.presc,0), sett: sub3.reduce((s,x)=>s+x.sett,0), cnt: sub3.reduce((s,x)=>s+x.cnt,0), sub: sub3 };
+    }).sort((a, b) => b.sett - a.sett);
+    return { name: n1, presc: sub2.reduce((s,x)=>s+x.presc,0), sett: sub2.reduce((s,x)=>s+x.sett,0), cnt: sub2.reduce((s,x)=>s+x.cnt,0), sub: sub2 };
   }).sort((a, b) => b.sett - a.sett);
 }
 
@@ -255,6 +294,165 @@ function AccordionTable({
   );
 }
 
+/* ── 4단 아코디언 테이블 (품목→병원→담당자→CSO) ── */
+interface AccordionTable4Props {
+  title: string;
+  tree: L1_4[];
+  totalPresc: number;
+  totalSett: number;
+  totalCnt: number;
+  accentL1: string;
+  accentL2: string;
+  accentL3: string;
+  accentL4: string;
+  colorPresc?: string;
+  colorSett?: string;
+  colorRate?: string;
+  l1Label: string;
+  l2Label: string;
+  l3Label: string;
+  l4Label: string;
+}
+
+function AccordionTable4({
+  title, tree, totalPresc, totalSett, totalCnt,
+  accentL1, accentL2, accentL3, accentL4,
+  colorPresc = '#a8c4ff', colorSett = '#4ade80', colorRate = '#fbbf24',
+  l1Label, l2Label, l3Label, l4Label,
+}: AccordionTable4Props) {
+  const [search, setSearch]   = useState('');
+  const [openL1, setOpenL1]   = useState<string | null>(null);
+  const [openL2, setOpenL2]   = useState<string | null>(null);
+  const [openL3, setOpenL3]   = useState<string | null>(null);
+
+  function toggleL1(name: string) { const n = openL1 === name ? null : name; setOpenL1(n); setOpenL2(null); setOpenL3(null); }
+  function toggleL2(key: string)  { const n = openL2 === key  ? null : key;  setOpenL2(n); setOpenL3(null); }
+  function toggleL3(key: string)  { setOpenL3(openL3 === key  ? null : key); }
+
+  const filtered = search.trim()
+    ? tree.filter(l1 => l1.name.includes(search.trim()))
+    : tree;
+
+  return (
+    <div style={CARD}>
+      <SectionTitle>{title}</SectionTitle>
+
+      {/* 품목 검색 입력 */}
+      <div style={{ marginBottom: '0.6rem' }}>
+        <input
+          type="text"
+          placeholder={`${l1Label} 검색…`}
+          value={search}
+          onChange={e => { setSearch(e.target.value); setOpenL1(null); setOpenL2(null); setOpenL3(null); }}
+          style={{
+            width: '100%', padding: '0.45rem 0.8rem', fontSize: '0.8rem',
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '8px', color: '#e2e8f0', outline: 'none', fontFamily: 'inherit',
+          }}
+        />
+      </div>
+
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={TH_L}>{l1Label}</th>
+              <th style={TH}>처방금액 (천원)</th>
+              <th style={TH}>정산액 (천원)</th>
+              <th style={TH}>수수료율</th>
+              <th style={TH}>건수</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(l1 => {
+              const l1Open = openL1 === l1.name;
+              return (
+                <React.Fragment key={l1.name}>
+                  {/* L1: 품목 */}
+                  <tr onClick={() => toggleL1(l1.name)} style={{ cursor: 'pointer', background: l1Open ? accentL1 : undefined }}>
+                    <td style={{ ...TD_L, fontWeight: 600 }}>
+                      <span style={{ marginRight: '0.4rem', fontSize: '0.68rem', opacity: 0.55 }}>{l1Open ? '▲' : '▶'}</span>
+                      <span style={{ color: l1Open ? '#6ee7b7' : '#e2e8f0' }}>{l1.name}</span>
+                    </td>
+                    <td style={{ ...TD, color: colorPresc }}>{fmtChun(l1.presc)}</td>
+                    <td style={{ ...TD, color: colorSett, fontWeight: 600 }}>{fmtChun(l1.sett)}</td>
+                    <td style={{ ...TD, color: colorRate }}>{calcRate(l1.sett, l1.presc)}</td>
+                    <td style={TD}>{l1.cnt.toLocaleString()}</td>
+                  </tr>
+
+                  {l1Open && l1.sub.map(l2 => {
+                    const l2Key  = `${l1.name}||${l2.name}`;
+                    const l2Open = openL2 === l2Key;
+                    return (
+                      <React.Fragment key={l2Key}>
+                        {/* L2: 병원 */}
+                        <tr onClick={() => toggleL2(l2Key)} style={{ cursor: 'pointer', background: l2Open ? accentL2 : accentL3 }}>
+                          <td style={{ ...TD_L, paddingLeft: '1.7rem', fontSize: '0.75rem' }}>
+                            <span style={{ marginRight: '0.35rem', fontSize: '0.63rem', opacity: 0.5 }}>{l2Open ? '▲' : '▶'}</span>
+                            <span style={{ color: l2Open ? '#a7f3d0' : 'var(--text-muted)' }}>└ {l2.name}</span>
+                          </td>
+                          <td style={{ ...TD, color: '#8ab0e8', fontSize: '0.75rem' }}>{fmtChun(l2.presc)}</td>
+                          <td style={{ ...TD, color: '#3dd68c', fontSize: '0.75rem' }}>{fmtChun(l2.sett)}</td>
+                          <td style={{ ...TD, color: '#d4a843', fontSize: '0.75rem' }}>{calcRate(l2.sett, l2.presc)}</td>
+                          <td style={{ ...TD, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{l2.cnt.toLocaleString()}</td>
+                        </tr>
+
+                        {l2Open && l2.sub.map(l3 => {
+                          const l3Key  = `${l2Key}||${l3.name}`;
+                          const l3Open = openL3 === l3Key;
+                          return (
+                            <React.Fragment key={l3Key}>
+                              {/* L3: 담당자 */}
+                              <tr onClick={() => toggleL3(l3Key)} style={{ cursor: 'pointer', background: l3Open ? accentL4 : undefined }}>
+                                <td style={{ ...TD_L, paddingLeft: '3.2rem', fontSize: '0.7rem' }}>
+                                  <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.45 }}>{l3Open ? '▲' : '▶'}</span>
+                                  <span style={{ color: l3Open ? '#d1fae5' : 'rgba(200,220,210,0.55)' }}>└└ {l3.name}</span>
+                                </td>
+                                <td style={{ ...TD, color: '#7a9fd4', fontSize: '0.7rem' }}>{fmtChun(l3.presc)}</td>
+                                <td style={{ ...TD, color: '#34c472', fontSize: '0.7rem' }}>{fmtChun(l3.sett)}</td>
+                                <td style={{ ...TD, color: '#c49a30', fontSize: '0.7rem' }}>{calcRate(l3.sett, l3.presc)}</td>
+                                <td style={{ ...TD, fontSize: '0.7rem', color: 'var(--text-muted)' }}>{l3.cnt.toLocaleString()}</td>
+                              </tr>
+
+                              {/* L4: CSO (리프) */}
+                              {l3Open && l3.sub.map((l4, i) => (
+                                <tr key={l4.name} style={{ background: i % 2 === 0 ? 'rgba(16,185,129,0.04)' : undefined }}>
+                                  <td style={{ ...TD_L, paddingLeft: '4.8rem', fontSize: '0.67rem',
+                                    color: 'rgba(160,210,190,0.45)', maxWidth: '180px',
+                                    overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    └└└ {l4.name}
+                                  </td>
+                                  <td style={{ ...TD, color: '#6a8fc4', fontSize: '0.67rem' }}>{fmtChun(l4.presc)}</td>
+                                  <td style={{ ...TD, color: '#2ab460', fontSize: '0.67rem' }}>{fmtChun(l4.sett)}</td>
+                                  <td style={{ ...TD, color: '#b48820', fontSize: '0.67rem' }}>{calcRate(l4.sett, l4.presc)}</td>
+                                  <td style={{ ...TD, fontSize: '0.67rem', color: 'var(--text-muted)' }}>{l4.cnt.toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </React.Fragment>
+                          );
+                        })}
+                      </React.Fragment>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
+
+            {/* 합계 행 */}
+            <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
+              <td style={{ ...TD_L, fontWeight: 700, color: '#fff' }}>합계</td>
+              <td style={{ ...TD, color: colorPresc, fontWeight: 700 }}>{fmtChun(totalPresc)}</td>
+              <td style={{ ...TD, color: colorSett,  fontWeight: 700 }}>{fmtChun(totalSett)}</td>
+              <td style={{ ...TD, color: colorRate,  fontWeight: 700 }}>{calcRate(totalSett, totalPresc)}</td>
+              <td style={{ ...TD, fontWeight: 700 }}>{totalCnt.toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 /* ── 메인 컴포넌트 ── */
 export default function SettlementClient({ rows }: { rows: SettlementRowClient[] }) {
   // 파일 목록 (최신순 정렬)
@@ -299,6 +497,15 @@ export default function SettlementClient({ rows }: { rows: SettlementRowClient[]
     r => r.manager       ?? '미상',
     r => r.cso_name      ?? '미상',
     r => r.hospital_name ?? '미상',
+  ), [monthRows]);
+
+  // 품목별: L1=품목  L2=병원  L3=담당자  L4=CSO
+  const productTree = useMemo(() => buildTree4(
+    monthRows,
+    r => r.product_name  ?? '미상',
+    r => r.hospital_name ?? '미상',
+    r => r.manager       ?? '미상',
+    r => r.cso_name      ?? '미상',
   ), [monthRows]);
 
   // 종별: L1=기조실병의원구분  L2=종별구분  L3=처방처명
@@ -439,6 +646,20 @@ export default function SettlementClient({ rows }: { rows: SettlementRowClient[]
             accentL3="rgba(99,102,241,0.04)"
             l1Label="담당CSO"
           />
+
+          {/* 품목별: L1=품목, L2=병원, L3=담당자, L4=CSO */}
+          {productTree.length > 0 && (
+            <AccordionTable4
+              title="📦 품목별 현황"
+              tree={productTree}
+              totalPresc={totalPresc} totalSett={totalSett} totalCnt={monthRows.length}
+              accentL1="rgba(16,185,129,0.14)"
+              accentL2="rgba(16,185,129,0.09)"
+              accentL3="rgba(16,185,129,0.05)"
+              accentL4="rgba(16,185,129,0.02)"
+              l1Label="품목" l2Label="병원" l3Label="담당자" l4Label="CSO"
+            />
+          )}
         </>
       )}
     </div>
