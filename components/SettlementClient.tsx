@@ -195,6 +195,37 @@ interface AccordionTableProps {
   l1Label: string;
 }
 
+const SHOW_LIMIT = 10;
+
+function ShowMoreRow({ hidden, onShow, onHide }: { hidden: number; onShow: () => void; onHide: () => void }) {
+  if (hidden > 0) return (
+    <tr>
+      <td colSpan={5} style={{ textAlign: 'center', padding: '0.5rem' }}>
+        <button onClick={onShow} style={{
+          background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+          borderRadius: '6px', color: 'var(--text-muted)', fontSize: '0.75rem',
+          padding: '0.3rem 1rem', cursor: 'pointer', fontFamily: 'inherit',
+        }}>
+          {hidden}개 더 보기 ▼
+        </button>
+      </td>
+    </tr>
+  );
+  return (
+    <tr>
+      <td colSpan={5} style={{ textAlign: 'center', padding: '0.4rem' }}>
+        <button onClick={onHide} style={{
+          background: 'transparent', border: 'none',
+          color: 'rgba(180,180,220,0.35)', fontSize: '0.72rem',
+          padding: '0.2rem 0.8rem', cursor: 'pointer', fontFamily: 'inherit',
+        }}>
+          접기 ▲
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 function AccordionTable({
   title, tree, totalPresc, totalSett, totalCnt,
   accentL1, accentL2, accentL3,
@@ -203,15 +234,19 @@ function AccordionTable({
 }: AccordionTableProps) {
   const [openL1, setOpenL1] = useState<string | null>(null);
   const [openL2, setOpenL2] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   function toggleL1(name: string) {
     const next = openL1 === name ? null : name;
     setOpenL1(next);
-    setOpenL2(null);   // L1 바뀌면 L2 초기화
+    setOpenL2(null);
   }
   function toggleL2(key: string) {
     setOpenL2(openL2 === key ? null : key);
   }
+
+  const visible = showAll ? tree : tree.slice(0, SHOW_LIMIT);
+  const hidden  = tree.length - visible.length;
 
   return (
     <div style={CARD}>
@@ -228,7 +263,7 @@ function AccordionTable({
             </tr>
           </thead>
           <tbody>
-            {tree.map(l1 => {
+            {visible.map(l1 => {
               const l1Open = openL1 === l1.name;
               return (
                 <React.Fragment key={l1.name}>
@@ -285,6 +320,11 @@ function AccordionTable({
               );
             })}
 
+            {/* 더 보기 / 접기 */}
+            {tree.length > SHOW_LIMIT && (
+              <ShowMoreRow hidden={hidden} onShow={() => setShowAll(true)} onHide={() => { setShowAll(false); setOpenL1(null); setOpenL2(null); }} />
+            )}
+
             {/* 합계 행 */}
             <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
               <td style={{ ...TD_L, fontWeight: 700, color: '#fff' }}>합계</td>
@@ -327,18 +367,21 @@ function AccordionTable5({
   colorPresc = '#a8c4ff', colorSett = '#4ade80', colorRate = '#fbbf24',
   l1Label,
 }: AccordionTable5Props) {
-  const [search, setSearch] = useState('');
-  const [openL1, setOpenL1] = useState<string | null>(null);
-  const [openL2, setOpenL2] = useState<string | null>(null);
-  const [openL3, setOpenL3] = useState<string | null>(null);
-  const [openL4, setOpenL4] = useState<string | null>(null);
+  const [search, setSearch]   = useState('');
+  const [showAll, setShowAll] = useState(false);
+  const [openL1, setOpenL1]   = useState<string | null>(null);
+  const [openL2, setOpenL2]   = useState<string | null>(null);
+  const [openL3, setOpenL3]   = useState<string | null>(null);
+  const [openL4, setOpenL4]   = useState<string | null>(null);
 
   function toggleL1(n: string) { const v = openL1===n ? null : n; setOpenL1(v); setOpenL2(null); setOpenL3(null); setOpenL4(null); }
   function toggleL2(k: string) { const v = openL2===k ? null : k; setOpenL2(v); setOpenL3(null); setOpenL4(null); }
   function toggleL3(k: string) { const v = openL3===k ? null : k; setOpenL3(v); setOpenL4(null); }
   function toggleL4(k: string) { setOpenL4(openL4===k ? null : k); }
 
-  const filtered = search.trim() ? tree.filter(l1 => l1.name.includes(search.trim())) : tree;
+  const allFiltered = search.trim() ? tree.filter(l1 => l1.name.includes(search.trim())) : tree;
+  const filtered    = showAll ? allFiltered : allFiltered.slice(0, SHOW_LIMIT);
+  const hidden      = allFiltered.length - filtered.length;
 
   return (
     <div style={CARD}>
@@ -461,6 +504,11 @@ function AccordionTable5({
                 </React.Fragment>
               );
             })}
+
+            {/* 더 보기 / 접기 */}
+            {allFiltered.length > SHOW_LIMIT && (
+              <ShowMoreRow hidden={hidden} onShow={() => setShowAll(true)} onHide={() => { setShowAll(false); setOpenL1(null); setOpenL2(null); setOpenL3(null); setOpenL4(null); }} />
+            )}
 
             {/* 합계 행 */}
             <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
