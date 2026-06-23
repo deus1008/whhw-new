@@ -104,11 +104,11 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(139,92,246,0.10)',
     bd:   'rgba(139,92,246,0.22)',
   },
-  // ⑧-1 재고현황
+  // ⑧-1 품절현황
   {
     href: '/inventory',
     icon: '📦',
-    label: '재고현황',
+    label: '품절현황',
     color: '#6ee7b7',
     bg:   'rgba(52,211,153,0.10)',
     bd:   'rgba(52,211,153,0.22)',

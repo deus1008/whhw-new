@@ -19,7 +19,7 @@ export default function InventoryLoading() {
       <div className="relative z-10 w-full px-4"
         style={{ maxWidth: '1100px', paddingTop: '2rem', paddingBottom: '2rem', alignSelf: 'flex-start' }}>
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem,4vw,1.8rem)' }}>
-          재고현황
+          품절현황
         </p>
         <div className="page-nav">
           {[52,72,72,56,64].map((w,i) => <div key={i} style={{ ...shimmer, width: `${w}px`, height: '30px' }} />)}

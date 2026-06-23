@@ -948,7 +948,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
             {stockFileName && (
               <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.5rem', textAlign: 'right' }}>
-                출처: {stockFileName} · <a href="/inventory" style={{ color: '#a5b4fc' }}>재고현황</a>
+                출처: {stockFileName} · <a href="/inventory" style={{ color: '#a5b4fc' }}>품절현황</a>
               </p>
             )}
           </>
