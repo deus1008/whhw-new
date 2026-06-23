@@ -21,14 +21,14 @@ export type ParseDmfResult = {
   error?: string;
 };
 
-/* ── 컬럼 키워드 ── */
+/* ── 컬럼 키워드 (구체적인 것 → 일반적인 것 순서) ── */
 const INGR_KW    = ['성분명', '원료명', '성분(한글)', '한글성분명', '성분명(한글)', '주성분명', '성분'];
-const COMPANY_KW = ['업체명', '회사명', '수입사', '국내업체명', '등록업체', '국내등록업체'];
-const MFG_KW     = ['제조업체명', '제조사명', '제조업체', '제조사', '제조원', '외국제조업체'];
-const ADDR_KW    = ['제조소주소', '제조소 주소', '소재지', '주소', '제조소소재지'];
-const COUNTRY_KW = ['제조국', '원산지', '국가', '국가명', '제조국가'];
-const DATE_KW    = ['등록일', '등록일자', '허가일자', 'DMF등록일', 'dmf등록일', '등재일'];
-const DMF_KW     = ['DMF번호', 'DMF허가번호', 'DMF 허가번호', 'dmf번호', '허가번호', 'DMF No', 'DMF호'];
+const COMPANY_KW = ['국내관리업체명', '국내등록업체', '국내업체명', '관리업체명', '등록업체', '업체명', '회사명', '수입사'];
+const MFG_KW     = ['제조업소명', '외국제조업체명', '제조업체명', '제조사명', '제조업소', '제조업체', '제조사', '제조원', '외국제조업체'];
+const ADDR_KW    = ['제조소주소', '제조소 주소', '제조소소재지', '소재지', '주소'];
+const COUNTRY_KW = ['제조국', '원산지', '제조국가', '국가명', '국가'];
+const DATE_KW    = ['허가일자', '등록일자', 'DMF등록일', '허가연월일', '등록일', '허가일', '등재일'];
+const DMF_KW     = ['DMF허가번호', 'DMF 허가번호', 'DMF번호', '허가번호', 'DMF No', 'DMF호'];
 
 function norm(s: string): string {
   return s.replace(/[\s\r\n_\-\.()（）]/g, '').toLowerCase();
@@ -42,7 +42,11 @@ function findCol(keys: string[], candidates: string[]): string | undefined {
     if (found) return found.orig;
   }
   for (const cand of normCands) {
-    const found = normKeys.find(k => k.norm.includes(cand) || cand.includes(k.norm));
+    // k.norm이 3자 미만이면 cand.includes(k.norm) 방향은 오매칭 위험 → 제외
+    const found = normKeys.find(k =>
+      k.norm.includes(cand) ||
+      (cand.includes(k.norm) && k.norm.length >= 3)
+    );
     if (found) return found.orig;
   }
   return undefined;
