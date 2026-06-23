@@ -310,10 +310,11 @@ export async function POST(request: Request) {
   // ── J. 원료DMF 폴더 → drug_dmf 파싱 ───────────────────────────────────
   if (category === '원료DMF') {
     console.log(`[process:${documentId}] 원료DMF 폴더 → DMF 데이터 파싱`);
-    const { rows, total, error: parseError } = parseDmfBuffer(buffer, doc.filename);
+    const { rows, total, error: parseError, debug } = parseDmfBuffer(buffer, doc.filename);
 
     if (parseError) return fail(`원료DMF 파싱 실패: ${parseError}`);
 
+    const dmfDebug = parseError ? null : (debug ?? null);
     if (rows.length > 0) {
       await supabase.from('drug_dmf').delete().eq('source_file', doc.filename);
       const CHUNK = 500;
@@ -326,7 +327,7 @@ export async function POST(request: Request) {
       console.log(`[process:${documentId}] 원료DMF ${inserted}/${total}건 저장 완료`);
     }
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
-    return Response.json({ ok: true, inserted: rows.length });
+    return Response.json({ ok: true, inserted: rows.length, debug: dmfDebug });
   }
 
   // ── G. 그 외 폴더 — 즉시 완료 ─────────────────────────────────────────

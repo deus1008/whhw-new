@@ -19,6 +19,11 @@ export type ParseDmfResult = {
   rows:  DmfRow[];
   total: number;
   error?: string;
+  debug?: {
+    headerRow:  number;
+    allCols:    string[];
+    colMapping: Record<string, string | undefined>;
+  };
 };
 
 /* ── 컬럼 키워드 (구체적인 것 → 일반적인 것 순서) ── */
@@ -101,11 +106,18 @@ export function parseDmfBuffer(buffer: Buffer, fileName: string): ParseDmfResult
     dmfNo:   findCol(cleanKeys, DMF_KW),
   };
 
-  console.log(`[dmf-parse] 파일: ${fileName}, 컬럼 매핑:`, JSON.stringify(COL));
+  const debug = {
+    headerRow:  headerIdx,
+    allCols:    cleanKeys,
+    colMapping: { ingr: COL.ingr, company: COL.company, mfg: COL.mfg, addr: COL.addr, country: COL.country, date: COL.date, dmfNo: COL.dmfNo },
+  };
+  console.log(`[dmf-parse] 파일: ${fileName}`);
+  console.log(`[dmf-parse] 헤더행 idx=${headerIdx}, 컬럼:`, cleanKeys.join(' | '));
+  console.log(`[dmf-parse] 매핑:`, JSON.stringify(debug.colMapping));
 
   if (!COL.ingr) {
     return {
-      rows: [], total: rawRows.length,
+      rows: [], total: rawRows.length, debug,
       error: `성분명 컬럼 미감지. 감지된 컬럼: [${cleanKeys.slice(0, 10).join(', ')}]`,
     };
   }
@@ -127,5 +139,5 @@ export function parseDmfBuffer(buffer: Buffer, fileName: string): ParseDmfResult
   }
 
   console.log(`[dmf-parse] 유효 행: ${rows.length} / 전체: ${rawRows.length}`);
-  return { rows, total: rawRows.length };
+  return { rows, total: rawRows.length, debug };
 }
