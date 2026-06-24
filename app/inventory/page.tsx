@@ -1,6 +1,6 @@
 /**
  * 재고현황 페이지 (Server Component)
- * - 문서관리 > 재고관리 폴더의 최신 품절예측현황 Excel을 Supabase Storage에서
+ * - 문서관리 > 품절예측 폴더의 최신 품절예측현황 Excel을 Supabase Storage에서
  *   직접 다운로드 + 파싱하여 렌더링 (별도 DB 테이블 불필요)
  */
 import { redirect } from 'next/navigation';
@@ -34,11 +34,11 @@ export default async function InventoryPage() {
 
   const svc = getSvc();
 
-  // ── 재고관리 폴더에서 최신 파일 조회 ──────────────────────────────────────
+  // ── 품절예측 폴더에서 최신 파일 조회 ──────────────────────────────────────
   const { data: doc } = await svc
     .from('documents')
     .select('id, filename, storage_path, created_at')
-    .eq('category', '재고관리')
+    .eq('category', '품절예측')
     .order('created_at', { ascending: false })
     .limit(1)
     .single();

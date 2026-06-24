@@ -12,7 +12,7 @@ if (!URL || !KEY) {
 
 const svc = createClient(URL, KEY);
 
-// 재고관리 카테고리 문서 조회
+// 품절예측 카테고리 문서 조회
 const { data: docs, error: docsErr } = await svc
   .from('documents')
   .select('id, filename, storage_path, category')

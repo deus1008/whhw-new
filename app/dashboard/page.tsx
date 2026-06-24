@@ -176,16 +176,16 @@ export default async function DashboardPage() {
       .order('category', { ascending: true })
       .order('sort_order', { ascending: true })
       .limit(200),
-    // 재고관리: 최신 파일 메타
+    // 품절예측: 최신 파일 메타
     svc.from('documents')
       .select('id,filename,storage_path,created_at')
-      .eq('category', '재고관리')
+      .eq('category', '품절예측')
       .order('created_at', { ascending: false })
       .limit(1)
       .single(),
   ]);
 
-  // ── B-2. 재고관리 파일 다운로드 + 파싱 ───────────────────────────────────────
+  // ── B-2. 품절예측 파일 다운로드 + 파싱 ───────────────────────────────────────
   let stockItems: StockAlertItem[] = [];
   let stockFileName: string | null = null;
   if (invDoc?.storage_path) {

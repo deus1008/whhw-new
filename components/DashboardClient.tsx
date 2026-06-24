@@ -871,7 +871,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       ══════════════════════════════════════════════════════════ */}
       <Section title="⚠️ 품절현황" id="s6b">
         {stockItems.length === 0 ? (
-          <Empty msg="문서관리 > '재고관리' 폴더에 파일을 업로드하면 자동 표시됩니다." />
+          <Empty msg="문서관리 > '품절예측' 폴더에 파일을 업로드하면 자동 표시됩니다." />
         ) : (
           <>
             {/* 요약 pill */}

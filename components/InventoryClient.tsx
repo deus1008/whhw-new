@@ -498,7 +498,7 @@ export default function InventoryClient({
         <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.28)', fontSize: '0.83rem' }}>
           {needle
             ? `"${query}"에 해당하는 항목이 없습니다.`
-            : '문서관리 > 재고관리 폴더에 파일을 업로드하거나 항목을 직접 추가하세요.'}
+            : '문서관리 > 품절예측 폴더에 파일을 업로드하거나 항목을 직접 추가하세요.'}
         </div>
       )}
 
