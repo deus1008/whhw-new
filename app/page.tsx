@@ -113,6 +113,15 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(52,211,153,0.10)',
     bd:   'rgba(52,211,153,0.22)',
   },
+  // ⑧-2 재고현황
+  {
+    href: '/stock',
+    icon: '🏭',
+    label: '재고현황',
+    color: '#fbbf24',
+    bg:   'rgba(251,191,36,0.10)',
+    bd:   'rgba(251,191,36,0.22)',
+  },
   // ⑨ 주요일정
   {
     href: '/calendar',

@@ -1,0 +1,81 @@
+import { redirect }      from 'next/navigation';
+import { createClient }  from '@/lib/supabase/server';
+import { createClient as createSvcClient } from '@supabase/supabase-js';
+import LogoutButton      from '@/components/LogoutButton';
+import HomeButton        from '@/components/HomeButton';
+import StockClient, { type StockPeriod } from '@/components/StockClient';
+
+export const revalidate = 3600;
+
+function getSvc() {
+  return createSvcClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
+
+export default async function StockPage() {
+  // ── 인증 ──────────────────────────────────────────────────────────────────
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
+
+  const { data: myProfile } = await supabase
+    .from('profiles').select('role, status').eq('id', user.id).single();
+  if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
+
+  const svc = getSvc();
+
+  // ── monthly_stock 테이블에서 기간별 데이터 조회 ──────────────────────────
+  const { data: raw } = await svc
+    .from('monthly_stock')
+    .select('year, period, source_file, material_code, material_name, unit, available_qty, transit_qty, total_qty')
+    .order('year',   { ascending: false })
+    .order('period', { ascending: false })
+    .order('material_name', { ascending: true });
+
+  // 기간별로 그루핑 (파일명이 달라도 같은 연도+기간이면 하나로)
+  const periodMap = new Map<string, StockPeriod>();
+  for (const r of raw ?? []) {
+    const key = `${r.year}|${r.period}`;
+    if (!periodMap.has(key)) {
+      periodMap.set(key, { year: r.year, period: r.period, source_file: r.source_file, rows: [] });
+    }
+    periodMap.get(key)!.rows.push({
+      material_code: r.material_code,
+      material_name: r.material_name,
+      unit:          r.unit,
+      available_qty: Number(r.available_qty),
+      transit_qty:   Number(r.transit_qty),
+      total_qty:     Number(r.total_qty),
+    });
+  }
+
+  // 최신 기간이 앞에 오도록 숫자 정렬 (TEXT 컬럼이라 "9" > "10" 방지)
+  const periods: StockPeriod[] = [...periodMap.values()].sort((a, b) => {
+    const ya = Number(a.year) * 100 + Number(a.period);
+    const yb = Number(b.year) * 100 + Number(b.period);
+    return yb - ya;
+  });
+
+  // ── 렌더링 ────────────────────────────────────────────────────────────────
+  return (
+    <>
+      <div className="orb orb-1"/><div className="orb orb-2"/><div className="orb orb-3"/>
+      <div className="relative z-10 w-full px-4"
+        style={{ maxWidth: '1100px', paddingTop: '2rem', paddingBottom: '2rem', alignSelf: 'flex-start' }}>
+
+        <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>
+          재고현황
+        </p>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+          <HomeButton />
+          <LogoutButton compact />
+        </div>
+
+        <StockClient periods={periods} />
+      </div>
+    </>
+  );
+}

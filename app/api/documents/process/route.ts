@@ -9,7 +9,8 @@ import { parseCommissionBuffer }     from '@/lib/commission/parse';
 import { parseSettlementBuffer, type SettlementColConfig } from '@/lib/commission-settlement/parse';
 import { parseUbistBuffer } from '@/lib/ubist/parse';
 import { parseBioequivBuffer } from '@/lib/bioequiv/parse';
-import { parseDmfBuffer }      from '@/lib/dmf/parse';
+import { parseDmfBuffer }             from '@/lib/dmf/parse';
+import { parseMonthlyStockBuffer }    from '@/lib/monthly-stock/parse';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -324,6 +325,33 @@ export async function POST(request: Request) {
         else inserted += rows.slice(i, i + CHUNK).length;
       }
       console.log(`[process:${documentId}] 원료DMF ${inserted}/${total}건 저장 완료`);
+    }
+    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    return Response.json({ ok: true, inserted: rows.length });
+  }
+
+  // ── K. 재고현황 폴더 → monthly_stock 파싱 ─────────────────────────────
+  if (category === '재고현황') {
+    console.log(`[process:${documentId}] 재고현황 폴더 → 월별재고 데이터 파싱`);
+    const { rows, total, error: parseError } = parseMonthlyStockBuffer(buffer, doc.filename);
+
+    if (parseError) return fail(`재고현황 파싱 실패: ${parseError}`);
+
+    if (rows.length > 0) {
+      // 파일명이 동일해도 안전하도록 연도+기간 기준으로 기존 데이터 교체
+      const yearPeriods = [...new Set(rows.map(r => `${r.year}|${r.period}`))];
+      for (const yp of yearPeriods) {
+        const [yr, pr] = yp.split('|');
+        await supabase.from('monthly_stock').delete().eq('year', yr).eq('period', pr);
+      }
+      const CHUNK = 500;
+      let inserted = 0;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const { error: insErr } = await supabase.from('monthly_stock').insert(rows.slice(i, i + CHUNK));
+        if (insErr) console.warn(`[process:${documentId}] 재고현황 삽입 오류(chunk ${i}):`, insErr.message);
+        else inserted += rows.slice(i, i + CHUNK).length;
+      }
+      console.log(`[process:${documentId}] 재고현황 ${inserted}/${rows.length}건 저장 완료 (원본 ${total}행, ${yearPeriods.length}개 기간)`);
     }
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     return Response.json({ ok: true, inserted: rows.length });
