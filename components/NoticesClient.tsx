@@ -96,28 +96,18 @@ export default function NoticesClient({
         </div>
       )}
 
-      {/* 게시판 테이블 */}
-      <div style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', overflow: 'hidden' }}>
-        {/* 헤더 */}
-        <div style={HEADER_ROW}>
-          <span style={{ ...COL_NO, color: 'rgba(255,255,255,0.35)' }}>No.</span>
-          <span style={{ ...COL_TITLE, color: 'rgba(255,255,255,0.35)' }}>제목</span>
-          <span style={{ ...COL_DATE, color: 'rgba(255,255,255,0.35)' }}>날짜</span>
-          {isAdmin && <span style={{ ...COL_ADMIN, color: 'rgba(255,255,255,0.35)' }}>관리</span>}
-        </div>
-
+      {/* 카드 목록 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {notices.length === 0 && (
           <div style={{ padding: '3rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.88rem' }}>
             등록된 공지사항이 없습니다.
           </div>
         )}
 
-        {/* 고정 공지 */}
         {pinned.map(n => (
-          <BoardRow
+          <NoticeCard
             key={n.id}
             notice={n}
-            no="📌"
             isAdmin={isAdmin}
             onEdit={openEdit}
             onDelete={handleDelete}
@@ -125,12 +115,11 @@ export default function NoticesClient({
           />
         ))}
 
-        {/* 일반 공지 — 번호는 최신순으로 total부터 역산 */}
         {regular.map((n, i) => (
-          <BoardRow
+          <NoticeCard
             key={n.id}
             notice={n}
-            no={String(total - pinned.length - i)}
+            no={total - pinned.length - i}
             isAdmin={isAdmin}
             onEdit={openEdit}
             onDelete={handleDelete}
@@ -189,7 +178,7 @@ export default function NoticesClient({
   );
 }
 
-function BoardRow({
+function NoticeCard({
   notice,
   no,
   isAdmin,
@@ -198,7 +187,7 @@ function BoardRow({
   pinned,
 }: {
   notice: Notice;
-  no: string;
+  no?: number;
   isAdmin: boolean;
   onEdit: (n: Notice) => void;
   onDelete: (id: string) => void;
@@ -210,69 +199,53 @@ function BoardRow({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        display: 'flex', alignItems: 'center',
-        borderTop: '1px solid rgba(255,255,255,0.07)',
-        padding: '0.7rem 1rem',
+        borderRadius: '12px',
+        border: pinned
+          ? '1px solid rgba(251,191,36,0.3)'
+          : '1px solid rgba(255,255,255,0.08)',
         background: hover
-          ? 'rgba(255,255,255,0.05)'
-          : pinned
-          ? 'rgba(251,191,36,0.04)'
-          : 'transparent',
+          ? (pinned ? 'rgba(251,191,36,0.07)' : 'rgba(255,255,255,0.05)')
+          : (pinned ? 'rgba(251,191,36,0.04)' : 'rgba(255,255,255,0.02)'),
+        padding: '0.85rem 1rem',
         transition: 'background 0.12s',
       }}
     >
-      <span style={{
-        ...COL_NO,
-        color: pinned ? '#fbbf24' : 'rgba(255,255,255,0.3)',
-        fontWeight: pinned ? 700 : 400,
-        fontSize: pinned ? '0.85rem' : '0.8rem',
-      }}>
-        {no}
-      </span>
+      {/* 제목 행 */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.45rem' }}>
+        {pinned && (
+          <span style={{ fontSize: '0.75rem', flexShrink: 0, marginTop: '0.1rem' }}>📌</span>
+        )}
+        <a
+          href={`/notices/${notice.id}`}
+          style={{
+            flex: 1,
+            color: pinned ? '#fde68a' : '#e2e8f0',
+            textDecoration: 'none',
+            fontWeight: pinned ? 600 : 500,
+            fontSize: '0.92rem',
+            lineHeight: 1.4,
+          }}
+        >
+          {notice.title}
+        </a>
+      </div>
 
-      <a
-        href={`/notices/${notice.id}`}
-        style={{
-          ...COL_TITLE,
-          color: pinned ? '#fde68a' : '#e2e8f0',
-          textDecoration: 'none',
-          fontWeight: pinned ? 600 : 400,
-          fontSize: '0.88rem',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          textAlign: 'left',
-        }}
-      >
-        {notice.title}
-      </a>
-
-      <span style={{ ...COL_DATE, color: 'rgba(255,255,255,0.35)', fontSize: '0.78rem' }}>
-        {fmtDate(notice.created_at)}
-      </span>
-
-      {isAdmin && (
-        <span style={COL_ADMIN}>
-          <button onClick={() => onEdit(notice)} style={BTN_SM_EDIT}>수정</button>
-          <button onClick={() => onDelete(notice.id)} style={BTN_SM_DEL}>삭제</button>
+      {/* 하단: 번호·날짜 + 관리 버튼 */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.3)' }}>
+          {no !== undefined && <span style={{ marginRight: '0.6rem' }}>No.{no}</span>}
+          {fmtDate(notice.created_at)}
         </span>
-      )}
+        {isAdmin && (
+          <span style={{ display: 'flex', gap: '0.4rem' }}>
+            <button onClick={() => onEdit(notice)} style={BTN_SM_EDIT}>수정</button>
+            <button onClick={() => onDelete(notice.id)} style={BTN_SM_DEL}>삭제</button>
+          </span>
+        )}
+      </div>
     </div>
   );
 }
-
-/* ── 열 레이아웃 ── */
-const HEADER_ROW: React.CSSProperties = {
-  display: 'flex', alignItems: 'center',
-  padding: '0.55rem 1rem',
-  background: 'rgba(255,255,255,0.04)',
-  fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.05em',
-};
-
-const COL_NO: React.CSSProperties    = { width: '3.5rem', flexShrink: 0, textAlign: 'center' };
-const COL_TITLE: React.CSSProperties = { width: '50%', flexShrink: 0, minWidth: 0, paddingRight: '1rem' };
-const COL_DATE: React.CSSProperties  = { width: '6rem', flexShrink: 0, textAlign: 'center' };
-const COL_ADMIN: React.CSSProperties = { width: '7rem', flexShrink: 0, display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' };
 
 /* ── 공통 스타일 ── */
 const OVERLAY: React.CSSProperties = {
