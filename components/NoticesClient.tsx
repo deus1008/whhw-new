@@ -199,50 +199,58 @@ function NoticeCard({
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       style={{
-        borderRadius: '12px',
+        borderRadius: '10px',
         border: pinned
           ? '1px solid rgba(251,191,36,0.3)'
           : '1px solid rgba(255,255,255,0.08)',
         background: hover
           ? (pinned ? 'rgba(251,191,36,0.07)' : 'rgba(255,255,255,0.05)')
           : (pinned ? 'rgba(251,191,36,0.04)' : 'rgba(255,255,255,0.02)'),
-        padding: '0.85rem 1rem',
+        padding: '0.65rem 0.9rem',
         transition: 'background 0.12s',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.6rem',
       }}
     >
-      {/* 제목 행 */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.45rem' }}>
-        {pinned && (
-          <span style={{ fontSize: '0.75rem', flexShrink: 0, marginTop: '0.1rem' }}>📌</span>
-        )}
-        <a
-          href={`/notices/${notice.id}`}
-          style={{
-            flex: 1,
-            color: pinned ? '#fde68a' : '#e2e8f0',
-            textDecoration: 'none',
-            fontWeight: pinned ? 600 : 500,
-            fontSize: '0.92rem',
-            lineHeight: 1.4,
-          }}
-        >
-          {notice.title}
-        </a>
-      </div>
+      {/* 번호 */}
+      <span style={{
+        fontSize: '0.72rem', color: 'rgba(255,255,255,0.28)',
+        flexShrink: 0, width: '2.2rem', textAlign: 'center',
+      }}>
+        {pinned ? '📌' : (no !== undefined ? no : '')}
+      </span>
 
-      {/* 하단: 번호·날짜 + 관리 버튼 */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.3)' }}>
-          {no !== undefined && <span style={{ marginRight: '0.6rem' }}>No.{no}</span>}
-          {fmtDate(notice.created_at)}
+      {/* 제목 (flex 1, 말줄임) */}
+      <a
+        href={`/notices/${notice.id}`}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          color: pinned ? '#fde68a' : '#e2e8f0',
+          textDecoration: 'none',
+          fontWeight: pinned ? 600 : 400,
+          fontSize: '0.88rem',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {notice.title}
+      </a>
+
+      {/* 날짜 */}
+      <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>
+        {fmtDate(notice.created_at)}
+      </span>
+
+      {/* 관리 버튼 */}
+      {isAdmin && (
+        <span style={{ display: 'flex', gap: '0.4rem', flexShrink: 0 }}>
+          <button onClick={() => onEdit(notice)} style={BTN_SM_EDIT}>수정</button>
+          <button onClick={() => onDelete(notice.id)} style={BTN_SM_DEL}>삭제</button>
         </span>
-        {isAdmin && (
-          <span style={{ display: 'flex', gap: '0.4rem' }}>
-            <button onClick={() => onEdit(notice)} style={BTN_SM_EDIT}>수정</button>
-            <button onClick={() => onDelete(notice.id)} style={BTN_SM_DEL}>삭제</button>
-          </span>
-        )}
-      </div>
+      )}
     </div>
   );
 }
