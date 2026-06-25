@@ -323,9 +323,17 @@ export default function DcClient({
   const [items, setItems] = useState<DcItem[]>(initialItems);
   const [modal, setModal] = useState<{ open: boolean; item?: DcItem | null }>({ open: false });
   const [deletePending, startDelete] = useTransition();
+  const [filterProduct, setFilterProduct] = useState<string | null>(null);
+
+  // 품목 목록 (등장 순서 유지, 중복 제거)
+  const allProducts = [...new Set(items.map(i => i.product_name))];
+
+  const filteredItems = filterProduct
+    ? items.filter(i => i.product_name === filterProduct)
+    : items;
 
   const grouped = CATEGORIES.reduce<Record<string, DcItem[]>>((acc, cat) => {
-    acc[cat] = items.filter(i => i.category === cat);
+    acc[cat] = filteredItems.filter(i => i.category === cat);
     return acc;
   }, {});
 
@@ -387,6 +395,54 @@ export default function DcClient({
           </button>
         )}
       </div>
+
+      {/* ── 품목 필터 ───────────────────────────────────────── */}
+      {allProducts.length > 0 && (
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', gap: '0.4rem',
+          marginBottom: '1.2rem', alignItems: 'center',
+          padding: '0.6rem 0.8rem',
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: '10px',
+        }}>
+          <span style={{ fontSize: '0.72rem', color: '#475569', flexShrink: 0, marginRight: '0.2rem', fontWeight: 600 }}>
+            품목
+          </span>
+          {allProducts.map(p => {
+            const active = filterProduct === p;
+            return (
+              <button
+                key={p}
+                onClick={() => setFilterProduct(active ? null : p)}
+                style={{
+                  padding: '0.15rem 0.6rem', borderRadius: '100px', fontSize: '0.73rem',
+                  cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                  background: active ? 'rgba(248,113,113,0.18)' : 'transparent',
+                  border: active ? '1px solid rgba(248,113,113,0.45)' : '1px solid rgba(255,255,255,0.1)',
+                  color: active ? '#fca5a5' : '#64748b',
+                  fontWeight: active ? 700 : 400,
+                }}
+              >
+                {p}
+              </button>
+            );
+          })}
+          {filterProduct && (
+            <button
+              onClick={() => setFilterProduct(null)}
+              style={{
+                padding: '0.15rem 0.5rem', borderRadius: '100px', fontSize: '0.68rem',
+                cursor: 'pointer', fontFamily: 'inherit',
+                background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
+                color: 'rgba(255,255,255,0.25)',
+              }}
+            >
+              ✕ 전체
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── 세로 목록 ────────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
