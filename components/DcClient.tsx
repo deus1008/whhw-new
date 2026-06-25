@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useRef } from 'react';
+import { useState, useTransition, useRef, useEffect } from 'react';
 import { createDcItem, updateDcItem, deleteDcItem, type DcItem } from '@/app/dc/actions';
 
 /* ── 상수 ────────────────────────────────────────────────── */
@@ -33,6 +33,143 @@ export const CAT_META: Record<CatKey, {
     icon: '❌', emoji: '❌',
   },
 };
+
+/* ── 품목 검색 드롭다운 ──────────────────────────────────── */
+function ProductFilterSelect({
+  products,
+  value,
+  onChange,
+}: {
+  products: string[];
+  value: string | null;
+  onChange: (v: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const filtered = query.trim()
+    ? products.filter(p => p.toLowerCase().includes(query.toLowerCase()))
+    : products;
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery('');
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  function select(p: string | null) {
+    onChange(p);
+    setOpen(false);
+    setQuery('');
+  }
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <span style={{ fontSize: '0.72rem', color: '#475569', fontWeight: 600, whiteSpace: 'nowrap' }}>품목</span>
+
+      <div
+        style={{
+          position: 'relative',
+          minWidth: '180px', maxWidth: '260px',
+        }}
+      >
+        {/* 트리거 */}
+        <div
+          onClick={() => { setOpen(o => !o); setTimeout(() => inputRef.current?.focus(), 50); }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.4rem',
+            padding: '0.3rem 0.6rem',
+            background: value ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.04)',
+            border: value ? '1px solid rgba(248,113,113,0.4)' : '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '8px', cursor: 'pointer',
+            fontSize: '0.78rem', color: value ? '#fca5a5' : '#64748b',
+            userSelect: 'none',
+          }}
+        >
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {value ?? '전체 품목'}
+          </span>
+          {value ? (
+            <span
+              onClick={e => { e.stopPropagation(); select(null); }}
+              style={{ fontSize: '0.7rem', color: 'rgba(248,113,113,0.6)', cursor: 'pointer', flexShrink: 0 }}
+            >✕</span>
+          ) : (
+            <span style={{ fontSize: '0.65rem', color: '#475569', flexShrink: 0 }}>▼</span>
+          )}
+        </div>
+
+        {/* 드롭다운 */}
+        {open && (
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
+            background: '#0f172a', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '10px', zIndex: 200,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+            overflow: 'hidden',
+          }}>
+            {/* 검색 */}
+            <div style={{ padding: '0.4rem 0.5rem', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="품목 검색…"
+                style={{
+                  width: '100%', boxSizing: 'border-box',
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '6px', padding: '0.3rem 0.5rem',
+                  color: '#e2e8f0', fontSize: '0.76rem', fontFamily: 'inherit', outline: 'none',
+                }}
+              />
+            </div>
+            {/* 전체 옵션 */}
+            <div
+              onClick={() => select(null)}
+              style={{
+                padding: '0.35rem 0.7rem', fontSize: '0.76rem', cursor: 'pointer',
+                color: !value ? '#fca5a5' : '#94a3b8',
+                background: !value ? 'rgba(248,113,113,0.08)' : 'transparent',
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+              onMouseLeave={e => (e.currentTarget.style.background = !value ? 'rgba(248,113,113,0.08)' : 'transparent')}
+            >
+              전체 품목
+            </div>
+            {/* 품목 목록 */}
+            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+              {filtered.length === 0 ? (
+                <div style={{ padding: '0.5rem 0.7rem', fontSize: '0.74rem', color: '#475569' }}>검색 결과 없음</div>
+              ) : filtered.map(p => (
+                <div
+                  key={p}
+                  onClick={() => select(p)}
+                  style={{
+                    padding: '0.35rem 0.7rem', fontSize: '0.76rem', cursor: 'pointer',
+                    color: value === p ? '#fca5a5' : '#cbd5e1',
+                    background: value === p ? 'rgba(248,113,113,0.1)' : 'transparent',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = value === p ? 'rgba(248,113,113,0.1)' : 'transparent')}
+                >
+                  {p}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /* ── 메모 렌더 ───────────────────────────────────────────── */
 function MemoLines({ text }: { text: string }) {
@@ -397,49 +534,12 @@ export default function DcClient({
 
       {/* ── 품목 필터 ───────────────────────────────────────── */}
       {allProducts.length > 0 && (
-        <div style={{
-          display: 'flex', flexWrap: 'wrap', gap: '0.4rem',
-          marginBottom: '1.2rem', alignItems: 'center',
-          padding: '0.6rem 0.8rem',
-          background: 'rgba(255,255,255,0.02)',
-          border: '1px solid rgba(255,255,255,0.07)',
-          borderRadius: '10px',
-        }}>
-          <span style={{ fontSize: '0.72rem', color: '#475569', flexShrink: 0, marginRight: '0.2rem', fontWeight: 600 }}>
-            품목
-          </span>
-          {allProducts.map(p => {
-            const active = filterProduct === p;
-            return (
-              <button
-                key={p}
-                onClick={() => setFilterProduct(active ? null : p)}
-                style={{
-                  padding: '0.15rem 0.6rem', borderRadius: '100px', fontSize: '0.73rem',
-                  cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-                  background: active ? 'rgba(248,113,113,0.18)' : 'transparent',
-                  border: active ? '1px solid rgba(248,113,113,0.45)' : '1px solid rgba(255,255,255,0.1)',
-                  color: active ? '#fca5a5' : '#64748b',
-                  fontWeight: active ? 700 : 400,
-                }}
-              >
-                {p}
-              </button>
-            );
-          })}
-          {filterProduct && (
-            <button
-              onClick={() => setFilterProduct(null)}
-              style={{
-                padding: '0.15rem 0.5rem', borderRadius: '100px', fontSize: '0.68rem',
-                cursor: 'pointer', fontFamily: 'inherit',
-                background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
-                color: 'rgba(255,255,255,0.25)',
-              }}
-            >
-              ✕ 전체
-            </button>
-          )}
+        <div style={{ marginBottom: '1rem' }}>
+          <ProductFilterSelect
+            products={allProducts}
+            value={filterProduct}
+            onChange={setFilterProduct}
+          />
         </div>
       )}
 
