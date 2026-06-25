@@ -1,8 +1,16 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
 import type { VisitRecord } from './page';
+
+function svc() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export type RecordInput = {
   visited_at:    string;
@@ -61,6 +69,51 @@ function parseProductNames(productsText: string | null | undefined): string[] {
     .filter(s => s.length > 0);
 }
 
+/** 영업방문 → 주요일정(marketing_schedules) 자동 동기화 */
+async function syncVisitSchedules(
+  visitId: string,
+  userId: string,
+  input: RecordInput,
+): Promise<void> {
+  const db = svc();
+
+  // 담당자명 조회
+  const { data: profile } = await db.from('profiles').select('name').eq('id', userId).single();
+  const assignee: string | null = (profile as { name?: string } | null)?.name ?? null;
+
+  // 기존 연동 일정 전부 삭제 (재방문 포함)
+  await db.from('marketing_schedules').delete().eq('visit_record_id', visitId);
+
+  const entries: Record<string, unknown>[] = [];
+
+  // 방문일 일정
+  entries.push({
+    user_id:         userId,
+    title:           `${input.customer_name} 영업미팅`,
+    start_date:      input.visited_at,
+    category:        '영업미팅',
+    memo:            [input.purpose, input.content].filter(Boolean).join('\n') || null,
+    assignee,
+    visit_record_id: visitId,
+  });
+
+  // 재방문일 일정
+  if (input.follow_up_date) {
+    entries.push({
+      user_id:         userId,
+      title:           `${input.customer_name} 재방문`,
+      start_date:      input.follow_up_date,
+      category:        '영업미팅',
+      memo:            input.next_action || null,
+      assignee,
+      visit_record_id: visitId,
+    });
+  }
+
+  const { error } = await db.from('marketing_schedules').insert(entries);
+  if (error) console.error('[syncVisitSchedules]', error.message);
+}
+
 /** visit_products 테이블에 제품 목록을 동기화 (기존 삭제 후 재삽입) */
 async function syncVisitProducts(
   supabase: Awaited<ReturnType<typeof import('@/lib/supabase/server').createClient>>,
@@ -97,6 +150,7 @@ export async function createVisitRecord(input: RecordInput): Promise<Result<Visi
 
   if (error) return { error: `저장 실패: ${error.message}` };
   await syncVisitProducts(auth.supabase, data.id, input.products);
+  await syncVisitSchedules(data.id, auth.user!.id, input);
   return { data: data as VisitRecord };
 }
 
@@ -127,6 +181,7 @@ export async function updateVisitRecord(id: string, input: RecordInput): Promise
 
   if (error) return { error: `수정 실패: ${error.message}` };
   await syncVisitProducts(auth.supabase, id, input.products);
+  await syncVisitSchedules(id, (data as VisitRecord).user_id, input);
   return { data: data as VisitRecord };
 }
 
