@@ -355,27 +355,27 @@ export default function DcClient({
 
       {/* ── 상단 요약 통계 ──────────────────────────────────── */}
       <div style={{
-        display: 'flex', gap: '0.75rem', marginBottom: '1.8rem', flexWrap: 'wrap',
+        display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap',
       }}>
         {CATEGORIES.map(cat => {
           const meta  = CAT_META[cat];
           const count = grouped[cat].length;
           return (
             <div key={cat} style={{
-              flex: '1 1 100px',
+              flex: '1 1 80px',
               background: meta.headerBg,
               border: `1px solid ${meta.border}`,
-              borderRadius: '12px',
-              padding: '0.9rem 1.1rem',
-              display: 'flex', flexDirection: 'column', gap: '0.3rem',
+              borderRadius: '10px',
+              padding: '0.45rem 0.8rem',
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
             }}>
-              <div style={{ fontSize: '1rem' }}>{meta.emoji}</div>
-              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: meta.color, lineHeight: 1 }}>
+              <span style={{ fontSize: '0.9rem', lineHeight: 1 }}>{meta.emoji}</span>
+              <span style={{ fontSize: '1.25rem', fontWeight: 800, color: meta.color, lineHeight: 1 }}>
                 {count}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: meta.color, opacity: 0.8, fontWeight: 600 }}>
+              </span>
+              <span style={{ fontSize: '0.72rem', color: meta.color, opacity: 0.8, fontWeight: 600 }}>
                 {cat}
-              </div>
+              </span>
             </div>
           );
         })}
@@ -385,10 +385,9 @@ export default function DcClient({
             onClick={() => setModal({ open: true, item: null })}
             style={{
               flex: '0 0 auto', alignSelf: 'stretch',
-              padding: '0 1.4rem', borderRadius: '12px', fontSize: '0.85rem',
+              padding: '0.45rem 1rem', borderRadius: '10px', fontSize: '0.8rem',
               border: '1px solid rgba(139,92,246,0.4)', background: 'rgba(139,92,246,0.12)',
               color: '#c4b5fd', cursor: 'pointer', fontWeight: 700,
-              minWidth: '100px',
             }}
           >
             + 항목 추가
