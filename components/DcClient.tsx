@@ -289,7 +289,7 @@ function ItemCard({
               padding: '0.1rem 0.45rem', borderRadius: '4px', fontSize: '0.67rem',
               border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.1)',
               color: '#a5b4fc', cursor: 'pointer',
-            }}>수정</button>
+            }}>보기</button>
             <button onClick={() => onDelete(item.id)} style={{
               padding: '0.1rem 0.45rem', borderRadius: '4px', fontSize: '0.67rem',
               border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.08)',
