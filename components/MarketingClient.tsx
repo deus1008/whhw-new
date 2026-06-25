@@ -66,6 +66,7 @@ export default function MarketingClient({ initialSchedules, userId, isAdmin }: P
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   // 모달 상태
+  const [filterCat,  setFilterCat]  = useState<string | null>(null);
   const [modalOpen,  setModalOpen]  = useState(false);
   const [editTarget, setEditTarget] = useState<MarketingSchedule | null>(null);
   const [form,       setForm]       = useState<ScheduleInput>(EMPTY);
@@ -81,18 +82,26 @@ export default function MarketingClient({ initialSchedules, userId, isAdmin }: P
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
   const monthSchedules = schedules.filter(s => s.start_date.startsWith(monthStr));
 
-  // 날짜별 이벤트 맵
+  // 날짜별 이벤트 맵 (카테고리 필터 적용)
+  const visibleMonthSchedules = filterCat
+    ? monthSchedules.filter(s => (s.category ?? '기타') === filterCat)
+    : monthSchedules;
+
   const eventMap: Record<string, MarketingSchedule[]> = {};
-  for (const s of monthSchedules) {
+  for (const s of visibleMonthSchedules) {
     const key = s.start_date;
     if (!eventMap[key]) eventMap[key] = [];
     eventMap[key].push(s);
   }
 
-  // 목록에 보여줄 일정
-  const listSchedules = selectedDate
-    ? schedules.filter(s => s.start_date === selectedDate)
-    : monthSchedules;
+  // 목록에 보여줄 일정 (날짜 + 카테고리 필터 적용)
+  const listSchedules = (() => {
+    let base = selectedDate
+      ? schedules.filter(s => s.start_date === selectedDate)
+      : monthSchedules;
+    if (filterCat) base = base.filter(s => (s.category ?? '기타') === filterCat);
+    return base;
+  })();
 
   /* ── 월 이동 ───────────────────────────────────────────── */
   function prevMonth() {
@@ -249,24 +258,58 @@ export default function MarketingClient({ initialSchedules, userId, isAdmin }: P
           })}
         </div>
 
-        {/* 카테고리 범례 */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', marginTop: '1rem', paddingTop: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          {CATEGORIES.map(cat => (
-            <span key={cat} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-              <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: catColor(cat).dot, flexShrink: 0 }} />
-              {cat}
-            </span>
-          ))}
+        {/* 카테고리 필터 */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '1rem', paddingTop: '0.8rem', borderTop: '1px solid rgba(255,255,255,0.06)', alignItems: 'center' }}>
+          {CATEGORIES.map(cat => {
+            const active = filterCat === cat;
+            const cc = catColor(cat);
+            return (
+              <button
+                key={cat}
+                onClick={() => setFilterCat(active ? null : cat)}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                  fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit',
+                  padding: '0.18rem 0.55rem', borderRadius: '100px',
+                  background: active ? cc.bg : 'transparent',
+                  border: active ? `1px solid ${cc.dot}55` : '1px solid rgba(255,255,255,0.1)',
+                  color: active ? cc.text : 'var(--text-muted)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: cc.dot, flexShrink: 0, opacity: active ? 1 : 0.6 }} />
+                {cat}
+              </button>
+            );
+          })}
+          {filterCat && (
+            <button
+              onClick={() => setFilterCat(null)}
+              style={{
+                fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit',
+                padding: '0.18rem 0.5rem', borderRadius: '100px',
+                background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
+                color: 'rgba(255,255,255,0.3)',
+              }}
+            >
+              ✕ 전체
+            </button>
+          )}
         </div>
       </div>
 
       {/* ── 일정 목록 ── */}
       <div className="auth-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            {selectedDate ? `${formatDate(selectedDate)} 일정` : `${year}년 ${MONTHS_KO[month]} 전체 일정`}
+          <h2 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {selectedDate ? `${formatDate(selectedDate)} 일정` : `${year}년 ${MONTHS_KO[month]}`}
+            {filterCat && (
+              <span style={{
+                fontSize: '0.72rem', fontWeight: 600, padding: '1px 8px', borderRadius: '100px',
+                background: catColor(filterCat).bg, color: catColor(filterCat).text,
+              }}>{filterCat}</span>
+            )}
             <span style={{
-              marginLeft: '0.5rem',
               background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.25)',
               borderRadius: '100px', padding: '2px 10px',
               fontSize: '0.72rem', fontWeight: 600, color: '#93c5fd',
