@@ -228,7 +228,7 @@ const ADDR_PATTERNS: Array<[RegExp, [number, number]]> = [
 ];
 
 const COLORS = [
-  '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#67e8f9',
+  '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#ffffff',
   '#c4b5fd', '#86efac', '#fde68a', '#fb923c', '#60a5fa',
 ];
 

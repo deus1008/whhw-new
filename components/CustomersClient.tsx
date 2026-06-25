@@ -106,7 +106,7 @@ export default function CustomersClient() {
                 <tbody>
                   {meta.managerCounts.map((m, i) => {
                     const pct = meta.totalCount > 0 ? (m.count / meta.totalCount) * 100 : 0;
-                    const colors = ['#a78bfa','#34d399','#fbbf24','#f87171','#67e8f9','#c4b5fd','#86efac','#fde68a','#fb923c','#60a5fa'];
+                    const colors = ['#a78bfa','#34d399','#fbbf24','#f87171','#ffffff','#c4b5fd','#86efac','#fde68a','#fb923c','#60a5fa'];
                     const color = colors[i % colors.length];
                     return (
                       <tr key={m.manager} style={{ borderTop: '1px solid rgba(255,255,255,0.04)',
