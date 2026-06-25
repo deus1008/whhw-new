@@ -129,6 +129,12 @@ export function parseCustomerBuffer(buffer: Buffer, fileName: string): ParseCust
     memo:    findCol(keys, MEMO_KW),     // 비고 → memo
   };
 
+  // H열(index 7) 위치 기반 폴백 — 키워드 감지 실패 시 강제 지정
+  if (!COL.email && keys.length > 7) {
+    COL.email = keys[7];
+    console.log(`[customer-parse] 이메일 컬럼 키워드 미감지 → H열 "${keys[7]}" 폴백 사용`);
+  }
+
   console.log(`[customer-parse] 파일: ${fileName}, 헤더행=${headerRowIdx}`);
   console.log(`[customer-parse] 컬럼(${keys.length}):`, keys.slice(0, 15).join(' | '));
   console.log(`[customer-parse] 매핑:`, JSON.stringify(COL));

@@ -13,6 +13,7 @@ type Customer = {
   phone:         string | null;
   manager:       string | null;
   cso:           string | null;
+  manager_email: string | null;
   memo:          string | null;
   source_file:   string;
 };
@@ -247,7 +248,7 @@ export default function CustomersClient() {
                     </td>
                     {/* 업체담당자이메일 */}
                     <td style={{ ...td, fontSize: '0.75rem', color: '#67e8f9', minWidth: 180 }}>
-                      {c.memo || '—'}
+                      {c.manager_email || '—'}
                     </td>
                     {/* 사업자번호 */}
                     <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120, fontVariantNumeric: 'tabular-nums' }}>
