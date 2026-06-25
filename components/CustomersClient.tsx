@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
+
+const CustomerMap = dynamic(() => import('./CustomerMap'), { ssr: false });
 
 type Customer = {
   id:            string;
@@ -76,62 +79,66 @@ export default function CustomersClient() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
-      {/* ── 담당자별 거래처 수 요약 ── */}
+      {/* ── 담당자별 거래처 수 요약 + 지도 ── */}
       {meta.managerCounts.length > 0 && (
-        <div style={card}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.4rem' }}>
-            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              👤 담당사원별 거래처 현황
-            </h3>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              전체 <strong style={{ color: '#a5b4fc' }}>{meta.totalCount.toLocaleString()}</strong>개
-            </span>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '1rem', alignItems: 'stretch' }}>
+          {/* 요약 테이블 */}
+          <div style={card}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                👤 담당사원별 거래처 현황
+              </h3>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                전체 <strong style={{ color: '#a5b4fc' }}>{meta.totalCount.toLocaleString()}</strong>개
+              </span>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ borderCollapse: 'collapse', fontSize: '0.82rem', width: '100%' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
+                    <th style={{ ...th, width: 40 }}>순위</th>
+                    <th style={th}>담당사원(지역장)</th>
+                    <th style={{ ...th, textAlign: 'right' }}>거래처 수</th>
+                    <th style={{ ...th, textAlign: 'right' }}>비중</th>
+                    <th style={{ ...th, minWidth: 120 }}>비율</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {meta.managerCounts.map((m, i) => {
+                    const pct = meta.totalCount > 0 ? (m.count / meta.totalCount) * 100 : 0;
+                    const colors = ['#a78bfa','#34d399','#fbbf24','#f87171','#67e8f9','#c4b5fd','#86efac','#fde68a','#fb923c','#60a5fa'];
+                    const color = colors[i % colors.length];
+                    return (
+                      <tr key={m.manager} style={{ borderTop: '1px solid rgba(255,255,255,0.04)',
+                        background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+                        cursor: 'pointer' }}
+                        onClick={() => { setManager(m.manager); search(1); }}>
+                        <td style={{ ...td, color: 'var(--text-muted)', width: 40 }}>{i + 1}</td>
+                        <td style={{ ...td, fontWeight: 600, color }}>{m.manager}</td>
+                        <td style={{ ...td, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                          {m.count.toLocaleString()}
+                        </td>
+                        <td style={{ ...td, textAlign: 'right', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                          {pct.toFixed(1)}%
+                        </td>
+                        <td style={{ ...td }}>
+                          <div style={{ height: 7, borderRadius: 4, background: 'rgba(255,255,255,0.07)', overflow: 'hidden', minWidth: 80 }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 4, transition: 'width 0.4s ease' }} />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.5rem', textAlign: 'right' }}>
+              * 행 클릭 시 해당 담당사원으로 필터링됩니다
+            </p>
           </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ borderCollapse: 'collapse', fontSize: '0.82rem', width: '100%' }}>
-              <thead>
-                <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  <th style={{ ...th, width: 40 }}>순위</th>
-                  <th style={th}>담당사원(지역장)</th>
-                  <th style={{ ...th, textAlign: 'right' }}>거래처 수</th>
-                  <th style={{ ...th, textAlign: 'right' }}>비중</th>
-                  <th style={{ ...th, minWidth: 160 }}>비율</th>
-                </tr>
-              </thead>
-              <tbody>
-                {meta.managerCounts.map((m, i) => {
-                  const pct = meta.totalCount > 0 ? (m.count / meta.totalCount) * 100 : 0;
-                  const colors = ['#a5b4fc','#34d399','#fbbf24','#f87171','#67e8f9','#c4b5fd','#86efac','#fde68a'];
-                  const color = colors[i % colors.length];
-                  return (
-                    <tr key={m.manager} style={{ borderTop: '1px solid rgba(255,255,255,0.04)',
-                      background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
-                      cursor: 'pointer' }}
-                      onClick={() => { setManager(m.manager); search(1); }}>
-                      <td style={{ ...td, color: 'var(--text-muted)', width: 40 }}>{i + 1}</td>
-                      <td style={{ ...td, fontWeight: 600, color }}>
-                        {m.manager}
-                      </td>
-                      <td style={{ ...td, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                        {m.count.toLocaleString()}
-                      </td>
-                      <td style={{ ...td, textAlign: 'right', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                        {pct.toFixed(1)}%
-                      </td>
-                      <td style={{ ...td }}>
-                        <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.07)', overflow: 'hidden', minWidth: 100 }}>
-                          <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 4, transition: 'width 0.4s ease' }} />
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.5rem', textAlign: 'right' }}>
-            * 행 클릭 시 해당 담당사원으로 필터링됩니다
-          </p>
+
+          {/* 지도 */}
+          <CustomerMap />
         </div>
       )}
 
