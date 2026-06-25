@@ -544,7 +544,7 @@ export default function DcClient({
       )}
 
       {/* ── 세로 목록 ────────────────────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
         {CATEGORIES.map(cat => {
           const meta     = CAT_META[cat];
           const catItems = grouped[cat];
@@ -553,25 +553,25 @@ export default function DcClient({
             <div key={cat} style={{
               background: meta.bg,
               border: `1px solid ${meta.border}`,
-              borderRadius: '14px',
+              borderRadius: '10px',
               overflow: 'hidden',
             }}>
               {/* 섹션 헤더 */}
               <div style={{
-                padding: '0.75rem 1rem',
+                padding: '0.32rem 0.7rem',
                 background: meta.headerBg,
-                borderBottom: `1px solid ${meta.border}`,
-                display: 'flex', alignItems: 'center', gap: '0.6rem',
+                borderBottom: catItems.length > 0 ? `1px solid ${meta.border}` : 'none',
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
               }}>
-                <span style={{ fontSize: '1rem' }}>{meta.emoji}</span>
-                <span style={{ fontWeight: 700, fontSize: '0.95rem', color: meta.color, flex: 1 }}>
+                <span style={{ fontSize: '0.85rem' }}>{meta.emoji}</span>
+                <span style={{ fontWeight: 700, fontSize: '0.82rem', color: meta.color, flex: 1 }}>
                   {cat}
                 </span>
                 <span style={{
-                  padding: '2px 10px', borderRadius: '100px',
+                  padding: '1px 8px', borderRadius: '100px',
                   background: `color-mix(in srgb, ${meta.color} 15%, transparent)`,
                   border: `1px solid ${meta.border}`,
-                  color: meta.color, fontSize: '0.73rem', fontWeight: 700,
+                  color: meta.color, fontSize: '0.68rem', fontWeight: 700,
                 }}>
                   {catItems.length}
                 </span>
@@ -579,7 +579,7 @@ export default function DcClient({
                   <button
                     onClick={() => setModal({ open: true, item: { category: cat } as DcItem })}
                     style={{
-                      padding: '0.22rem 0.65rem', borderRadius: '6px', fontSize: '0.78rem',
+                      padding: '0.12rem 0.5rem', borderRadius: '5px', fontSize: '0.72rem',
                       border: `1px solid ${meta.border}`, background: 'transparent',
                       color: meta.color, cursor: 'pointer', fontWeight: 600,
                     }}
@@ -590,15 +590,8 @@ export default function DcClient({
               </div>
 
               {/* 카드 목록 */}
-              {catItems.length === 0 ? (
-                <div style={{
-                  textAlign: 'center', padding: '1.2rem',
-                  color: 'rgba(255,255,255,0.15)', fontSize: '0.8rem',
-                }}>
-                  항목 없음
-                </div>
-              ) : (
-                <div style={{ padding: '0.5rem 0.6rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              {catItems.length > 0 && (
+                <div style={{ padding: '0.35rem 0.5rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   {catItems.map(item => (
                     <ItemCard
                       key={item.id}
