@@ -11,6 +11,7 @@ export type DcItem = {
   product_name: string;
   hospital_name: string;
   progress: string | null;
+  due_date: string | null;   // YYYY-MM-DD
   memo: string | null;
   sort_order: number;
   created_at: string;
@@ -66,6 +67,7 @@ export async function createDcItem(formData: FormData): Promise<{ error?: string
       product_name:  (formData.get('product_name')  as string)?.trim(),
       hospital_name: (formData.get('hospital_name') as string)?.trim(),
       progress:      (formData.get('progress')      as string)?.trim() || null,
+      due_date:      (formData.get('due_date')      as string)?.trim() || null,
       memo:          (formData.get('memo')          as string)?.trim() || null,
       sort_order:    parseInt((formData.get('sort_order') as string) || '0'),
       created_by:    userId,
@@ -96,6 +98,7 @@ export async function updateDcItem(formData: FormData): Promise<{ error?: string
       product_name:  (formData.get('product_name')  as string)?.trim(),
       hospital_name: (formData.get('hospital_name') as string)?.trim(),
       progress:      (formData.get('progress')      as string)?.trim() || null,
+      due_date:      (formData.get('due_date')      as string)?.trim() || null,
       memo:          (formData.get('memo')          as string)?.trim() || null,
       sort_order:    parseInt((formData.get('sort_order') as string) || '0'),
       updated_at:    new Date().toISOString(),

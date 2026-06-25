@@ -130,6 +130,28 @@ function ItemCard({
         </div>
       )}
 
+      {/* 기한 */}
+      {item.due_date && (() => {
+        const today = new Date(); today.setHours(0,0,0,0);
+        const due   = new Date(item.due_date);
+        const diff  = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+        const color = diff < 0 ? '#f87171' : diff <= 7 ? '#fbbf24' : '#64748b';
+        const label = diff < 0 ? `D+${-diff}` : diff === 0 ? 'D-Day' : `D-${diff}`;
+        return (
+          <div style={{ marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <span style={{ fontSize: '0.72rem', color }}>📅</span>
+            <span style={{ fontSize: '0.72rem', color }}>
+              기한 {item.due_date.replace(/-/g, '.')}
+            </span>
+            <span style={{
+              fontSize: '0.68rem', fontWeight: 700, color,
+              background: `${color}18`, border: `1px solid ${color}44`,
+              borderRadius: '4px', padding: '0 5px',
+            }}>{label}</span>
+          </div>
+        );
+      })()}
+
       {/* 메모 펼침 */}
       {hasMemo && expanded && <MemoLines text={item.memo!} />}
 
@@ -258,6 +280,16 @@ function DcFormModal({
               defaultValue={initial?.progress ?? ''}
               placeholder="예: 5/20 접수 → 7월 심의 → 9월 코드 오픈 예정"
               style={inputStyle}
+            />
+          </div>
+
+          <div>
+            <label style={labelStyle}>기한 <span style={{ fontWeight: 400, color: 'rgba(148,163,184,0.6)' }}>(선택)</span></label>
+            <input
+              name="due_date"
+              type="date"
+              defaultValue={initial?.due_date ?? ''}
+              style={{ ...inputStyle, width: '180px', colorScheme: 'dark' }}
             />
           </div>
 
