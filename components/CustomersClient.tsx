@@ -138,7 +138,7 @@ export default function CustomersClient() {
           </div>
 
           {/* 지도 */}
-          <CustomerMap />
+          <CustomerMap managerOrder={meta.managerCounts.map(m => m.manager)} />
         </div>
       )}
 

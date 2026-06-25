@@ -249,10 +249,13 @@ function resolveCoords(region: string | null, address: string | null): [number, 
 }
 
 type MapRow = { manager: string; region: string | null; customer_name: string; address: string | null };
+type Props = { managerOrder?: string[] };
 
-export default function CustomerMap() {
-  const mapDivRef = useRef<HTMLDivElement>(null);
-  const mapRef    = useRef<unknown>(null);
+export default function CustomerMap({ managerOrder }: Props) {
+  const mapDivRef       = useRef<HTMLDivElement>(null);
+  const mapRef          = useRef<unknown>(null);
+  const managerOrderRef = useRef(managerOrder);
+  managerOrderRef.current = managerOrder;
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
 
   useEffect(() => {
@@ -265,12 +268,17 @@ export default function CustomerMap() {
         const rows: MapRow[] = await res.json();
         if (cancelled) return;
 
-        /* 담당자별 색상 (거래처 수 기준) */
-        const countMap = new Map<string, number>();
-        for (const r of rows) countMap.set(r.manager, (countMap.get(r.manager) ?? 0) + 1);
-        const managerRank = [...countMap.entries()]
-          .sort((a, b) => b[1] - a[1]).map(([m]) => m);
-        const colorOf = (m: string) => COLORS[managerRank.indexOf(m) % COLORS.length] ?? '#94a3b8';
+        /* 담당자별 색상 — 테이블과 동일한 순위 순서 사용 */
+        const order = managerOrderRef.current;
+        let rankList: string[];
+        if (order && order.length > 0) {
+          rankList = order;
+        } else {
+          const countMap = new Map<string, number>();
+          for (const r of rows) countMap.set(r.manager, (countMap.get(r.manager) ?? 0) + 1);
+          rankList = [...countMap.entries()].sort((a, b) => b[1] - a[1]).map(([m]) => m);
+        }
+        const colorOf = (m: string) => COLORS[rankList.indexOf(m) % COLORS.length] ?? '#94a3b8';
 
         /* Leaflet CSS */
         if (!document.getElementById('leaflet-css')) {
