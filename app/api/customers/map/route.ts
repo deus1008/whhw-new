@@ -24,8 +24,7 @@ export async function GET() {
   const { data } = await serviceClient()
     .from('customer_status')
     .select('manager, region, customer_name, address')
-    .not('manager', 'is', null)
-    .not('region',  'is', null);
+    .not('manager', 'is', null);
 
   return NextResponse.json(data ?? []);
 }

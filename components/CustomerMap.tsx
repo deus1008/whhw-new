@@ -69,6 +69,26 @@ function hashStr(s: string): number {
   return h;
 }
 
+/* ── region 값 → 좌표 (부분 포함 매칭 + 주소 폴백) ── */
+function resolveCoords(region: string | null, address: string | null): [number, number] | null {
+  const candidates = [
+    region,
+    address ? address.trim().split(/\s+/)[0] : null,  // 주소 첫 단어 (시도)
+    address ? address.trim().split(/\s+/).slice(0, 2).join('') : null,  // 첫 두 단어 합침
+  ].filter(Boolean) as string[];
+
+  for (const raw of candidates) {
+    const s = raw.trim();
+    // 1) 정확 매칭
+    if (REGION_COORDS[s]) return REGION_COORDS[s];
+    // 2) DB값이 키에 포함되거나, 키가 DB값에 포함
+    for (const [key, coords] of Object.entries(REGION_COORDS)) {
+      if (s.includes(key) || key.includes(s)) return coords;
+    }
+  }
+  return null;
+}
+
 type MapRow = { manager: string; region: string | null; customer_name: string; address: string | null };
 
 export default function CustomerMap() {
@@ -157,9 +177,11 @@ export default function CustomerMap() {
 
         mapRef.current = map;
 
+        let plotted = 0;
         for (const row of rows) {
-          const base = row.region ? REGION_COORDS[row.region.trim()] : null;
+          const base = resolveCoords(row.region, row.address);
           if (!base) continue;
+          plotted++;
 
           const addr = row.address ?? '';
           let dLat = 0, dLon = 0;
@@ -186,6 +208,7 @@ export default function CustomerMap() {
           );
         }
 
+        console.log(`[CustomerMap] ${plotted}/${rows.length}개 점 표시`);
         if (!cancelled) setStatus('ready');
       } catch (e) {
         if (!cancelled) setStatus('error');
@@ -206,7 +229,7 @@ export default function CustomerMap() {
   return (
     <div style={{
       position: 'relative', borderRadius: '14px', overflow: 'hidden',
-      border: '1px solid rgba(255,255,255,0.08)', height: '100%', minHeight: '380px',
+      border: '1px solid rgba(255,255,255,0.08)',
     }}>
       {status === 'loading' && (
         <div style={{
@@ -215,8 +238,7 @@ export default function CustomerMap() {
           background: 'rgba(15,23,42,0.85)',
           color: '#64748b', fontSize: '0.85rem', gap: '0.5rem',
         }}>
-          <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span>
-          지도 불러오는 중…
+          <span>⟳</span> 지도 불러오는 중…
         </div>
       )}
       {status === 'error' && (
@@ -228,7 +250,7 @@ export default function CustomerMap() {
           지도 로드 실패
         </div>
       )}
-      <div ref={mapDivRef} style={{ height: '100%', minHeight: '380px' }} />
+      <div ref={mapDivRef} style={{ height: '420px', width: '100%' }} />
     </div>
   );
 }
