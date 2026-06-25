@@ -225,7 +225,7 @@ export default function CustomersClient() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  {['No.','CSO명','담당자','업체담당자이메일','사업자번호','담당사원명'].map(h => (
+                  {['No.','CSO명','담당자','업체담당자이메일','주소','사업자번호','담당사원명'].map(h => (
                     <th key={h} style={th}>{h}</th>
                   ))}
                 </tr>
@@ -247,8 +247,14 @@ export default function CustomersClient() {
                       {c.cso ?? '—'}
                     </td>
                     {/* 업체담당자이메일 */}
-                    <td style={{ ...td, fontSize: '0.75rem', color: '#67e8f9', minWidth: 180 }}>
+                    <td style={{ ...td, fontSize: '0.75rem', color: '#67e8f9', minWidth: 160 }}>
                       {c.manager_email || '—'}
+                    </td>
+                    {/* 주소 */}
+                    <td style={{ ...td, fontSize: '0.74rem', color: 'var(--text-muted)', maxWidth: 220,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      title={c.address ?? ''}>
+                      {c.address || '—'}
                     </td>
                     {/* 사업자번호 */}
                     <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120, fontVariantNumeric: 'tabular-nums' }}>

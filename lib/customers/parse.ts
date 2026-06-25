@@ -134,6 +134,11 @@ export function parseCustomerBuffer(buffer: Buffer, fileName: string): ParseCust
     COL.email = keys[7];
     console.log(`[customer-parse] 이메일 컬럼 키워드 미감지 → H열 "${keys[7]}" 폴백 사용`);
   }
+  // K열(index 10) 위치 기반 폴백 — 주소 키워드 감지 실패 시 강제 지정
+  if (!COL.addr && keys.length > 10) {
+    COL.addr = keys[10];
+    console.log(`[customer-parse] 주소 컬럼 키워드 미감지 → K열 "${keys[10]}" 폴백 사용`);
+  }
 
   console.log(`[customer-parse] 파일: ${fileName}, 헤더행=${headerRowIdx}`);
   console.log(`[customer-parse] 컬럼(${keys.length}):`, keys.slice(0, 15).join(' | '));
