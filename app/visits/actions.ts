@@ -150,7 +150,11 @@ export async function createVisitRecord(input: RecordInput): Promise<Result<Visi
 
   if (error) return { error: `저장 실패: ${error.message}` };
   await syncVisitProducts(auth.supabase, data.id, input.products);
-  await syncVisitSchedules(data.id, auth.user!.id, input);
+  try {
+    await syncVisitSchedules(data.id, auth.user!.id, input);
+  } catch (e) {
+    console.error('[syncVisitSchedules create]', e);
+  }
   return { data: data as VisitRecord };
 }
 
@@ -172,7 +176,9 @@ export async function updateVisitRecord(id: string, input: RecordInput): Promise
     }
   }
 
-  const { data, error } = await auth.supabase
+  // 관리자는 visit_records UPDATE RLS 정책이 없으므로 service role로 우회
+  const updateDb = auth.role === '관리자' ? svc() : auth.supabase;
+  const { data, error } = await updateDb
     .from('visit_records')
     .update(cleanInput(input))
     .eq('id', id)
@@ -181,7 +187,11 @@ export async function updateVisitRecord(id: string, input: RecordInput): Promise
 
   if (error) return { error: `수정 실패: ${error.message}` };
   await syncVisitProducts(auth.supabase, id, input.products);
-  await syncVisitSchedules(id, (data as VisitRecord).user_id, input);
+  try {
+    await syncVisitSchedules(id, (data as VisitRecord).user_id, input);
+  } catch (e) {
+    console.error('[syncVisitSchedules update]', e);
+  }
   return { data: data as VisitRecord };
 }
 
