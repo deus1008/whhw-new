@@ -284,7 +284,7 @@ function DcFormModal({
           </div>
 
           <div>
-            <label style={labelStyle}>기한 <span style={{ fontWeight: 400, color: 'rgba(148,163,184,0.6)' }}>(선택)</span></label>
+            <label style={labelStyle}>기한 <span style={{ fontWeight: 400, color: 'rgba(148,163,184,0.6)' }}>(진행현황)</span></label>
             <input
               name="due_date"
               type="date"
