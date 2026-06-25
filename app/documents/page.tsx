@@ -40,10 +40,6 @@ export default async function DocumentsPage() {
 
   const isAdmin = normalizeRole(myProfile.role as string) === '관리자';
 
-  if (!isAdmin) {
-    redirect('/dashboard');
-  }
-
   const { data: docs, error: docsError } = await supabase
     .from('documents')
     .select('id, filename, file_type, storage_path, category, uploaded_by, status, error_message, created_at, summary')
@@ -76,6 +72,7 @@ export default async function DocumentsPage() {
         <DocumentsClient
           initialDocuments={docsWithChunks}
           userId={user.id}
+          isAdmin={isAdmin}
         />
       </div>
     </>

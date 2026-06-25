@@ -72,9 +72,10 @@ function extractFolders(docs: Document[]): string[] {
 interface Props {
   initialDocuments: Document[];
   userId: string;
+  isAdmin: boolean;
 }
 
-export default function DocumentsClient({ initialDocuments, userId }: Props) {
+export default function DocumentsClient({ initialDocuments, userId, isAdmin }: Props) {
   const [documents, setDocuments]         = useState<Document[]>(initialDocuments);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [folder, setFolder]               = useState('');
@@ -94,7 +95,13 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
   const [renameValue, setRenameValue]       = useState('');
   const [renameError, setRenameError]       = useState('');
   const [renameLoading, setRenameLoading]   = useState(false);
+  const [noPermModal, setNoPermModal]       = useState(false);
   const fileInputRef                        = useRef<HTMLInputElement>(null);
+
+  function requireAdmin(): boolean {
+    if (!isAdmin) { setNoPermModal(true); return false; }
+    return true;
+  }
 
   // 폴더 목록 (문서가 추가/삭제될 때마다 재계산)
   const folders = extractFolders(documents);
@@ -146,10 +153,12 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
   function handleDrop(e: DragEvent) {
     e.preventDefault();
     setIsDragging(false);
+    if (!requireAdmin()) return;
     addFiles(Array.from(e.dataTransfer.files));
   }
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    if (!requireAdmin()) { e.target.value = ''; return; }
     if (e.target.files) addFiles(Array.from(e.target.files));
     e.target.value = '';
   }
@@ -166,6 +175,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
 
   /* ── 업로드 ───────────────────────────────────────────── */
   async function handleUpload() {
+    if (!requireAdmin()) return;
     if (selectedFiles.length === 0 || uploading) return;
     setUploading(true);
     setUploadError('');
@@ -303,6 +313,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
   }
 
   async function handleRenameConfirm(oldDbKey: string | null) {
+    if (!requireAdmin()) return;
     const trimmed = renameValue.trim();
     if (!trimmed) { setRenameError('이름을 입력하세요.'); return; }
     if (trimmed === (oldDbKey ?? '미분류')) { cancelRename(); return; }
@@ -332,6 +343,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
 
   /* ── 삭제 ─────────────────────────────────────────────── */
   function handleDelete(doc: Document) {
+    if (!requireAdmin()) return;
     setDeleteError('');
     startTransition(async () => {
       const fd = new FormData();
@@ -366,7 +378,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
           onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => { if (!requireAdmin()) return; fileInputRef.current?.click(); }}
           style={{
             ...dropZone,
             borderColor: isDragging ? 'rgba(79,142,247,0.6)' : 'rgba(255,255,255,0.12)',
@@ -436,7 +448,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                 </select>
                 <button
                   type="button"
-                  onClick={() => { setShowNewFolder(true); setFolder(''); }}
+                  onClick={() => { if (!requireAdmin()) return; setShowNewFolder(true); setFolder(''); }}
                   disabled={uploading}
                   style={newFolderBtn}
                   title="새 폴더 만들기"
@@ -587,7 +599,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                     {f === '미분류' ? '📄 미분류' : `📁 ${f}`} {count}
                   </button>
                   <button
-                    onClick={() => startRename(dbKey, f)}
+                    onClick={() => { if (!requireAdmin()) return; startRename(dbKey, f); }}
                     style={renameIconBtn}
                     title="폴더 이름 변경"
                   >
@@ -685,7 +697,7 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
                         </button>
                       </span>
                     ) : (
-                      <button onClick={() => { setConfirmId(doc.id); setDeleteError(''); }}
+                      <button onClick={() => { if (!requireAdmin()) return; setConfirmId(doc.id); setDeleteError(''); }}
                         disabled={isRunning} style={{ ...deleteBtn, opacity: isRunning ? 0.4 : 1 }}>
                         삭제
                       </button>
@@ -713,6 +725,45 @@ export default function DocumentsClient({ initialDocuments, userId }: Props) {
           </div>
         )}
       </div>
+
+      {/* 권한 없음 팝업 */}
+      {noPermModal && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
+          }}
+          onClick={() => setNoPermModal(false)}
+        >
+          <div
+            style={{
+              background: '#1a1f2e', border: '1px solid rgba(255,255,255,0.12)',
+              borderRadius: '16px', padding: '1.8rem 2rem', maxWidth: '320px', width: '100%',
+              textAlign: 'center',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🔒</div>
+            <p style={{ color: '#e2e8f0', fontSize: '1rem', fontWeight: 600, margin: '0 0 0.4rem' }}>
+              권한이 없습니다.
+            </p>
+            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', margin: '0 0 1.4rem' }}>
+              파일 업로드 및 관리는 관리자만 가능합니다.
+            </p>
+            <button
+              onClick={() => setNoPermModal(false)}
+              style={{
+                padding: '0.5rem 1.6rem', borderRadius: '8px', border: 'none',
+                background: 'rgba(255,255,255,0.1)', color: '#e2e8f0',
+                fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              확인
+            </button>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
