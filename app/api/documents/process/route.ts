@@ -174,7 +174,8 @@ export async function POST(request: Request) {
     if (parseError) return fail(`거래처 파싱 실패: ${parseError}`);
 
     if (rows.length > 0) {
-      await supabase.from('customer_status').delete().eq('source_file', doc.filename);
+      // 최신 파일로 전체 교체 — 파일명 무관하게 기존 데이터 전부 삭제
+      await supabase.from('customer_status').delete().not('id', 'is', null);
       const CHUNK = 500;
       let inserted = 0;
       for (let i = 0; i < rows.length; i += CHUNK) {
