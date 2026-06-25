@@ -77,125 +77,95 @@ function ItemCard({
   const [expanded, setExpanded] = useState(false);
   const hasMemo = !!item.memo?.trim();
 
+  const dday = item.due_date ? (() => {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const due   = new Date(item.due_date);
+    const diff  = Math.ceil((due.getTime() - today.getTime()) / 86400000);
+    const color = diff < 0 ? '#f87171' : diff <= 7 ? '#fbbf24' : '#64748b';
+    const label = diff < 0 ? `D+${-diff}` : diff === 0 ? 'D-Day' : `D-${diff}`;
+    return { color, label };
+  })() : null;
+
   return (
-    <div style={{
-      background: 'rgba(15,23,42,0.6)',
-      border: '1px solid rgba(255,255,255,0.07)',
-      borderLeft: `3px solid ${catColor}`,
-      borderRadius: '10px',
-      padding: '0.85rem 0.9rem',
-      transition: 'background 0.15s',
-      backdropFilter: 'blur(4px)',
-    }}
+    <div
       onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
       onMouseLeave={e => (e.currentTarget.style.background = 'rgba(15,23,42,0.6)')}
+      style={{
+        background: 'rgba(15,23,42,0.6)',
+        border: '1px solid rgba(255,255,255,0.07)',
+        borderLeft: `3px solid ${catColor}`,
+        borderRadius: '8px',
+        padding: '0.4rem 0.7rem',
+        transition: 'background 0.15s',
+        backdropFilter: 'blur(4px)',
+        display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap',
+        minHeight: 0,
+      }}
     >
-      {/* 제품명 배지 */}
-      <div style={{
-        display: 'inline-block',
-        padding: '0.18rem 0.55rem',
-        background: 'rgba(248,113,113,0.13)',
-        border: '1px solid rgba(248,113,113,0.25)',
-        borderRadius: '6px',
-        color: '#fca5a5',
-        fontWeight: 700,
-        fontSize: '0.82rem',
-        marginBottom: '0.5rem',
-        letterSpacing: '0.01em',
+      {/* 제품명 */}
+      <span style={{
+        padding: '0.1rem 0.45rem', flexShrink: 0,
+        background: 'rgba(248,113,113,0.13)', border: '1px solid rgba(248,113,113,0.25)',
+        borderRadius: '5px', color: '#fca5a5', fontWeight: 700, fontSize: '0.78rem',
       }}>
         {item.product_name}
-      </div>
+      </span>
 
       {/* 병원명 */}
-      <div style={{
-        color: '#7dd3fc',
-        fontWeight: 600,
-        fontSize: '0.85rem',
-        marginBottom: item.progress ? '0.35rem' : 0,
-        display: 'flex', alignItems: 'center', gap: '0.3rem',
-      }}>
-        <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>🏥</span>
-        {item.hospital_name}
-      </div>
+      <span style={{ color: '#7dd3fc', fontWeight: 600, fontSize: '0.82rem', flexShrink: 0 }}>
+        🏥 {item.hospital_name}
+      </span>
 
       {/* 진행현황 */}
       {item.progress && (
-        <div style={{
-          fontSize: '0.76rem',
-          color: '#64748b',
-          lineHeight: 1.45,
-          wordBreak: 'keep-all',
-        }}>
+        <span style={{ fontSize: '0.75rem', color: '#64748b', flex: 1, minWidth: '60px' }}>
           {item.progress}
-        </div>
+        </span>
       )}
 
-      {/* 기한 */}
-      {item.due_date && (() => {
-        const today = new Date(); today.setHours(0,0,0,0);
-        const due   = new Date(item.due_date);
-        const diff  = Math.ceil((due.getTime() - today.getTime()) / 86400000);
-        const color = diff < 0 ? '#f87171' : diff <= 7 ? '#fbbf24' : '#64748b';
-        const label = diff < 0 ? `D+${-diff}` : diff === 0 ? 'D-Day' : `D-${diff}`;
-        return (
-          <div style={{ marginTop: '0.3rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <span style={{ fontSize: '0.72rem', color }}>📅</span>
-            <span style={{ fontSize: '0.72rem', color }}>
-              기한 {item.due_date.replace(/-/g, '.')}
-            </span>
-            <span style={{
-              fontSize: '0.68rem', fontWeight: 700, color,
-              background: `${color}18`, border: `1px solid ${color}44`,
-              borderRadius: '4px', padding: '0 5px',
-            }}>{label}</span>
-          </div>
-        );
-      })()}
+      {/* 기한 D-Day */}
+      {dday && item.due_date && (
+        <span style={{
+          fontSize: '0.7rem', fontWeight: 700, color: dday.color, flexShrink: 0,
+          background: `${dday.color}18`, border: `1px solid ${dday.color}44`,
+          borderRadius: '4px', padding: '0.05rem 0.4rem',
+        }} title={`기한 ${item.due_date.replace(/-/g, '.')}`}>
+          {dday.label}
+        </span>
+      )}
 
-      {/* 메모 펼침 */}
-      {hasMemo && expanded && <MemoLines text={item.memo!} />}
+      {/* 메모 · 수정 · 삭제 버튼 */}
+      <span style={{ display: 'flex', gap: '0.25rem', flexShrink: 0, marginLeft: 'auto' }}>
+        {hasMemo && (
+          <button onClick={() => setExpanded(e => !e)} style={{
+            padding: '0.1rem 0.45rem', borderRadius: '4px', fontSize: '0.67rem',
+            border: '1px solid rgba(255,255,255,0.1)',
+            background: expanded ? 'rgba(255,255,255,0.08)' : 'transparent',
+            color: '#64748b', cursor: 'pointer',
+          }}>
+            {expanded ? '▲' : '▼ 메모'}
+          </button>
+        )}
+        {canEdit && (
+          <>
+            <button onClick={() => onEdit(item)} style={{
+              padding: '0.1rem 0.45rem', borderRadius: '4px', fontSize: '0.67rem',
+              border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.1)',
+              color: '#a5b4fc', cursor: 'pointer',
+            }}>수정</button>
+            <button onClick={() => onDelete(item.id)} style={{
+              padding: '0.1rem 0.45rem', borderRadius: '4px', fontSize: '0.67rem',
+              border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.08)',
+              color: '#fca5a5', cursor: 'pointer',
+            }}>삭제</button>
+          </>
+        )}
+      </span>
 
-      {/* 버튼 */}
-      {(hasMemo || canEdit) && (
-        <div style={{ display: 'flex', gap: '0.3rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
-          {hasMemo && (
-            <button
-              onClick={() => setExpanded(e => !e)}
-              style={{
-                padding: '0.2rem 0.5rem', borderRadius: '5px', fontSize: '0.68rem',
-                border: '1px solid rgba(255,255,255,0.1)',
-                background: expanded ? 'rgba(255,255,255,0.08)' : 'transparent',
-                color: '#64748b', cursor: 'pointer',
-              }}
-            >
-              {expanded ? '▲ 접기' : '▼ 메모'}
-            </button>
-          )}
-          {canEdit && (
-            <>
-              <button
-                onClick={() => onEdit(item)}
-                style={{
-                  marginLeft: hasMemo ? 0 : 'auto',
-                  padding: '0.2rem 0.55rem', borderRadius: '5px', fontSize: '0.68rem',
-                  border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.1)',
-                  color: '#a5b4fc', cursor: 'pointer',
-                }}
-              >
-                수정
-              </button>
-              <button
-                onClick={() => onDelete(item.id)}
-                style={{
-                  padding: '0.2rem 0.55rem', borderRadius: '5px', fontSize: '0.68rem',
-                  border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.08)',
-                  color: '#fca5a5', cursor: 'pointer',
-                }}
-              >
-                삭제
-              </button>
-            </>
-          )}
+      {/* 메모 펼침 (전체 너비) */}
+      {hasMemo && expanded && (
+        <div style={{ width: '100%' }}>
+          <MemoLines text={item.memo!} />
         </div>
       )}
     </div>
@@ -473,7 +443,7 @@ export default function DcClient({
                   항목 없음
                 </div>
               ) : (
-                <div style={{ padding: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <div style={{ padding: '0.5rem 0.6rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                   {catItems.map(item => (
                     <ItemCard
                       key={item.id}
