@@ -80,8 +80,9 @@ export default function CustomersClient() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
       {/* ── 담당자별 거래처 수 요약 + 지도 ── */}
+      <style>{`.mgr-map-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem;align-items:stretch}@media(max-width:768px){.mgr-map-grid{grid-template-columns:1fr}}`}</style>
       {meta.managerCounts.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '1rem', alignItems: 'stretch' }}>
+        <div className="mgr-map-grid">
           {/* 요약 테이블 */}
           <div style={card}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.4rem' }}>
