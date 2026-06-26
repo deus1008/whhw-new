@@ -267,7 +267,7 @@ function CompareSection({ title, reports, getStats }: {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
           <thead>
             <tr>
-              <th rowSpan={2} style={{ ...TH('left'), minWidth: 140, verticalAlign: 'middle' }}>이름</th>
+              <th rowSpan={2} style={{ ...TH('left'), minWidth: 70, verticalAlign: 'middle', textAlign: 'center' }}>이름</th>
               {periods.map((p, pi) => (
                 <th key={pi} colSpan={2} style={{
                   padding: '0.35rem 0.7rem', textAlign: 'center',
@@ -299,7 +299,7 @@ function CompareSection({ title, reports, getStats }: {
               const delta     = firstAmt > 0 ? (lastAmt - firstAmt) / firstAmt * 100 : null;
               return (
                 <tr key={name} style={{ background: ni % 2 ? 'rgba(255,255,255,0.01)' : undefined, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <td style={{ ...TD('left'), maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }} title={name}>{name}</td>
+                  <td style={{ ...TD('left'), minWidth: 70, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }} title={name}>{name}</td>
                   {vals.map((v, fi) => (
                     <Fragment key={fi}>
                       <td style={{ ...TD('right'), ...BL, fontSize: '0.78rem', fontWeight: v?.amount ? 600 : undefined }}>
