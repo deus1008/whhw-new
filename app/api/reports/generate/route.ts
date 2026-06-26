@@ -298,10 +298,12 @@ export async function POST(req: NextRequest) {
   // 2. 요청 파싱
   let title: string;
   let topic: string;
+  let fileId: string | undefined;
   try {
     const body = await req.json();
-    title = String(body.title ?? '').trim();
-    topic = String(body.topic ?? '').trim();
+    title  = String(body.title  ?? '').trim();
+    topic  = String(body.topic  ?? '').trim();
+    fileId = body.fileId ? String(body.fileId) : undefined;
     if (!title) throw new Error('title 필드가 필요합니다.');
     if (!topic) throw new Error('topic 필드가 필요합니다.');
   } catch (e) {
@@ -351,28 +353,56 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `AI 생성 실패: ${e instanceof Error ? e.message : String(e)}` }, { status: 502 });
   }
 
-  // 5. Supabase 스토리지 저장
-  // storage key는 ASCII-only (한글 경로 거부됨)
-  // filename(표시명)은 한글 포함, storagePath(실제 키)는 영문+숫자만 사용
-  const safeTitle   = title.slice(0, 50).replace(/[^\w가-힣]/g, '_');
-  const filename    = `AI_${safeTitle}_${today}.html`;          // documents 테이블 표시명
-  const ts          = Date.now();
-  const storagePath = `ai-reports/report_${ts}.html`;           // 스토리지 실제 키
-
   const htmlBuffer = Buffer.from(htmlContent, 'utf-8');
+
+  // 5. 기존 파일 업데이트 (재분석) vs 신규 생성
+  if (fileId) {
+    // 기존 레코드 조회
+    const { data: existing, error: fetchErr } = await db
+      .from('documents')
+      .select('storage_path, filename')
+      .eq('id', fileId)
+      .single();
+
+    if (fetchErr || !existing) {
+      return NextResponse.json({ error: '기존 파일을 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    // 스토리지 파일 덮어쓰기
+    const { error: upErr } = await db.storage
+      .from('documents')
+      .upload(existing.storage_path, htmlBuffer, { contentType: 'text/html; charset=utf-8', upsert: true });
+    if (upErr) {
+      console.error('[report-gen] 스토리지 업데이트 오류:', upErr.message);
+      return NextResponse.json({ error: `파일 업데이트 실패: ${upErr.message}` }, { status: 500 });
+    }
+
+    // DB 레코드 업데이트 (분석내용만 갱신)
+    const { error: updErr } = await db.from('documents').update({ summary: topic }).eq('id', fileId);
+    if (updErr) {
+      console.error('[report-gen] DB 업데이트 오류:', updErr.message);
+      return NextResponse.json({ error: `DB 업데이트 실패: ${updErr.message}` }, { status: 500 });
+    }
+
+    console.log(`[report-gen] 업데이트 완료 → id=${fileId}, 파일=${existing.filename}`);
+    return NextResponse.json({ ok: true, id: fileId, filename: existing.filename });
+  }
+
+  // 신규 생성
+  const safeTitle   = title.slice(0, 50).replace(/[^\w가-힣]/g, '_');
+  const filename    = `AI_${safeTitle}_${today}.html`;
+  const ts          = Date.now();
+  const storagePath = `ai-reports/report_${ts}.html`;
+
   const { error: upErr } = await db.storage
     .from('documents')
-    .upload(storagePath, htmlBuffer, {
-      contentType:  'text/html; charset=utf-8',
-      upsert:       true,
-    });
+    .upload(storagePath, htmlBuffer, { contentType: 'text/html; charset=utf-8', upsert: true });
 
   if (upErr) {
     console.error('[report-gen] 스토리지 업로드 오류:', upErr.message);
     return NextResponse.json({ error: `파일 저장 실패: ${upErr.message}` }, { status: 500 });
   }
 
-  // 6. documents 테이블 레코드 생성
   const { data: docRow, error: insErr } = await db.from('documents').insert({
     filename,
     file_type:    'html',
@@ -388,6 +418,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `DB 저장 실패: ${insErr.message}` }, { status: 500 });
   }
 
-  console.log(`[report-gen] 완료 → id=${(docRow as { id: string }).id}, 파일=${filename}`);
+  console.log(`[report-gen] 생성 완료 → id=${(docRow as { id: string }).id}, 파일=${filename}`);
   return NextResponse.json({ ok: true, id: (docRow as { id: string }).id, filename });
 }

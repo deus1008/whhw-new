@@ -166,7 +166,7 @@ function extractTitleFromFilename(filename: string): string {
     .replace(/_/g, ' ');
 }
 
-function AiReportModal({ onClose, onDone, initialTitle = '', initialTopic = '' }: { onClose: () => void; onDone: (filename: string) => void; initialTitle?: string; initialTopic?: string }) {
+function AiReportModal({ onClose, onDone, initialTitle = '', initialTopic = '', fileId }: { onClose: () => void; onDone: (filename: string) => void; initialTitle?: string; initialTopic?: string; fileId?: string }) {
   const [title,    setTitle]    = useState(initialTitle);
   const [topic,    setTopic]    = useState(initialTopic);
   const [status,   setStatus]   = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
@@ -186,7 +186,7 @@ function AiReportModal({ onClose, onDone, initialTitle = '', initialTopic = '' }
       const res = await fetch('/api/reports/generate', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ title: title.trim(), topic: topic.trim() }),
+        body:    JSON.stringify({ title: title.trim(), topic: topic.trim(), ...(fileId ? { fileId } : {}) }),
       });
       const json = await res.json();
       if (!res.ok || json.error) {
@@ -237,7 +237,7 @@ function AiReportModal({ onClose, onDone, initialTitle = '', initialTopic = '' }
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
               <span style={{ fontSize: '1.2rem' }}>✨</span>
-              <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>AI 분석 리포트 생성</h2>
+              <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>{fileId ? 'AI 분석 리포트 재분석' : 'AI 분석 리포트 생성'}</h2>
               {genCount > 0 && (
                 <span style={{ fontSize: '0.7rem', padding: '1px 8px', borderRadius: '100px',
                   background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.28)',
@@ -247,8 +247,10 @@ function AiReportModal({ onClose, onDone, initialTitle = '', initialTopic = '' }
               )}
             </div>
             <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
-              리포트 제목과 분석 내용을 입력하면 DB 데이터를 기반으로 HTML 리포트를 자동 생성합니다.
-              <br />생성 후 요구사항을 수정하여 바로 재분석할 수 있습니다.
+              {fileId
+                ? '분석 내용을 수정하고 재분석하면 기존 리포트 파일을 덮어씁니다.'
+                : <>리포트 제목과 분석 내용을 입력하면 DB 데이터를 기반으로 HTML 리포트를 자동 생성합니다.<br />생성 후 요구사항을 수정하여 바로 재분석할 수 있습니다.</>
+              }
             </p>
           </div>
         </div>
@@ -354,7 +356,7 @@ function AiReportModal({ onClose, onDone, initialTitle = '', initialTopic = '' }
                 cursor: canGenerate ? 'pointer' : 'not-allowed',
                 transition: 'all 0.15s', fontFamily: 'inherit',
               }}>
-                {status === 'loading' ? '생성 중…' : genCount > 0 ? '✨ 재분석' : '✨ 리포트 생성'}
+                {status === 'loading' ? (fileId ? '업데이트 중…' : '생성 중…') : fileId ? '✨ 리포트 업데이트' : genCount > 0 ? '✨ 재분석' : '✨ 리포트 생성'}
               </button>
             </>
           )}
@@ -479,16 +481,18 @@ export default function ReportsClient({
   docFiles: DocFile[];
   isAdmin: boolean;
 }) {
-  const [modal,          setModal]          = useState<null | 'create' | Report>(null);
-  const [aiModal,        setAiModal]        = useState(false);
-  const [reanalyzeTitle, setReanalyzeTitle] = useState('');
-  const [reanalyzeTopic, setReanalyzeTopic] = useState('');
-  const [viewer,         setViewer]         = useState<DocFile | null>(null);
+  const [modal,           setModal]           = useState<null | 'create' | Report>(null);
+  const [aiModal,         setAiModal]         = useState(false);
+  const [reanalyzeTitle,  setReanalyzeTitle]  = useState('');
+  const [reanalyzeTopic,  setReanalyzeTopic]  = useState('');
+  const [reanalyzeFileId, setReanalyzeFileId] = useState<string | undefined>();
+  const [viewer,          setViewer]          = useState<DocFile | null>(null);
   const [, start] = useTransition();
 
-  function openAiModal(prefillTitle = '', prefillTopic = '') {
+  function openAiModal(prefillTitle = '', prefillTopic = '', prefillFileId?: string) {
     setReanalyzeTitle(prefillTitle);
     setReanalyzeTopic(prefillTopic);
+    setReanalyzeFileId(prefillFileId);
     setAiModal(true);
   }
 
@@ -565,7 +569,7 @@ export default function ReportsClient({
                   </span>
                   {isAdmin && ext === 'html' && (
                     <button
-                      onClick={e => { e.stopPropagation(); openAiModal(extractTitleFromFilename(f.filename), f.prompt_topic ?? ''); }}
+                      onClick={e => { e.stopPropagation(); openAiModal(extractTitleFromFilename(f.filename), f.prompt_topic ?? '', f.id); }}
                       style={{
                         padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600,
                         background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.3)',
@@ -650,7 +654,8 @@ export default function ReportsClient({
         <AiReportModal
           initialTitle={reanalyzeTitle}
           initialTopic={reanalyzeTopic}
-          onClose={() => { setAiModal(false); setReanalyzeTitle(''); setReanalyzeTopic(''); }}
+          fileId={reanalyzeFileId}
+          onClose={() => { setAiModal(false); setReanalyzeTitle(''); setReanalyzeTopic(''); setReanalyzeFileId(undefined); }}
           onDone={() => window.location.reload()}
         />
       )}
