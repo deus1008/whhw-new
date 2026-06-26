@@ -218,10 +218,10 @@ function ComparisonSummary({ reports }: { reports: EdiReport[] }) {
                   <td style={{ ...TD('right'), color: isTop ? '#4ade80' : undefined, fontWeight: isTop ? 700 : undefined }}>
                     {fmt(r.data.totalFinalAmount)}
                   </td>
-                  <td style={TD('right')}>{r.data.salesPersonStats.length}</td>
-                  <td style={TD('right')}>{r.data.csoStats.length}</td>
-                  <td style={TD('right')}>{r.data.hospitalRanking.length}</td>
-                  <td style={TD('right')}>{r.data.itemStats.length}</td>
+                  <td style={TD('right')}>{(r.data.totalSpCount ?? r.data.salesPersonStats.length).toLocaleString()}</td>
+                  <td style={TD('right')}>{(r.data.totalCsoCount ?? r.data.csoStats.length).toLocaleString()}</td>
+                  <td style={TD('right')}>{(r.data.totalHospitalCount ?? r.data.hospitalRanking.length).toLocaleString()}</td>
+                  <td style={TD('right')}>{(r.data.totalItemCount ?? r.data.itemStats.length).toLocaleString()}</td>
                 </tr>
               );
             })}

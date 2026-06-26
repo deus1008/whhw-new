@@ -95,10 +95,15 @@ export interface EdiData {
   totalFinalAmount: number;
   salesPersonStats: SalesPersonStat[];
   csoStats:         CsoStat[];          // amount 내림차순
-  hospitalRanking:  HospitalStat[];     // 전체 거래처 순위 + 품목 드릴다운
-  itemStats:        ItemStat[];         // 품목별 순위 + CSO → 처방처 2단 드릴다운
-  itemHospStats:    IHItemStat[];       // 품목별 순위 + 요양기관 → 담당자 → CSO 3단 드릴다운
+  hospitalRanking:  HospitalStat[];     // 전체 거래처 순위 + 품목 드릴다운 (최대 1000건)
+  itemStats:        ItemStat[];         // 품목별 순위 + CSO → 처방처 2단 드릴다운 (최대 500건)
+  itemHospStats:    IHItemStat[];       // 품목별 순위 + 요양기관 → 담당자 → CSO 3단 드릴다운 (최대 500건)
   drugPrices:       DrugPrice[];        // 약가 (원, 가나다 정렬)
+  // 화면 표시 slice 전 실제 집계 건수
+  totalHospitalCount: number;
+  totalItemCount:     number;
+  totalSpCount:       number;
+  totalCsoCount:      number;
   detectedCols:     DetectedCols;
   headers:          string[];
 }
@@ -447,6 +452,10 @@ export function processEdi(
     totalAmount, totalFinalAmount,
     salesPersonStats, csoStats, hospitalRanking,
     itemStats, itemHospStats, drugPrices,
+    totalHospitalCount: hosMap.size,
+    totalItemCount:     itemMap.size,
+    totalSpCount:       spMap.size,
+    totalCsoCount:      csoMap.size,
     detectedCols: cols, headers,
   };
 }
