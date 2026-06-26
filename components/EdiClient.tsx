@@ -233,36 +233,192 @@ function ComparisonSummary({ reports }: { reports: EdiReport[] }) {
 }
 
 /* ════════════════════════════════════════════════════════════ */
-/*  복수 파일 탭 뷰                                             */
+/*  비교 보기 — 섹션별 월별 나란히 비교                        */
+/* ════════════════════════════════════════════════════════════ */
+type BasicStat = { name: string; amount: number; finalAmount: number };
+
+function CompareSection({ title, reports, getStats }: {
+  title: string;
+  reports: EdiReport[];
+  getStats: (d: EdiData) => BasicStat[];
+}) {
+  const [showAll, setShowAll] = useState(false);
+
+  const fileMaps = reports.map(r => {
+    const m = new Map<string, BasicStat>();
+    getStats(r.data).forEach(s => m.set(s.name, s));
+    return m;
+  });
+
+  const allNames = [...new Set(reports.flatMap(r => getStats(r.data).map(s => s.name)))];
+  const lastMap  = fileMaps[fileMaps.length - 1];
+  allNames.sort((a, b) => (lastMap.get(b)?.finalAmount ?? 0) - (lastMap.get(a)?.finalAmount ?? 0));
+
+  if (allNames.length === 0) return null;
+
+  const display = showAll ? allNames : allNames.slice(0, 20);
+  const periods = reports.map(r => r.period || r.filename.replace(/\.[^.]+$/, ''));
+  const nFiles  = reports.length;
+  const BL: CSSProperties = { borderLeft: '1px solid rgba(255,255,255,0.08)' };
+
+  return (
+    <Section title={title}>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+          <thead>
+            <tr>
+              <th rowSpan={2} style={{ ...TH('left'), minWidth: 140, verticalAlign: 'middle' }}>이름</th>
+              {periods.map((p, pi) => (
+                <th key={pi} colSpan={2} style={{
+                  padding: '0.35rem 0.7rem', textAlign: 'center',
+                  color: '#93c5fd', fontWeight: 700, fontSize: '0.8rem', whiteSpace: 'nowrap',
+                  borderBottom: '1px solid rgba(255,255,255,0.10)',
+                  background: 'rgba(255,255,255,0.02)', ...BL,
+                }}>{p}</th>
+              ))}
+              {nFiles >= 2 && (
+                <th rowSpan={2} style={{ ...TH('right'), ...BL, verticalAlign: 'middle', fontSize: '0.7rem', minWidth: 70 }}>
+                  증감
+                </th>
+              )}
+            </tr>
+            <tr>
+              {periods.map((_, pi) => (
+                <Fragment key={pi}>
+                  <th style={{ ...TH('right'), ...BL, fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)' }}>처방액</th>
+                  <th style={{ ...TH('right'), fontSize: '0.7rem' }}>최종실적</th>
+                </Fragment>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {display.map((name, ni) => {
+              const vals       = fileMaps.map(m => m.get(name));
+              const firstFinal = vals[0]?.finalAmount ?? 0;
+              const lastFinal  = vals[nFiles - 1]?.finalAmount ?? 0;
+              const delta      = firstFinal > 0 ? (lastFinal - firstFinal) / firstFinal * 100 : null;
+              return (
+                <tr key={name} style={{ background: ni % 2 ? 'rgba(255,255,255,0.01)' : undefined, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                  <td style={{ ...TD('left'), maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }} title={name}>{name}</td>
+                  {vals.map((v, fi) => (
+                    <Fragment key={fi}>
+                      <td style={{ ...TD('right'), ...BL, color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                        {v?.amount ? fmt(v.amount) : <span style={{ opacity: 0.25 }}>—</span>}
+                      </td>
+                      <td style={{ ...TD('right'), fontSize: '0.78rem', fontWeight: v?.finalAmount ? 600 : undefined }}>
+                        {v?.finalAmount ? fmt(v.finalAmount) : <span style={{ opacity: 0.25 }}>—</span>}
+                      </td>
+                    </Fragment>
+                  ))}
+                  {nFiles >= 2 && (
+                    <td style={{
+                      ...TD('right'), ...BL, fontSize: '0.78rem', fontWeight: delta !== null ? 600 : undefined,
+                      color: delta === null ? 'var(--text-muted)' : delta > 0 ? '#4ade80' : delta < 0 ? '#f87171' : 'var(--text-muted)',
+                    }}>
+                      {delta === null
+                        ? <span style={{ opacity: 0.25 }}>—</span>
+                        : `${delta > 0 ? '+' : ''}${delta.toFixed(1)}%`}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+            <tr style={TR_TOTAL}>
+              <td style={{ ...TD_MUTED('right'), fontWeight: 700 }}>합계</td>
+              {reports.map((r, fi) => {
+                const stats  = getStats(r.data);
+                const totAmt = stats.reduce((s, e) => s + e.amount, 0);
+                const totFin = stats.reduce((s, e) => s + e.finalAmount, 0);
+                return (
+                  <Fragment key={fi}>
+                    <td style={{ ...TD('right', true), ...BL, fontSize: '0.78rem' }}>{fmt(totAmt)}</td>
+                    <td style={{ ...TD('right', true), fontSize: '0.78rem' }}>{fmt(totFin)}</td>
+                  </Fragment>
+                );
+              })}
+              {nFiles >= 2 && <td />}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {allNames.length > 20 && (
+        <MoreButton showAll={showAll} total={allNames.length} onClick={() => setShowAll(v => !v)} />
+      )}
+    </Section>
+  );
+}
+
+function CompareView({ reports }: { reports: EdiReport[] }) {
+  const hasSP  = reports.some(r => r.data.salesPersonStats.length > 0);
+  const hasCso = reports.some(r => r.data.csoStats.length > 0);
+  const hasHos = reports.some(r => r.data.hospitalRanking.length > 0);
+  const hasItm = reports.some(r => r.data.itemStats.length > 0);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+      {hasSP  && <CompareSection title="담당자별 비교" reports={reports} getStats={d => d.salesPersonStats} />}
+      {hasCso && <CompareSection title="CSO별 비교"   reports={reports} getStats={d => d.csoStats} />}
+      {hasHos && <CompareSection title="처방처별 비교" reports={reports} getStats={d => d.hospitalRanking} />}
+      {hasItm && <CompareSection title="품목별 비교"  reports={reports} getStats={d => d.itemStats} />}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════ */
+/*  복수 파일 뷰 (비교 보기 + 파일별 보기 토글)               */
 /* ════════════════════════════════════════════════════════════ */
 function MultiReport({ reports, activeTab, setActiveTab }: {
   reports: EdiReport[];
   activeTab: number;
   setActiveTab: (i: number) => void;
 }) {
+  const [compareMode, setCompareMode] = useState(true);
+  const VIEWS = [['비교 보기', true], ['파일별 보기', false]] as const;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
       <ComparisonSummary reports={reports} />
-      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem 1.2rem' }}>
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-          {reports.map((r, i) => (
-            <button key={r.doc_id} onClick={() => setActiveTab(i)} style={{
-              padding: '0.35rem 0.9rem', borderRadius: '8px', fontSize: '0.8rem',
-              fontWeight: activeTab === i ? 700 : 400,
-              background: activeTab === i ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${activeTab === i ? 'rgba(168,85,247,0.45)' : 'rgba(255,255,255,0.1)'}`,
-              color: activeTab === i ? '#c4b5fd' : 'var(--text-muted)',
-              cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-            }}>
-              {r.period || r.filename.replace(/\.[^.]+$/, '')}
-            </button>
-          ))}
-        </div>
-        <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-          {reports[activeTab].filename}
-        </p>
-        <EdiDashboard data={reports[activeTab].data} />
+
+      {/* 보기 모드 토글 */}
+      <div style={{ display: 'flex', gap: '0.4rem' }}>
+        {VIEWS.map(([label, mode]) => {
+          const active = compareMode === mode;
+          return (
+            <button key={String(mode)} onClick={() => setCompareMode(mode)} style={{
+              padding: '0.32rem 0.85rem', borderRadius: '7px', fontSize: '0.8rem',
+              fontWeight: active ? 700 : 400,
+              background: active ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${active ? 'rgba(59,130,246,0.45)' : 'rgba(255,255,255,0.1)'}`,
+              color: active ? '#93c5fd' : 'var(--text-muted)',
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}>{label}</button>
+          );
+        })}
       </div>
+
+      {compareMode ? (
+        <CompareView reports={reports} />
+      ) : (
+        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem 1.2rem' }}>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+            {reports.map((r, i) => (
+              <button key={r.doc_id} onClick={() => setActiveTab(i)} style={{
+                padding: '0.35rem 0.9rem', borderRadius: '8px', fontSize: '0.8rem',
+                fontWeight: activeTab === i ? 700 : 400,
+                background: activeTab === i ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${activeTab === i ? 'rgba(168,85,247,0.45)' : 'rgba(255,255,255,0.1)'}`,
+                color: activeTab === i ? '#c4b5fd' : 'var(--text-muted)',
+                cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+              }}>
+                {r.period || r.filename.replace(/\.[^.]+$/, '')}
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+            {reports[activeTab].filename}
+          </p>
+          <EdiDashboard data={reports[activeTab].data} />
+        </div>
+      )}
     </div>
   );
 }
