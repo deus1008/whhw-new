@@ -77,9 +77,9 @@ async function syncVisitSchedules(
 ): Promise<void> {
   const db = svc();
 
-  // 담당자명 조회
-  const { data: profile } = await db.from('profiles').select('name').eq('id', userId).single();
-  const assignee: string | null = (profile as { name?: string } | null)?.name ?? null;
+  // 담당자명 조회 (profiles.full_name)
+  const { data: profile } = await db.from('profiles').select('full_name').eq('id', userId).single();
+  const assignee: string | null = (profile as { full_name?: string } | null)?.full_name ?? null;
 
   // 기존 연동 일정 전부 삭제 (재방문 포함)
   await db.from('marketing_schedules').delete().eq('visit_record_id', visitId);

@@ -19,7 +19,7 @@ export type MarketingSchedule = {
   memo:       string | null;
   created_at: string;
   updated_at: string;
-  user_email?: string;
+  author_name?: string;
 };
 
 export default async function MarketingPage() {
@@ -59,17 +59,19 @@ export default async function MarketingPage() {
       .order('sort_order', { ascending: true }),
   ]);
 
-  // 작성자 이메일 매핑 (관리자)
-  let emailMap: Record<string, string> = {};
+  // 작성자 이름 매핑 (관리자)
+  let nameMap: Record<string, string> = {};
   if (isAdmin) {
     const { data: profiles } = await supabase
-      .from('profiles').select('id, email');
-    emailMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p.email as string]));
+      .from('profiles').select('id, full_name, email');
+    nameMap = Object.fromEntries(
+      (profiles ?? []).map(p => [p.id, (p.full_name || p.email) as string]),
+    );
   }
 
   const records: MarketingSchedule[] = (schedules ?? []).map(s => ({
     ...(s as MarketingSchedule),
-    user_email: isAdmin ? (emailMap[s.user_id] ?? s.user_id) : undefined,
+    author_name: isAdmin ? (nameMap[s.user_id] ?? undefined) : undefined,
   }));
 
   const DEFAULT_CATEGORIES: ScheduleCategory[] = [

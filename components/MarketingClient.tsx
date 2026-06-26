@@ -434,7 +434,7 @@ export default function MarketingClient({
                       : formatDate(s.start_date)} />
                     {s.location  && <Meta icon="📍" value={s.location} />}
                     {s.assignee  && <Meta icon="👤" value={s.assignee} />}
-                    {s.user_email && <Meta icon="✍️" value={s.user_email} />}
+                    {s.author_name && <Meta icon="✍️" value={s.author_name} />}
                   </div>
                   {s.memo && (
                     <p style={{ margin:'0.45rem 0 0', fontSize:'0.78rem', color:'var(--text-muted)',
