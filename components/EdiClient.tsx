@@ -365,7 +365,9 @@ function CsoAccordion({ stats, totalAmount, totalFinalAmount }: {
   // 2단: CSO||처방처 복합키로 처방처 열림 여부
   const [expandedHos, setExpandedHos] = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
-  const display = showAll ? stats : stats.slice(0, 20);
+  const [search, setSearch] = useState('');
+  const filtered = search ? stats.filter(s => s.name.toLowerCase().includes(search.toLowerCase())) : stats;
+  const display = showAll ? filtered : filtered.slice(0, 20);
 
   function toggleCso(name: string) {
     setExpandedCso(prev => {
@@ -385,7 +387,7 @@ function CsoAccordion({ stats, totalAmount, totalFinalAmount }: {
   }
 
   return (
-    <Section title="CSO별 현황">
+    <Section title="CSO별 현황" searchSlot={<SearchInput value={search} onChange={v => { setSearch(v); setShowAll(false); }} />}>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
@@ -487,8 +489,8 @@ function CsoAccordion({ stats, totalAmount, totalFinalAmount }: {
           </tbody>
         </table>
       </div>
-      {stats.length > 20 && (
-        <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
+      {filtered.length > 20 && (
+        <MoreButton showAll={showAll} total={filtered.length} onClick={() => setShowAll(v => !v)} />
       )}
     </Section>
   );
@@ -507,7 +509,9 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
   // 2단: 처방처||품목 복합키로 품목 열림 여부
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
-  const display = showAll ? stats : stats.slice(0, 20);
+  const [search, setSearch] = useState('');
+  const filtered = search ? stats.filter(s => s.name.toLowerCase().includes(search.toLowerCase())) : stats;
+  const display = showAll ? filtered : filtered.slice(0, 20);
 
   function toggleHos(name: string) {
     setExpandedHos(prev => {
@@ -527,7 +531,7 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
   }
 
   return (
-    <Section title="처방처별 현황">
+    <Section title="처방처별 현황" searchSlot={<SearchInput value={search} onChange={v => { setSearch(v); setShowAll(false); }} />}>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
@@ -632,8 +636,8 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
           </tbody>
         </table>
       </div>
-      {stats.length > 20 && (
-        <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
+      {filtered.length > 20 && (
+        <MoreButton showAll={showAll} total={filtered.length} onClick={() => setShowAll(v => !v)} />
       )}
     </Section>
   );
@@ -649,12 +653,16 @@ function ItemSection({ stats, hospStats, totalAmount, totalFinalAmount }: {
   totalFinalAmount: number;
 }) {
   const [tab, setTab] = useState<0 | 1>(0);
+  const [search, setSearch] = useState('');
   const TABS = ['품목 → CSO → 요양기관', '품목 → 요양기관 → 담당자 → CSO'] as const;
   return (
     <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1.1rem 1.2rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>품목별 현황</h3>
         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0 }}>(단위: 천원)</span>
+      </div>
+      <div style={{ marginBottom: '0.5rem' }}>
+        <SearchInput value={search} onChange={v => setSearch(v)} />
       </div>
       <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.85rem', flexWrap: 'wrap' }}>
         {TABS.map((label, i) => (
@@ -668,16 +676,17 @@ function ItemSection({ stats, hospStats, totalAmount, totalFinalAmount }: {
         ))}
       </div>
       {tab === 0
-        ? <ItemCsoAccordion stats={stats} totalAmount={totalAmount} totalFinalAmount={totalFinalAmount} />
-        : <ItemHospAccordion stats={hospStats} totalAmount={totalAmount} totalFinalAmount={totalFinalAmount} />
+        ? <ItemCsoAccordion stats={stats} search={search} totalAmount={totalAmount} totalFinalAmount={totalFinalAmount} />
+        : <ItemHospAccordion stats={hospStats} search={search} totalAmount={totalAmount} totalFinalAmount={totalFinalAmount} />
       }
     </div>
   );
 }
 
 /* ── 뷰1: 품목 → CSO → 요양기관 ──────────────────────────── */
-function ItemCsoAccordion({ stats, totalAmount, totalFinalAmount }: {
+function ItemCsoAccordion({ stats, search, totalAmount, totalFinalAmount }: {
   stats: ItemStat[];
+  search: string;
   totalAmount: number;
   totalFinalAmount: number;
 }) {
@@ -686,7 +695,8 @@ function ItemCsoAccordion({ stats, totalAmount, totalFinalAmount }: {
   // 2단: 품목||CSO 복합키로 CSO 열림 여부
   const [expandedCsos,  setExpandedCsos]  = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
-  const display = showAll ? stats : stats.slice(0, 20);
+  const filtered = search ? stats.filter(s => s.name.toLowerCase().includes(search.toLowerCase())) : stats;
+  const display = showAll ? filtered : filtered.slice(0, 20);
 
   function toggleItem(name: string) {
     setExpandedItems(prev => {
@@ -812,16 +822,17 @@ function ItemCsoAccordion({ stats, totalAmount, totalFinalAmount }: {
           </tbody>
         </table>
       </div>
-      {stats.length > 20 && (
-        <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
+      {filtered.length > 20 && (
+        <MoreButton showAll={showAll} total={filtered.length} onClick={() => setShowAll(v => !v)} />
       )}
     </div>
   );
 }
 
 /* ── 뷰2: 품목 → 요양기관 → 담당자 → CSO ─────────────────── */
-function ItemHospAccordion({ stats, totalAmount, totalFinalAmount }: {
+function ItemHospAccordion({ stats, search, totalAmount, totalFinalAmount }: {
   stats: IHItemStat[];
+  search: string;
   totalAmount: number;
   totalFinalAmount: number;
 }) {
@@ -829,7 +840,8 @@ function ItemHospAccordion({ stats, totalAmount, totalFinalAmount }: {
   const [expandedHos,   setExpandedHos]   = useState<Set<string>>(new Set());
   const [expandedSps,   setExpandedSps]   = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
-  const display = showAll ? stats : stats.slice(0, 20);
+  const filtered = search ? stats.filter(s => s.name.toLowerCase().includes(search.toLowerCase())) : stats;
+  const display = showAll ? filtered : filtered.slice(0, 20);
 
   function toggle(setter: React.Dispatch<React.SetStateAction<Set<string>>>, key: string) {
     setter(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
@@ -929,8 +941,8 @@ function ItemHospAccordion({ stats, totalAmount, totalFinalAmount }: {
           </tbody>
         </table>
       </div>
-      {stats.length > 20 && (
-        <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
+      {filtered.length > 20 && (
+        <MoreButton showAll={showAll} total={filtered.length} onClick={() => setShowAll(v => !v)} />
       )}
     </div>
   );
@@ -941,16 +953,21 @@ function ItemHospAccordion({ stats, totalAmount, totalFinalAmount }: {
 /* ════════════════════════════════════════════════════════════ */
 function DrugPriceTable({ prices }: { prices: DrugPrice[] }) {
   const [showAll, setShowAll] = useState(false);
-  const display = showAll ? prices : prices.slice(0, 30);
+  const [search, setSearch] = useState('');
+  const filtered = search ? prices.filter(p => p.name.toLowerCase().includes(search.toLowerCase())) : prices;
+  const display = showAll ? filtered : filtered.slice(0, 30);
 
   return (
     <div style={{
       background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
       borderRadius: 14, padding: '1.1rem 1.2rem',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
         <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>약가</h3>
         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0 }}>(단위: 원)</span>
+      </div>
+      <div style={{ marginBottom: '0.75rem' }}>
+        <SearchInput value={search} onChange={v => { setSearch(v); setShowAll(false); }} />
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
@@ -972,8 +989,8 @@ function DrugPriceTable({ prices }: { prices: DrugPrice[] }) {
           </tbody>
         </table>
       </div>
-      {prices.length > 30 && (
-        <MoreButton showAll={showAll} total={prices.length} onClick={() => setShowAll(v => !v)} />
+      {filtered.length > 30 && (
+        <MoreButton showAll={showAll} total={filtered.length} onClick={() => setShowAll(v => !v)} />
       )}
     </div>
   );
@@ -982,18 +999,38 @@ function DrugPriceTable({ prices }: { prices: DrugPrice[] }) {
 /* ════════════════════════════════════════════════════════════ */
 /*  공용 UI                                                     */
 /* ════════════════════════════════════════════════════════════ */
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, searchSlot }: { title: string; children: React.ReactNode; searchSlot?: React.ReactNode }) {
   return (
     <div style={{
       background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
       borderRadius: 14, padding: '1.1rem 1.2rem',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: searchSlot ? '0.5rem' : '0.85rem' }}>
         <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{title}</h3>
         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0 }}>(단위: 천원)</span>
       </div>
+      {searchSlot && <div style={{ marginBottom: '0.75rem' }}>{searchSlot}</div>}
       {children}
     </div>
+  );
+}
+
+function SearchInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <input
+      type="search"
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      placeholder="🔍 키워드 검색…"
+      style={{
+        width: '100%', boxSizing: 'border-box',
+        padding: '0.42rem 0.75rem', borderRadius: '7px',
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        color: 'var(--text-primary)', fontSize: '0.8rem',
+        outline: 'none', fontFamily: 'inherit',
+      }}
+    />
   );
 }
 
