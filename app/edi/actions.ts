@@ -170,13 +170,15 @@ export async function analyzeEdiFile(docId: string): Promise<{
 
   const d = doc as Record<string,string>;
   const cacheKey = `${CACHE_PREFIX}${d.id}.json`;
-  const CV = 16;
+  const CV = 17;
   try {
     const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
     if (blob) {
       const cached = JSON.parse(await blob.text()) as EdiReport & { cacheVersion?: number };
+      const cd = cached.data as unknown as Record<string,unknown>;
       if ((cached as unknown as Record<string,unknown>).cacheVersion === CV &&
-          Array.isArray((cached.data as unknown as Record<string,unknown>).salesPersonStats)) {
+          Array.isArray(cd.salesPersonStats) &&
+          Array.isArray(cd.itemHospStats)) {
         return { report: cached };
       }
     }
@@ -275,11 +277,12 @@ export async function getEdiData(): Promise<{
       if (blob) {
         const cached = JSON.parse(await blob.text()) as EdiReport;
         // 구버전 캐시 감지: 필수 필드 없거나 캐시 버전 불일치 시 재처리
-        const CACHE_VERSION = 16; // 헤더 행 자동 탐색 추가
+        const CACHE_VERSION = 17; // itemHospStats 필드 추가
         const d = cached.data as unknown as Record<string, unknown>;
         if (
           !Array.isArray(d.salesPersonStats) ||
           !Array.isArray(d.itemStats) ||
+          !Array.isArray(d.itemHospStats) ||
           (cached as unknown as Record<string, unknown>).cacheVersion !== CACHE_VERSION
         ) {
           throw new Error('cache outdated – reprocess');
@@ -366,7 +369,7 @@ export async function getEdiData(): Promise<{
         data,
         updated_at:   doc.created_at as string,
         doc_id:       doc.id as string,
-        cacheVersion: 16,
+        cacheVersion: 17,
       };
 
       // 캐시 저장 (실패해도 무시)

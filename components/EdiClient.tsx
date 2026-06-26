@@ -184,7 +184,7 @@ function EdiDashboard({ data }: { data: EdiData }) {
       {hasItem && (
         <ItemSection
           stats={data.itemStats}
-          hospStats={data.itemHospStats}
+          hospStats={data.itemHospStats ?? []}
           totalAmount={totalAmount}
           totalFinalAmount={totalFinalAmount}
         />
