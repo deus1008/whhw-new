@@ -252,7 +252,7 @@ function CompareSection({ title, reports, getStats }: {
 
   const allNames = [...new Set(reports.flatMap(r => getStats(r.data).map(s => s.name)))];
   const lastMap  = fileMaps[fileMaps.length - 1];
-  allNames.sort((a, b) => (lastMap.get(b)?.finalAmount ?? 0) - (lastMap.get(a)?.finalAmount ?? 0));
+  allNames.sort((a, b) => (lastMap.get(b)?.amount ?? 0) - (lastMap.get(a)?.amount ?? 0));
 
   if (allNames.length === 0) return null;
 
@@ -285,27 +285,27 @@ function CompareSection({ title, reports, getStats }: {
             <tr>
               {periods.map((_, pi) => (
                 <Fragment key={pi}>
-                  <th style={{ ...TH('right'), ...BL, fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)' }}>처방액</th>
-                  <th style={{ ...TH('right'), fontSize: '0.7rem' }}>최종실적</th>
+                  <th style={{ ...TH('right'), ...BL, fontSize: '0.7rem' }}>처방액</th>
+                  <th style={{ ...TH('right'), fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)' }}>최종실적</th>
                 </Fragment>
               ))}
             </tr>
           </thead>
           <tbody>
             {display.map((name, ni) => {
-              const vals       = fileMaps.map(m => m.get(name));
-              const firstFinal = vals[0]?.finalAmount ?? 0;
-              const lastFinal  = vals[nFiles - 1]?.finalAmount ?? 0;
-              const delta      = firstFinal > 0 ? (lastFinal - firstFinal) / firstFinal * 100 : null;
+              const vals      = fileMaps.map(m => m.get(name));
+              const firstAmt  = vals[0]?.amount ?? 0;
+              const lastAmt   = vals[nFiles - 1]?.amount ?? 0;
+              const delta     = firstAmt > 0 ? (lastAmt - firstAmt) / firstAmt * 100 : null;
               return (
                 <tr key={name} style={{ background: ni % 2 ? 'rgba(255,255,255,0.01)' : undefined, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                   <td style={{ ...TD('left'), maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }} title={name}>{name}</td>
                   {vals.map((v, fi) => (
                     <Fragment key={fi}>
-                      <td style={{ ...TD('right'), ...BL, color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                      <td style={{ ...TD('right'), ...BL, fontSize: '0.78rem', fontWeight: v?.amount ? 600 : undefined }}>
                         {v?.amount ? fmt(v.amount) : <span style={{ opacity: 0.25 }}>—</span>}
                       </td>
-                      <td style={{ ...TD('right'), fontSize: '0.78rem', fontWeight: v?.finalAmount ? 600 : undefined }}>
+                      <td style={{ ...TD('right'), fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                         {v?.finalAmount ? fmt(v.finalAmount) : <span style={{ opacity: 0.25 }}>—</span>}
                       </td>
                     </Fragment>
@@ -349,16 +349,17 @@ function CompareSection({ title, reports, getStats }: {
 }
 
 function CompareView({ reports }: { reports: EdiReport[] }) {
-  const hasSP  = reports.some(r => r.data.salesPersonStats.length > 0);
-  const hasCso = reports.some(r => r.data.csoStats.length > 0);
-  const hasHos = reports.some(r => r.data.hospitalRanking.length > 0);
-  const hasItm = reports.some(r => r.data.itemStats.length > 0);
+  const sorted = [...reports].sort((a, b) => (a.period || a.filename).localeCompare(b.period || b.filename));
+  const hasSP  = sorted.some(r => r.data.salesPersonStats.length > 0);
+  const hasCso = sorted.some(r => r.data.csoStats.length > 0);
+  const hasHos = sorted.some(r => r.data.hospitalRanking.length > 0);
+  const hasItm = sorted.some(r => r.data.itemStats.length > 0);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-      {hasSP  && <CompareSection title="담당자별 비교" reports={reports} getStats={d => d.salesPersonStats} />}
-      {hasCso && <CompareSection title="CSO별 비교"   reports={reports} getStats={d => d.csoStats} />}
-      {hasHos && <CompareSection title="처방처별 비교" reports={reports} getStats={d => d.hospitalRanking} />}
-      {hasItm && <CompareSection title="품목별 비교"  reports={reports} getStats={d => d.itemStats} />}
+      {hasSP  && <CompareSection title="담당자별 비교" reports={sorted} getStats={d => d.salesPersonStats} />}
+      {hasCso && <CompareSection title="CSO별 비교"   reports={sorted} getStats={d => d.csoStats} />}
+      {hasHos && <CompareSection title="처방처별 비교" reports={sorted} getStats={d => d.hospitalRanking} />}
+      {hasItm && <CompareSection title="품목별 비교"  reports={sorted} getStats={d => d.itemStats} />}
     </div>
   );
 }
