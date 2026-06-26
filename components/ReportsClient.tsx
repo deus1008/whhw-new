@@ -157,8 +157,16 @@ const AI_EXAMPLES: { title: string; topic: string }[] = [
   { title: '거래처 지역·종별 분포 현황',           topic: '거래처를 지역 및 종별로 분류하고 분포 현황과 영업 집중도를 분석해줘' },
 ];
 
-function AiReportModal({ onClose, onDone }: { onClose: () => void; onDone: (filename: string) => void }) {
-  const [title,    setTitle]    = useState('');
+function extractTitleFromFilename(filename: string): string {
+  return filename
+    .replace(/\.html$/i, '')
+    .replace(/_\d{4}-\d{2}-\d{2}$/, '')
+    .replace(/^AI_/, '')
+    .replace(/_/g, ' ');
+}
+
+function AiReportModal({ onClose, onDone, initialTitle = '' }: { onClose: () => void; onDone: (filename: string) => void; initialTitle?: string }) {
+  const [title,    setTitle]    = useState(initialTitle);
   const [topic,    setTopic]    = useState('');
   const [status,   setStatus]   = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [msg,      setMsg]      = useState('');
@@ -470,10 +478,16 @@ export default function ReportsClient({
   docFiles: DocFile[];
   isAdmin: boolean;
 }) {
-  const [modal,   setModal]   = useState<null | 'create' | Report>(null);
-  const [aiModal, setAiModal] = useState(false);
-  const [viewer,  setViewer]  = useState<DocFile | null>(null);
+  const [modal,          setModal]          = useState<null | 'create' | Report>(null);
+  const [aiModal,        setAiModal]        = useState(false);
+  const [reanalyzeTitle, setReanalyzeTitle] = useState('');
+  const [viewer,         setViewer]         = useState<DocFile | null>(null);
   const [, start] = useTransition();
+
+  function openAiModal(prefillTitle = '') {
+    setReanalyzeTitle(prefillTitle);
+    setAiModal(true);
+  }
 
   function handleDelete(r: Report) {
     if (!confirm(`"${r.title}" 리포트를 삭제하시겠습니까?`)) return;
@@ -488,7 +502,7 @@ export default function ReportsClient({
       {isAdmin && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
           <button
-            onClick={() => setAiModal(true)}
+            onClick={() => openAiModal()}
             style={{
               padding: '0.55rem 1.1rem', borderRadius: '8px', fontSize: '0.83rem', fontWeight: 600,
               background: 'rgba(167,139,250,0.15)', border: '1px solid rgba(167,139,250,0.35)',
@@ -546,6 +560,16 @@ export default function ReportsClient({
                   <span style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>
                     {fmtDate(f.created_at)}
                   </span>
+                  {isAdmin && ext === 'html' && (
+                    <button
+                      onClick={e => { e.stopPropagation(); openAiModal(extractTitleFromFilename(f.filename)); }}
+                      style={{
+                        padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600,
+                        background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.3)',
+                        color: '#c4b5fd', cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit',
+                      }}
+                    >↺ 재분석</button>
+                  )}
                   <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>▶</span>
                 </div>
               );
@@ -621,7 +645,8 @@ export default function ReportsClient({
       {/* AI 리포트 생성 모달 */}
       {aiModal && (
         <AiReportModal
-          onClose={() => setAiModal(false)}
+          initialTitle={reanalyzeTitle}
+          onClose={() => { setAiModal(false); setReanalyzeTitle(''); }}
           onDone={() => window.location.reload()}
         />
       )}
