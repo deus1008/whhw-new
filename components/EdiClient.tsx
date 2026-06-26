@@ -336,7 +336,19 @@ function CompareSection({ title, reports, getStats }: {
                   </Fragment>
                 );
               })}
-              {nFiles >= 2 && <td />}
+              {nFiles >= 2 && (() => {
+                const firstAmt = getStats(reports[0].data).reduce((s, e) => s + e.amount, 0);
+                const lastAmt  = getStats(reports[nFiles - 1].data).reduce((s, e) => s + e.amount, 0);
+                const d = firstAmt > 0 ? (lastAmt - firstAmt) / firstAmt * 100 : null;
+                return (
+                  <td style={{
+                    ...TD('right', true), ...BL, fontSize: '0.78rem', fontWeight: 700,
+                    color: d === null ? undefined : d > 0 ? '#4ade80' : d < 0 ? '#f87171' : undefined,
+                  }}>
+                    {d === null ? '—' : `${d > 0 ? '+' : ''}${d.toFixed(1)}%`}
+                  </td>
+                );
+              })()}
             </tr>
           </tbody>
         </table>
