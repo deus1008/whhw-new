@@ -77,6 +77,12 @@ export interface ItemStat {
   csos:        ItemCsoStat[];
 }
 
+// 품목 → 요양기관 → 담당자 → CSO 구조 (뷰2)
+export interface IHCsoStat  { name: string; amount: number; finalAmount: number; }
+export interface IHSpStat   { name: string; amount: number; finalAmount: number; csos: IHCsoStat[]; }
+export interface IHHosStat  { name: string; amount: number; finalAmount: number; salesPersons: IHSpStat[]; }
+export interface IHItemStat { name: string; amount: number; finalAmount: number; hospitals: IHHosStat[]; }
+
 export interface DrugPrice {
   name:      string;
   unitPrice: number;
@@ -91,6 +97,7 @@ export interface EdiData {
   csoStats:         CsoStat[];          // amount 내림차순
   hospitalRanking:  HospitalStat[];     // 전체 거래처 순위 + 품목 드릴다운
   itemStats:        ItemStat[];         // 품목별 순위 + CSO → 처방처 2단 드릴다운
+  itemHospStats:    IHItemStat[];       // 품목별 순위 + 요양기관 → 담당자 → CSO 3단 드릴다운
   drugPrices:       DrugPrice[];        // 약가 (원, 가나다 정렬)
   detectedCols:     DetectedCols;
   headers:          string[];
@@ -223,6 +230,8 @@ export function processEdi(
   const hosMap  = new Map<string, Pair & { items: Map<string, Pair & { csos: Map<string, Pair> }> }>();
   // 품목 → CSO → 처방처 3단 집계
   const itemMap = new Map<string, Pair & { csos: Map<string, Pair & { hospitals: Map<string, Pair> }> }>();
+  // 품목 → 요양기관 → 담당자 → CSO 4단 집계
+  const itemHosMap = new Map<string, Pair & { hospitals: Map<string, Pair & { salesPersons: Map<string, Pair & { csos: Map<string, Pair> }> }> }>();
   const priceMap = new Map<string, number>(); // 품목 → 약가 (첫 번째 값)
 
   for (const r of normalized) {
@@ -306,6 +315,25 @@ export function processEdi(
       }
       // 약가: 첫 번째 유효값만 기록
       if (!priceMap.has(item) && price > 0) priceMap.set(item, price);
+
+      // 품목 → 요양기관 → 담당자 → CSO 집계
+      if (!itemHosMap.has(item)) itemHosMap.set(item, { amount: 0, finalAmount: 0, hospitals: new Map() });
+      const ihItem = itemHosMap.get(item)!;
+      ihItem.amount += amt; ihItem.finalAmount += fin;
+      if (hos !== null) {
+        if (!ihItem.hospitals.has(hos)) ihItem.hospitals.set(hos, { amount: 0, finalAmount: 0, salesPersons: new Map() });
+        const ihHos = ihItem.hospitals.get(hos)!;
+        ihHos.amount += amt; ihHos.finalAmount += fin;
+        const spKey = sp ?? '(미상)';
+        if (!ihHos.salesPersons.has(spKey)) ihHos.salesPersons.set(spKey, { amount: 0, finalAmount: 0, csos: new Map() });
+        const ihSp = ihHos.salesPersons.get(spKey)!;
+        ihSp.amount += amt; ihSp.finalAmount += fin;
+        if (cso !== null) {
+          if (!ihSp.csos.has(cso)) ihSp.csos.set(cso, { amount: 0, finalAmount: 0 });
+          const ihCso = ihSp.csos.get(cso)!;
+          ihCso.amount += amt; ihCso.finalAmount += fin;
+        }
+      }
     }
   }
 
@@ -388,11 +416,37 @@ export function processEdi(
     .map(([name, unitPrice]) => ({ name, unitPrice }))
     .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 
+  const itemHospStats: IHItemStat[] = [...itemHosMap.entries()]
+    .map(([name, v]) => ({
+      name,
+      amount:      v.amount,
+      finalAmount: v.finalAmount,
+      hospitals: [...v.hospitals.entries()]
+        .map(([hn, h]) => ({
+          name:        hn,
+          amount:      h.amount,
+          finalAmount: h.finalAmount,
+          salesPersons: [...h.salesPersons.entries()]
+            .map(([sn, s]) => ({
+              name:        sn,
+              amount:      s.amount,
+              finalAmount: s.finalAmount,
+              csos: [...s.csos.entries()]
+                .map(([cn, c]) => ({ name: cn, amount: c.amount, finalAmount: c.finalAmount }))
+                .sort((a, b) => b.amount - a.amount),
+            }))
+            .sort((a, b) => b.amount - a.amount),
+        }))
+        .sort((a, b) => b.amount - a.amount),
+    }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 500);
+
   return {
     filename, period,
     totalAmount, totalFinalAmount,
     salesPersonStats, csoStats, hospitalRanking,
-    itemStats, drugPrices,
+    itemStats, itemHospStats, drugPrices,
     detectedCols: cols, headers,
   };
 }

@@ -4,7 +4,7 @@ import { useState, useTransition, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import { forceRefreshEdi, analyzeEdiFile } from '@/app/edi/actions';
 import type { EdiReport } from '@/app/edi/actions';
-import type { EdiData, SalesPersonStat, CsoStat, HospitalStat, ItemStat, DrugPrice } from '@/lib/edi/process';
+import type { EdiData, SalesPersonStat, CsoStat, HospitalStat, ItemStat, IHItemStat, DrugPrice } from '@/lib/edi/process';
 // HospitalStat now carries .items (품목 드릴다운)
 
 /* ── 포맷 유틸 ──────────────────────────────────────────────── */
@@ -180,10 +180,11 @@ function EdiDashboard({ data }: { data: EdiData }) {
         />
       )}
 
-      {/* ④ 품목별 현황 (CSO 드릴다운 통합) */}
+      {/* ④ 품목별 현황 (탭 2종) */}
       {hasItem && (
-        <ItemAccordion
+        <ItemSection
           stats={data.itemStats}
+          hospStats={data.itemHospStats}
           totalAmount={totalAmount}
           totalFinalAmount={totalFinalAmount}
         />
@@ -639,9 +640,43 @@ function HospitalAccordion({ stats, totalAmount, totalFinalAmount }: {
 }
 
 /* ════════════════════════════════════════════════════════════ */
-/*  ④ 품목별 현황 + CSO → 처방처 2단 드릴다운 (아코디언)       */
+/*  ④ 품목별 현황 — 탭 컨테이너                                */
 /* ════════════════════════════════════════════════════════════ */
-function ItemAccordion({ stats, totalAmount, totalFinalAmount }: {
+function ItemSection({ stats, hospStats, totalAmount, totalFinalAmount }: {
+  stats: ItemStat[];
+  hospStats: IHItemStat[];
+  totalAmount: number;
+  totalFinalAmount: number;
+}) {
+  const [tab, setTab] = useState<0 | 1>(0);
+  const TABS = ['품목 → CSO → 요양기관', '품목 → 요양기관 → 담당자 → CSO'] as const;
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1.1rem 1.2rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>품목별 현황</h3>
+        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0 }}>(단위: 천원)</span>
+      </div>
+      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.85rem', flexWrap: 'wrap' }}>
+        {TABS.map((label, i) => (
+          <button key={i} onClick={() => setTab(i as 0 | 1)} style={{
+            padding: '0.28rem 0.75rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: tab === i ? 700 : 400,
+            background: tab === i ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${tab === i ? 'rgba(59,130,246,0.45)' : 'rgba(255,255,255,0.1)'}`,
+            color: tab === i ? '#93c5fd' : 'var(--text-muted)',
+            cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+          }}>{label}</button>
+        ))}
+      </div>
+      {tab === 0
+        ? <ItemCsoAccordion stats={stats} totalAmount={totalAmount} totalFinalAmount={totalFinalAmount} />
+        : <ItemHospAccordion stats={hospStats} totalAmount={totalAmount} totalFinalAmount={totalFinalAmount} />
+      }
+    </div>
+  );
+}
+
+/* ── 뷰1: 품목 → CSO → 요양기관 ──────────────────────────── */
+function ItemCsoAccordion({ stats, totalAmount, totalFinalAmount }: {
   stats: ItemStat[];
   totalAmount: number;
   totalFinalAmount: number;
@@ -671,7 +706,7 @@ function ItemAccordion({ stats, totalAmount, totalFinalAmount }: {
   }
 
   return (
-    <Section title="품목별 현황">
+    <div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
@@ -780,7 +815,124 @@ function ItemAccordion({ stats, totalAmount, totalFinalAmount }: {
       {stats.length > 20 && (
         <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
       )}
-    </Section>
+    </div>
+  );
+}
+
+/* ── 뷰2: 품목 → 요양기관 → 담당자 → CSO ─────────────────── */
+function ItemHospAccordion({ stats, totalAmount, totalFinalAmount }: {
+  stats: IHItemStat[];
+  totalAmount: number;
+  totalFinalAmount: number;
+}) {
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [expandedHos,   setExpandedHos]   = useState<Set<string>>(new Set());
+  const [expandedSps,   setExpandedSps]   = useState<Set<string>>(new Set());
+  const [showAll, setShowAll] = useState(false);
+  const display = showAll ? stats : stats.slice(0, 20);
+
+  function toggle(setter: React.Dispatch<React.SetStateAction<Set<string>>>, key: string) {
+    setter(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+  }
+
+  return (
+    <div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+          <thead>
+            <tr>
+              <th style={{ ...TH('left'), minWidth: 200 }}>품목명</th>
+              <th style={{ ...TH('left'), minWidth: 160 }}>요양기관</th>
+              <th style={{ ...TH('left'), minWidth: 120 }}>담당자</th>
+              <th style={TH('right')}>처방액</th>
+              <th style={TH('right')}>최종실적</th>
+            </tr>
+          </thead>
+          <tbody>
+            {display.map(it => {
+              const isItemOpen = expandedItems.has(it.name);
+              const hasHos = it.hospitals.length > 0;
+              return (
+                <Fragment key={it.name}>
+                  {/* ── 품목 행 ── */}
+                  <tr onClick={() => hasHos && toggle(setExpandedItems, it.name)}
+                    style={{ background: 'rgba(59,130,246,0.07)', cursor: hasHos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#93c5fd', borderBottom: '1px solid rgba(255,255,255,0.06)', maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
+                      {hasHos && <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>{isItemOpen ? '▼' : '▶'}</span>}
+                      {it.name}
+                    </td>
+                    <td style={{ ...TD('right', true), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>{fmt(it.amount)}</td>
+                    <td style={{ ...TD('right'), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>{fmt(it.finalAmount)}</td>
+                  </tr>
+
+                  {/* ── 요양기관 행 (1단) ── */}
+                  {isItemOpen && it.hospitals.map(h => {
+                    const hosKey = `${it.name}||${h.name}`;
+                    const isHosOpen = expandedHos.has(hosKey);
+                    const hasSps = h.salesPersons.length > 0;
+                    return (
+                      <Fragment key={h.name}>
+                        <tr onClick={() => hasSps && toggle(setExpandedHos, hosKey)}
+                          style={{ background: 'rgba(251,146,60,0.05)', cursor: hasSps ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#fdba74', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={h.name}>
+                            <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
+                            {hasSps && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isHosOpen ? '▼' : '▶'}</span>}
+                            {h.name}
+                          </td>
+                          <td style={{ ...TD('right', true), fontSize: '0.78rem' }}>{fmt(h.amount)}</td>
+                          <td style={{ ...TD('right'), fontSize: '0.78rem' }}>{fmt(h.finalAmount)}</td>
+                        </tr>
+
+                        {/* ── 담당자 행 (2단) ── */}
+                        {isHosOpen && h.salesPersons.map(sp => {
+                          const spKey = `${hosKey}||${sp.name}`;
+                          const isSpOpen = expandedSps.has(spKey);
+                          const hasCsos = sp.csos.length > 0;
+                          return (
+                            <Fragment key={sp.name}>
+                              <tr onClick={() => hasCsos && toggle(setExpandedSps, spKey)}
+                                style={{ background: 'rgba(168,85,247,0.05)', cursor: hasCsos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                <td colSpan={3} style={{ ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem', color: '#d8b4fe' }}>
+                                  <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
+                                  {hasCsos && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isSpOpen ? '▼' : '▶'}</span>}
+                                  {sp.name}
+                                </td>
+                                <td style={{ ...TD('right', true), fontSize: '0.76rem' }}>{fmt(sp.amount)}</td>
+                                <td style={{ ...TD('right'), fontSize: '0.76rem' }}>{fmt(sp.finalAmount)}</td>
+                              </tr>
+
+                              {/* ── CSO 행 (3단) ── */}
+                              {isSpOpen && sp.csos.map(cso => (
+                                <tr key={cso.name} style={{ background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.025)' }}>
+                                  <td colSpan={3} style={{ ...TD('left'), paddingLeft: '4.5rem', fontSize: '0.74rem', color: '#6ee7b7', maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis' }} title={cso.name}>
+                                    <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
+                                    {cso.name}
+                                  </td>
+                                  <td style={{ ...TD('right', true), fontSize: '0.74rem' }}>{fmt(cso.amount)}</td>
+                                  <td style={{ ...TD('right'), fontSize: '0.74rem' }}>{fmt(cso.finalAmount)}</td>
+                                </tr>
+                              ))}
+                            </Fragment>
+                          );
+                        })}
+                      </Fragment>
+                    );
+                  })}
+                </Fragment>
+              );
+            })}
+            <tr style={TR_TOTAL}>
+              <td colSpan={3} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalFinalAmount)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {stats.length > 20 && (
+        <MoreButton showAll={showAll} total={stats.length} onClick={() => setShowAll(v => !v)} />
+      )}
+    </div>
   );
 }
 
