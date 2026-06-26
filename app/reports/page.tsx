@@ -37,7 +37,7 @@ export default async function ReportsPage() {
       .select('id, title, content, created_at, updated_at')
       .order('created_at', { ascending: false }),
     svc.from('documents')
-      .select('id, filename, file_type, storage_path, created_at')
+      .select('id, filename, file_type, storage_path, summary, created_at')
       .eq('category', '분석리포트')
       .order('created_at', { ascending: false }),
   ]);
@@ -51,10 +51,11 @@ export default async function ReportsPage() {
   }));
 
   const docFiles = (docRows ?? []).map((r: Record<string, unknown>) => ({
-    id:         r.id         as string,
-    filename:   r.filename   as string,
-    file_type:  r.file_type  as string,
-    created_at: r.created_at as string,
+    id:           r.id           as string,
+    filename:     r.filename     as string,
+    file_type:    r.file_type    as string,
+    created_at:   r.created_at   as string,
+    prompt_topic: r.summary      as string | undefined,
   }));
 
   return (

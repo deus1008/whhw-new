@@ -17,6 +17,7 @@ type DocFile = {
   filename: string;
   file_type: string;
   created_at: string;
+  prompt_topic?: string;
 };
 
 function fmtDate(s: string) {
@@ -165,9 +166,9 @@ function extractTitleFromFilename(filename: string): string {
     .replace(/_/g, ' ');
 }
 
-function AiReportModal({ onClose, onDone, initialTitle = '' }: { onClose: () => void; onDone: (filename: string) => void; initialTitle?: string }) {
+function AiReportModal({ onClose, onDone, initialTitle = '', initialTopic = '' }: { onClose: () => void; onDone: (filename: string) => void; initialTitle?: string; initialTopic?: string }) {
   const [title,    setTitle]    = useState(initialTitle);
-  const [topic,    setTopic]    = useState('');
+  const [topic,    setTopic]    = useState(initialTopic);
   const [status,   setStatus]   = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [msg,      setMsg]      = useState('');
   const [lastFile, setLastFile] = useState('');
@@ -481,11 +482,13 @@ export default function ReportsClient({
   const [modal,          setModal]          = useState<null | 'create' | Report>(null);
   const [aiModal,        setAiModal]        = useState(false);
   const [reanalyzeTitle, setReanalyzeTitle] = useState('');
+  const [reanalyzeTopic, setReanalyzeTopic] = useState('');
   const [viewer,         setViewer]         = useState<DocFile | null>(null);
   const [, start] = useTransition();
 
-  function openAiModal(prefillTitle = '') {
+  function openAiModal(prefillTitle = '', prefillTopic = '') {
     setReanalyzeTitle(prefillTitle);
+    setReanalyzeTopic(prefillTopic);
     setAiModal(true);
   }
 
@@ -562,7 +565,7 @@ export default function ReportsClient({
                   </span>
                   {isAdmin && ext === 'html' && (
                     <button
-                      onClick={e => { e.stopPropagation(); openAiModal(extractTitleFromFilename(f.filename)); }}
+                      onClick={e => { e.stopPropagation(); openAiModal(extractTitleFromFilename(f.filename), f.prompt_topic ?? ''); }}
                       style={{
                         padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600,
                         background: 'rgba(167,139,250,0.12)', border: '1px solid rgba(167,139,250,0.3)',
@@ -646,7 +649,8 @@ export default function ReportsClient({
       {aiModal && (
         <AiReportModal
           initialTitle={reanalyzeTitle}
-          onClose={() => { setAiModal(false); setReanalyzeTitle(''); }}
+          initialTopic={reanalyzeTopic}
+          onClose={() => { setAiModal(false); setReanalyzeTitle(''); setReanalyzeTopic(''); }}
           onDone={() => window.location.reload()}
         />
       )}

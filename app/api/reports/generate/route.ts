@@ -380,7 +380,7 @@ export async function POST(req: NextRequest) {
     category:     '분석리포트',
     uploaded_by:  user.id,
     status:       'ready',
-    summary:      `AI 생성: ${title}`,
+    summary:      topic,
   }).select('id').single();
 
   if (insErr) {
