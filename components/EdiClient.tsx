@@ -299,7 +299,7 @@ function CompareSection({ title, reports, getStats }: {
               const delta     = firstAmt > 0 ? (lastAmt - firstAmt) / firstAmt * 100 : null;
               return (
                 <tr key={name} style={{ background: ni % 2 ? 'rgba(255,255,255,0.01)' : undefined, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <td style={{ ...TD('left'), width: 120, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }} title={name}>{name}</td>
+                  <td style={{ ...TD('left'), width: 120, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }} title={name}>{name}</td>
                   {vals.map((v, fi) => (
                     <Fragment key={fi}>
                       <td style={{ ...TD('right'), ...BL, fontSize: '0.78rem', fontWeight: v?.amount ? 600 : undefined }}>
@@ -324,7 +324,7 @@ function CompareSection({ title, reports, getStats }: {
               );
             })}
             <tr style={TR_TOTAL}>
-              <td style={{ ...TD_MUTED('right'), fontWeight: 700 }}>합계</td>
+              <td style={{ ...TD_MUTED('right'), fontWeight: 700, textAlign: 'center' }}>합계</td>
               {reports.map((r, fi) => {
                 const stats  = getStats(r.data);
                 const totAmt = stats.reduce((s, e) => s + e.amount, 0);
