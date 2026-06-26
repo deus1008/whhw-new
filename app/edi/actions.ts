@@ -185,17 +185,18 @@ export async function analyzeEdiFile(docId: string): Promise<{
   const { data: fileBlob, error: dlErr } = await svc.storage.from(BUCKET_DOCS).download(d.storage_path);
   if (dlErr || !fileBlob) return { error: dlErr?.message ?? '다운로드 실패' };
   const buffer = Buffer.from(await fileBlob.arrayBuffer());
-  if (buffer.length / 1024 / 1024 > 20)
-    return { error: `파일 크기(${Math.round(buffer.length/1024/1024)}MB) 초과` };
+  if (buffer.length / 1024 / 1024 > 150)
+    return { error: `파일 크기(${Math.round(buffer.length/1024/1024)}MB) 초과 — 150MB 이하 파일만 지원합니다` };
 
   try {
     let wb: XLSX.WorkBook;
+    const xlsxOpts = { cellFormula: false, cellHTML: false, sheetRows: MAX_ROWS + 1 };
     if (d.file_type === 'csv' || d.file_type === 'txt') {
       let text: string;
       try { text = new TextDecoder('euc-kr').decode(buffer); } catch { text = buffer.toString('utf-8'); }
-      wb = XLSX.read(text, { type: 'string' });
+      wb = XLSX.read(text, { type: 'string', ...xlsxOpts });
     } else {
-      wb = XLSX.read(buffer, { type: 'buffer' });
+      wb = XLSX.read(buffer, { type: 'buffer', ...xlsxOpts });
     }
     let bestSheet = wb.SheetNames[0], bestRows = 0;
     for (const name of wb.SheetNames) {
@@ -301,17 +302,17 @@ export async function getEdiData(): Promise<{
 
       const buffer = Buffer.from(await fileBlob.arrayBuffer());
 
-      // 20MB 초과 파일은 EDI 분석 범위를 벗어남 — 스킵
       const fileSizeMB = buffer.length / 1024 / 1024;
-      if (fileSizeMB > 20) {
+      if (fileSizeMB > 150) {
         errors.push({
           filename: doc.filename,
-          message:  `파일 크기(${fileSizeMB.toFixed(0)}MB)가 EDI 분석 범위를 초과합니다. EDI 폴더에는 20MB 이하 파일만 지원됩니다.`,
+          message:  `파일 크기(${fileSizeMB.toFixed(0)}MB)가 150MB 제한을 초과합니다.`,
         });
         continue;
       }
 
       let wb: XLSX.WorkBook;
+      const xlsxOpts = { cellFormula: false, cellHTML: false, sheetRows: MAX_ROWS + 1 };
 
       if (doc.file_type === 'csv' || doc.file_type === 'txt') {
         let text: string;
@@ -320,9 +321,9 @@ export async function getEdiData(): Promise<{
         } catch {
           text = buffer.toString('utf-8');
         }
-        wb = XLSX.read(text, { type: 'string' });
+        wb = XLSX.read(text, { type: 'string', ...xlsxOpts });
       } else {
-        wb = XLSX.read(buffer, { type: 'buffer' });
+        wb = XLSX.read(buffer, { type: 'buffer', ...xlsxOpts });
       }
 
       // 가장 많은 행을 가진 시트 선택
