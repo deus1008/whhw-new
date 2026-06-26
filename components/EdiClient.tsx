@@ -53,22 +53,37 @@ interface Props {
 
 /* ════════════════════════════════════════════════════════════ */
 export default function EdiClient({ files, isAdmin }: Props) {
-  const [selectedId,   setSelectedId]   = useState(files[0]?.id ?? '');
-  const [report,       setReport]       = useState<EdiReport | null>(null);
+  const [selectedIds,  setSelectedIds]  = useState<Set<string>>(
+    files[0] ? new Set([files[0].id]) : new Set()
+  );
+  const [reports,      setReports]      = useState<EdiReport[]>([]);
+  const [activeTab,    setActiveTab]    = useState(0);
   const [analyzing,    setAnalyzing]    = useState(false);
   const [analyzeErr,   setAnalyzeErr]   = useState('');
   const [isPending,    startTransition] = useTransition();
   const [refreshError, setRefreshError] = useState('');
   const router = useRouter();
 
+  function toggleFile(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    setReports([]); setAnalyzeErr('');
+  }
+
   async function handleAnalyze() {
-    if (!selectedId) return;
-    setAnalyzing(true); setAnalyzeErr(''); setReport(null);
+    if (selectedIds.size === 0) return;
+    setAnalyzing(true); setAnalyzeErr(''); setReports([]); setActiveTab(0);
     try {
-      const res = await analyzeEdiFile(selectedId);
-      if (res.error) setAnalyzeErr(res.error);
-      else if (res.report) setReport(res.report as EdiReport);
-    } catch (e) { setAnalyzeErr(e instanceof Error ? e.message : '분析 실패'); }
+      const orderedIds = files.filter(f => selectedIds.has(f.id)).map(f => f.id);
+      const results = await Promise.all(orderedIds.map(id => analyzeEdiFile(id)));
+      const ok   = results.flatMap(r => r.report ? [r.report as EdiReport] : []);
+      const errs = results.flatMap(r => r.error  ? [r.error]              : []);
+      if (ok.length > 0)   setReports(ok);
+      if (errs.length > 0) setAnalyzeErr(errs.join(' / '));
+    } catch (e) { setAnalyzeErr(e instanceof Error ? e.message : '분석 실패'); }
     finally { setAnalyzing(false); }
   }
 
@@ -103,23 +118,46 @@ export default function EdiClient({ files, isAdmin }: Props) {
 
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 200 }}>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.3rem' }}>파일 선택</span>
-            <select
-              value={selectedId}
-              onChange={e => { setSelectedId(e.target.value); setReport(null); setAnalyzeErr(''); }}
-              style={{ width: '100%', padding: '0.55rem 0.8rem', borderRadius: 9, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-primary)', fontSize: '0.85rem', fontFamily: 'inherit', cursor: 'pointer' }}
-            >
-              {files.map(f => (
-                <option key={f.id} value={f.id}>
-                  {f.filename} ({new Date(f.created_at).toLocaleDateString('ko-KR')})
-                </option>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>파일 선택</span>
+              {selectedIds.size > 0 && (
+                <span style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 600 }}>{selectedIds.size}개 선택됨</span>
+              )}
+            </div>
+            <div style={{
+              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 9,
+              background: 'rgba(255,255,255,0.03)',
+              maxHeight: files.length > 5 ? '12rem' : undefined,
+              overflowY: files.length > 5 ? 'auto' : undefined,
+            }}>
+              {files.map((f, i) => (
+                <label key={f.id} style={{
+                  display: 'flex', alignItems: 'center', gap: '0.6rem',
+                  padding: '0.48rem 0.85rem', cursor: 'pointer',
+                  borderBottom: i < files.length - 1 ? '1px solid rgba(255,255,255,0.05)' : undefined,
+                  background: selectedIds.has(f.id) ? 'rgba(168,85,247,0.08)' : undefined,
+                  transition: 'background 0.12s',
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(f.id)}
+                    onChange={() => toggleFile(f.id)}
+                    style={{ accentColor: '#c4b5fd', width: 14, height: 14, flexShrink: 0, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: '0.84rem', color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {f.filename}
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>
+                    {new Date(f.created_at).toLocaleDateString('ko-KR')}
+                  </span>
+                </label>
               ))}
-            </select>
+            </div>
           </div>
           <button
             onClick={handleAnalyze}
-            disabled={analyzing || !selectedId}
-            style={{ padding: '0.55rem 1.4rem', borderRadius: 9, cursor: analyzing ? 'not-allowed' : 'pointer', background: analyzing ? 'rgba(168,85,247,0.08)' : 'rgba(168,85,247,0.18)', border: '1px solid rgba(168,85,247,0.4)', color: '#c4b5fd', fontSize: '0.88rem', fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+            disabled={analyzing || selectedIds.size === 0}
+            style={{ padding: '0.55rem 1.4rem', borderRadius: 9, cursor: (analyzing || selectedIds.size === 0) ? 'not-allowed' : 'pointer', background: (analyzing || selectedIds.size === 0) ? 'rgba(168,85,247,0.08)' : 'rgba(168,85,247,0.18)', border: '1px solid rgba(168,85,247,0.4)', color: '#c4b5fd', fontSize: '0.88rem', fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
           >
             {analyzing ? '⏳ 분析 중…' : '▶ 분석'}
           </button>
@@ -129,14 +167,105 @@ export default function EdiClient({ files, isAdmin }: Props) {
         {refreshError && <ErrorMsg msg={refreshError} />}
       </div>
 
-      {report
-        ? <EdiDashboard data={report.data} />
-        : !analyzing && <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem 0' }}>파일을 선택하고 분석 버튼을 눌러주세요.</p>
+      {reports.length > 0
+        ? reports.length === 1
+          ? <EdiDashboard data={reports[0].data} />
+          : <MultiReport reports={reports} activeTab={activeTab} setActiveTab={setActiveTab} />
+        : !analyzing && (
+          <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '3rem 0' }}>파일을 선택하고 분석 버튼을 눌러주세요.</p>
+        )
       }
     </div>
   );
 }
 
+
+/* ════════════════════════════════════════════════════════════ */
+/*  비교 요약 (복수 파일 선택 시)                               */
+/* ════════════════════════════════════════════════════════════ */
+function ComparisonSummary({ reports }: { reports: EdiReport[] }) {
+  const maxAmt   = Math.max(...reports.map(r => r.data.totalAmount));
+  const maxFinal = Math.max(...reports.map(r => r.data.totalFinalAmount));
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem 1.2rem' }}>
+      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.85rem' }}>📊 비교 요약 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400 }}>(단위: 천원)</span></h3>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+          <thead>
+            <tr>
+              <th style={{ ...TH('left'), minWidth: 180 }}>파일</th>
+              <th style={{ ...TH('left'), minWidth: 80 }}>기간</th>
+              <th style={TH('right')}>총 처방액</th>
+              <th style={TH('right')}>최종실적</th>
+              <th style={{ ...TH('right'), minWidth: 60 }}>담당자</th>
+              <th style={{ ...TH('right'), minWidth: 50 }}>CSO</th>
+              <th style={{ ...TH('right'), minWidth: 60 }}>처방처</th>
+              <th style={{ ...TH('right'), minWidth: 50 }}>품목</th>
+            </tr>
+          </thead>
+          <tbody>
+            {reports.map((r, i) => {
+              const isTop = r.data.totalFinalAmount === maxFinal;
+              return (
+                <tr key={r.doc_id} style={{ background: i % 2 ? 'rgba(255,255,255,0.01)' : undefined }}>
+                  <td style={{ ...TD('left'), maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.filename}>
+                    {r.filename}
+                  </td>
+                  <td style={{ ...TD('left'), color: '#93c5fd' }}>{r.period}</td>
+                  <td style={{ ...TD('right'), color: r.data.totalAmount === maxAmt ? '#4ade80' : undefined, fontWeight: r.data.totalAmount === maxAmt ? 700 : undefined }}>
+                    {fmt(r.data.totalAmount)}
+                  </td>
+                  <td style={{ ...TD('right'), color: isTop ? '#4ade80' : undefined, fontWeight: isTop ? 700 : undefined }}>
+                    {fmt(r.data.totalFinalAmount)}
+                  </td>
+                  <td style={TD('right')}>{r.data.salesPersonStats.length}</td>
+                  <td style={TD('right')}>{r.data.csoStats.length}</td>
+                  <td style={TD('right')}>{r.data.hospitalRanking.length}</td>
+                  <td style={TD('right')}>{r.data.itemStats.length}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════ */
+/*  복수 파일 탭 뷰                                             */
+/* ════════════════════════════════════════════════════════════ */
+function MultiReport({ reports, activeTab, setActiveTab }: {
+  reports: EdiReport[];
+  activeTab: number;
+  setActiveTab: (i: number) => void;
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+      <ComparisonSummary reports={reports} />
+      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem 1.2rem' }}>
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+          {reports.map((r, i) => (
+            <button key={r.doc_id} onClick={() => setActiveTab(i)} style={{
+              padding: '0.35rem 0.9rem', borderRadius: '8px', fontSize: '0.8rem',
+              fontWeight: activeTab === i ? 700 : 400,
+              background: activeTab === i ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${activeTab === i ? 'rgba(168,85,247,0.45)' : 'rgba(255,255,255,0.1)'}`,
+              color: activeTab === i ? '#c4b5fd' : 'var(--text-muted)',
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+            }}>
+              {r.period || r.filename.replace(/\.[^.]+$/, '')}
+            </button>
+          ))}
+        </div>
+        <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+          {reports[activeTab].filename}
+        </p>
+        <EdiDashboard data={reports[activeTab].data} />
+      </div>
+    </div>
+  );
+}
 
 /* ════════════════════════════════════════════════════════════ */
 /*  대시보드 본문 (5개 테이블)                                  */
