@@ -158,12 +158,15 @@ const AI_EXAMPLES: { title: string; topic: string }[] = [
 ];
 
 function AiReportModal({ onClose, onDone }: { onClose: () => void; onDone: (filename: string) => void }) {
-  const [title,   setTitle]   = useState('');
-  const [topic,   setTopic]   = useState('');
-  const [status,  setStatus]  = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
-  const [msg,     setMsg]     = useState('');
+  const [title,    setTitle]    = useState('');
+  const [topic,    setTopic]    = useState('');
+  const [status,   setStatus]   = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [msg,      setMsg]      = useState('');
+  const [lastFile, setLastFile] = useState('');
+  const [genCount, setGenCount] = useState(0);   // 이번 세션 생성 횟수
   const topicRef = useRef<HTMLTextAreaElement>(null);
 
+  const isEditable  = status !== 'loading';
   const canGenerate = title.trim().length >= 2 && topic.trim().length >= 5 && status !== 'loading';
 
   async function handleGenerate() {
@@ -182,13 +185,26 @@ function AiReportModal({ onClose, onDone }: { onClose: () => void; onDone: (file
         setMsg(json.error ?? '생성 실패');
         return;
       }
+      setLastFile(json.filename);
+      setGenCount(c => c + 1);
       setStatus('done');
-      setMsg(`✅ "${json.filename}" 생성 완료!`);
-      setTimeout(() => { onClose(); onDone(json.filename); }, 1200);
+      setMsg(`✅  "${json.filename}" 생성 완료`);
     } catch (e) {
       setStatus('error');
       setMsg(e instanceof Error ? e.message : '네트워크 오류');
     }
+  }
+
+  // 요구사항 수정 후 재분석 — 제목·내용은 유지하고 입력 활성화
+  function handleReanalyze() {
+    setStatus('idle');
+    setMsg('');
+    setTimeout(() => topicRef.current?.focus(), 50);
+  }
+
+  // 모달 닫기 — 생성된 파일이 있으면 목록 새로고침
+  function handleClose() {
+    if (lastFile) { onDone(lastFile); } else { onClose(); }
   }
 
   const iStyle: CSSProperties = {
@@ -201,21 +217,31 @@ function AiReportModal({ onClose, onDone }: { onClose: () => void; onDone: (file
   return (
     <div
       style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(5px)' }}
-      onClick={onClose}
+      onClick={status === 'loading' ? undefined : handleClose}
     >
       <div
         style={{ width: '100%', maxWidth: '620px', margin: '1rem', borderRadius: '18px', background: '#131929', border: '1px solid rgba(167,139,250,0.25)', padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.1rem' }}
         onClick={e => e.stopPropagation()}
       >
         {/* 헤더 */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
-            <span style={{ fontSize: '1.2rem' }}>✨</span>
-            <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>AI 분석 리포트 생성</h2>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.35rem' }}>
+              <span style={{ fontSize: '1.2rem' }}>✨</span>
+              <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>AI 분석 리포트 생성</h2>
+              {genCount > 0 && (
+                <span style={{ fontSize: '0.7rem', padding: '1px 8px', borderRadius: '100px',
+                  background: 'rgba(74,222,128,0.12)', border: '1px solid rgba(74,222,128,0.28)',
+                  color: '#86efac', fontWeight: 600 }}>
+                  {genCount}회 생성됨
+                </span>
+              )}
+            </div>
+            <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
+              리포트 제목과 분석 내용을 입력하면 DB 데이터를 기반으로 HTML 리포트를 자동 생성합니다.
+              <br />생성 후 요구사항을 수정하여 바로 재분석할 수 있습니다.
+            </p>
           </div>
-          <p style={{ margin: 0, fontSize: '0.78rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
-            리포트 제목과 분석할 내용을 입력하면 DB 데이터를 기반으로 HTML 리포트를 자동 생성합니다.
-          </p>
         </div>
 
         {/* 예시 주제 */}
@@ -225,11 +251,13 @@ function AiReportModal({ onClose, onDone }: { onClose: () => void; onDone: (file
             {AI_EXAMPLES.map(ex => (
               <button
                 key={ex.title}
-                onClick={() => { setTitle(ex.title); setTopic(ex.topic); topicRef.current?.focus(); }}
+                onClick={() => { setTitle(ex.title); setTopic(ex.topic); if (status === 'done' || status === 'error') setStatus('idle'); topicRef.current?.focus(); }}
+                disabled={!isEditable}
                 style={{
                   padding: '0.25rem 0.65rem', borderRadius: '100px', fontSize: '0.72rem',
                   background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.22)',
-                  color: '#c4b5fd', cursor: 'pointer', fontFamily: 'inherit',
+                  color: '#c4b5fd', cursor: isEditable ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
+                  opacity: isEditable ? 1 : 0.45,
                 }}
               >{ex.title}</button>
             ))}
@@ -244,10 +272,10 @@ function AiReportModal({ onClose, onDone }: { onClose: () => void; onDone: (file
           <input
             type="text"
             value={title}
-            onChange={e => setTitle(e.target.value)}
+            onChange={e => { setTitle(e.target.value); if (status === 'done' || status === 'error') setStatus('idle'); }}
             placeholder="예) 2026년 상반기 CSO 채널별 수수료 현황 분석"
             style={iStyle}
-            disabled={status === 'loading'}
+            disabled={!isEditable}
           />
         </div>
 
@@ -255,16 +283,16 @@ function AiReportModal({ onClose, onDone }: { onClose: () => void; onDone: (file
         <div>
           <p style={{ margin: '0 0 0.35rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', letterSpacing: '0.04em' }}>
             분석 내용 <span style={{ color: '#f87171' }}>*</span>
-            <span style={{ marginLeft: '0.5rem', color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>어떤 내용을 분석할지 구체적으로 작성할수록 정확한 리포트가 생성됩니다</span>
+            <span style={{ marginLeft: '0.5rem', color: 'rgba(255,255,255,0.25)', fontWeight: 400 }}>구체적으로 작성할수록 정확한 리포트가 생성됩니다</span>
           </p>
           <textarea
             ref={topicRef}
             rows={4}
             value={topic}
-            onChange={e => setTopic(e.target.value)}
+            onChange={e => { setTopic(e.target.value); if (status === 'done' || status === 'error') setStatus('idle'); }}
             placeholder="예) CSO 채널별 수수료율 현황을 분석하고 채널 간 차이 및 시사점을 도출해줘"
             style={{ ...iStyle, resize: 'vertical' }}
-            disabled={status === 'loading'}
+            disabled={!isEditable}
           />
         </div>
 
@@ -285,22 +313,42 @@ function AiReportModal({ onClose, onDone }: { onClose: () => void; onDone: (file
         )}
 
         {/* 버튼 */}
-        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} disabled={status === 'loading'} style={{
-            padding: '0.55rem 1.1rem', borderRadius: '8px', fontSize: '0.83rem',
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-            color: 'rgba(255,255,255,0.6)', cursor: 'pointer',
-          }}>취소</button>
-          <button onClick={handleGenerate} disabled={!canGenerate} style={{
-            padding: '0.55rem 1.3rem', borderRadius: '8px', fontSize: '0.83rem', fontWeight: 700,
-            background: canGenerate ? 'rgba(167,139,250,0.2)' : 'rgba(255,255,255,0.05)',
-            border: `1px solid ${canGenerate ? 'rgba(167,139,250,0.45)' : 'rgba(255,255,255,0.1)'}`,
-            color: canGenerate ? '#c4b5fd' : 'rgba(255,255,255,0.3)',
-            cursor: canGenerate ? 'pointer' : 'not-allowed',
-            transition: 'all 0.15s',
-          }}>
-            {status === 'loading' ? '생성 중…' : '✨ 리포트 생성'}
-          </button>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          {status === 'done' ? (
+            /* ── 생성 완료 상태 ── */
+            <>
+              <button onClick={handleClose} style={{
+                padding: '0.55rem 1.1rem', borderRadius: '8px', fontSize: '0.83rem',
+                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontFamily: 'inherit',
+              }}>닫기</button>
+              <button onClick={handleReanalyze} style={{
+                padding: '0.55rem 1.3rem', borderRadius: '8px', fontSize: '0.83rem', fontWeight: 700,
+                background: 'rgba(167,139,250,0.2)', border: '1px solid rgba(167,139,250,0.45)',
+                color: '#c4b5fd', cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+              }}>↺ 요구사항 수정 후 재분석</button>
+            </>
+          ) : (
+            /* ── idle / loading / error 상태 ── */
+            <>
+              <button onClick={handleClose} disabled={status === 'loading'} style={{
+                padding: '0.55rem 1.1rem', borderRadius: '8px', fontSize: '0.83rem',
+                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+                color: 'rgba(255,255,255,0.6)', cursor: status === 'loading' ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit', opacity: status === 'loading' ? 0.5 : 1,
+              }}>{genCount > 0 ? '닫기' : '취소'}</button>
+              <button onClick={handleGenerate} disabled={!canGenerate} style={{
+                padding: '0.55rem 1.3rem', borderRadius: '8px', fontSize: '0.83rem', fontWeight: 700,
+                background: canGenerate ? 'rgba(167,139,250,0.2)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${canGenerate ? 'rgba(167,139,250,0.45)' : 'rgba(255,255,255,0.1)'}`,
+                color: canGenerate ? '#c4b5fd' : 'rgba(255,255,255,0.3)',
+                cursor: canGenerate ? 'pointer' : 'not-allowed',
+                transition: 'all 0.15s', fontFamily: 'inherit',
+              }}>
+                {status === 'loading' ? '생성 중…' : genCount > 0 ? '✨ 재분석' : '✨ 리포트 생성'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>
