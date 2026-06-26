@@ -5,6 +5,7 @@ import { normalizeRole } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import MarketingClient from '@/components/MarketingClient';
+import type { ScheduleCategory } from '@/app/calendar/actions';
 
 export type MarketingSchedule = {
   id:         string;
@@ -45,12 +46,18 @@ export default async function MarketingPage() {
   const to = new Date();
   to.setMonth(to.getMonth() + 12);
 
-  const { data: schedules } = await supabase
-    .from('marketing_schedules')
-    .select('*')
-    .gte('start_date', from.toISOString().slice(0, 10))
-    .lte('start_date', to.toISOString().slice(0, 10))
-    .order('start_date', { ascending: true });
+  const [{ data: schedules }, { data: categoryRows }] = await Promise.all([
+    supabase
+      .from('marketing_schedules')
+      .select('*')
+      .gte('start_date', from.toISOString().slice(0, 10))
+      .lte('start_date', to.toISOString().slice(0, 10))
+      .order('start_date', { ascending: true }),
+    supabase
+      .from('schedule_categories')
+      .select('id, name, color, sort_order')
+      .order('sort_order', { ascending: true }),
+  ]);
 
   // 작성자 이메일 매핑 (관리자)
   let emailMap: Record<string, string> = {};
@@ -64,6 +71,18 @@ export default async function MarketingPage() {
     ...(s as MarketingSchedule),
     user_email: isAdmin ? (emailMap[s.user_id] ?? s.user_id) : undefined,
   }));
+
+  const DEFAULT_CATEGORIES: ScheduleCategory[] = [
+    { id: 'default-0', name: '학술대회',   color: '#a78bfa', sort_order: 0 },
+    { id: 'default-1', name: '심포지엄',   color: '#22d3ee', sort_order: 1 },
+    { id: 'default-2', name: '제품설명회', color: '#34d399', sort_order: 2 },
+    { id: 'default-3', name: '영업관리',   color: '#fb923c', sort_order: 3 },
+    { id: 'default-4', name: '영업미팅',   color: '#60a5fa', sort_order: 4 },
+    { id: 'default-5', name: '기타',       color: '#94a3b8', sort_order: 5 },
+  ];
+  const categories: ScheduleCategory[] = (categoryRows && categoryRows.length > 0)
+    ? (categoryRows as ScheduleCategory[])
+    : DEFAULT_CATEGORIES;
 
   return (
     <>
@@ -88,6 +107,7 @@ export default async function MarketingPage() {
 
         <MarketingClient
           initialSchedules={records}
+          initialCategories={categories}
           userId={user.id}
           isAdmin={isAdmin}
         />
