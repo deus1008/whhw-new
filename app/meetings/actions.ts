@@ -20,10 +20,13 @@ async function getUser() {
 export async function getMeetings(): Promise<MeetingRow[]> {
   const { data } = await svc()
     .from('meetings')
-    .select('id, title, category, meeting_date, todos, created_at, updated_at')
-    .order('meeting_date', { ascending: false })
+    .select('id, title, category, meeting_date, todos, status, priority, created_at, updated_at')
     .order('created_at', { ascending: false });
-  return (data ?? []) as MeetingRow[];
+  return (data ?? []).map(r => ({
+    ...r,
+    status:   (r.status   ?? '대기') as MeetingRow['status'],
+    priority: (r.priority ?? '보통') as MeetingRow['priority'],
+  })) as MeetingRow[];
 }
 
 export async function getMeeting(id: string): Promise<MeetingRow | null> {
@@ -32,13 +35,20 @@ export async function getMeeting(id: string): Promise<MeetingRow | null> {
     .select('*')
     .eq('id', id)
     .single();
-  return (data ?? null) as MeetingRow | null;
+  if (!data) return null;
+  return {
+    ...data,
+    status:   (data.status   ?? '대기') as MeetingRow['status'],
+    priority: (data.priority ?? '보통') as MeetingRow['priority'],
+  } as MeetingRow;
 }
 
 export async function createMeeting(form: {
   title: string;
   category: string;
   meeting_date: string;
+  status?: string;
+  priority?: string;
 }): Promise<{ id?: string; error?: string }> {
   const user = await getUser();
   if (!user) return { error: '인증이 필요합니다.' };
@@ -53,7 +63,7 @@ export async function createMeeting(form: {
 
 export async function updateMeeting(
   id: string,
-  updates: Partial<{ title: string; category: string; content: string; todos: Todo[]; meeting_date: string }>,
+  updates: Partial<{ title: string; category: string; content: string; todos: Todo[]; meeting_date: string; status: string; priority: string }>,
 ): Promise<{ error?: string }> {
   const user = await getUser();
   if (!user) return { error: '인증이 필요합니다.' };
