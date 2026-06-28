@@ -343,17 +343,22 @@ export default async function AdminPage() {
     adminSvc.auth.admin.listUsers({ perPage: 1000 }),
     adminSvc.from('visit_records').select('user_id').gte('visited_at', thirtyDaysAgo),
     adminSvc.from('documents').select('uploaded_by').gte('created_at', thirtyDaysAgo),
-    adminSvc.from('marketing_schedules').select('id', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo),
-    adminSvc.from('new_contracts').select('id', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo),
+    adminSvc.from('marketing_schedules').select('user_id').gte('created_at', thirtyDaysAgo),
+    adminSvc.from('new_contracts').select('user_id').gte('created_at', thirtyDaysAgo),
   ]);
 
   const authUsers     = authResp.data?.users ?? [];
   const lastSignInMap = new Map(authUsers.map(u => [u.id, u.last_sign_in_at as string | null]));
 
-  const visitMap = new Map<string, number>();
-  for (const v of visitResp.data ?? []) visitMap.set(v.user_id, (visitMap.get(v.user_id) ?? 0) + 1);
-
-  const docMap = new Map<string, number>();
+  function buildMap(rows: { user_id?: string | null }[] | null): Map<string, number> {
+    const m = new Map<string, number>();
+    for (const r of rows ?? []) if (r.user_id) m.set(r.user_id, (m.get(r.user_id) ?? 0) + 1);
+    return m;
+  }
+  const visitMap    = buildMap(visitResp.data as { user_id: string }[]);
+  const scheduleMap = buildMap(scheduleResp.data as { user_id: string }[]);
+  const contractMap = buildMap(contractResp.data as { user_id: string }[]);
+  const docMap      = new Map<string, number>();
   for (const d of docResp.data ?? []) if (d.uploaded_by) docMap.set(d.uploaded_by, (docMap.get(d.uploaded_by) ?? 0) + 1);
 
   const loggedInToday  = authUsers.filter(u => u.last_sign_in_at && u.last_sign_in_at >= todayStart).length;
@@ -362,19 +367,26 @@ export default async function AdminPage() {
   const totalDocs30d   = docResp.data?.length ?? 0;
 
   /* ── 페이지별 활동량 (상위 3) ── */
+  const sum = (m: Map<string, number>) => [...m.values()].reduce((a, b) => a + b, 0);
   const pageStats = [
-    { label: '방문관리',    path: '/visits',   count: visitResp.data?.length ?? 0,    color: '#fde68a' },
-    { label: '마케팅 일정', path: '/calendar', count: scheduleResp.count ?? 0,         color: '#86efac' },
-    { label: '문서관리',    path: '/documents', count: docResp.data?.length ?? 0,      color: '#93c5fd' },
-    { label: '계약관리',    path: '/contracts', count: contractResp.count ?? 0,         color: '#c4b5fd' },
+    { label: '방문관리',    count: sum(visitMap),    color: '#fde68a' },
+    { label: '마케팅 일정', count: sum(scheduleMap), color: '#86efac' },
+    { label: '문서관리',    count: sum(docMap),      color: '#93c5fd' },
+    { label: '계약관리',    count: sum(contractMap), color: '#c4b5fd' },
   ].sort((a, b) => b.count - a.count).slice(0, 3);
   const maxPageCount = pageStats[0]?.count || 1;
 
-  const approvedSorted = [...approved].sort((a, b) => {
-    const aS = lastSignInMap.get(a.id) ?? '';
-    const bS = lastSignInMap.get(b.id) ?? '';
-    return bS.localeCompare(aS);
-  });
+  /* ── 역할별 그룹 ── */
+  function getPrimaryRole(p: Profile): string {
+    const roles = getRoles(p).map(r => normalizeRole(r));
+    if (roles.length === 0) return '미지정';
+    const idx = Math.min(...roles.map(r => ROLE_SORT[r] ?? 99));
+    return roles.find(r => (ROLE_SORT[r] ?? 99) === idx) ?? '미지정';
+  }
+  const roleGroups = ALL_ROLES
+    .map(role => ({ role, users: approved.filter(p => getPrimaryRole(p) === role) }))
+    .filter(g => g.users.length > 0);
+  const unassigned = approved.filter(p => getPrimaryRole(p) === '미지정');
 
   return (
     <>
@@ -455,54 +467,82 @@ export default async function AdminPage() {
             ))}
           </div>
 
-          {/* 사용자별 활동 테이블 */}
+          {/* 사용자별 활동 테이블 — 역할별 그룹 */}
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.09)' }}>
-                  {(['이름', '마지막 로그인', '방문(30일)', '문서(30일)'] as const).map((h, i) => (
+                  {([
+                    { h: '이름',        align: 'left'  },
+                    { h: '로그인',      align: 'right' },
+                    { h: '방문',        align: 'right' },
+                    { h: '일정',        align: 'right' },
+                    { h: '문서',        align: 'right' },
+                    { h: '계약',        align: 'right' },
+                  ] as const).map(({ h, align }) => (
                     <th key={h} style={{
-                      padding: '0.4rem 0.55rem', fontSize: '0.68rem', fontWeight: 600,
-                      color: 'var(--text-muted)', textAlign: i === 0 ? 'left' : 'right',
-                      whiteSpace: 'nowrap',
+                      padding: '0.4rem 0.45rem', fontSize: '0.67rem', fontWeight: 600,
+                      color: 'var(--text-muted)', textAlign: align, whiteSpace: 'nowrap',
                     }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {approvedSorted.map((p, ni) => {
-                  const lastSignIn  = lastSignInMap.get(p.id);
-                  const signInDate  = lastSignIn ? new Date(lastSignIn) : null;
-                  const isToday     = signInDate && signInDate.toISOString() >= todayStart;
-                  const isThisWeek  = signInDate && signInDate.toISOString() >= sevenDaysAgo;
-                  const visits      = visitMap.get(p.id) ?? 0;
-                  const docs        = docMap.get(p.id) ?? 0;
-                  const signInLabel = signInDate
-                    ? isToday
-                      ? `오늘 ${signInDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}`
-                      : signInDate.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
-                    : '—';
+                {[...roleGroups, ...(unassigned.length > 0 ? [{ role: '미지정', users: unassigned }] : [])].map(({ role, users }) => {
+                  const meta = ROLE_META[role as keyof typeof ROLE_META];
+                  const sortedUsers = [...users].sort((a, b) => {
+                    const aS = lastSignInMap.get(a.id) ?? '';
+                    const bS = lastSignInMap.get(b.id) ?? '';
+                    return bS.localeCompare(aS);
+                  });
                   return (
-                    <tr key={p.id} style={{
-                      borderBottom: '1px solid rgba(255,255,255,0.04)',
-                      background: ni % 2 ? 'rgba(255,255,255,0.01)' : undefined,
-                    }}>
-                      <td style={{ padding: '0.45rem 0.55rem', fontWeight: 600, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {p.full_name ?? <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{p.email.split('@')[0]}</span>}
-                      </td>
-                      <td style={{ padding: '0.45rem 0.55rem', textAlign: 'right', whiteSpace: 'nowrap', fontSize: '0.73rem',
-                        color: isToday ? '#4ade80' : isThisWeek ? '#93c5fd' : 'var(--text-muted)' }}>
-                        {signInLabel}
-                      </td>
-                      <td style={{ padding: '0.45rem 0.55rem', textAlign: 'right', fontWeight: visits > 0 ? 700 : undefined,
-                        color: visits > 0 ? '#fde68a' : 'var(--text-muted)' }}>
-                        {visits > 0 ? visits : '—'}
-                      </td>
-                      <td style={{ padding: '0.45rem 0.55rem', textAlign: 'right', fontWeight: docs > 0 ? 700 : undefined,
-                        color: docs > 0 ? '#c4b5fd' : 'var(--text-muted)' }}>
-                        {docs > 0 ? docs : '—'}
-                      </td>
-                    </tr>
+                    <>
+                      {/* 역할 그룹 헤더 */}
+                      <tr key={`group-${role}`} style={{ background: 'rgba(255,255,255,0.04)' }}>
+                        <td colSpan={6} style={{
+                          padding: '0.3rem 0.55rem', fontSize: '0.67rem', fontWeight: 700,
+                          color: meta?.color ?? 'var(--text-muted)',
+                          letterSpacing: '0.04em',
+                        }}>
+                          {meta?.label ?? role} ({users.length}명)
+                        </td>
+                      </tr>
+                      {sortedUsers.map((p) => {
+                        const lastSignIn  = lastSignInMap.get(p.id);
+                        const signInDate  = lastSignIn ? new Date(lastSignIn) : null;
+                        const isToday     = signInDate && signInDate.toISOString() >= todayStart;
+                        const isThisWeek  = signInDate && signInDate.toISOString() >= sevenDaysAgo;
+                        const visits      = visitMap.get(p.id)    ?? 0;
+                        const schedules   = scheduleMap.get(p.id) ?? 0;
+                        const docs        = docMap.get(p.id)      ?? 0;
+                        const contracts   = contractMap.get(p.id) ?? 0;
+                        const signInLabel = signInDate
+                          ? isToday
+                            ? `오늘 ${signInDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                            : signInDate.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+                          : '—';
+                        const cell = (val: number, color: string) => (
+                          <td style={{ padding: '0.42rem 0.45rem', textAlign: 'right', fontWeight: val > 0 ? 700 : undefined, color: val > 0 ? color : 'rgba(255,255,255,0.18)', fontSize: '0.75rem' }}>
+                            {val > 0 ? val : '—'}
+                          </td>
+                        );
+                        return (
+                          <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                            <td style={{ padding: '0.42rem 0.55rem', fontWeight: 600, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {p.full_name ?? <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{p.email.split('@')[0]}</span>}
+                            </td>
+                            <td style={{ padding: '0.42rem 0.45rem', textAlign: 'right', whiteSpace: 'nowrap', fontSize: '0.72rem',
+                              color: isToday ? '#4ade80' : isThisWeek ? '#93c5fd' : 'rgba(255,255,255,0.3)' }}>
+                              {signInLabel}
+                            </td>
+                            {cell(visits,    '#fde68a')}
+                            {cell(schedules, '#86efac')}
+                            {cell(docs,      '#93c5fd')}
+                            {cell(contracts, '#c4b5fd')}
+                          </tr>
+                        );
+                      })}
+                    </>
                   );
                 })}
               </tbody>
