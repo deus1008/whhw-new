@@ -382,19 +382,19 @@ export default async function AdminPage() {
   const approved = all.filter(p => p.status === 'approved');
   const rejected = all.filter(p => p.status === 'rejected');
 
-  /* ── 위탁사 목록 ── */
-  const { data: companiesData } = await supabase
-    .from('client_companies')
-    .select('id, name, code')
-    .eq('status', 'active')
-    .order('display_order', { ascending: true });
-  const companiesList = (companiesData ?? []) as ClientCompany[];
-
   /* ── 활동 통계 데이터 ── */
   const adminSvc = createSvc(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
+
+  /* ── 위탁사 목록 (서비스롤 클라이언트로 RLS 우회) ── */
+  const { data: companiesData } = await adminSvc
+    .from('client_companies')
+    .select('id, name, code')
+    .eq('status', 'active')
+    .order('display_order', { ascending: true });
+  const companiesList = (companiesData ?? []) as ClientCompany[];
   const now           = new Date();
   // KST(UTC+9) 자정을 UTC로 환산
   const KST_MS        = 9 * 60 * 60 * 1000;
