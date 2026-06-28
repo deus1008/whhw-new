@@ -104,7 +104,7 @@ function ActionButtons({ profile, companies }: { profile: Profile; companies: Cl
             cursor: 'pointer',
           }}
         >
-          <option value="">— 위탁사 미지정 —</option>
+          <option value="">아주얼라이언스 (내부직원)</option>
           {companies.map(c => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}

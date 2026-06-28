@@ -59,7 +59,8 @@ export default async function DashboardPage() {
   const svc = getSvc();
 
   // 위탁사 이름 조회 (뱃지 표시용)
-  let companyName: string | null = null;
+  // 위탁사 배정 없는 일반 직원 = 판매대행사(아주얼라이언스) 소속
+  let companyName: string | null = isAdmin ? null : '아주얼라이언스';
   if (companyId) {
     const { data: cd } = await svc
       .from('client_companies').select('name').eq('id', companyId).single();
