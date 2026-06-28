@@ -38,7 +38,7 @@ export default async function EdiPage() {
         style={{ maxWidth: '1160px', paddingTop: '2.5rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}
       >
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem, 4vw, 1.8rem)' }}>
-          판매대행사업
+          처방실적
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
