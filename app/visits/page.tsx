@@ -104,6 +104,7 @@ export default async function VisitsPage() {
 
         <Suspense>
           <VisitsClient
+            key={companyId ?? 'default'}
             initialRecords={records}
             userId={user.id}
             isAdmin={isAdmin}
