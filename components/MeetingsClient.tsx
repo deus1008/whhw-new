@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { createMeeting, deleteMeeting, updateMeeting } from '@/app/meetings/actions';
+import { createMeeting, deleteMeeting, updateMeeting, clearCategory } from '@/app/meetings/actions';
 import { CATEGORIES, type MeetingRow } from '@/app/meetings/types';
 
 const DEFAULT_CATS: string[] = [...CATEGORIES];
@@ -49,6 +49,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
 
   /* ── 동적 분류 목록 ──────────────────────────────────────────── */
   const [localCats, setLocalCats] = useState<string[]>([]);
+  const [hoveredCat, setHoveredCat] = useState<string | null>(null);
 
   const allCategories = useMemo(() => {
     const fromMeetings = meetings.map(m => m.category).filter((c): c is string => !!c);
@@ -108,6 +109,22 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
     });
   }
 
+  function handleDeleteCategory(cat: string, count: number) {
+    const msg = count > 0
+      ? `"${cat}" 분류를 사용하는 회의록 ${count}건의 분류가 제거됩니다. 삭제할까요?`
+      : `"${cat}" 분류를 삭제할까요?`;
+    if (!confirm(msg)) return;
+    setLocalCats(prev => prev.filter(c => c !== cat));
+    if (activeCategory === cat) setActiveCategory('전체');
+    setHoveredCat(null);
+    if (count === 0) return;
+    startTransition(async () => {
+      const res = await clearCategory(cat);
+      if (res.error) { alert(res.error); return; }
+      setMeetings(prev => prev.map(m => m.category === cat ? { ...m, category: '' } : m));
+    });
+  }
+
   function handleCategoryChange(id: string, cat: string) {
     /* 새 분류면 localCats에 추가 */
     if (!allCategories.includes(cat)) setLocalCats(prev => [...prev, cat]);
@@ -127,28 +144,49 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
             const count = cat === '전체' ? meetings.length : meetings.filter(m => m.category === cat).length;
             const active = activeCategory === cat;
             const style = cat !== '전체' ? cs(cat) : null;
+            const isDeletable = cat !== '전체' && !DEFAULT_CATS.includes(cat);
+            const isHovered = hoveredCat === cat;
             return (
-              <button
+              <div
                 key={cat}
-                onClick={() => setActiveCategory(cat)}
-                style={{
-                  padding: '0.3rem 0.8rem', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  border: active
-                    ? (style ? `1px solid ${style.color}88` : '1px solid rgba(255,255,255,0.3)')
-                    : '1px solid rgba(255,255,255,0.1)',
-                  background: active
-                    ? (style ? style.bg : 'rgba(255,255,255,0.08)')
-                    : 'rgba(255,255,255,0.03)',
-                  color: active
-                    ? (style ? style.color : '#e2e8f0')
-                    : 'rgba(255,255,255,0.4)',
-                  transition: 'all 0.12s',
-                }}
+                style={{ position: 'relative', display: 'inline-flex' }}
+                onMouseEnter={() => isDeletable && setHoveredCat(cat)}
+                onMouseLeave={() => isDeletable && setHoveredCat(null)}
               >
-                {cat}
-                <span style={{ marginLeft: '0.3rem', opacity: 0.65, fontSize: '0.72rem' }}>{count}</span>
-              </button>
+                <button
+                  onClick={() => setActiveCategory(cat)}
+                  style={{
+                    padding: '0.3rem 0.8rem', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600,
+                    cursor: 'pointer', fontFamily: 'inherit',
+                    border: active
+                      ? (style ? `1px solid ${style.color}88` : '1px solid rgba(255,255,255,0.3)')
+                      : '1px solid rgba(255,255,255,0.1)',
+                    background: active
+                      ? (style ? style.bg : 'rgba(255,255,255,0.08)')
+                      : 'rgba(255,255,255,0.03)',
+                    color: active
+                      ? (style ? style.color : '#e2e8f0')
+                      : 'rgba(255,255,255,0.4)',
+                    transition: 'all 0.12s',
+                    paddingRight: isDeletable && isHovered ? '1.4rem' : '0.8rem',
+                  }}
+                >
+                  {cat}
+                  <span style={{ marginLeft: '0.3rem', opacity: 0.65, fontSize: '0.72rem' }}>{count}</span>
+                </button>
+                {isDeletable && isHovered && (
+                  <button
+                    onClick={() => handleDeleteCategory(cat, count)}
+                    title="분류 삭제"
+                    style={{
+                      position: 'absolute', top: '50%', right: '0.35rem', transform: 'translateY(-50%)',
+                      background: 'none', border: 'none', padding: '0 0.1rem',
+                      cursor: 'pointer', color: 'rgba(248,113,113,0.9)', fontSize: '0.8rem',
+                      lineHeight: 1, fontWeight: 700,
+                    }}
+                  >×</button>
+                )}
+              </div>
             );
           })}
         </div>

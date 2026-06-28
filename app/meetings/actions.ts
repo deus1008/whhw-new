@@ -73,6 +73,17 @@ export async function deleteMeeting(id: string): Promise<{ error?: string }> {
   return {};
 }
 
+export async function clearCategory(category: string): Promise<{ error?: string }> {
+  const user = await getUser();
+  if (!user) return { error: '인증이 필요합니다.' };
+  const { error } = await svc()
+    .from('meetings')
+    .update({ category: null, updated_at: new Date().toISOString() })
+    .eq('category', category);
+  if (error) return { error: error.message };
+  return {};
+}
+
 export async function addTodoToCalendar(params: {
   todoText:     string;
   meetingTitle: string;
