@@ -1,12 +1,36 @@
 'use server';
 
+import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
+import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 
 function svc() {
   return createSvc(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
+}
+
+/** 현재 세션 기준 활성 위탁사 ID 조회 */
+async function getActiveCompanyId(): Promise<string | null> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, company_id')
+      .eq('id', user.id)
+      .single();
+    if (!profile) return null;
+    const isAdmin = normalizeRole(profile.role as string) === '관리자';
+    const profileCompanyId = (profile.company_id as string) ?? null;
+    const isAlliance = isAllianceEmployee(profileCompanyId, isAdmin);
+    return await getEffectiveCompanyId(profileCompanyId, isAdmin || isAlliance);
+  } catch {
+    return null;
+  }
 }
 
 export type UbistSearchItem = {
@@ -38,13 +62,17 @@ export type UbistIngredientOption = {
 /** 검색어로 성분명 후보 목록 반환 (성분명·제품명 모두 검색) */
 export async function findUbistIngredientOptions(query: string): Promise<UbistIngredientOption[]> {
   if (!query.trim()) return [];
+  const companyId = await getActiveCompanyId();
   const q = `%${query.trim()}%`;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function applyFilter(q: any) { return companyId ? q.eq('company_id', companyId) : q; }
+
   const [r1, r2] = await Promise.all([
-    svc().from('ubist_data').select('ingredient_name, product_name')
-      .ilike('ingredient_name', q).not('ingredient_name', 'is', null).limit(3000),
-    svc().from('ubist_data').select('ingredient_name, product_name')
-      .ilike('product_name', q).not('ingredient_name', 'is', null).limit(3000),
+    applyFilter(svc().from('ubist_data').select('ingredient_name, product_name')
+      .ilike('ingredient_name', q).not('ingredient_name', 'is', null).limit(3000)),
+    applyFilter(svc().from('ubist_data').select('ingredient_name, product_name')
+      .ilike('product_name', q).not('ingredient_name', 'is', null).limit(3000)),
   ]);
 
   // 성분명별 고유 제품명 집합
@@ -66,12 +94,16 @@ export async function findUbistIngredientOptions(query: string): Promise<UbistIn
 /** 선택된 성분명 목록으로 고유 제품 목록 반환 */
 export async function searchUbistByIngredients(ingredientNames: string[]): Promise<UbistSearchItem[]> {
   if (!ingredientNames.length) return [];
+  const companyId = await getActiveCompanyId();
 
-  const { data } = await svc()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = svc()
     .from('ubist_data')
     .select('product_name, ingredient_name, manufacturer')
     .in('ingredient_name', ingredientNames)
     .limit(2000);
+  if (companyId) q = q.eq('company_id', companyId);
+  const { data } = await q;
 
   const seen = new Map<string, UbistSearchItem>();
   for (const row of data ?? []) {
@@ -95,21 +127,17 @@ export async function searchUbistByIngredients(ingredientNames: string[]): Promi
 /** 의약품명/성분명으로 검색 → 고유 제품 목록 반환 */
 export async function searchUbistItems(query: string): Promise<UbistSearchItem[]> {
   if (!query.trim()) return [];
+  const companyId = await getActiveCompanyId();
   const q = `%${query.trim()}%`;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function applyFilter(base: any) { return companyId ? base.eq('company_id', companyId) : base; }
 
   // .or() 내 한글+% 패턴이 PostgREST에서 인코딩 문제를 일으킬 수 있어
   // 두 개의 별도 쿼리로 분리 후 합산
   const [r1, r2] = await Promise.all([
-    svc()
-      .from('ubist_data')
-      .select('product_name, ingredient_name, manufacturer')
-      .ilike('product_name', q)
-      .limit(300),
-    svc()
-      .from('ubist_data')
-      .select('product_name, ingredient_name, manufacturer')
-      .ilike('ingredient_name', q)
-      .limit(300),
+    applyFilter(svc().from('ubist_data').select('product_name, ingredient_name, manufacturer').ilike('product_name', q).limit(300)),
+    applyFilter(svc().from('ubist_data').select('product_name, ingredient_name, manufacturer').ilike('ingredient_name', q).limit(300)),
   ]);
 
   const combined = [...(r1.data ?? []), ...(r2.data ?? [])];
@@ -142,13 +170,16 @@ export async function analyzeUbistItems(
   hospitalTypes?: string[],   // 빈 배열 또는 미전달 = 전체
 ): Promise<UbistProductAnalysis[]> {
   if (!productNames.length) return [];
+  const companyId = await getActiveCompanyId();
 
-  let query = svc()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query: any = svc()
     .from('ubist_data')
     .select('product_name, ingredient_name, manufacturer, period, prescription_amount, prescription_count')
     .in('product_name', productNames)
     .order('period', { ascending: true });
 
+  if (companyId) query = query.eq('company_id', companyId);
   if (hospitalTypes && hospitalTypes.length > 0) {
     query = query.in('hospital_type', hospitalTypes);
   }
