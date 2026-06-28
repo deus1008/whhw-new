@@ -73,8 +73,8 @@ export default async function VisitsPage() {
       (profiles ?? []).map(p => [p.id, { email: p.email as string, full_name: p.full_name as string | null }]),
     );
 
-  const records: VisitRecord[] = (all ?? []).map(r => ({
-    ...(r as VisitRecord),
+  const records: VisitRecord[] = ((all ?? []) as VisitRecord[]).map(r => ({
+    ...r,
     user_email: profileMap[r.user_id]?.email ?? r.user_id,
     user_name:  profileMap[r.user_id]?.full_name ?? undefined,
   }));
