@@ -212,11 +212,11 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(251,191,36,0.10)',
     bd:   'rgba(251,191,36,0.22)',
   },
-  // ⑯-3 회의록
+  // ⑯-3 Task
   {
     href: '/meetings',
     icon: '🗒️',
-    label: '회의록',
+    label: 'Task',
     color: '#86efac',
     bg:   'rgba(74,222,128,0.10)',
     bd:   'rgba(74,222,128,0.22)',
