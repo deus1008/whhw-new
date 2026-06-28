@@ -183,6 +183,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
   const isMobile = useIsMobile();
   const [meetings, setMeetings] = useState<MeetingRow[]>(initial);
   const [activeCategory, setActiveCategory] = useState('전체');
+  const [searchQuery, setSearchQuery] = useState('');
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState<{ title: string; category: string; meeting_date: string; priority: TaskPriority }>({
     title: '', category: DEFAULT_CATS[0], meeting_date: '', priority: '보통',
@@ -204,7 +205,9 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
   }, [meetings, managedCats]);
 
   const cats = ['전체', ...allCategories.filter(cat => meetings.some(m => m.category === cat))];
-  const filtered = activeCategory === '전체' ? meetings : meetings.filter(m => m.category === activeCategory);
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = (activeCategory === '전체' ? meetings : meetings.filter(m => m.category === activeCategory))
+    .filter(m => !q || m.title.toLowerCase().includes(q) || (m.category ?? '').toLowerCase().includes(q));
 
   const byStatus: Record<TaskStatus, MeetingRow[]> = {
     '대기':   sortTasks(filtered.filter(m => (m.status ?? '대기') === '대기')),
@@ -343,6 +346,21 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
           })}
         </div>
         <button onClick={openModal} style={BTN_PRIMARY}>+ 새 Task</button>
+      </div>
+
+      {/* ── 검색 ─────────────────────────────────────────────── */}
+      <div style={{ position: 'relative', marginBottom: '1.1rem' }}>
+        <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.28)', fontSize: '0.85rem', pointerEvents: 'none' }}>🔍</span>
+        <input
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="키워드로 검색…"
+          style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.5rem 0.8rem 0.5rem 2.1rem', color: '#e2e8f0', fontSize: '0.83rem', outline: 'none', fontFamily: 'inherit' }}
+        />
+        {searchQuery && (
+          <button onClick={() => setSearchQuery('')}
+            style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', padding: 0, lineHeight: 1 }}>✕</button>
+        )}
       </div>
 
       {/* ── 칸반 보드 ─────────────────────────────────────────── */}
