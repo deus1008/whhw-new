@@ -366,6 +366,25 @@ export default async function AdminPage() {
   const totalVisits30d = visitResp.data?.length ?? 0;
   const totalDocs30d   = docResp.data?.length ?? 0;
 
+  /* ── 로그인 횟수 (auth.audit_log_entries) ── */
+  const loginCountMap = new Map<string, number>();
+  try {
+    const { data: auditData, error: auditErr } = await adminSvc
+      .schema('auth')
+      .from('audit_log_entries')
+      .select('payload')
+      .gte('created_at', thirtyDaysAgo)
+      .limit(10000);
+    if (!auditErr && auditData) {
+      for (const row of auditData) {
+        const pl = row.payload as { action?: string; actor_id?: string } | null;
+        if (pl?.action === 'login' && pl?.actor_id) {
+          loginCountMap.set(pl.actor_id, (loginCountMap.get(pl.actor_id) ?? 0) + 1);
+        }
+      }
+    }
+  } catch { /* auth 스키마 미노출 시 graceful fallback */ }
+
   /* ── 페이지별 활동량 (상위 3) ── */
   const sum = (m: Map<string, number>) => [...m.values()].reduce((a, b) => a + b, 0);
   const pageStats = [
@@ -473,12 +492,13 @@ export default async function AdminPage() {
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.09)' }}>
                   {([
-                    { h: '이름',        align: 'left'  },
-                    { h: '로그인',      align: 'right' },
-                    { h: '방문',        align: 'right' },
-                    { h: '일정',        align: 'right' },
-                    { h: '문서',        align: 'right' },
-                    { h: '계약',        align: 'right' },
+                    { h: '이름',          align: 'left'  },
+                    { h: '최근 로그인',   align: 'right' },
+                    { h: '로그인(30일)',  align: 'right' },
+                    { h: '방문',          align: 'right' },
+                    { h: '일정',          align: 'right' },
+                    { h: '문서',          align: 'right' },
+                    { h: '계약',          align: 'right' },
                   ] as const).map(({ h, align }) => (
                     <th key={h} style={{
                       padding: '0.4rem 0.45rem', fontSize: '0.67rem', fontWeight: 600,
@@ -499,7 +519,7 @@ export default async function AdminPage() {
                     <>
                       {/* 역할 그룹 헤더 */}
                       <tr key={`group-${role}`} style={{ background: 'rgba(255,255,255,0.04)' }}>
-                        <td colSpan={6} style={{
+                        <td colSpan={7} style={{
                           padding: '0.3rem 0.55rem', fontSize: '0.67rem', fontWeight: 700,
                           color: meta?.color ?? 'var(--text-muted)',
                           letterSpacing: '0.04em',
@@ -512,20 +532,22 @@ export default async function AdminPage() {
                         const signInDate  = lastSignIn ? new Date(lastSignIn) : null;
                         const isToday     = signInDate && signInDate.toISOString() >= todayStart;
                         const isThisWeek  = signInDate && signInDate.toISOString() >= sevenDaysAgo;
-                        const visits      = visitMap.get(p.id)    ?? 0;
-                        const schedules   = scheduleMap.get(p.id) ?? 0;
-                        const docs        = docMap.get(p.id)      ?? 0;
-                        const contracts   = contractMap.get(p.id) ?? 0;
+                        const visits      = visitMap.get(p.id)      ?? 0;
+                        const schedules   = scheduleMap.get(p.id)   ?? 0;
+                        const docs        = docMap.get(p.id)        ?? 0;
+                        const contracts   = contractMap.get(p.id)   ?? 0;
+                        const logins      = loginCountMap.get(p.id) ?? 0;
                         const signInLabel = signInDate
                           ? isToday
                             ? `오늘 ${signInDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}`
                             : signInDate.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
                           : '—';
-                        const cell = (val: number, color: string) => (
+                        const cell = (val: number, color: string, noData = false) => (
                           <td style={{ padding: '0.42rem 0.45rem', textAlign: 'right', fontWeight: val > 0 ? 700 : undefined, color: val > 0 ? color : 'rgba(255,255,255,0.18)', fontSize: '0.75rem' }}>
-                            {val > 0 ? val : '—'}
+                            {noData ? <span style={{ opacity: 0.3 }}>—</span> : val > 0 ? val : '—'}
                           </td>
                         );
+                        const loginNoData = loginCountMap.size === 0;
                         return (
                           <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                             <td style={{ padding: '0.42rem 0.55rem', fontWeight: 600, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -535,6 +557,7 @@ export default async function AdminPage() {
                               color: isToday ? '#4ade80' : isThisWeek ? '#93c5fd' : 'rgba(255,255,255,0.3)' }}>
                               {signInLabel}
                             </td>
+                            {cell(logins,    '#f9a8d4', loginNoData)}
                             {cell(visits,    '#fde68a')}
                             {cell(schedules, '#86efac')}
                             {cell(docs,      '#93c5fd')}
