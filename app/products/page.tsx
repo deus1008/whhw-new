@@ -5,6 +5,8 @@ import { createClient as createServiceClient } from '@supabase/supabase-js';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import ProductsClient from '@/components/ProductsClient';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 
 export type UpcomingProduct = {
   id:              string;
@@ -36,14 +38,32 @@ export default async function ProductsPage() {
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
 
   const role = normalizeRole(myProfile.role);
-  const isAdmin = role === '관리자' || role === '마케팅총괄' || role === 'PM';
-  const companyId = (myProfile.company_id as string) ?? null;
+  const isAdmin = role === '관리자' || role === '마케팅총괄' || role === 'PM'; // 편집 권한용
+  const isSystemAdmin = role === '관리자'; // 데이터 필터 우회용
 
-  // 서비스 롤 클라이언트로 RLS 우회 (발매예정 목록은 승인 멤버 전체 공개)
+  const profileCompanyId = (myProfile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isSystemAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isSystemAdmin);
+
+  // 아주얼라이언스 직원이 위탁사를 선택하지 않은 경우 대시보드로 이동 (선택 모달 안내)
+  if (isAllianceUser && !companyId) redirect('/');
+
   const sb = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
+
+  // 아주얼라이언스 직원용 위탁사 목록
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser) {
+    const { data: companiesData } = await sb
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
+
   let productsQ = sb.from('upcoming_products').select('*').order('launch_date', { ascending: true });
   if (companyId) productsQ = productsQ.eq('company_id', companyId);
   const { data, error: fetchError } = await productsQ;
@@ -67,9 +87,15 @@ export default async function ProductsPage() {
           <LogoutButton compact />
         </div>
 
+        {isAllianceUser && (
+          <AllianceCompanyBar
+            companies={allianceCompanies}
+            activeCompanyId={companyId}
+          />
+        )}
+
         <ProductsClient initialProducts={products} isAdmin={isAdmin} userId={user.id} />
       </div>
     </>
   );
 }
-

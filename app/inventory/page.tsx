@@ -6,11 +6,14 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
+import { normalizeRole } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import InventoryClient from '@/components/InventoryClient';
 import { parseInventoryBuffer, type StockAlertItem } from '@/lib/inventory/parse';
 import type { DbItem } from '@/components/InventoryClient';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 
 export const revalidate = 1800;
 
@@ -32,9 +35,26 @@ export default async function InventoryPage() {
     .from('profiles').select('role, status, company_id').eq('id', user.id).single();
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
 
-  const companyId = (myProfile.company_id as string) ?? null;
+  const role = normalizeRole(myProfile.role);
+  const isSystemAdmin = role === '관리자';
+  const profileCompanyId = (myProfile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isSystemAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isSystemAdmin);
+
+  if (isAllianceUser && !companyId) redirect('/');
 
   const svc = getSvc();
+
+  // 아주얼라이언스 직원용 위탁사 목록
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser) {
+    const { data: companiesData } = await svc
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
 
   // ── 품절예측 폴더에서 최신 파일 조회 ──────────────────────────────────────
   const { data: doc } = await svc
@@ -106,6 +126,13 @@ export default async function InventoryPage() {
           <HomeButton />
           <LogoutButton compact />
         </div>
+
+        {isAllianceUser && (
+          <AllianceCompanyBar
+            companies={allianceCompanies}
+            activeCompanyId={companyId}
+          />
+        )}
 
         <InventoryClient
           items={items}

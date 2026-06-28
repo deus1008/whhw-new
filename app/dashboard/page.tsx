@@ -9,6 +9,8 @@ import { parseInventoryBuffer } from '@/lib/inventory/parse';
 import type { StockAlertItem } from '@/lib/inventory/parse';
 import { getPerformanceData } from '@/app/performance/actions';
 import { profileIsAdmin } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,12 +56,26 @@ export default async function DashboardPage() {
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
 
   const isAdmin = profileIsAdmin(myProfile);
-  const companyId = isAdmin ? null : ((myProfile.company_id as string) ?? null);
+  const profileCompanyId = (myProfile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdmin);
+
+  // 아주얼라이언스 직원의 경우 쿠키에 저장된 선택 위탁사를 companyId로 사용
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
 
   const svc = getSvc();
 
+  // 아주얼라이언스 직원용: 위탁사 선택 목록
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser) {
+    const { data: companiesData } = await svc
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
+
   // 위탁사 이름 조회 (뱃지 표시용)
-  // 위탁사 배정 없는 일반 직원 = 판매대행사(아주얼라이언스) 소속
   let companyName: string | null = isAdmin ? null : '아주얼라이언스';
   if (companyId) {
     const { data: cd } = await svc
@@ -674,6 +690,12 @@ export default async function DashboardPage() {
           <LogoutButton compact />
         </div>
 
+        {isAllianceUser && (
+          <AllianceCompanyBar
+            companies={allianceCompanies}
+            activeCompanyId={companyId}
+          />
+        )}
         <DashboardClient data={dashData} />
       </div>
     </>

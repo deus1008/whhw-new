@@ -1,10 +1,20 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeRole } from '@/lib/roles';
+import { createClient as createSvcClient } from '@supabase/supabase-js';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import DcClient from '@/components/DcClient';
 import { getDcItems } from './actions';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
+
+function getSvc() {
+  return createSvcClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export default async function DcPage() {
   const supabase = await createClient();
@@ -22,8 +32,26 @@ export default async function DcPage() {
   const role = normalizeRole(profile.role);
   const editorRoles = ['관리자', '마케팅총괄', 'PM'];
   const canEdit = editorRoles.includes(role);
+  const isSystemAdmin = role === '관리자';
 
-  const companyId = (profile.company_id as string) ?? null;
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isSystemAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isSystemAdmin);
+
+  if (isAllianceUser && !companyId) redirect('/');
+
+  const svc = getSvc();
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser) {
+    const { data: companiesData } = await svc
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
+
   const items = await getDcItems(companyId);
 
   return (
@@ -42,9 +70,15 @@ export default async function DcPage() {
           <LogoutButton compact />
         </div>
 
+        {isAllianceUser && (
+          <AllianceCompanyBar
+            companies={allianceCompanies}
+            activeCompanyId={companyId}
+          />
+        )}
+
         <DcClient initialItems={items} canEdit={canEdit} />
       </div>
     </>
   );
 }
-
