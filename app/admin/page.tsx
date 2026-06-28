@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
-import { updateStatus, updateRoles, updateName } from './actions';
+import { updateStatus, updateRoles, updateName, updateUserCompany } from './actions';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
@@ -13,6 +13,8 @@ import { ALL_ROLES, ROLE_META, getRoles, normalizeRole, type UserRole } from '@/
 type Status = 'pending' | 'approved' | 'rejected';
 type Role   = UserRole;
 
+type ClientCompany = { id: string; name: string; code: string };
+
 type Profile = {
   id: string;
   email: string;
@@ -20,6 +22,7 @@ type Profile = {
   status: Status;
   role: Role;
   roles: Role[] | null;
+  company_id: string | null;
   created_at: string;
 };
 
@@ -67,7 +70,7 @@ function RoleBadge({ role }: { role: Role }) {
   );
 }
 
-function ActionButtons({ profile }: { profile: Profile }) {
+function ActionButtons({ profile, companies }: { profile: Profile; companies: ClientCompany[] }) {
   const effectiveRoles = getRoles(profile).map(r => normalizeRole(r) as UserRole);
   const isAdmin = effectiveRoles.includes('관리자');
 
@@ -83,6 +86,35 @@ function ActionButtons({ profile }: { profile: Profile }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+      {/* 담당 위탁사 */}
+      <form action={updateUserCompany} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <input type="hidden" name="userId" value={profile.id} />
+        <select
+          name="companyId"
+          defaultValue={profile.company_id ?? ''}
+          style={{
+            flex: 1,
+            background: 'rgba(255,255,255,0.06)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: '6px',
+            padding: '0.3rem 0.65rem',
+            fontSize: '0.8rem',
+            color: 'var(--text-primary)',
+            fontFamily: 'inherit',
+            cursor: 'pointer',
+          }}
+        >
+          <option value="">— 위탁사 미지정 —</option>
+          {companies.map(c => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
+        <button type="submit" style={{
+          padding: '0.3rem 0.65rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600,
+          border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.1)',
+          color: '#a5b4fc', cursor: 'pointer', flexShrink: 0,
+        }}>저장</button>
+      </form>
       {/* 역할 변경 — 체크박스 다중 선택 */}
       <form action={updateRoles} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
         <input type="hidden" name="userId" value={profile.id} />
@@ -183,7 +215,7 @@ function ActionButtons({ profile }: { profile: Profile }) {
   );
 }
 
-function Section({ title, profiles, status }: { title: string; profiles: Profile[]; status: Status }) {
+function Section({ title, profiles, status, companies }: { title: string; profiles: Profile[]; status: Status; companies: ClientCompany[] }) {
   const { color, rgba } = sectionMeta[status];
   const sorted = sortByRole(profiles);
   const emptyMessages: Record<Status, string> = {
@@ -271,7 +303,7 @@ function Section({ title, profiles, status }: { title: string; profiles: Profile
                 )}
 
                 {/* 상태/역할 버튼 */}
-                <ActionButtons profile={p} />
+                <ActionButtons profile={p} companies={companies} />
               </div>
             );
           })}
@@ -310,7 +342,7 @@ export default async function AdminPage() {
   let all: Profile[];
   const { data: profilesWithRoles, error: rolesErr } = await supabase
     .from('profiles')
-    .select('id, email, full_name, status, role, roles, created_at')
+    .select('id, email, full_name, status, role, roles, company_id, created_at')
     .order('created_at', { ascending: false });
 
   if (rolesErr) {
@@ -320,7 +352,7 @@ export default async function AdminPage() {
       .select('id, email, status, role, created_at')
       .order('created_at', { ascending: false });
     if (basicErr) console.error('[admin:getProfiles error]', basicErr);
-    all = (basicProfiles ?? []).map(p => ({ ...p, full_name: null, roles: null })) as Profile[];
+    all = (basicProfiles ?? []).map(p => ({ ...p, full_name: null, roles: null, company_id: null })) as Profile[];
   } else {
     all = (profilesWithRoles ?? []) as Profile[];
   }
@@ -328,6 +360,14 @@ export default async function AdminPage() {
   const pending  = all.filter(p => p.status === 'pending');
   const approved = all.filter(p => p.status === 'approved');
   const rejected = all.filter(p => p.status === 'rejected');
+
+  /* ── 위탁사 목록 ── */
+  const { data: companiesData } = await supabase
+    .from('client_companies')
+    .select('id, name, code')
+    .eq('status', 'active')
+    .order('display_order', { ascending: true });
+  const companiesList = (companiesData ?? []) as ClientCompany[];
 
   /* ── 활동 통계 데이터 ── */
   const adminSvc = createSvc(
@@ -577,9 +617,9 @@ export default async function AdminPage() {
           </div>
         </div>
 
-        <Section title="승인 대기" profiles={pending}  status="pending"  />
-        <Section title="승인됨"   profiles={approved} status="approved" />
-        <Section title="거부됨"   profiles={rejected} status="rejected" />
+        <Section title="승인 대기" profiles={pending}  status="pending"  companies={companiesList} />
+        <Section title="승인됨"   profiles={approved} status="approved" companies={companiesList} />
+        <Section title="거부됨"   profiles={rejected} status="rejected" companies={companiesList} />
       </div>
     </>
   );

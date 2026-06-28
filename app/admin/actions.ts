@@ -66,6 +66,20 @@ export async function updateName(formData: FormData) {
   revalidatePath('/admin');
 }
 
+export async function updateUserCompany(formData: FormData) {
+  const supabase = await verifyAdmin();
+  const userId    = formData.get('userId') as string;
+  const companyId = (formData.get('companyId') as string) || null;
+
+  if (!userId) throw new Error('Invalid parameters');
+
+  const { error } = await supabase
+    .from('profiles').update({ company_id: companyId }).eq('id', userId);
+
+  if (error) { console.error('[updateUserCompany error]', error); throw new Error(error.message); }
+  revalidatePath('/admin');
+}
+
 export async function updateRoles(formData: FormData) {
   const supabase = await verifyAdmin();
   const userId = formData.get('userId') as string;
