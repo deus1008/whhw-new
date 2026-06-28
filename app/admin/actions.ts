@@ -67,13 +67,14 @@ export async function updateName(formData: FormData) {
 }
 
 export async function updateUserCompany(formData: FormData) {
-  const supabase = await verifyAdmin();
+  await verifyAdmin();
   const userId    = formData.get('userId') as string;
   const companyId = (formData.get('companyId') as string) || null;
 
   if (!userId) throw new Error('Invalid parameters');
 
-  const { error } = await supabase
+  // RLS가 타 사용자의 company_id 변경을 차단하므로 서비스롤 클라이언트 사용
+  const { error } = await svc()
     .from('profiles').update({ company_id: companyId }).eq('id', userId);
 
   if (error) { console.error('[updateUserCompany error]', error); throw new Error(error.message); }
