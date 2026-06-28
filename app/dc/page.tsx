@@ -43,7 +43,7 @@ export default async function DcPage() {
   const svc = getSvc();
 
   let allianceCompanies: { id: string; name: string }[] = [];
-  if (isAllianceUser) {
+  if (isAllianceUser || isSystemAdmin) {
     const { data: companiesData } = await svc
       .from('client_companies')
       .select('id, name')
@@ -70,7 +70,7 @@ export default async function DcPage() {
           <LogoutButton compact />
         </div>
 
-        {isAllianceUser && (
+        {(isAllianceUser || isSystemAdmin) && (
           <AllianceCompanyBar
             companies={allianceCompanies}
             activeCompanyId={companyId}

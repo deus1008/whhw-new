@@ -2,13 +2,23 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import { getEdiFileList } from './actions';
 
 // ⑦ dynamic import: EdiClient JS 번들을 별도 청크로 분리 → 초기 페이지 번들 경량화
 const EdiClient = dynamic(() => import('@/components/EdiClient'));
+
+function getSvc() {
+  return createSvcClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export default async function EdiPage() {
   const supabase = await createClient();
@@ -17,7 +27,7 @@ export default async function EdiPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, status')
+    .select('role, status, company_id')
     .eq('id', user.id)
     .single();
 
@@ -25,7 +35,21 @@ export default async function EdiPage() {
 
   const role = normalizeRole(profile.role);
   const isAdmin = role === '관리자';
-  const { files } = await getEdiFileList();
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser || isAdmin) {
+    const { data: companiesData } = await getSvc()
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
+
+  const { files } = await getEdiFileList(companyId);
 
   return (
     <>
@@ -48,6 +72,10 @@ export default async function EdiPage() {
           )}
           <LogoutButton compact />
         </div>
+
+        {(isAllianceUser || isAdmin) && (
+          <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
+        )}
 
         <EdiClient files={files} isAdmin={isAdmin} />
       </div>

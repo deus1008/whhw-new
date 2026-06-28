@@ -96,12 +96,15 @@ export async function getPerformanceData(companyId?: string | null): Promise<{
   const svc = getSvc();
 
   // 실적마감 폴더의 xlsx/xls 파일 전체 조회 (RAG 상태 무관)
-  const { data: docs, error: dbErr } = await svc
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let docsQ: any = svc
     .from('documents')
     .select('id, filename, file_type, storage_path, created_at, category')
     .eq('category', FOLDER_NAME)
     .in('file_type', ['xlsx', 'xls'])
     .order('created_at', { ascending: false });
+  if (companyId) docsQ = docsQ.eq('company_id', companyId);
+  const { data: docs, error: dbErr } = await docsQ;
 
   if (dbErr) {
     console.error('[getPerformanceData] db:', dbErr);
@@ -112,7 +115,8 @@ export async function getPerformanceData(companyId?: string | null): Promise<{
   const reports: StoredReport[] = [];
   const errors:  { filename: string; message: string }[] = [];
 
-  await Promise.all(docs.map(async doc => {
+  type DocRow = { id: string; filename: string; file_type: string; storage_path: string; created_at: string; category: string };
+  await Promise.all((docs as DocRow[]).map(async doc => {
     const cacheKey = `${doc.id}.json`;
 
     // ── 캐시 확인 ──────────────────────────────────────────

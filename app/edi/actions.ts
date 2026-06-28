@@ -143,17 +143,20 @@ function detectHeaderRow(rawArrays: unknown[][]): number {
 }
 
 /* ── EDI 폴더 파일 목록만 반환 ── */
-export async function getEdiFileList(): Promise<{
+export async function getEdiFileList(companyId?: string | null): Promise<{
   files: { id: string; filename: string; created_at: string }[];
   error?: string;
 }> {
   const svc = getSvc();
-  const { data: docs, error: dbErr } = await svc
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = svc
     .from('documents')
     .select('id, filename, created_at')
     .eq('category', FOLDER_NAME)
     .in('file_type', ['xlsx', 'xls', 'csv', 'txt'])
     .order('created_at', { ascending: false });
+  if (companyId) q = q.eq('company_id', companyId);
+  const { data: docs, error: dbErr } = await q;
   if (dbErr) return { files: [], error: dbErr.message };
   return { files: (docs ?? []) as { id: string; filename: string; created_at: string }[] };
 }

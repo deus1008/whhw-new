@@ -66,7 +66,7 @@ export default async function DashboardPage() {
 
   // 아주얼라이언스 직원용: 위탁사 선택 목록
   let allianceCompanies: { id: string; name: string }[] = [];
-  if (isAllianceUser) {
+  if (isAllianceUser || isAdmin) {
     const { data: companiesData } = await svc
       .from('client_companies')
       .select('id, name')
@@ -703,7 +703,7 @@ export default async function DashboardPage() {
           <LogoutButton compact />
         </div>
 
-        {isAllianceUser && (
+        {(isAllianceUser || isAdmin) && (
           <AllianceCompanyBar
             companies={allianceCompanies}
             activeCompanyId={companyId}

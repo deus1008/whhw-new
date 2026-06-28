@@ -45,9 +45,9 @@ export default async function InventoryPage() {
 
   const svc = getSvc();
 
-  // 아주얼라이언스 직원용 위탁사 목록
+  // 아주얼라이언스 직원/관리자용 위탁사 목록
   let allianceCompanies: { id: string; name: string }[] = [];
-  if (isAllianceUser) {
+  if (isAllianceUser || isSystemAdmin) {
     const { data: companiesData } = await svc
       .from('client_companies')
       .select('id, name')
@@ -127,7 +127,7 @@ export default async function InventoryPage() {
           <LogoutButton compact />
         </div>
 
-        {isAllianceUser && (
+        {(isAllianceUser || isSystemAdmin) && (
           <AllianceCompanyBar
             companies={allianceCompanies}
             activeCompanyId={companyId}

@@ -53,9 +53,9 @@ export default async function ProductsPage() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
-  // 아주얼라이언스 직원용 위탁사 목록
+  // 아주얼라이언스 직원/관리자용 위탁사 목록
   let allianceCompanies: { id: string; name: string }[] = [];
-  if (isAllianceUser) {
+  if (isAllianceUser || isSystemAdmin) {
     const { data: companiesData } = await sb
       .from('client_companies')
       .select('id, name')
@@ -87,7 +87,7 @@ export default async function ProductsPage() {
           <LogoutButton compact />
         </div>
 
-        {isAllianceUser && (
+        {(isAllianceUser || isSystemAdmin) && (
           <AllianceCompanyBar
             companies={allianceCompanies}
             activeCompanyId={companyId}

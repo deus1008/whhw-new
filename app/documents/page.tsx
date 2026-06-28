@@ -3,10 +3,12 @@ export const dynamic = 'force-dynamic';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeRole, profileIsAdmin } from '@/lib/roles';
+import { createClient as createSvcClient } from '@supabase/supabase-js';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import DocumentsClient from '@/components/DocumentsClient';
-import { getEffectiveCompanyId } from '@/lib/active-company';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 
 type DocStatus = 'processing' | 'running' | 'ready' | 'error';
 
@@ -43,6 +45,22 @@ export default async function DocumentsPage() {
   const profileCompanyId = (myProfile.company_id as string) ?? null;
   const isSystemAdmin = profileIsAdmin(myProfile);
   const companyId = await getEffectiveCompanyId(profileCompanyId, isSystemAdmin);
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isSystemAdmin);
+
+  const svc = createSvcClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser || isAdmin) {
+    const { data: companiesData } = await svc
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
 
   const { data: docs, error: docsError } = await supabase
     .from('documents')
@@ -72,6 +90,10 @@ export default async function DocumentsPage() {
           <HomeButton />
           <LogoutButton compact />
         </div>
+
+        {(isAllianceUser || isAdmin) && (
+          <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
+        )}
 
         <DocumentsClient
           initialDocuments={docsWithChunks}

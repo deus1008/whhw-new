@@ -3,10 +3,11 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { profileIsAdmin } from '@/lib/roles';
-import { getEffectiveCompanyId } from '@/lib/active-company';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 
 import HomeButton from '@/components/HomeButton';
 import LogoutButton from '@/components/LogoutButton';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import SettlementClient from '@/components/SettlementClient';
 import type { SettlementRowClient } from '@/components/SettlementClient';
 
@@ -22,11 +23,22 @@ export default async function SettlementPage() {
   const isAdmin = profileIsAdmin(profile);
   const profileCompanyId = (profile.company_id as string) ?? null;
   const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdmin);
 
   const svc = createSvcClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser || isAdmin) {
+    const { data: companiesData } = await svc
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
 
   // ── 전체 행 병렬 페이지네이션 ──────────────────────────────────────────
   const PAGE           = 1000;
@@ -88,6 +100,10 @@ export default async function SettlementPage() {
           )}
           <LogoutButton compact />
         </div>
+
+        {(isAllianceUser || isAdmin) && (
+          <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
+        )}
 
         <SettlementClient rows={(rows ?? []) as SettlementRowClient[]} />
       </div>
