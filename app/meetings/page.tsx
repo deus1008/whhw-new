@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import MeetingsClient from '@/components/MeetingsClient';
-import { getMeetings } from './actions';
+import { getMeetings, getUserAccessLevels } from './actions';
+import { profileIsAdmin } from '@/lib/roles';
+import type { TaskSecurity } from './types';
 
 export const revalidate = 0;
 
@@ -13,10 +15,22 @@ export default async function MeetingsPage() {
   if (!user) redirect('/login');
 
   const { data: profile } = await supabase
-    .from('profiles').select('status').eq('id', user.id).single();
+    .from('profiles').select('status, role, roles').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
-  const meetings = await getMeetings();
+  const isAdmin = profileIsAdmin(profile);
+  const [meetings, userLevels] = await Promise.all([
+    getMeetings(),
+    isAdmin ? Promise.resolve(['공개', '내부', '기밀'] as TaskSecurity[]) : getUserAccessLevels(user.id),
+  ]);
+
+  // 서버에서 접근권한 체크: 접근 불가 Task는 제목·내용을 마스킹
+  const safeMeetings = meetings.map(m => {
+    const sl = m.security_level ?? '공개';
+    const accessible = isAdmin || userLevels.includes(sl as TaskSecurity);
+    if (accessible) return { ...m, accessible: true };
+    return { ...m, title: '', content: '', todos: [], accessible: false };
+  });
 
   return (
     <>
@@ -44,7 +58,7 @@ export default async function MeetingsPage() {
           🔒 회의내용은 사용자 업무참조에만 활용하고, 내/외부 유출은 금지합니다.
         </p>
 
-        <MeetingsClient meetings={meetings} />
+        <MeetingsClient meetings={safeMeetings} isAdmin={isAdmin} />
       </div>
     </>
   );

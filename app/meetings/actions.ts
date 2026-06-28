@@ -2,7 +2,7 @@
 
 import { createClient as createSvc } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
-import type { Todo, MeetingRow } from './types';
+import type { Todo, MeetingRow, TaskSecurity } from './types';
 
 function svc() {
   return createSvc(
@@ -20,12 +20,13 @@ async function getUser() {
 export async function getMeetings(): Promise<MeetingRow[]> {
   const { data } = await svc()
     .from('meetings')
-    .select('id, title, category, meeting_date, todos, status, priority, created_at, updated_at')
+    .select('id, title, category, meeting_date, todos, status, priority, security_level, created_at, updated_at')
     .order('created_at', { ascending: false });
   return (data ?? []).map(r => ({
     ...r,
-    status:   (r.status   ?? '대기') as MeetingRow['status'],
-    priority: (r.priority ?? '보통') as MeetingRow['priority'],
+    status:         (r.status         ?? '대기') as MeetingRow['status'],
+    priority:       (r.priority       ?? '보통') as MeetingRow['priority'],
+    security_level: (r.security_level ?? '공개') as MeetingRow['security_level'],
   })) as MeetingRow[];
 }
 
@@ -38,8 +39,9 @@ export async function getMeeting(id: string): Promise<MeetingRow | null> {
   if (!data) return null;
   return {
     ...data,
-    status:   (data.status   ?? '대기') as MeetingRow['status'],
-    priority: (data.priority ?? '보통') as MeetingRow['priority'],
+    status:         (data.status         ?? '대기') as MeetingRow['status'],
+    priority:       (data.priority       ?? '보통') as MeetingRow['priority'],
+    security_level: (data.security_level ?? '공개') as MeetingRow['security_level'],
   } as MeetingRow;
 }
 
@@ -49,6 +51,7 @@ export async function createMeeting(form: {
   meeting_date: string;
   status?: string;
   priority?: string;
+  security_level?: string;
 }): Promise<{ id?: string; error?: string }> {
   const user = await getUser();
   if (!user) return { error: '인증이 필요합니다.' };
@@ -63,7 +66,7 @@ export async function createMeeting(form: {
 
 export async function updateMeeting(
   id: string,
-  updates: Partial<{ title: string; category: string; content: string; todos: Todo[]; meeting_date: string; status: string; priority: string }>,
+  updates: Partial<{ title: string; category: string; content: string; todos: Todo[]; meeting_date: string; status: string; priority: string; security_level: string }>,
 ): Promise<{ error?: string }> {
   const user = await getUser();
   if (!user) return { error: '인증이 필요합니다.' };
@@ -101,6 +104,47 @@ export async function renameCategory(oldCat: string, newCat: string): Promise<{ 
     .from('meetings')
     .update({ category: newCat, updated_at: new Date().toISOString() })
     .eq('category', oldCat);
+  if (error) return { error: error.message };
+  return {};
+}
+
+/* ── 보안등급 관련 ─────────────────────────────────────────────── */
+
+/** 현재 사용자가 열람 가능한 보안등급 목록 (계층적) */
+export async function getUserAccessLevels(userId: string): Promise<TaskSecurity[]> {
+  const { data } = await svc()
+    .from('task_security_access')
+    .select('level')
+    .eq('user_id', userId);
+  const grants = (data ?? []).map(r => r.level as TaskSecurity);
+  const levels: TaskSecurity[] = ['공개'];
+  if (grants.includes('기밀')) { levels.push('내부', '기밀'); }
+  else if (grants.includes('내부')) { levels.push('내부'); }
+  return levels;
+}
+
+/** 관리자 전용: 모든 접근 권한 목록 */
+export async function getSecurityAccessList(): Promise<{ user_id: string; level: TaskSecurity }[]> {
+  const { data } = await svc().from('task_security_access').select('user_id, level');
+  return (data ?? []) as { user_id: string; level: TaskSecurity }[];
+}
+
+/** 관리자 전용: 사용자에게 보안등급 부여 */
+export async function grantSecurityAccess(userId: string, level: '내부' | '기밀'): Promise<{ error?: string }> {
+  const user = await getUser();
+  if (!user) return { error: '인증이 필요합니다.' };
+  const { error } = await svc().from('task_security_access')
+    .upsert({ level, user_id: userId, granted_by: user.id }, { onConflict: 'level,user_id' });
+  if (error) return { error: error.message };
+  return {};
+}
+
+/** 관리자 전용: 사용자 보안등급 해제 */
+export async function revokeSecurityAccess(userId: string, level: '내부' | '기밀'): Promise<{ error?: string }> {
+  const user = await getUser();
+  if (!user) return { error: '인증이 필요합니다.' };
+  const { error } = await svc().from('task_security_access')
+    .delete().eq('user_id', userId).eq('level', level);
   if (error) return { error: error.message };
   return {};
 }

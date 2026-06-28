@@ -431,6 +431,11 @@ export default async function AdminPage() {
               background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)',
               color: '#fde68a', textDecoration: 'none',
             }}>🔗 거래처 별칭 매핑</Link>
+            <Link href="/admin/security" style={{
+              padding: '0.48rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600,
+              background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)',
+              color: '#fca5a5', textDecoration: 'none',
+            }}>🔒 Task 보안등급 관리</Link>
           </div>
         </div>
 

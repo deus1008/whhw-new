@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { updateMeeting, addTodoToCalendar } from '@/app/meetings/actions';
-import { CATEGORIES, STATUSES, PRIORITIES, type MeetingRow, type Todo, type TaskStatus, type TaskPriority } from '@/app/meetings/types';
+import { CATEGORIES, STATUSES, PRIORITIES, SECURITY_LEVELS, SECURITY_META, type MeetingRow, type Todo, type TaskStatus, type TaskPriority, type TaskSecurity } from '@/app/meetings/types';
 
 function fmtDate(s: string) {
   const d = new Date(s.length === 10 ? s + 'T00:00:00' : s);
@@ -35,7 +35,7 @@ const PRIORITY_META: Record<TaskPriority, { color: string; bg: string }> = {
   '낮음': { color: '#94a3b8', bg: 'rgba(148,163,184,0.11)' },
 };
 
-export default function MeetingDetailClient({ meeting: initial }: { meeting: MeetingRow }) {
+export default function MeetingDetailClient({ meeting: initial, isAdmin = false }: { meeting: MeetingRow; isAdmin?: boolean }) {
   const [meeting, setMeeting]   = useState<MeetingRow>(initial);
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft]       = useState({
@@ -81,6 +81,14 @@ export default function MeetingDetailClient({ meeting: initial }: { meeting: Mee
     setMeeting(m => ({ ...m, priority }));
     startMetaTransition(async () => {
       await updateMeeting(meeting.id, { priority });
+      flash();
+    });
+  }
+
+  function handleSecurityChange(security_level: TaskSecurity) {
+    setMeeting(m => ({ ...m, security_level }));
+    startMetaTransition(async () => {
+      await updateMeeting(meeting.id, { security_level });
       flash();
     });
   }
@@ -150,7 +158,7 @@ export default function MeetingDetailClient({ meeting: initial }: { meeting: Mee
           </div>
 
           {/* 상태 + 우선순위 빠른 변경 */}
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
             <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginRight: '0.1rem' }}>상태</span>
             {STATUSES.map(s => {
               const m = STATUS_META[s];
@@ -177,6 +185,31 @@ export default function MeetingDetailClient({ meeting: initial }: { meeting: Mee
                   }}>{p}</button>
               );
             })}
+          </div>
+
+          {/* 보안등급 (관리자만 변경, 일반사용자는 현재 등급 표시) */}
+          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginRight: '0.1rem' }}>보안등급</span>
+            {isAdmin ? (
+              SECURITY_LEVELS.map(sl => {
+                const m = SECURITY_META[sl];
+                const active = (meeting.security_level ?? '공개') === sl;
+                return (
+                  <button key={sl} onClick={() => handleSecurityChange(sl)} disabled={metaPending}
+                    style={{ padding: '0.2rem 0.7rem', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                      background: active ? m.bg : 'rgba(255,255,255,0.03)',
+                      border: active ? `1px solid ${m.border}` : '1px solid rgba(255,255,255,0.1)',
+                      color: active ? m.color : 'rgba(255,255,255,0.32)',
+                    }}>{sl}</button>
+                );
+              })
+            ) : (
+              (() => {
+                const sl = (meeting.security_level ?? '공개') as TaskSecurity;
+                const m = SECURITY_META[sl];
+                return <span style={{ padding: '0.2rem 0.7rem', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700, background: m.bg, border: `1px solid ${m.border}`, color: m.color }}>{sl}</span>;
+              })()
+            )}
           </div>
         </div>
       )}

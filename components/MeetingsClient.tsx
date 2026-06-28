@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createMeeting, deleteMeeting, updateMeeting, clearCategory, renameCategory } from '@/app/meetings/actions';
-import { CATEGORIES, STATUSES, PRIORITIES, type MeetingRow, type TaskStatus, type TaskPriority } from '@/app/meetings/types';
+import { CATEGORIES, STATUSES, PRIORITIES, SECURITY_LEVELS, SECURITY_META, type MeetingRow, type TaskStatus, type TaskPriority, type TaskSecurity } from '@/app/meetings/types';
 
 const DEFAULT_CATS: string[] = [...CATEGORIES];
 
@@ -74,12 +74,30 @@ function TaskCard({ task, onDelete, onStatusChange }: {
   onStatusChange: (s: TaskStatus) => void;
 }) {
   const router = useRouter();
+  const accessible = task.accessible !== false;
+
+  // 접근 불가 카드
+  if (!accessible) {
+    const sl = task.security_level ?? '기밀';
+    const sm = SECURITY_META[sl as TaskSecurity] ?? SECURITY_META['기밀'];
+    return (
+      <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${sm.border}44`, borderLeft: `3px solid ${sm.border}`, borderRadius: '8px', padding: '0.7rem 0.8rem', marginBottom: '0.5rem', opacity: 0.65 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span style={{ fontSize: '0.62rem', padding: '0.1rem 0.45rem', borderRadius: '20px', fontWeight: 700, background: sm.bg, color: sm.color, border: `1px solid ${sm.border}66` }}>{sl}</span>
+        </div>
+        <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.4rem', fontWeight: 500 }}>🔒 보안 과제 — 열람 권한 없음</div>
+      </div>
+    );
+  }
+
   const pr = PRIORITY_META[task.priority ?? '보통'];
   const catSt = cs(task.category);
   const todos = task.todos ?? [];
   const done = todos.filter(t => t.done).length;
   const statusIdx = STATUSES.indexOf(task.status ?? '대기');
   const isComplete = task.status === '완료';
+  const sl = (task.security_level ?? '공개') as TaskSecurity;
+  const sm = SECURITY_META[sl];
 
   return (
     <div
@@ -98,8 +116,8 @@ function TaskCard({ task, onDelete, onStatusChange }: {
       onMouseEnter={e => (e.currentTarget.style.background = isComplete ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.06)')}
       onMouseLeave={e => (e.currentTarget.style.background = isComplete ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.035)')}
     >
-      {/* 상단: 분류 + 우선순위 + 삭제 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.4rem' }}>
+      {/* 상단: 분류 + 우선순위 + 보안등급 + 삭제 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
         {task.category && (
           <span style={{ fontSize: '0.62rem', padding: '0.1rem 0.4rem', borderRadius: '20px', fontWeight: 600, background: catSt.bg, color: catSt.color, whiteSpace: 'nowrap' }}>
             {task.category}
@@ -108,6 +126,11 @@ function TaskCard({ task, onDelete, onStatusChange }: {
         <span style={{ fontSize: '0.62rem', padding: '0.1rem 0.4rem', borderRadius: '20px', fontWeight: 700, background: pr.bg, color: pr.color }}>
           {task.priority ?? '보통'}
         </span>
+        {sl !== '공개' && (
+          <span style={{ fontSize: '0.62rem', padding: '0.1rem 0.4rem', borderRadius: '20px', fontWeight: 700, background: sm.bg, color: sm.color, border: `1px solid ${sm.border}55` }}>
+            🔒 {sl}
+          </span>
+        )}
         <button
           onClick={e => { e.stopPropagation(); onDelete(); }}
           style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.18)', fontSize: '0.78rem', padding: 0, lineHeight: 1, flexShrink: 0 }}
@@ -178,15 +201,15 @@ function KanbanColumn({ status, tasks, onDelete, onStatusChange }: {
 }
 
 /* ── 메인 컴포넌트 ───────────────────────────────────────────────── */
-export default function MeetingsClient({ meetings: initial }: { meetings: MeetingRow[] }) {
+export default function MeetingsClient({ meetings: initial, isAdmin = false }: { meetings: MeetingRow[]; isAdmin?: boolean }) {
   const router = useRouter();
   const isMobile = useIsMobile();
   const [meetings, setMeetings] = useState<MeetingRow[]>(initial);
   const [activeCategory, setActiveCategory] = useState('전체');
   const [searchQuery, setSearchQuery] = useState('');
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState<{ title: string; category: string; meeting_date: string; priority: TaskPriority }>({
-    title: '', category: DEFAULT_CATS[0], meeting_date: '', priority: '보통',
+  const [form, setForm] = useState<{ title: string; category: string; meeting_date: string; priority: TaskPriority; security_level: TaskSecurity }>({
+    title: '', category: DEFAULT_CATS[0], meeting_date: '', priority: '보통', security_level: '공개',
   });
   const [err, setErr] = useState('');
   const [isPending, startTransition] = useTransition();
@@ -230,7 +253,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
   };
 
   function openModal() {
-    setForm({ title: '', category: DEFAULT_CATS[0], meeting_date: '', priority: '보통' });
+    setForm({ title: '', category: DEFAULT_CATS[0], meeting_date: '', priority: '보통', security_level: '공개' });
     setShowCustom(false); setCustomCatInput(''); setErr(''); setModal(true);
   }
 
@@ -452,6 +475,25 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
                 );
               })}
             </div>
+
+            {isAdmin && (
+              <>
+                <label style={LABEL}>보안등급</label>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                  {SECURITY_LEVELS.map(sl => {
+                    const m = SECURITY_META[sl];
+                    return (
+                      <button key={sl} onClick={() => setForm(f => ({ ...f, security_level: sl }))}
+                        style={{ flex: 1, padding: '0.4rem 0', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                          background: form.security_level === sl ? m.bg : 'rgba(255,255,255,0.03)',
+                          border: form.security_level === sl ? `1px solid ${m.border}` : '1px solid rgba(255,255,255,0.1)',
+                          color: form.security_level === sl ? m.color : 'rgba(255,255,255,0.35)',
+                        }}>{sl}</button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
             <label style={LABEL}>마감일 (선택)</label>
             <input type="date" value={form.meeting_date} onChange={e => setForm(f => ({ ...f, meeting_date: e.target.value }))} style={INPUT} />

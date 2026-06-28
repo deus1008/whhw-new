@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import MeetingDetailClient from '@/components/MeetingDetailClient';
-import { getMeeting } from '../actions';
+import { getMeeting, getUserAccessLevels } from '../actions';
+import { profileIsAdmin } from '@/lib/roles';
+import type { TaskSecurity } from '../types';
 
 export const revalidate = 0;
 
@@ -15,11 +17,22 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
   if (!user) redirect('/login');
 
   const { data: profile } = await supabase
-    .from('profiles').select('status').eq('id', user.id).single();
+    .from('profiles').select('status, role, roles').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
   const meeting = await getMeeting(id);
   if (!meeting) notFound();
+
+  const isAdmin = profileIsAdmin(profile);
+  const sl = (meeting.security_level ?? '공개') as TaskSecurity;
+
+  if (!isAdmin && sl !== '공개') {
+    const userLevels = await getUserAccessLevels(user.id);
+    if (!userLevels.includes(sl)) {
+      // 접근 불가 → 목록으로 리다이렉트
+      redirect('/meetings?denied=1');
+    }
+  }
 
   return (
     <>
@@ -42,7 +55,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
           <LogoutButton compact />
         </div>
 
-        <MeetingDetailClient meeting={meeting} />
+        <MeetingDetailClient meeting={meeting} isAdmin={isAdmin} />
       </div>
     </>
   );
