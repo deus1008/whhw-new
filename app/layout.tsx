@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "판매대행사업",
-  description: "아주얼라이언스(주) 판매대행사업",
+  description: "판매대행사업 — CSO 영업활동 관리 플랫폼",
 };
 
 export const viewport: Viewport = {

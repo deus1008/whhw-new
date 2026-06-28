@@ -10,10 +10,10 @@ export const revalidate = 0;
 
 const FOLDERS: { key: CommissionFolderGroup['key']; folderName: string; label: string; description: string }[] = [
   {
-    key: 'ajou',
+    key: 'pharma',
     folderName: '수수료율(제약사)',
     label: '수수료율(제약사)',
-    description: '아주약품이 CSO 법인에 제공하는 수수료 — 정산 기준 참조용',
+    description: '위탁제약사가 CSO 법인에 제공하는 수수료 — 정산 기준 참조용',
   },
   {
     key: 'dealer',
@@ -50,7 +50,7 @@ export default async function CommissionRatePage() {
 
   const svc = getSvc();
 
-  const [{ data: dealerRows }, { data: ajouRows }] = await Promise.all([
+  const [{ data: dealerRows }, { data: pharmaRows }] = await Promise.all([
     svc.from('documents')
       .select('id, filename, file_type, created_at')
       .eq('category', '수수료율(딜러)')
@@ -64,7 +64,7 @@ export default async function CommissionRatePage() {
   ]);
 
   const folderGroups: CommissionFolderGroup[] = [
-    { ...FOLDERS[0], docs: mapDocs(ajouRows   as Record<string, unknown>[] | null) },
+    { ...FOLDERS[0], docs: mapDocs(pharmaRows as Record<string, unknown>[] | null) },
     { ...FOLDERS[1], docs: mapDocs(dealerRows as Record<string, unknown>[] | null) },
   ];
 

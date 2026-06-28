@@ -380,12 +380,12 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
 
             <Field label="제품명 *">
               <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="예) 아주파모티딘정 20mg" style={inputStyle} />
+                placeholder="예) 제품명 20mg" style={inputStyle} />
             </Field>
 
             <Field label="회사">
               <input value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))}
-                placeholder="예) 아주약품(주), 한미약품 등"
+                placeholder="예) 위탁제약사명"
                 list="company-list"
                 style={inputStyle} />
             </Field>

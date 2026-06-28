@@ -32,12 +32,6 @@ function cleanCompany(name: string): string {
     .toLowerCase();
 }
 
-// 계열사·동일법인 별칭 (양방향으로 동일 회사로 취급)
-const COMPANY_ALIASES: Record<string, string[]> = {
-  '아주얼라이언스': ['아주약품'],
-  '아주약품':       ['아주얼라이언스'],
-};
-
 function companyVariants(name: string): string[] {
   const base = cleanCompany(name);
   const set  = new Set<string>([base]);
@@ -45,8 +39,6 @@ function companyVariants(name: string): string[] {
   if (base.endsWith('코리아'))  set.add(base.slice(0, -3));
   if (base.endsWith('제약'))    set.add(base.slice(0, -2));
   if (base.endsWith('얼라이언스')) set.add(base.replace('얼라이언스', ''));
-  // 명시적 계열사 별칭 추가 (아주약품 ↔ 아주얼라이언스 등)
-  for (const alias of (COMPANY_ALIASES[base] ?? [])) set.add(alias);
   return Array.from(set).filter(v => v.length >= 2);
 }
 

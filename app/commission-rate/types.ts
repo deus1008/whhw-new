@@ -6,7 +6,7 @@ export type CommissionDoc = {
 };
 
 export type CommissionFolderGroup = {
-  key: 'dealer' | 'ajou';
+  key: string;
   folderName: string;
   label: string;
   description: string;

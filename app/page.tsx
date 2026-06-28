@@ -21,6 +21,8 @@ type NavItem = {
   adminOnly?: boolean;
 };
 
+const NEWS_URL = process.env.NEXT_PUBLIC_NEWS_URL ?? '';
+
 const NAV_ITEMS: NavItem[] = [
   // ① 대시보드
   {
@@ -40,16 +42,16 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(16,185,129,0.10)',
     bd:   'rgba(16,185,129,0.22)',
   },
-  // ③ 기사검색 (구: 뉴스기사)
-  {
-    href: 'https://ajupharm-news.web.app/',
+  // ③ 기사검색 — NEXT_PUBLIC_NEWS_URL 환경변수가 설정된 경우에만 표시
+  ...(NEWS_URL ? [{
+    href: NEWS_URL,
     icon: '📰',
     label: '기사검색',
     color: '#fda4af',
     bg:   'rgba(244,63,94,0.10)',
     bd:   'rgba(244,63,94,0.22)',
     external: true,
-  },
+  }] : []),
   // ③ 약품검색 (구: 의약품검색)
   {
     href: '/drug-search',
