@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { setActiveCompany } from '@/app/actions/company-select';
 
 type Company = { id: string; name: string };
@@ -17,7 +17,6 @@ export default function AllianceCompanyBar({ companies, activeCompanyId, onAfter
   const [showModal, setShowModal] = useState(!activeCompanyId);
   const [selectedId, setSelectedId] = useState(activeCompanyId ?? '');
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
   const pathname = usePathname();
 
   const activeName = companies.find(c => c.id === activeCompanyId)?.name ?? '';
@@ -31,9 +30,8 @@ export default function AllianceCompanyBar({ companies, activeCompanyId, onAfter
         const name = companies.find(c => c.id === selectedId)?.name ?? '';
         onAfterSelect(selectedId, name);
       } else {
-        // router.refresh()는 클라이언트 state를 보존하므로 push로 완전 재탐색
-        router.push(pathname);
-        router.refresh();
+        // 완전한 브라우저 네비게이션으로 서버에서 새 쿠키 반영
+        window.location.href = pathname;
       }
     });
   }
