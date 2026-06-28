@@ -4,18 +4,23 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import HomeButton from '@/components/HomeButton';
+import { setProfileOnSignup } from './actions';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
 
 export default function SignupPage() {
-  const [email, setEmail]     = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm]   = useState('');
-  const [status, setStatus]     = useState<Status>('idle');
-  const [message, setMessage]   = useState('');
+  const [email,       setEmail]       = useState('');
+  const [password,    setPassword]    = useState('');
+  const [confirm,     setConfirm]     = useState('');
+  const [fullName,    setFullName]    = useState('');
+  const [phone,       setPhone]       = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [status,      setStatus]      = useState<Status>('idle');
+  const [message,     setMessage]     = useState('');
 
   function validate(): string | null {
-    if (password.length < 8) return '비밀번호는 최소 8자 이상이어야 합니다.';
+    if (!fullName.trim())     return '성명을 입력해주세요.';
+    if (password.length < 8)  return '비밀번호는 최소 8자 이상이어야 합니다.';
     if (password !== confirm)  return '비밀번호가 일치하지 않습니다.';
     return null;
   }
@@ -35,7 +40,17 @@ export default function SignupPage() {
 
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name:    fullName.trim(),
+            phone:        phone.trim()       || null,
+            company_name: companyName.trim() || null,
+          },
+        },
+      });
 
       if (error) {
         console.error('[signUp error]', error);
@@ -44,9 +59,6 @@ export default function SignupPage() {
         return;
       }
 
-      console.log('[signUp success]', data);
-      setStatus('success');
-
       // identities가 빈 배열이면 이미 가입된 이메일 (Supabase "fake" 성공 응답)
       if (data.user?.identities?.length === 0) {
         setStatus('error');
@@ -54,6 +66,12 @@ export default function SignupPage() {
         return;
       }
 
+      // profiles.full_name 즉시 업데이트 (트리거 유무와 무관하게 확실히 저장)
+      if (data.user?.id) {
+        await setProfileOnSignup(data.user.id, fullName);
+      }
+
+      setStatus('success');
       setMessage(
         data.session
           ? '회원가입이 완료됐습니다.'
@@ -88,12 +106,12 @@ export default function SignupPage() {
 
         <div className="auth-card">
           <h1 className="auth-title">회원가입</h1>
-          <p className="auth-subtitle">이메일과 비밀번호로 계정을 만드세요.</p>
+          <p className="auth-subtitle">아래 정보를 입력해 계정을 신청하세요.</p>
 
           {status === 'success' ? (
             <div className="auth-success">
               <p style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.6rem' }}>
-                ✓ 회원가입 성공
+                ✓ 가입 신청 완료
               </p>
               <p style={{ whiteSpace: 'pre-line' }}>{message}</p>
             </div>
@@ -103,8 +121,56 @@ export default function SignupPage() {
                 <div className="auth-error">{message}</div>
               )}
 
+              {/* ── 기본 정보 ── */}
               <div className="auth-field">
-                <label className="auth-label" htmlFor="email">이메일</label>
+                <label className="auth-label" htmlFor="fullName">
+                  성명 <span style={{ color: '#f87171' }}>*</span>
+                </label>
+                <input
+                  id="fullName"
+                  type="text"
+                  className="auth-input"
+                  placeholder="홍길동"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  required
+                  disabled={loading}
+                  autoComplete="name"
+                />
+              </div>
+
+              <div className="auth-field">
+                <label className="auth-label" htmlFor="phone">전화번호</label>
+                <input
+                  id="phone"
+                  type="tel"
+                  className="auth-input"
+                  placeholder="010-0000-0000"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  disabled={loading}
+                  autoComplete="tel"
+                />
+              </div>
+
+              <div className="auth-field">
+                <label className="auth-label" htmlFor="companyName">위탁사명</label>
+                <input
+                  id="companyName"
+                  type="text"
+                  className="auth-input"
+                  placeholder="소속 위탁제약사명"
+                  value={companyName}
+                  onChange={e => setCompanyName(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+
+              {/* ── 계정 정보 ── */}
+              <div className="auth-field" style={{ marginTop: '0.25rem' }}>
+                <label className="auth-label" htmlFor="email">
+                  이메일 <span style={{ color: '#f87171' }}>*</span>
+                </label>
                 <input
                   id="email"
                   type="email"
@@ -121,9 +187,8 @@ export default function SignupPage() {
               <div className="auth-field">
                 <label className="auth-label" htmlFor="password">
                   비밀번호{' '}
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.73rem' }}>
-                    (최소 8자)
-                  </span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.73rem' }}>(최소 8자)</span>{' '}
+                  <span style={{ color: '#f87171' }}>*</span>
                 </label>
                 <input
                   id="password"
@@ -139,7 +204,9 @@ export default function SignupPage() {
               </div>
 
               <div className="auth-field">
-                <label className="auth-label" htmlFor="confirm">비밀번호 확인</label>
+                <label className="auth-label" htmlFor="confirm">
+                  비밀번호 확인 <span style={{ color: '#f87171' }}>*</span>
+                </label>
                 <input
                   id="confirm"
                   type="password"
@@ -160,7 +227,7 @@ export default function SignupPage() {
                     처리 중…
                   </>
                 ) : (
-                  '회원가입'
+                  '가입 신청'
                 )}
               </button>
             </form>

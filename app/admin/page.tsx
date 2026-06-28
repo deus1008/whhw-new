@@ -215,7 +215,15 @@ function ActionButtons({ profile, companies }: { profile: Profile; companies: Cl
   );
 }
 
-function Section({ title, profiles, status, companies }: { title: string; profiles: Profile[]; status: Status; companies: ClientCompany[] }) {
+type UserSignupMeta = { phone: string | null; company_name: string | null };
+
+function Section({ title, profiles, status, companies, signupMetaMap }: {
+  title: string;
+  profiles: Profile[];
+  status: Status;
+  companies: ClientCompany[];
+  signupMetaMap?: Map<string, UserSignupMeta>;
+}) {
   const { color, rgba } = sectionMeta[status];
   const sorted = sortByRole(profiles);
   const emptyMessages: Record<Status, string> = {
@@ -251,6 +259,7 @@ function Section({ title, profiles, status, companies }: { title: string; profil
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {sorted.map(p => {
             const effectiveRoles = getRoles(p).map(r => normalizeRole(r) as UserRole);
+            const signupMeta = signupMetaMap?.get(p.id);
             return (
               <div key={p.id} style={{
                 display: 'flex', flexDirection: 'column', gap: '0.5rem',
@@ -268,6 +277,18 @@ function Section({ title, profiles, status, companies }: { title: string; profil
                     {new Date(p.created_at).toLocaleDateString('ko-KR')}
                   </span>
                 </div>
+
+                {/* 가입 시 입력한 연락처 · 위탁사명 */}
+                {(signupMeta?.company_name || signupMeta?.phone) && (
+                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', fontSize: '0.73rem', color: 'rgba(255,255,255,0.35)' }}>
+                    {signupMeta.company_name && (
+                      <span>위탁사: <strong style={{ color: 'rgba(255,255,255,0.65)', fontWeight: 600 }}>{signupMeta.company_name}</strong></span>
+                    )}
+                    {signupMeta.phone && (
+                      <span>연락처: <strong style={{ color: 'rgba(255,255,255,0.65)', fontWeight: 600 }}>{signupMeta.phone}</strong></span>
+                    )}
+                  </div>
+                )}
 
                 {/* 이름 입력 폼 */}
                 <form action={updateName} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -392,6 +413,12 @@ export default async function AdminPage() {
 
   const authUsers     = authResp.data?.users ?? [];
   const lastSignInMap = new Map(authUsers.map(u => [u.id, u.last_sign_in_at as string | null]));
+  const signupMetaMap = new Map<string, UserSignupMeta>(
+    authUsers.map(u => [u.id, {
+      phone:        (u.user_metadata?.phone        as string | null) ?? null,
+      company_name: (u.user_metadata?.company_name as string | null) ?? null,
+    }])
+  );
 
   function buildMap(rows: { user_id?: string | null }[] | null): Map<string, number> {
     const m = new Map<string, number>();
@@ -617,9 +644,9 @@ export default async function AdminPage() {
           </div>
         </div>
 
-        <Section title="승인 대기" profiles={pending}  status="pending"  companies={companiesList} />
-        <Section title="승인됨"   profiles={approved} status="approved" companies={companiesList} />
-        <Section title="거부됨"   profiles={rejected} status="rejected" companies={companiesList} />
+        <Section title="승인 대기" profiles={pending}  status="pending"  companies={companiesList} signupMetaMap={signupMetaMap} />
+        <Section title="승인됨"   profiles={approved} status="approved" companies={companiesList} signupMetaMap={signupMetaMap} />
+        <Section title="거부됨"   profiles={rejected} status="rejected" companies={companiesList} signupMetaMap={signupMetaMap} />
       </div>
     </>
   );
