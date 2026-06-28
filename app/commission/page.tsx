@@ -1,10 +1,20 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import CommissionClient from '@/components/CommissionClient';
 import { getCommissionRates } from './actions';
+
+function getSvc() {
+  return createSvcClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export default async function CommissionPage() {
   const supabase = await createClient();
@@ -13,13 +23,28 @@ export default async function CommissionPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, status')
+    .select('role, status, company_id')
     .eq('id', user.id)
     .single();
 
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
-  const { rates, sourceFile } = await getCommissionRates();
+  const isAdmin = normalizeRole(profile.role as string) === '관리자';
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser || isAdmin) {
+    const { data: companiesData } = await getSvc()
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
+
+  const { rates, sourceFile } = await getCommissionRates(companyId);
 
   return (
     <>
@@ -37,7 +62,10 @@ export default async function CommissionPage() {
           <LogoutButton compact />
         </div>
 
-        {/* 헤더 */}
+        {(isAllianceUser || isAdmin) && (
+          <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
+        )}
+
         <div style={{ marginBottom: '1.5rem' }}>
           <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             💰 수수료 시뮬레이션
@@ -56,4 +84,3 @@ export default async function CommissionPage() {
     </>
   );
 }
-

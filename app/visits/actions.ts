@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import type { VisitRecord } from './page';
 
 function svc() {
@@ -33,7 +34,7 @@ async function getAuthorized() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, status')
+    .select('role, status, company_id')
     .eq('id', user.id)
     .single();
 
@@ -43,7 +44,9 @@ async function getAuthorized() {
 
   const role = normalizeRole(profile.role);
   const isAdmin = role === '관리자' || role === '사업총괄' || role === '영업관리총괄';
-  return { supabase, user, role: isAdmin ? '관리자' : role };
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
+  return { supabase, user, role: isAdmin ? '관리자' : role, companyId };
 }
 
 function cleanInput(input: RecordInput) {
@@ -144,7 +147,7 @@ export async function createVisitRecord(input: RecordInput): Promise<Result<Visi
 
   const { data, error } = await auth.supabase
     .from('visit_records')
-    .insert({ ...cleanInput(input), user_id: auth.user!.id })
+    .insert({ ...cleanInput(input), user_id: auth.user!.id, company_id: auth.companyId ?? null })
     .select()
     .single();
 

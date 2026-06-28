@@ -84,16 +84,18 @@ export type CommissionRateResult = {
   sourceFile: string | null;   // 기준 파일명
 };
 
-export async function getCommissionRates(): Promise<CommissionRateResult> {
-  // documents 테이블에서 가장 최근 업로드(ready)된 수수료율 파일 기준
-  const { data: latest } = await svc()
+export async function getCommissionRates(companyId?: string | null): Promise<CommissionRateResult> {
+  // documents 테이블에서 가장 최근 업로드(ready)된 수수료율 파일 기준 (위탁사별 필터)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let docsQ: any = svc()
     .from('documents')
     .select('filename, created_at')
     .eq('category', '수수료율(딜러)')
     .eq('status', 'ready')
     .order('created_at', { ascending: false })
-    .limit(1)
-    .single();
+    .limit(1);
+  if (companyId) docsQ = docsQ.eq('company_id', companyId);
+  const { data: latest } = await docsQ.single();
 
   if (!latest?.filename) return { rates: [], sourceFile: null };
 

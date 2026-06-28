@@ -59,14 +59,13 @@ export default async function VisitsPage() {
     allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let visitsQ: any = svc.from('visit_records').select('*').order('visited_at', { ascending: false });
+  if (companyId) visitsQ = visitsQ.eq('company_id', companyId);
+
   const [{ data: all }, { data: profiles }] = await Promise.all([
-    svc
-      .from('visit_records')
-      .select('*')
-      .order('visited_at', { ascending: false }),
-    svc
-      .from('profiles')
-      .select('id, email, full_name'),
+    visitsQ,
+    svc.from('profiles').select('id, email, full_name'),
   ]);
 
   const profileMap: Record<string, { email: string; full_name: string | null }> =
