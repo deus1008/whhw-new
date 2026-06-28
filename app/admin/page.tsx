@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSvc } from '@supabase/supabase-js';
 import { updateStatus, updateRoles, updateName } from './actions';
 import { ADMIN_EMAIL } from '@/lib/constants';
 import LogoutButton from '@/components/LogoutButton';
@@ -328,6 +329,42 @@ export default async function AdminPage() {
   const approved = all.filter(p => p.status === 'approved');
   const rejected = all.filter(p => p.status === 'rejected');
 
+  /* ── 활동 통계 데이터 ── */
+  const adminSvc = createSvc(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+  const now           = new Date();
+  const todayStart    = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const sevenDaysAgo  = new Date(now.getTime() - 7  * 86_400_000).toISOString();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 86_400_000).toISOString();
+
+  const [authResp, visitResp, docResp] = await Promise.all([
+    adminSvc.auth.admin.listUsers({ perPage: 1000 }),
+    adminSvc.from('visit_records').select('user_id').gte('visited_at', thirtyDaysAgo),
+    adminSvc.from('documents').select('uploaded_by').gte('created_at', thirtyDaysAgo),
+  ]);
+
+  const authUsers     = authResp.data?.users ?? [];
+  const lastSignInMap = new Map(authUsers.map(u => [u.id, u.last_sign_in_at as string | null]));
+
+  const visitMap = new Map<string, number>();
+  for (const v of visitResp.data ?? []) visitMap.set(v.user_id, (visitMap.get(v.user_id) ?? 0) + 1);
+
+  const docMap = new Map<string, number>();
+  for (const d of docResp.data ?? []) if (d.uploaded_by) docMap.set(d.uploaded_by, (docMap.get(d.uploaded_by) ?? 0) + 1);
+
+  const loggedInToday  = authUsers.filter(u => u.last_sign_in_at && u.last_sign_in_at >= todayStart).length;
+  const loggedIn7Days  = authUsers.filter(u => u.last_sign_in_at && u.last_sign_in_at >= sevenDaysAgo).length;
+  const totalVisits30d = visitResp.data?.length ?? 0;
+  const totalDocs30d   = docResp.data?.length ?? 0;
+
+  const approvedSorted = [...approved].sort((a, b) => {
+    const aS = lastSignInMap.get(a.id) ?? '';
+    const bS = lastSignInMap.get(b.id) ?? '';
+    return bS.localeCompare(aS);
+  });
+
   return (
     <>
       <div className="orb orb-1" />
@@ -358,6 +395,90 @@ export default async function AdminPage() {
               background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)',
               color: '#fde68a', textDecoration: 'none',
             }}>🔗 거래처 별칭 매핑</Link>
+          </div>
+        </div>
+
+        {/* ── 사용자 활동 통계 ── */}
+        <div style={{
+          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: '12px', padding: '1rem 1.25rem', marginBottom: '1.5rem',
+        }}>
+          <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#475569', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 0.85rem' }}>
+            사용자 활동 통계
+          </p>
+
+          {/* 요약 카드 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', marginBottom: '1rem' }}>
+            {([
+              { label: '승인된 사용자',  value: approved.length, color: '#86efac' },
+              { label: '오늘 로그인',    value: loggedInToday,   color: '#4ade80' },
+              { label: '7일 내 로그인',  value: loggedIn7Days,   color: '#93c5fd' },
+              { label: '30일 방문 입력', value: totalVisits30d,  color: '#fde68a' },
+              { label: '30일 문서 업로드', value: totalDocs30d,  color: '#c4b5fd' },
+              { label: '대기 중',        value: pending.length,  color: '#fb923c' },
+            ] as { label: string; value: number; color: string }[]).map(({ label, value, color }) => (
+              <div key={label} style={{
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
+                borderRadius: '10px', padding: '0.65rem 0.85rem',
+              }}>
+                <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>{label}</div>
+                <div style={{ fontSize: '1.5rem', fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* 사용자별 활동 테이블 */}
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.09)' }}>
+                  {(['이름', '마지막 로그인', '방문(30일)', '문서(30일)'] as const).map((h, i) => (
+                    <th key={h} style={{
+                      padding: '0.4rem 0.55rem', fontSize: '0.68rem', fontWeight: 600,
+                      color: 'var(--text-muted)', textAlign: i === 0 ? 'left' : 'right',
+                      whiteSpace: 'nowrap',
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {approvedSorted.map((p, ni) => {
+                  const lastSignIn  = lastSignInMap.get(p.id);
+                  const signInDate  = lastSignIn ? new Date(lastSignIn) : null;
+                  const isToday     = signInDate && signInDate.toISOString() >= todayStart;
+                  const isThisWeek  = signInDate && signInDate.toISOString() >= sevenDaysAgo;
+                  const visits      = visitMap.get(p.id) ?? 0;
+                  const docs        = docMap.get(p.id) ?? 0;
+                  const signInLabel = signInDate
+                    ? isToday
+                      ? `오늘 ${signInDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                      : signInDate.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+                    : '—';
+                  return (
+                    <tr key={p.id} style={{
+                      borderBottom: '1px solid rgba(255,255,255,0.04)',
+                      background: ni % 2 ? 'rgba(255,255,255,0.01)' : undefined,
+                    }}>
+                      <td style={{ padding: '0.45rem 0.55rem', fontWeight: 600, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.full_name ?? <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{p.email.split('@')[0]}</span>}
+                      </td>
+                      <td style={{ padding: '0.45rem 0.55rem', textAlign: 'right', whiteSpace: 'nowrap', fontSize: '0.73rem',
+                        color: isToday ? '#4ade80' : isThisWeek ? '#93c5fd' : 'var(--text-muted)' }}>
+                        {signInLabel}
+                      </td>
+                      <td style={{ padding: '0.45rem 0.55rem', textAlign: 'right', fontWeight: visits > 0 ? 700 : undefined,
+                        color: visits > 0 ? '#fde68a' : 'var(--text-muted)' }}>
+                        {visits > 0 ? visits : '—'}
+                      </td>
+                      <td style={{ padding: '0.45rem 0.55rem', textAlign: 'right', fontWeight: docs > 0 ? 700 : undefined,
+                        color: docs > 0 ? '#c4b5fd' : 'var(--text-muted)' }}>
+                        {docs > 0 ? docs : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
 
