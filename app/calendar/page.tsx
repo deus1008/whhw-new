@@ -98,8 +98,8 @@ export default async function MarketingPage() {
     );
   }
 
-  const records: MarketingSchedule[] = (schedules ?? []).map(s => ({
-    ...(s as MarketingSchedule),
+  const records: MarketingSchedule[] = ((schedules ?? []) as MarketingSchedule[]).map(s => ({
+    ...s,
     author_name: isAdmin ? (nameMap[s.user_id] ?? undefined) : undefined,
   }));
 
