@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { setActiveCompany } from '@/app/actions/company-select';
 
 type Company = { id: string; name: string };
@@ -9,7 +9,7 @@ type Company = { id: string; name: string };
 interface Props {
   companies: Company[];
   activeCompanyId: string | null;
-  /** 회사 선택 완료 후 콜백 (제공 시 router.refresh() 대신 호출) */
+  /** 회사 선택 완료 후 콜백 (제공 시 기본 동작 대신 호출) */
   onAfterSelect?: (companyId: string, companyName: string) => void;
 }
 
@@ -18,6 +18,7 @@ export default function AllianceCompanyBar({ companies, activeCompanyId, onAfter
   const [selectedId, setSelectedId] = useState(activeCompanyId ?? '');
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const pathname = usePathname();
 
   const activeName = companies.find(c => c.id === activeCompanyId)?.name ?? '';
 
@@ -30,6 +31,8 @@ export default function AllianceCompanyBar({ companies, activeCompanyId, onAfter
         const name = companies.find(c => c.id === selectedId)?.name ?? '';
         onAfterSelect(selectedId, name);
       } else {
+        // router.refresh()는 클라이언트 state를 보존하므로 push로 완전 재탐색
+        router.push(pathname);
         router.refresh();
       }
     });
