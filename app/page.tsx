@@ -8,6 +8,7 @@ import { normalizeRole } from '@/lib/roles';
 import ErrorReportModal from '@/components/ErrorReportModal';
 import { getPendingCount } from '@/app/errors/actions';
 import { getPendingUsersCount } from '@/app/admin/actions';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 
 type NavItem = {
   href: string;
@@ -278,6 +279,12 @@ export default function Home() {
   const [errorBadge, setErrorBadge]   = useState(0);
   const [adminBadge, setAdminBadge]   = useState(0);
 
+  // 위탁사 정보
+  const [companyName,       setCompanyName]       = useState<string | null>(null);
+  const [isAllianceUser,    setIsAllianceUser]    = useState(false);
+  const [activeCompanyId,   setActiveCompanyId]   = useState<string | null>(null);
+  const [allianceCompanies, setAllianceCompanies] = useState<{ id: string; name: string }[]>([]);
+
   // 아이콘 배치 편집
   const [editMode,   setEditMode]   = useState(false);
   const [itemOrder,  setItemOrder]  = useState<string[]>([]);
@@ -289,7 +296,15 @@ export default function Home() {
     const supabase = createClient();
 
     async function checkSession(userId: string | undefined) {
-      if (!userId) { setIsAdmin(false); setErrorBadge(0); return; }
+      if (!userId) {
+        setIsAdmin(false);
+        setErrorBadge(0);
+        setCompanyName(null);
+        setIsAllianceUser(false);
+        setActiveCompanyId(null);
+        setAllianceCompanies([]);
+        return;
+      }
       const { data } = await supabase.from('profiles').select('role, roles').eq('id', userId).single();
       if (!data) { setIsAdmin(false); setErrorBadge(0); return; }
       const rawRoles: string[] = data.roles?.length ? data.roles : (data.role ? [data.role] : []);
@@ -299,6 +314,20 @@ export default function Home() {
       if (admin) {
         getPendingCount().then(setErrorBadge);
         getPendingUsersCount().then(setAdminBadge);
+      }
+
+      // 위탁사 정보 조회 (쿠키 포함 서버 측에서 읽어야 하므로 API 호출)
+      try {
+        const res = await fetch('/api/my-company');
+        if (res.ok) {
+          const info = await res.json();
+          setCompanyName(info.companyName);
+          setIsAllianceUser(info.isAllianceUser);
+          setActiveCompanyId(info.companyId);
+          setAllianceCompanies(info.companies ?? []);
+        }
+      } catch (e) {
+        console.error('[my-company]', e);
       }
     }
 
@@ -434,7 +463,32 @@ export default function Home() {
       <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[1]" />
 
       <div className="relative z-10 text-center px-6 py-8 w-full max-w-[700px]">
+
+        {/* 위탁사명 (로그인 + 위탁사 확정된 경우) */}
+        {isLoggedIn && companyName && (
+          <p style={{
+            fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.08em',
+            color: '#a5b4fc', marginBottom: '0.2rem', textTransform: 'uppercase',
+          }}>
+            {companyName}
+          </p>
+        )}
+
         <h1 className="domain">CSO Biz.</h1>
+
+        {/* 아주얼라이언스 직원 위탁사 선택/전환 바 */}
+        {isLoggedIn && isAllianceUser && (
+          <div style={{ marginTop: '0.75rem' }}>
+            <AllianceCompanyBar
+              companies={allianceCompanies}
+              activeCompanyId={activeCompanyId}
+              onAfterSelect={(id, name) => {
+                setActiveCompanyId(id);
+                setCompanyName(name);
+              }}
+            />
+          </div>
+        )}
 
         {/* 페이지 바로가기 아이콘 */}
         <div style={{

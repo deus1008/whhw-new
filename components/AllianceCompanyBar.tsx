@@ -9,9 +9,11 @@ type Company = { id: string; name: string };
 interface Props {
   companies: Company[];
   activeCompanyId: string | null;
+  /** 회사 선택 완료 후 콜백 (제공 시 router.refresh() 대신 호출) */
+  onAfterSelect?: (companyId: string, companyName: string) => void;
 }
 
-export default function AllianceCompanyBar({ companies, activeCompanyId }: Props) {
+export default function AllianceCompanyBar({ companies, activeCompanyId, onAfterSelect }: Props) {
   const [showModal, setShowModal] = useState(!activeCompanyId);
   const [selectedId, setSelectedId] = useState(activeCompanyId ?? '');
   const [isPending, startTransition] = useTransition();
@@ -24,7 +26,12 @@ export default function AllianceCompanyBar({ companies, activeCompanyId }: Props
     startTransition(async () => {
       await setActiveCompany(selectedId);
       setShowModal(false);
-      router.refresh();
+      if (onAfterSelect) {
+        const name = companies.find(c => c.id === selectedId)?.name ?? '';
+        onAfterSelect(selectedId, name);
+      } else {
+        router.refresh();
+      }
     });
   }
 
