@@ -29,7 +29,7 @@ export default async function ProductsPage() {
 
   const { data: myProfile } = await supabase
     .from('profiles')
-    .select('role, status')
+    .select('role, status, company_id')
     .eq('id', user.id)
     .single();
 
@@ -37,16 +37,16 @@ export default async function ProductsPage() {
 
   const role = normalizeRole(myProfile.role);
   const isAdmin = role === '관리자' || role === '마케팅총괄' || role === 'PM';
+  const companyId = (myProfile.company_id as string) ?? null;
 
   // 서비스 롤 클라이언트로 RLS 우회 (발매예정 목록은 승인 멤버 전체 공개)
   const sb = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
-  const { data, error: fetchError } = await sb
-    .from('upcoming_products')
-    .select('*')
-    .order('launch_date', { ascending: true });
+  let productsQ = sb.from('upcoming_products').select('*').order('launch_date', { ascending: true });
+  if (companyId) productsQ = productsQ.eq('company_id', companyId);
+  const { data, error: fetchError } = await productsQ;
 
   if (fetchError) console.error('[products] fetch error:', fetchError.message);
   const products: UpcomingProduct[] = (data ?? []) as UpcomingProduct[];

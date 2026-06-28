@@ -13,7 +13,7 @@ export default async function DcPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, status')
+    .select('role, status, company_id')
     .eq('id', user.id)
     .single();
 
@@ -23,7 +23,8 @@ export default async function DcPage() {
   const editorRoles = ['관리자', '마케팅총괄', 'PM'];
   const canEdit = editorRoles.includes(role);
 
-  const items = await getDcItems();
+  const companyId = (profile.company_id as string) ?? null;
+  const items = await getDcItems(companyId);
 
   return (
     <>

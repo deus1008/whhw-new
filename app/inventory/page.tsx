@@ -29,8 +29,10 @@ export default async function InventoryPage() {
   if (!user) redirect('/login');
 
   const { data: myProfile } = await supabase
-    .from('profiles').select('role, status').eq('id', user.id).single();
+    .from('profiles').select('role, status, company_id').eq('id', user.id).single();
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
+
+  const companyId = (myProfile.company_id as string) ?? null;
 
   const svc = getSvc();
 
@@ -111,6 +113,7 @@ export default async function InventoryPage() {
           uploadDate={uploadDate}
           error={parseError}
           dbItems={dbItems}
+          companyId={companyId}
         />
       </div>
     </>

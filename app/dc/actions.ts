@@ -25,14 +25,14 @@ function svc() {
   );
 }
 
-async function verifyEditor(): Promise<string> {
+async function verifyEditor(): Promise<{ userId: string; company_id: string | null }> {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new Error('인증이 필요합니다.');
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, status')
+    .select('role, status, company_id')
     .eq('id', user.id)
     .single();
 
@@ -42,18 +42,14 @@ async function verifyEditor(): Promise<string> {
   const editorRoles = ['관리자', '마케팅총괄', 'PM'];
   if (!editorRoles.includes(role)) throw new Error('편집 권한이 없습니다.');
 
-  return user.id;
+  return { userId: user.id, company_id: (profile.company_id as string) ?? null };
 }
 
 /* ── 전체 조회 ─────────────────────────────────────────────── */
-export async function getDcItems(): Promise<DcItem[]> {
-  const { data, error } = await svc()
-    .from('dc_status')
-    .select('*')
-    .order('category')
-    .order('sort_order')
-    .order('created_at');
-
+export async function getDcItems(companyId?: string | null): Promise<DcItem[]> {
+  let q = svc().from('dc_status').select('*').order('category').order('sort_order').order('created_at');
+  if (companyId) q = q.eq('company_id', companyId);
+  const { data, error } = await q;
   if (error) { console.error('[getDcItems]', error); return []; }
   return (data ?? []) as DcItem[];
 }
@@ -61,7 +57,7 @@ export async function getDcItems(): Promise<DcItem[]> {
 /* ── 추가 ──────────────────────────────────────────────────── */
 export async function createDcItem(formData: FormData): Promise<{ error?: string }> {
   try {
-    const userId = await verifyEditor();
+    const { userId, company_id } = await verifyEditor();
     const item = {
       category:      (formData.get('category')      as string)?.trim() || '준비중',
       product_name:  (formData.get('product_name')  as string)?.trim(),
@@ -71,6 +67,7 @@ export async function createDcItem(formData: FormData): Promise<{ error?: string
       memo:          (formData.get('memo')          as string)?.trim() || null,
       sort_order:    parseInt((formData.get('sort_order') as string) || '0'),
       created_by:    userId,
+      company_id,
     };
 
     if (!item.product_name)  return { error: '제품명을 입력하세요.' };
@@ -89,7 +86,7 @@ export async function createDcItem(formData: FormData): Promise<{ error?: string
 /* ── 수정 ──────────────────────────────────────────────────── */
 export async function updateDcItem(formData: FormData): Promise<{ error?: string }> {
   try {
-    await verifyEditor();
+    await verifyEditor(); // company_id는 수정 시 변경하지 않음
     const id = formData.get('id') as string;
     if (!id) return { error: '항목 ID가 없습니다.' };
 

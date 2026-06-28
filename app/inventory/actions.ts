@@ -12,7 +12,7 @@ function getSvc() {
 
 type Result = { error?: string };
 
-export async function createInventoryItem(data: StockAlertItem): Promise<Result> {
+export async function createInventoryItem(data: StockAlertItem, companyId?: string | null): Promise<Result> {
   const svc = getSvc();
   const { error } = await svc.from('inventory_items').insert([{
     alert_type:     data.alert_type,
@@ -28,6 +28,7 @@ export async function createInventoryItem(data: StockAlertItem): Promise<Result>
     manufacturer:   data.manufacturer,
     cause:          data.cause,
     memo:           data.memo ?? null,
+    company_id:     companyId ?? null,
   }]);
   if (error) return { error: error.message };
   revalidatePath('/inventory');

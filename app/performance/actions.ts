@@ -14,7 +14,7 @@ const FOLDER_NAME = '실적마감';
 
 /** trend_prescriptions 에 실적마감 원본 행 동기화 (이미 존재하면 스킵) */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function syncPerfToDb(svc: any, rows: Record<string, unknown>[], filename: string, period: string): Promise<void> {
+async function syncPerfToDb(svc: any, rows: Record<string, unknown>[], filename: string, period: string, companyId?: string | null): Promise<void> {
   try {
     const { count } = await svc
       .from('trend_prescriptions')
@@ -34,6 +34,7 @@ async function syncPerfToDb(svc: any, rows: Record<string, unknown>[], filename:
       product_name: string | null;
       hospital_type: string | null;
       prescription_amount: number | null;
+      company_id: string | null;
     };
 
     const insertRows: InsertRow[] = [];
@@ -50,6 +51,7 @@ async function syncPerfToDb(svc: any, rows: Record<string, unknown>[], filename:
         product_name:        String(r['품목명']      ?? '').trim() || null,
         hospital_type:       String(r['병원구분']    ?? r['종별구분'] ?? '').trim() || null,
         prescription_amount: amt,
+        company_id:          companyId ?? null,
       });
     }
 
@@ -87,7 +89,7 @@ function getSvc() {
 }
 
 /* ── 실적마감 폴더 파일 → 분석 결과 반환 ───────────────────── */
-export async function getPerformanceData(): Promise<{
+export async function getPerformanceData(companyId?: string | null): Promise<{
   reports: StoredReport[];
   errors: { filename: string; message: string }[];
 }> {
@@ -165,7 +167,7 @@ export async function getPerformanceData(): Promise<{
       const currentMonthRows = rows.filter(r =>
         String(r['실적구분'] ?? '').trim() === '당월분',
       );
-      await syncPerfToDb(svc, currentMonthRows.length > 0 ? currentMonthRows : rows, doc.filename as string, data.period);
+      await syncPerfToDb(svc, currentMonthRows.length > 0 ? currentMonthRows : rows, doc.filename as string, data.period, companyId);
 
       reports.push(report);
     } catch (e) {

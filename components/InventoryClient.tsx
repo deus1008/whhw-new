@@ -343,12 +343,14 @@ export default function InventoryClient({
   uploadDate,
   error,
   dbItems,
+  companyId,
 }: {
   items: StockAlertItem[];
   fileName: string | null;
   uploadDate: string | null;
   error: string | null;
   dbItems: DbItem[];
+  companyId?: string | null;
 }) {
   const [modalState, setModalState] = useState<
     null | { mode: 'create' } | { mode: 'edit'; item: DbItem } | { mode: 'import'; item: StockAlertItem }
@@ -408,7 +410,7 @@ export default function InventoryClient({
       if (modalState?.mode === 'edit') {
         res = await updateInventoryItem(modalState.item.id, data);
       } else {
-        res = await createInventoryItem(data);
+        res = await createInventoryItem(data, companyId);
       }
       if (res?.error) setActionError(res.error);
       else setModalState(null);

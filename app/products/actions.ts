@@ -28,18 +28,22 @@ function sb() {
 }
 
 /* ── 인증 확인 (승인 멤버) ────────────────────────────────────── */
-async function checkApproved(): Promise<{ userId: string; role: string } | { error: string }> {
+async function checkApproved(): Promise<{ userId: string; role: string; company_id: string | null } | { error: string }> {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: '인증이 필요합니다.' };
 
   const { data: profile } = await supabase
-    .from('profiles').select('role, status').eq('id', user.id).single();
+    .from('profiles').select('role, status, company_id').eq('id', user.id).single();
 
   if (!profile || profile.status !== 'approved')
     return { error: '승인된 계정이 아닙니다.' };
 
-  return { userId: user.id, role: normalizeRole(profile.role) };
+  return {
+    userId: user.id,
+    role: normalizeRole(profile.role),
+    company_id: (profile.company_id as string) ?? null,
+  };
 }
 
 function clean(input: ProductInput) {
@@ -66,7 +70,7 @@ export async function createProduct(input: ProductInput): Promise<Result<Upcomin
 
   const { data, error } = await sb()
     .from('upcoming_products')
-    .insert(clean(input))
+    .insert({ ...clean(input), company_id: auth.company_id })
     .select()
     .single();
 

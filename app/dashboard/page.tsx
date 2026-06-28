@@ -8,9 +8,9 @@ import type { DashboardData } from '@/components/DashboardClient';
 import { parseInventoryBuffer } from '@/lib/inventory/parse';
 import type { StockAlertItem } from '@/lib/inventory/parse';
 import { getPerformanceData } from '@/app/performance/actions';
+import { profileIsAdmin } from '@/lib/roles';
 
-// ① ISR: 30분마다 자동 갱신
-export const revalidate = 1800;
+export const dynamic = 'force-dynamic';
 
 function getSvc() {
   return createSvcClient(
@@ -47,13 +47,24 @@ export default async function DashboardPage() {
 
   const { data: myProfile } = await supabase
     .from('profiles')
-    .select('role, status')
+    .select('role, roles, status, company_id')
     .eq('id', user.id)
     .single();
 
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
 
+  const isAdmin = profileIsAdmin(myProfile);
+  const companyId = isAdmin ? null : ((myProfile.company_id as string) ?? null);
+
   const svc = getSvc();
+
+  // 위탁사 이름 조회 (뱃지 표시용)
+  let companyName: string | null = null;
+  if (companyId) {
+    const { data: cd } = await svc
+      .from('client_companies').select('name').eq('id', companyId).single();
+    companyName = (cd as { name: string } | null)?.name ?? null;
+  }
 
   // ── 날짜 기준 ──────────────────────────────────────────────────────────────
   const now = new Date();
@@ -86,7 +97,7 @@ export default async function DashboardPage() {
   const BATCH = 10;
   let allSett: SRow[] = [];
 
-  const { data: firstSett, count: settCount } = await svc
+  let settQ0 = svc
     .from('commission_settlements')
     .select(
       'prescription_month,hospital_name,hospital_category,hospital_type,product_name,prescription_amount,settlement_amount,cso_name',
@@ -95,6 +106,8 @@ export default async function DashboardPage() {
     .not('prescription_month', 'is', null)
     .gte('prescription_month', since4mStr)
     .range(0, PAGE - 1);
+  if (companyId) settQ0 = settQ0.eq('company_id', companyId);
+  const { data: firstSett, count: settCount } = await settQ0;
 
   if (firstSett) allSett = firstSett as SRow[];
 
@@ -105,12 +118,14 @@ export default async function DashboardPage() {
       const batch = await Promise.all(
         Array.from({ length: be - bs }, (_, i) => {
           const pg = bs + i;
-          return svc
+          let pQ = svc
             .from('commission_settlements')
             .select('prescription_month,hospital_name,hospital_category,hospital_type,product_name,prescription_amount,settlement_amount,cso_name')
             .not('prescription_month', 'is', null)
             .gte('prescription_month', since4mStr)
             .range(pg * PAGE, pg * PAGE + PAGE - 1);
+          if (companyId) pQ = pQ.eq('company_id', companyId);
+          return pQ;
         }),
       );
       for (const r of batch) {
@@ -120,7 +135,39 @@ export default async function DashboardPage() {
   }
 
   // ── B. 나머지 쿼리 병렬 실행 (마감분석 데이터도 함께 병렬 시작) ───────────────
-  const perfDataPromise = getPerformanceData();
+  const perfDataPromise = getPerformanceData(companyId);
+
+  // 위탁사 필터가 필요한 쿼리를 미리 빌드
+  const ediQ = (() => {
+    let q = svc.from('trend_prescriptions')
+      .select('prescription_month,hospital_name,product_name,prescription_amount,hospital_type')
+      .not('prescription_month', 'is', null)
+      .gte('created_at', since3mStr)
+      .order('created_at', { ascending: false })
+      .range(0, 2999);
+    if (companyId) q = q.eq('company_id', companyId);
+    return q;
+  })();
+  const upcomingQ = (() => {
+    let q = svc.from('upcoming_products')
+      .select('id,title,manufacturer,launch_date,status,indication,insurance_code,insurance_price,memo')
+      .not('status', 'eq', '단종')
+      .not('status', 'eq', '발매완료')
+      .order('launch_date', { ascending: true })
+      .order('memo', { ascending: true, nullsFirst: false })
+      .limit(15);
+    if (companyId) q = q.eq('company_id', companyId);
+    return q;
+  })();
+  const dcQ = (() => {
+    let q = svc.from('dc_status')
+      .select('id,category,product_name,hospital_name,progress,updated_at')
+      .order('category', { ascending: true })
+      .order('sort_order', { ascending: true })
+      .limit(200);
+    if (companyId) q = q.eq('company_id', companyId);
+    return q;
+  })();
 
   const [
     { data: custRows },
@@ -149,33 +196,18 @@ export default async function DashboardPage() {
       .lte('start_date', next2mStr)
       .order('start_date', { ascending: true })
       .limit(60),
-    // 처방실적(EDI/실적마감): 최근 3개월
-    svc.from('trend_prescriptions')
-      .select('prescription_month,hospital_name,product_name,prescription_amount,hospital_type')
-      .not('prescription_month', 'is', null)
-      .gte('created_at', since3mStr)
-      .order('created_at', { ascending: false })
-      .range(0, 2999),
-    // 발매예정: 단종·발매완료 제외, 발매일 → 성분명 순
-    svc.from('upcoming_products')
-      .select('id,title,manufacturer,launch_date,status,indication,insurance_code,insurance_price,memo')
-      .not('status', 'eq', '단종')
-      .not('status', 'eq', '발매완료')
-      .order('launch_date', { ascending: true })
-      .order('memo',        { ascending: true, nullsFirst: false })
-      .limit(15),
+    // 처방실적(EDI/실적마감): 최근 3개월 (위탁사 필터 적용)
+    ediQ,
+    // 발매예정: 단종·발매완료 제외, 발매일 → 성분명 순 (위탁사 필터 적용)
+    upcomingQ,
     // 문서: 최근 3개월, CSO/동향 관련 카테고리 포함
     svc.from('documents')
       .select('id,filename,category,file_type,created_at,status,summary')
       .gte('created_at', since3mStr)
       .order('created_at', { ascending: false })
       .limit(60),
-    // DC현황: 전체 목록 (sort_order 순)
-    svc.from('dc_status')
-      .select('id,category,product_name,hospital_name,progress,updated_at')
-      .order('category', { ascending: true })
-      .order('sort_order', { ascending: true })
-      .limit(200),
+    // DC현황: 전체 목록 (sort_order 순, 위탁사 필터 적용)
+    dcQ,
     // 품절예측: 최신 파일 메타
     svc.from('documents')
       .select('id,filename,storage_path,created_at')
@@ -625,6 +657,17 @@ export default async function DashboardPage() {
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>
           판매대행사업
         </p>
+        {companyName && (
+          <p style={{ textAlign: 'center', marginBottom: '0.75rem' }}>
+            <span style={{
+              fontSize: '0.75rem', padding: '3px 12px', borderRadius: '100px',
+              background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)',
+              color: '#a5b4fc',
+            }}>
+              {companyName}
+            </span>
+          </p>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
           <LogoutButton compact />
