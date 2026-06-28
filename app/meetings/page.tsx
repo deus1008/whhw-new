@@ -25,7 +25,7 @@ export default async function MeetingsPage() {
         style={{ maxWidth: '1000px', paddingTop: '2rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}>
 
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>
-          회의록
+          Task
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>

@@ -37,7 +37,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
               border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)',
             }}
           >
-            ← 회의록 목록
+            ← Task 목록
           </a>
           <LogoutButton compact />
         </div>

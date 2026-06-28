@@ -103,7 +103,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
   }
 
   function handleDelete(id: string) {
-    if (!confirm('이 회의록을 삭제할까요?')) return;
+    if (!confirm('이 Task를 삭제할까요?')) return;
     startTransition(async () => {
       const res = await deleteMeeting(id);
       if (res.error) { alert(res.error); return; }
@@ -113,7 +113,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
 
   function handleDeleteCategory(cat: string, count: number) {
     const msg = count > 0
-      ? `"${cat}" 분류를 사용하는 회의록 ${count}건의 분류가 제거됩니다. 삭제할까요?`
+      ? `"${cat}" 분류를 사용하는 Task ${count}건의 분류가 제거됩니다. 삭제할까요?`
       : `"${cat}" 분류를 삭제할까요?`;
     if (!confirm(msg)) return;
     setManagedCats(prev => prev.filter(c => c !== cat));
@@ -250,7 +250,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
             );
           })}
         </div>
-        <button onClick={openModal} style={BTN_PRIMARY}>+ 새 회의록</button>
+        <button onClick={openModal} style={BTN_PRIMARY}>+ 새 Task</button>
       </div>
 
       {/* ── 게시판 — 데스크톱: 테이블 / 모바일: 카드 ──────────── */}
@@ -258,7 +258,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
           {filtered.length === 0 && (
             <div style={{ padding: '3rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.88rem' }}>
-              {activeCategory === '전체' ? '회의록이 없습니다.' : `${activeCategory} 회의록이 없습니다.`}
+              {activeCategory === '전체' ? 'Task가 없습니다.' : `${activeCategory} Task가 없습니다.`}
             </div>
           )}
           {filtered.map(m => {
@@ -289,7 +289,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
 
           {filtered.length === 0 && (
             <div style={{ padding: '3rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.88rem' }}>
-              {activeCategory === '전체' ? '회의록이 없습니다.' : `${activeCategory} 회의록이 없습니다.`}
+              {activeCategory === '전체' ? 'Task가 없습니다.' : `${activeCategory} Task가 없습니다.`}
             </div>
           )}
 
@@ -316,7 +316,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
       {modal && (
         <div style={OVERLAY} onClick={() => setModal(false)}>
           <div style={MODAL} onClick={e => e.stopPropagation()}>
-            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', margin: '0 0 1.2rem' }}>새 회의록</h2>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', margin: '0 0 1.2rem' }}>새 Task</h2>
 
             <label style={LABEL}>회의 제목</label>
             <input
@@ -366,7 +366,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
             <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
               <button onClick={() => setModal(false)} style={BTN_CANCEL} disabled={isPending}>취소</button>
               <button onClick={handleCreate} style={BTN_PRIMARY} disabled={isPending}>
-                {isPending ? '생성 중…' : '회의록 만들기'}
+                {isPending ? '생성 중…' : 'Task 만들기'}
               </button>
             </div>
           </div>
