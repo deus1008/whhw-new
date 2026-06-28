@@ -128,6 +128,32 @@ export default function MeetingDetailClient({ meeting: initial, isAdmin = false 
 
   return (
     <div className="auth-card" style={{ padding: '1.75rem' }}>
+      <style>{`
+        @media print {
+          html, body { background: #fff !important; margin: 0; padding: 0; }
+          * { color: #111 !important; border-color: #ddd !important; }
+          .orb-1, .orb-2, .orb-3 { display: none !important; }
+          .no-print { display: none !important; }
+          .auth-card {
+            background: #fff !important;
+            border: 1px solid #e5e7eb !important;
+            box-shadow: none !important;
+            padding: 1.25rem !important;
+          }
+          .print-content-box {
+            background: #f9f9f9 !important;
+            border: 1px solid #e5e7eb !important;
+          }
+          .print-todo-row {
+            background: #fff !important;
+            border: 1px solid #e5e7eb !important;
+          }
+          .print-meta-row { display: flex !important; }
+        }
+        @media screen {
+          .print-meta-row { display: none !important; }
+        }
+      `}</style>
 
       {/* ── 메타 헤더 ── */}
       {editMode ? (
@@ -157,8 +183,15 @@ export default function MeetingDetailClient({ meeting: initial, isAdmin = false 
             <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.22)' }}>수정: {fmtDate(meeting.updated_at)}</span>
           </div>
 
+          {/* 인쇄 전용: 상태·우선순위·보안등급 텍스트 */}
+          <div className="print-meta-row" style={{ gap: '1.5rem', flexWrap: 'wrap', marginBottom: '0.5rem', fontSize: '0.82rem' }}>
+            <span>상태: <strong>{meeting.status ?? '대기'}</strong></span>
+            <span>우선순위: <strong>{meeting.priority ?? '보통'}</strong></span>
+            <span>보안등급: <strong>{meeting.security_level ?? '공개'}</strong></span>
+          </div>
+
           {/* 상태 + 우선순위 빠른 변경 */}
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+          <div className="no-print" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
             <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginRight: '0.1rem' }}>상태</span>
             {STATUSES.map(s => {
               const m = STATUS_META[s];
@@ -188,7 +221,7 @@ export default function MeetingDetailClient({ meeting: initial, isAdmin = false 
           </div>
 
           {/* 보안등급 (관리자만 변경, 일반사용자는 현재 등급 표시) */}
-          <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="no-print" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginRight: '0.1rem' }}>보안등급</span>
             {isAdmin ? (
               SECURITY_LEVELS.map(sl => {
@@ -222,13 +255,16 @@ export default function MeetingDetailClient({ meeting: initial, isAdmin = false 
             {(saveMsg && !todosPending) && <span style={{ fontSize: '0.72rem', color: '#4ade80' }}>{saveMsg}</span>}
             {editMode ? (
               <>
-                <button onClick={() => setEditMode(false)} style={BTN_CANCEL} disabled={isPending}>취소</button>
-                <button onClick={handleSave} style={BTN_SAVE} disabled={isPending}>
+                <button onClick={() => setEditMode(false)} style={BTN_CANCEL} disabled={isPending} className="no-print">취소</button>
+                <button onClick={handleSave} style={BTN_SAVE} disabled={isPending} className="no-print">
                   {isPending ? '저장 중…' : '저장'}
                 </button>
               </>
             ) : (
-              <button onClick={startEdit} style={BTN_EDIT}>✏️ 수정</button>
+              <>
+                <button onClick={() => window.print()} className="no-print" style={BTN_PRINT}>🖨 인쇄</button>
+                <button onClick={startEdit} style={BTN_EDIT} className="no-print">✏️ 수정</button>
+              </>
             )}
           </div>
         </div>
@@ -238,7 +274,7 @@ export default function MeetingDetailClient({ meeting: initial, isAdmin = false 
             style={{ ...INPUT, resize: 'vertical', fontFamily: 'inherit', fontSize: '0.88rem', minHeight: '280px', lineHeight: 1.8 }}
           />
         ) : (
-          <div style={{ minHeight: '100px', padding: '1rem 1.1rem', background: 'rgba(255,255,255,0.025)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="print-content-box" style={{ minHeight: '100px', padding: '1rem 1.1rem', background: 'rgba(255,255,255,0.025)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
             {meeting.content ? (
               <div style={{ color: '#cbd5e1', fontSize: '0.88rem', lineHeight: 1.8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                 {meeting.content}
@@ -267,7 +303,7 @@ export default function MeetingDetailClient({ meeting: initial, isAdmin = false 
         {sortedTodos.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.75rem' }}>
             {sortedTodos.map(todo => (
-              <div key={todo.id} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.55rem 0.8rem', borderRadius: '8px', background: todo.done ? 'rgba(255,255,255,0.02)' : 'rgba(251,191,36,0.05)', border: todo.done ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(251,191,36,0.18)', transition: 'all 0.15s' }}>
+              <div key={todo.id} className="print-todo-row" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.55rem 0.8rem', borderRadius: '8px', background: todo.done ? 'rgba(255,255,255,0.02)' : 'rgba(251,191,36,0.05)', border: todo.done ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(251,191,36,0.18)', transition: 'all 0.15s' }}>
                 <input type="checkbox" checked={todo.done} onChange={() => toggleTodo(todo.id)}
                   style={{ accentColor: '#4ade80', width: '1rem', height: '1rem', flexShrink: 0, cursor: 'pointer' }}
                 />
@@ -279,14 +315,14 @@ export default function MeetingDetailClient({ meeting: initial, isAdmin = false 
                     📅 {fmtDue(todo.due_date)}
                   </span>
                 )}
-                <button onClick={() => deleteTodo(todo.id)}
+                <button onClick={() => deleteTodo(todo.id)} className="no-print"
                   style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: '1rem', padding: '0 0.2rem', lineHeight: 1, flexShrink: 0 }}>×</button>
               </div>
             ))}
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div className="no-print" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <input value={todoInput} onChange={e => setTodoInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') addTodo(); }}
             placeholder="항목을 입력하고 Enter…"
@@ -298,7 +334,7 @@ export default function MeetingDetailClient({ meeting: initial, isAdmin = false 
           <button onClick={addTodo} style={{ ...BTN_SAVE, flexShrink: 0 }}>추가</button>
         </div>
         {calMsg && (
-          <p style={{ margin: '0.4rem 0 0', fontSize: '0.72rem', color: calMsg.includes('실패') ? '#f87171' : '#4ade80' }}>{calMsg}</p>
+          <p className="no-print" style={{ margin: '0.4rem 0 0', fontSize: '0.72rem', color: calMsg.includes('실패') ? '#f87171' : '#4ade80' }}>{calMsg}</p>
         )}
       </div>
     </div>
@@ -332,4 +368,8 @@ const BTN_CANCEL: React.CSSProperties = {
 const BTN_EDIT: React.CSSProperties = {
   padding: '0.28rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer',
   background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.5)', fontFamily: 'inherit',
+};
+const BTN_PRINT: React.CSSProperties = {
+  padding: '0.28rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer',
+  background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', color: '#6ee7b7', fontFamily: 'inherit',
 };
