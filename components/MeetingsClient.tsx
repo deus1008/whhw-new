@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { createMeeting, deleteMeeting, updateMeeting, clearCategory } from '@/app/meetings/actions';
+import { createMeeting, deleteMeeting, updateMeeting, clearCategory, renameCategory } from '@/app/meetings/actions';
 import { CATEGORIES, type MeetingRow } from '@/app/meetings/types';
 
 const DEFAULT_CATS: string[] = [...CATEGORIES];
@@ -47,14 +47,16 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
   const [err, setErr] = useState('');
   const [isPending, startTransition] = useTransition();
 
-  /* ── 동적 분류 목록 ──────────────────────────────────────────── */
-  const [localCats, setLocalCats] = useState<string[]>([]);
+  /* ── 분류 목록 (DEFAULT_CATS 포함, mutable) ─────────────────── */
+  const [managedCats, setManagedCats] = useState<string[]>([...DEFAULT_CATS]);
   const [hoveredCat, setHoveredCat] = useState<string | null>(null);
+  const [editingCat, setEditingCat] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
 
   const allCategories = useMemo(() => {
     const fromMeetings = meetings.map(m => m.category).filter((c): c is string => !!c);
-    return Array.from(new Set([...DEFAULT_CATS, ...localCats, ...fromMeetings]));
-  }, [meetings, localCats]);
+    return Array.from(new Set([...managedCats, ...fromMeetings]));
+  }, [meetings, managedCats]);
 
   /* ── 모달 새 분류 입력 ───────────────────────────────────────── */
   const [showCustom, setShowCustom] = useState(false);
@@ -72,7 +74,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
   function confirmModalCustom() {
     const v = customCatInput.trim();
     if (!v) return;
-    if (!allCategories.includes(v)) setLocalCats(prev => [...prev, v]);
+    if (!allCategories.includes(v)) setManagedCats(prev => [...prev, v]);
     setForm(f => ({ ...f, category: v }));
     setShowCustom(false);
     setCustomCatInput('');
@@ -114,7 +116,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
       ? `"${cat}" 분류를 사용하는 회의록 ${count}건의 분류가 제거됩니다. 삭제할까요?`
       : `"${cat}" 분류를 삭제할까요?`;
     if (!confirm(msg)) return;
-    setLocalCats(prev => prev.filter(c => c !== cat));
+    setManagedCats(prev => prev.filter(c => c !== cat));
     if (activeCategory === cat) setActiveCategory('전체');
     setHoveredCat(null);
     if (count === 0) return;
@@ -125,9 +127,28 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
     });
   }
 
+  function startEdit(cat: string) {
+    setEditingCat(cat);
+    setEditValue(cat);
+    setHoveredCat(null);
+  }
+
+  function confirmEdit() {
+    const newCat = editValue.trim();
+    if (!newCat || newCat === editingCat) { setEditingCat(null); return; }
+    const oldCat = editingCat!;
+    setManagedCats(prev => prev.map(c => c === oldCat ? newCat : c));
+    if (activeCategory === oldCat) setActiveCategory(newCat);
+    setEditingCat(null);
+    startTransition(async () => {
+      const res = await renameCategory(oldCat, newCat);
+      if (res.error) { alert(res.error); return; }
+      setMeetings(prev => prev.map(m => m.category === oldCat ? { ...m, category: newCat } : m));
+    });
+  }
+
   function handleCategoryChange(id: string, cat: string) {
-    /* 새 분류면 localCats에 추가 */
-    if (!allCategories.includes(cat)) setLocalCats(prev => [...prev, cat]);
+    if (!allCategories.includes(cat)) setManagedCats(prev => [...prev, cat]);
     startTransition(async () => {
       const res = await updateMeeting(id, { category: cat });
       if (res.error) { alert(res.error); return; }
@@ -144,14 +165,43 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
             const count = cat === '전체' ? meetings.length : meetings.filter(m => m.category === cat).length;
             const active = activeCategory === cat;
             const style = cat !== '전체' ? cs(cat) : null;
-            const isDeletable = cat !== '전체' && !DEFAULT_CATS.includes(cat);
+            const canManage = cat !== '전체';
             const isHovered = hoveredCat === cat;
+            const isEditing = editingCat === cat;
+
+            if (isEditing) {
+              return (
+                <div key={cat} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                  <input
+                    autoFocus
+                    value={editValue}
+                    onChange={e => setEditValue(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') confirmEdit();
+                      if (e.key === 'Escape') setEditingCat(null);
+                    }}
+                    style={{
+                      padding: '0.25rem 0.6rem', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600,
+                      background: style ? style.bg : 'rgba(255,255,255,0.08)',
+                      border: style ? `1px solid ${style.color}88` : '1px solid rgba(255,255,255,0.3)',
+                      color: style ? style.color : '#e2e8f0',
+                      outline: 'none', fontFamily: 'inherit', width: '7rem',
+                    }}
+                  />
+                  <button onClick={confirmEdit} title="확인"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6ee7b7', fontSize: '1rem', padding: 0, lineHeight: 1, fontWeight: 700 }}>✓</button>
+                  <button onClick={() => setEditingCat(null)} title="취소"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', fontSize: '0.9rem', padding: 0, lineHeight: 1 }}>✕</button>
+                </div>
+              );
+            }
+
             return (
               <div
                 key={cat}
                 style={{ position: 'relative', display: 'inline-flex' }}
-                onMouseEnter={() => isDeletable && setHoveredCat(cat)}
-                onMouseLeave={() => isDeletable && setHoveredCat(null)}
+                onMouseEnter={() => canManage && setHoveredCat(cat)}
+                onMouseLeave={() => canManage && setHoveredCat(null)}
               >
                 <button
                   onClick={() => setActiveCategory(cat)}
@@ -168,23 +218,33 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
                       ? (style ? style.color : '#e2e8f0')
                       : 'rgba(255,255,255,0.4)',
                     transition: 'all 0.12s',
-                    paddingRight: isDeletable && isHovered ? '1.4rem' : '0.8rem',
+                    paddingRight: canManage && isHovered ? '2.3rem' : '0.8rem',
                   }}
                 >
                   {cat}
                   <span style={{ marginLeft: '0.3rem', opacity: 0.65, fontSize: '0.72rem' }}>{count}</span>
                 </button>
-                {isDeletable && isHovered && (
-                  <button
-                    onClick={() => handleDeleteCategory(cat, count)}
-                    title="분류 삭제"
-                    style={{
-                      position: 'absolute', top: '50%', right: '0.35rem', transform: 'translateY(-50%)',
-                      background: 'none', border: 'none', padding: '0 0.1rem',
-                      cursor: 'pointer', color: 'rgba(248,113,113,0.9)', fontSize: '0.8rem',
-                      lineHeight: 1, fontWeight: 700,
-                    }}
-                  >×</button>
+                {canManage && isHovered && (
+                  <>
+                    <button
+                      onClick={() => startEdit(cat)}
+                      title="분류명 수정"
+                      style={{
+                        position: 'absolute', top: '50%', right: '1.3rem', transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', padding: 0,
+                        cursor: 'pointer', color: 'rgba(148,163,184,0.85)', fontSize: '0.72rem', lineHeight: 1,
+                      }}
+                    >✎</button>
+                    <button
+                      onClick={() => handleDeleteCategory(cat, count)}
+                      title="분류 삭제"
+                      style={{
+                        position: 'absolute', top: '50%', right: '0.35rem', transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', padding: '0 0.1rem',
+                        cursor: 'pointer', color: 'rgba(248,113,113,0.9)', fontSize: '0.8rem', lineHeight: 1, fontWeight: 700,
+                      }}
+                    >×</button>
+                  </>
                 )}
               </div>
             );
