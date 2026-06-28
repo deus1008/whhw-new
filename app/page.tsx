@@ -467,8 +467,8 @@ export default function Home() {
         {/* 위탁사명 (로그인 + 위탁사 확정된 경우) */}
         {isLoggedIn && companyName && (
           <p style={{
-            fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.08em',
-            color: '#a5b4fc', marginBottom: '0.2rem', textTransform: 'uppercase',
+            fontSize: '2.5rem', fontWeight: 700, letterSpacing: '0.04em',
+            color: '#a5b4fc', marginBottom: '0.2rem',
           }}>
             {companyName}
           </p>
