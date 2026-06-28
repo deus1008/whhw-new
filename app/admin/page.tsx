@@ -366,24 +366,12 @@ export default async function AdminPage() {
   const totalVisits30d = visitResp.data?.length ?? 0;
   const totalDocs30d   = docResp.data?.length ?? 0;
 
-  /* ── 로그인 횟수 (auth.audit_log_entries) ── */
+  /* ── 로그인 횟수 (get_login_counts RPC) ── */
   const loginCountMap = new Map<string, number>();
-  try {
-    const { data: auditData, error: auditErr } = await adminSvc
-      .schema('auth')
-      .from('audit_log_entries')
-      .select('payload')
-      .gte('created_at', thirtyDaysAgo)
-      .limit(10000);
-    if (!auditErr && auditData) {
-      for (const row of auditData) {
-        const pl = row.payload as { action?: string; actor_id?: string } | null;
-        if (pl?.action === 'login' && pl?.actor_id) {
-          loginCountMap.set(pl.actor_id, (loginCountMap.get(pl.actor_id) ?? 0) + 1);
-        }
-      }
-    }
-  } catch { /* auth 스키마 미노출 시 graceful fallback */ }
+  const { data: loginData } = await adminSvc.rpc('get_login_counts', { since_ts: thirtyDaysAgo });
+  for (const row of (loginData ?? []) as { actor_id: string; login_count: number }[]) {
+    if (row.actor_id) loginCountMap.set(row.actor_id, Number(row.login_count));
+  }
 
   /* ── 페이지별 활동량 (상위 3) ── */
   const sum = (m: Map<string, number>) => [...m.values()].reduce((a, b) => a + b, 0);
