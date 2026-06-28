@@ -62,11 +62,14 @@ export default async function DocumentsPage() {
     allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
   }
 
-  const { data: docs, error: docsError } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let docsQ: any = svc
     .from('documents')
     .select('id, filename, file_type, storage_path, category, uploaded_by, status, error_message, created_at, summary')
     .neq('file_type', 'summary')   // 경쟁사 동향 요약 항목은 문서관리에 표시 안 함
     .order('created_at', { ascending: false });
+  if (companyId) docsQ = docsQ.eq('company_id', companyId);
+  const { data: docs, error: docsError } = await docsQ;
 
   if (docsError) console.error('[documents:getDocs error]', docsError);
 
