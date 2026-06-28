@@ -366,11 +366,14 @@ export default async function AdminPage() {
   const totalVisits30d = visitResp.data?.length ?? 0;
   const totalDocs30d   = docResp.data?.length ?? 0;
 
-  /* ── 로그인 횟수 (get_login_counts RPC) ── */
+  /* ── 로그인 횟수 (login_logs 테이블) ── */
   const loginCountMap = new Map<string, number>();
-  const { data: loginData } = await adminSvc.rpc('get_login_counts', { since_ts: thirtyDaysAgo });
-  for (const row of (loginData ?? []) as { actor_id: string; login_count: number }[]) {
-    if (row.actor_id) loginCountMap.set(row.actor_id, Number(row.login_count));
+  const { data: loginData } = await adminSvc
+    .from('login_logs')
+    .select('user_id')
+    .gte('logged_in_at', thirtyDaysAgo);
+  for (const row of loginData ?? []) {
+    if (row.user_id) loginCountMap.set(row.user_id, (loginCountMap.get(row.user_id) ?? 0) + 1);
   }
 
   /* ── 페이지별 활동량 (상위 3) ── */
