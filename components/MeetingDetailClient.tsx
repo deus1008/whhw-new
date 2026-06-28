@@ -29,6 +29,7 @@ const STATUS_META: Record<TaskStatus, { color: string; bg: string }> = {
   '완료':   { color: '#4ade80', bg: 'rgba(74,222,128,0.14)'  },
 };
 const PRIORITY_META: Record<TaskPriority, { color: string; bg: string }> = {
+  '중요': { color: '#fb923c', bg: 'rgba(251,146,60,0.13)'  },
   '긴급': { color: '#f87171', bg: 'rgba(248,113,113,0.13)' },
   '보통': { color: '#fcd34d', bg: 'rgba(252,211,77,0.13)'  },
   '낮음': { color: '#94a3b8', bg: 'rgba(148,163,184,0.11)' },

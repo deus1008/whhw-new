@@ -16,6 +16,7 @@ const STATUS_META: Record<TaskStatus, { color: string; bg: string }> = {
 
 /* ── 우선순위 스타일 ─────────────────────────────────────────────── */
 const PRIORITY_META: Record<TaskPriority, { color: string; bg: string; border: string }> = {
+  '중요': { color: '#fb923c', bg: 'rgba(251,146,60,0.13)',  border: '#fb923c' },
   '긴급': { color: '#f87171', bg: 'rgba(248,113,113,0.13)', border: '#f87171' },
   '보통': { color: '#fcd34d', bg: 'rgba(252,211,77,0.13)',  border: '#fbbf24' },
   '낮음': { color: '#94a3b8', bg: 'rgba(148,163,184,0.11)', border: 'rgba(255,255,255,0.1)' },
@@ -54,7 +55,7 @@ function useIsMobile(bp = 768) {
   return v;
 }
 
-const PRIORITY_ORDER: Record<TaskPriority, number> = { '긴급': 0, '보통': 1, '낮음': 2 };
+const PRIORITY_ORDER: Record<TaskPriority, number> = { '중요': 0, '긴급': 1, '보통': 2, '낮음': 3 };
 function sortTasks(tasks: MeetingRow[]) {
   return [...tasks].sort((a, b) => {
     const pa = PRIORITY_ORDER[a.priority ?? '보통'], pb = PRIORITY_ORDER[b.priority ?? '보통'];
