@@ -80,7 +80,7 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
     setCustomCatInput('');
   }
 
-  const cats = ['전체', ...allCategories];
+  const cats = ['전체', ...allCategories.filter(cat => meetings.some(m => m.category === cat))];
   const filtered = activeCategory === '전체' ? meetings : meetings.filter(m => m.category === activeCategory);
 
   function openModal() {
