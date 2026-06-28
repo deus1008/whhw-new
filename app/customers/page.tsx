@@ -1,8 +1,19 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSvcClient } from '@supabase/supabase-js';
+import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import CustomersClient from '@/components/CustomersClient';
+
+function getSvc() {
+  return createSvcClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export default async function CustomersPage() {
   const supabase = await createClient();
@@ -10,8 +21,23 @@ export default async function CustomersPage() {
   if (!user) redirect('/login');
 
   const { data: profile } = await supabase
-    .from('profiles').select('role, status').eq('id', user.id).single();
+    .from('profiles').select('role, status, company_id').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') redirect('/pending');
+
+  const isAdmin = normalizeRole(profile.role as string) === '관리자';
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser || isAdmin) {
+    const { data: companiesData } = await getSvc()
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
 
   return (
     <>
@@ -29,9 +55,12 @@ export default async function CustomersPage() {
           <LogoutButton compact />
         </div>
 
+        {(isAllianceUser || isAdmin) && (
+          <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
+        )}
+
         <CustomersClient />
       </div>
     </>
   );
 }
-

@@ -1,8 +1,11 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
+import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import CommissionRateWrapper from '@/components/CommissionRateWrapper';
 import type { CommissionDoc, CommissionFolderGroup } from './types';
 
@@ -45,10 +48,25 @@ export default async function CommissionRatePage() {
   if (!user) redirect('/login');
 
   const { data: profile } = await supabase
-    .from('profiles').select('status').eq('id', user.id).single();
+    .from('profiles').select('role, status, company_id').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
+  const isAdmin = normalizeRole(profile.role as string) === '관리자';
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
+
   const svc = getSvc();
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser || isAdmin) {
+    const { data: companiesData } = await svc
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
 
   const [{ data: dealerRows }, { data: pharmaRows }] = await Promise.all([
     svc.from('documents')
@@ -82,6 +100,10 @@ export default async function CommissionRatePage() {
           <HomeButton />
           <LogoutButton compact />
         </div>
+
+        {(isAllianceUser || isAdmin) && (
+          <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
+        )}
 
         <CommissionRateWrapper folderGroups={folderGroups} />
       </div>

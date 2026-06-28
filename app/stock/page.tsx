@@ -1,8 +1,11 @@
 import { redirect }      from 'next/navigation';
 import { createClient }  from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
+import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import LogoutButton      from '@/components/LogoutButton';
 import HomeButton        from '@/components/HomeButton';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import StockClient, { type StockPeriod } from '@/components/StockClient';
 
 export const revalidate = 3600;
@@ -21,10 +24,25 @@ export default async function StockPage() {
   if (!user) redirect('/login');
 
   const { data: myProfile } = await supabase
-    .from('profiles').select('role, status').eq('id', user.id).single();
+    .from('profiles').select('role, status, company_id').eq('id', user.id).single();
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
 
+  const isAdmin = normalizeRole(myProfile.role as string) === '관리자';
+  const profileCompanyId = (myProfile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
+
   const svc = getSvc();
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser || isAdmin) {
+    const { data: companiesData } = await svc
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
 
   // ── monthly_stock 테이블에서 기간별 데이터 조회 ──────────────────────────
   const { data: raw } = await svc
@@ -73,6 +91,10 @@ export default async function StockPage() {
           <HomeButton />
           <LogoutButton compact />
         </div>
+
+        {(isAllianceUser || isAdmin) && (
+          <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
+        )}
 
         <StockClient periods={periods} />
       </div>

@@ -1,9 +1,12 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import MarketingClient from '@/components/MarketingClient';
 import type { ScheduleCategory } from '@/app/calendar/actions';
 
@@ -22,6 +25,13 @@ export type MarketingSchedule = {
   author_name?: string;
 };
 
+function getSvc() {
+  return createSvcClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
+
 export default async function MarketingPage() {
   const supabase = await createClient();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -31,7 +41,7 @@ export default async function MarketingPage() {
 
   const { data: myProfile } = await supabase
     .from('profiles')
-    .select('role, status')
+    .select('role, status, company_id')
     .eq('id', user.id)
     .single();
 
@@ -39,6 +49,19 @@ export default async function MarketingPage() {
 
   const role = normalizeRole(myProfile.role);
   const isAdmin = role === '관리자' || role === '마케팅총괄';
+  const profileCompanyId = (myProfile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser || isAdmin) {
+    const { data: companiesData } = await getSvc()
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
 
   // 전체 일정 조회 (최근 3개월 ~ 향후 12개월)
   const from = new Date();
@@ -106,6 +129,10 @@ export default async function MarketingPage() {
           {isAdmin && <Link href="/admin" style={navLink}>관리자 →</Link>}
           <LogoutButton compact />
         </div>
+
+        {(isAllianceUser || isAdmin) && (
+          <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
+        )}
 
         <MarketingClient
           initialSchedules={records}

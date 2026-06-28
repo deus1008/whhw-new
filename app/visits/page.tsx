@@ -2,8 +2,10 @@ import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import VisitsClient from '@/components/VisitsClient';
 
 export type VisitRecord = {
@@ -32,7 +34,7 @@ export default async function VisitsPage() {
 
   const { data: myProfile } = await supabase
     .from('profiles')
-    .select('role, status')
+    .select('role, status, company_id')
     .eq('id', user.id)
     .single();
 
@@ -40,9 +42,23 @@ export default async function VisitsPage() {
 
   const role = normalizeRole(myProfile.role);
   const isAdmin = role === '관리자' || role === '사업총괄' || role === '영업관리총괄';
+  const profileCompanyId = (myProfile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
 
   // 서비스 클라이언트로 RLS 우회 → 모든 사용자가 전체 기록 조회 가능
   const svc = createServiceClient();
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser || isAdmin) {
+    const { data: companiesData } = await svc
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
+
   const [{ data: all }, { data: profiles }] = await Promise.all([
     svc
       .from('visit_records')
@@ -83,6 +99,10 @@ export default async function VisitsPage() {
           <LogoutButton compact />
         </div>
 
+        {(isAllianceUser || isAdmin) && (
+          <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
+        )}
+
         <Suspense>
           <VisitsClient
             initialRecords={records}
@@ -94,4 +114,3 @@ export default async function VisitsPage() {
     </>
   );
 }
-

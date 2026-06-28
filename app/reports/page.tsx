@@ -2,8 +2,10 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import ReportsClient from '@/components/ReportsClient';
 
 export const revalidate = 0;
@@ -22,15 +24,28 @@ export default async function ReportsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, roles, status')
+    .select('role, roles, status, company_id')
     .eq('id', user.id)
     .single();
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
   const rawRoles: string[] = profile.roles?.length ? profile.roles : (profile.role ? [profile.role] : []);
   const isAdmin = rawRoles.map(r => normalizeRole(r)).includes('관리자');
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
 
   const svc = getSvc();
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser || isAdmin) {
+    const { data: companiesData } = await svc
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
 
   const [{ data: rows }, { data: docRows }] = await Promise.all([
     svc.from('reports')
@@ -72,6 +87,10 @@ export default async function ReportsPage() {
           <HomeButton />
           <LogoutButton compact />
         </div>
+
+        {(isAllianceUser || isAdmin) && (
+          <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
+        )}
 
         <ReportsClient reports={reports} docFiles={docFiles} isAdmin={isAdmin} />
       </div>

@@ -2,8 +2,10 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import HomeButton from '@/components/HomeButton';
 import LogoutButton from '@/components/LogoutButton';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import ContractsClient from '@/components/ContractsClient';
 import type { ContractRow } from '@/components/ContractsClient';
 
@@ -14,7 +16,7 @@ export default async function ContractsPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, status, full_name, email')
+    .select('role, status, full_name, email, company_id')
     .eq('id', user.id)
     .single();
 
@@ -22,11 +24,24 @@ export default async function ContractsPage() {
 
   const normRole = normalizeRole(profile.role as string);
   const isAdmin  = normRole === '관리자';
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
 
   const svc = createSvcClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser || isAdmin) {
+    const { data: companiesData } = await svc
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
 
   const { data: contracts } = await svc
     .from('new_contracts')
@@ -53,6 +68,10 @@ export default async function ContractsPage() {
           <LogoutButton compact />
         </div>
 
+        {(isAllianceUser || isAdmin) && (
+          <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
+        )}
+
         <ContractsClient
           contracts={(contracts ?? []) as ContractRow[]}
           isAdmin={isAdmin}
@@ -63,4 +82,3 @@ export default async function ContractsPage() {
     </>
   );
 }
-

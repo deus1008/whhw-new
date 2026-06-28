@@ -1,13 +1,23 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSvcClient } from '@supabase/supabase-js';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import MeetingsClient from '@/components/MeetingsClient';
 import { getMeetings, getUserAccessLevels } from './actions';
 import { profileIsAdmin } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import type { TaskSecurity } from './types';
 
 export const revalidate = 0;
+
+function getSvc() {
+  return createSvcClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export default async function MeetingsPage() {
   const supabase = await createClient();
@@ -15,10 +25,24 @@ export default async function MeetingsPage() {
   if (!user) redirect('/login');
 
   const { data: profile } = await supabase
-    .from('profiles').select('status, role, roles').eq('id', user.id).single();
+    .from('profiles').select('status, role, roles, company_id').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
   const isAdmin = profileIsAdmin(profile);
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser || isAdmin) {
+    const { data: companiesData } = await getSvc()
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
+
   const [meetings, userLevels] = await Promise.all([
     getMeetings(),
     isAdmin ? Promise.resolve(['공개', '내부', '기밀'] as TaskSecurity[]) : getUserAccessLevels(user.id),
@@ -46,6 +70,10 @@ export default async function MeetingsPage() {
           <HomeButton />
           <LogoutButton compact />
         </div>
+
+        {(isAllianceUser || isAdmin) && (
+          <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
+        )}
 
         <p style={{
           textAlign: 'center', fontSize: '0.75rem',

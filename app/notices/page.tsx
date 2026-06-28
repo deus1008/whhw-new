@@ -2,8 +2,10 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
+import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import NoticesClient from '@/components/NoticesClient';
 
 export const revalidate = 0;
@@ -30,13 +32,28 @@ export default async function NoticesPage() {
   if (!user) redirect('/login');
 
   const { data: profile } = await supabase
-    .from('profiles').select('role, roles, status').eq('id', user.id).single();
+    .from('profiles').select('role, roles, status, company_id').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
   const rawRoles: string[] = profile.roles?.length ? profile.roles : (profile.role ? [profile.role] : []);
   const isAdmin = rawRoles.map(r => normalizeRole(r)).includes('관리자');
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdmin);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
 
-  const { data: rows } = await getSvc()
+  const svc = getSvc();
+
+  let allianceCompanies: { id: string; name: string }[] = [];
+  if (isAllianceUser || isAdmin) {
+    const { data: companiesData } = await svc
+      .from('client_companies')
+      .select('id, name')
+      .eq('status', 'active')
+      .order('display_order', { ascending: true });
+    allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
+  }
+
+  const { data: rows } = await svc
     .from('notices')
     .select('id, title, content, is_pinned, created_at, updated_at')
     .order('is_pinned', { ascending: false })
@@ -65,6 +82,10 @@ export default async function NoticesPage() {
           <HomeButton />
           <LogoutButton compact />
         </div>
+
+        {(isAllianceUser || isAdmin) && (
+          <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
+        )}
 
         <NoticesClient notices={notices} isAdmin={isAdmin} />
       </div>
