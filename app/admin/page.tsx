@@ -335,7 +335,10 @@ export default async function AdminPage() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
   const now           = new Date();
-  const todayStart    = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  // KST(UTC+9) 자정을 UTC로 환산
+  const KST_MS        = 9 * 60 * 60 * 1000;
+  const nowKST        = new Date(now.getTime() + KST_MS);
+  const todayStart    = new Date(Date.UTC(nowKST.getUTCFullYear(), nowKST.getUTCMonth(), nowKST.getUTCDate()) - KST_MS).toISOString();
   const sevenDaysAgo  = new Date(now.getTime() - 7  * 86_400_000).toISOString();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86_400_000).toISOString();
 
@@ -530,8 +533,8 @@ export default async function AdminPage() {
                         const logins      = loginCountMap.get(p.id) ?? 0;
                         const signInLabel = signInDate
                           ? isToday
-                            ? `오늘 ${signInDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}`
-                            : signInDate.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+                            ? `오늘 ${signInDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul' })}`
+                            : signInDate.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', timeZone: 'Asia/Seoul' })
                           : '—';
                         const cell = (val: number, color: string, noData = false) => (
                           <td style={{ padding: '0.42rem 0.45rem', textAlign: 'right', fontWeight: val > 0 ? 700 : undefined, color: val > 0 ? color : 'rgba(255,255,255,0.18)', fontSize: '0.75rem' }}>
