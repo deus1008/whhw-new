@@ -15,13 +15,32 @@ export default function SignupPage() {
   const [fullName,    setFullName]    = useState('');
   const [phone,       setPhone]       = useState('');
   const [companyName, setCompanyName] = useState('');
+
+  function formatPhone(raw: string): string {
+    const digits = raw.replace(/\D/g, '').slice(0, 11);
+    if (digits.length <= 3)  return digits;
+    if (digits.startsWith('02')) {
+      if (digits.length <= 6)  return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+      if (digits.length <= 9)  return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+      return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+    }
+    if (digits.length <= 6)  return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    if (digits.length <= 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+  }
+
+  function isValidMobilePhone(p: string): boolean {
+    const digits = p.replace(/\D/g, '');
+    return /^01[016789]\d{7,8}$/.test(digits);
+  }
   const [status,      setStatus]      = useState<Status>('idle');
   const [message,     setMessage]     = useState('');
 
   function validate(): string | null {
-    if (!fullName.trim())     return '성명을 입력해주세요.';
-    if (password.length < 8)  return '비밀번호는 최소 8자 이상이어야 합니다.';
-    if (password !== confirm)  return '비밀번호가 일치하지 않습니다.';
+    if (!fullName.trim())                        return '성명을 입력해주세요.';
+    if (phone.trim() && !isValidMobilePhone(phone)) return '문자 수신이 가능한 휴대폰 번호를 입력해주세요. (예: 010-1234-5678)';
+    if (password.length < 8)                     return '비밀번호는 최소 8자 이상이어야 합니다.';
+    if (password !== confirm)                     return '비밀번호가 일치하지 않습니다.';
     return null;
   }
 
@@ -140,16 +159,22 @@ export default function SignupPage() {
               </div>
 
               <div className="auth-field">
-                <label className="auth-label" htmlFor="phone">전화번호</label>
+                <label className="auth-label" htmlFor="phone">
+                  전화번호
+                  <span style={{ marginLeft: '0.4rem', fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                    (문자메시지 수신 가능한 휴대폰 번호)
+                  </span>
+                </label>
                 <input
                   id="phone"
                   type="tel"
                   className="auth-input"
                   placeholder="010-0000-0000"
                   value={phone}
-                  onChange={e => setPhone(e.target.value)}
+                  onChange={e => setPhone(formatPhone(e.target.value))}
                   disabled={loading}
                   autoComplete="tel"
+                  inputMode="numeric"
                 />
               </div>
 
