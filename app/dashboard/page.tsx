@@ -186,6 +186,30 @@ export default async function DashboardPage() {
     return q;
   })();
 
+  // 위탁사 필터가 필요한 추가 쿼리 빌드
+  const custQ = (() => {
+    let q = svc.from('customer_status').select('source_file, created_at').gte('created_at', since3mStr);
+    if (companyId) q = q.eq('company_id', companyId);
+    return q;
+  })();
+  const docQ = (() => {
+    let q = svc.from('documents')
+      .select('id,filename,category,file_type,created_at,status,summary')
+      .gte('created_at', since3mStr)
+      .order('created_at', { ascending: false })
+      .limit(60);
+    if (companyId) q = q.eq('company_id', companyId);
+    return q;
+  })();
+  const invDocQ = (() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let q: any = svc.from('documents')
+      .select('id,filename,storage_path,created_at')
+      .eq('category', '품절예측');
+    if (companyId) q = q.eq('company_id', companyId);
+    return q.order('created_at', { ascending: false }).limit(1).single();
+  })();
+
   const [
     { data: custRows },
     { data: visitRows },
@@ -197,9 +221,7 @@ export default async function DashboardPage() {
     { data: dcRows },
     { data: invDoc },
   ] = await Promise.all([
-    svc.from('customer_status')
-      .select('source_file, created_at')
-      .gte('created_at', since3mStr),
+    custQ,
     svc.from('visit_records')
       .select('user_id, visited_at, customer_name, contact_name, content')
       .gte('visited_at', since3mStr)
@@ -217,21 +239,12 @@ export default async function DashboardPage() {
     ediQ,
     // 발매예정: 단종·발매완료 제외, 발매일 → 성분명 순 (위탁사 필터 적용)
     upcomingQ,
-    // 문서: 최근 3개월, CSO/동향 관련 카테고리 포함
-    svc.from('documents')
-      .select('id,filename,category,file_type,created_at,status,summary')
-      .gte('created_at', since3mStr)
-      .order('created_at', { ascending: false })
-      .limit(60),
+    // 문서: 최근 3개월 (위탁사 필터 적용)
+    docQ,
     // DC현황: 전체 목록 (sort_order 순, 위탁사 필터 적용)
     dcQ,
-    // 품절예측: 최신 파일 메타
-    svc.from('documents')
-      .select('id,filename,storage_path,created_at')
-      .eq('category', '품절예측')
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single(),
+    // 품절예측: 최신 파일 메타 (위탁사 필터 적용)
+    invDocQ,
   ]);
 
   // ── B-2. 품절예측 파일 다운로드 + 파싱 ───────────────────────────────────────

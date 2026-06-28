@@ -2,8 +2,9 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-import { normalizeRole } from '@/lib/roles';
+import { normalizeRole, profileIsAdmin } from '@/lib/roles';
 import { createClient as createServiceClient } from '@supabase/supabase-js';
+import { getEffectiveCompanyId } from '@/lib/active-company';
 import type { UpcomingProduct } from './page';
 
 export type ProductInput = {
@@ -39,10 +40,13 @@ async function checkApproved(): Promise<{ userId: string; role: string; company_
   if (!profile || profile.status !== 'approved')
     return { error: '승인된 계정이 아닙니다.' };
 
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const isSystemAdmin = profileIsAdmin(profile);
+  const company_id = await getEffectiveCompanyId(profileCompanyId, isSystemAdmin);
   return {
     userId: user.id,
     role: normalizeRole(profile.role),
-    company_id: (profile.company_id as string) ?? null,
+    company_id,
   };
 }
 

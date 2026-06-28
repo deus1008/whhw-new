@@ -73,9 +73,10 @@ interface Props {
   initialDocuments: Document[];
   userId: string;
   isAdmin: boolean;
+  companyId?: string | null;
 }
 
-export default function DocumentsClient({ initialDocuments, userId, isAdmin }: Props) {
+export default function DocumentsClient({ initialDocuments, userId, isAdmin, companyId }: Props) {
   const [documents, setDocuments]         = useState<Document[]>(initialDocuments);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [folder, setFolder]               = useState('');
@@ -213,6 +214,7 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin }: P
             uploaded_by: user.id,
             status:      'processing',
             summary:     null,
+            company_id:  companyId ?? null,
           })
           .select()
           .single();

@@ -2,10 +2,11 @@ export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { normalizeRole } from '@/lib/roles';
+import { normalizeRole, profileIsAdmin } from '@/lib/roles';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import DocumentsClient from '@/components/DocumentsClient';
+import { getEffectiveCompanyId } from '@/lib/active-company';
 
 type DocStatus = 'processing' | 'running' | 'ready' | 'error';
 
@@ -32,13 +33,16 @@ export default async function DocumentsPage() {
   // 관리자 확인 — role 컬럼만 조회 (대시보드와 동일한 방식)
   const { data: myProfile } = await supabase
     .from('profiles')
-    .select('role, status')
+    .select('role, status, company_id')
     .eq('id', user.id)
     .single();
 
   if (!myProfile || myProfile.status !== 'approved') redirect('/pending');
 
   const isAdmin = normalizeRole(myProfile.role as string) === '관리자';
+  const profileCompanyId = (myProfile.company_id as string) ?? null;
+  const isSystemAdmin = profileIsAdmin(myProfile);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isSystemAdmin);
 
   const { data: docs, error: docsError } = await supabase
     .from('documents')
@@ -73,6 +77,7 @@ export default async function DocumentsPage() {
           initialDocuments={docsWithChunks}
           userId={user.id}
           isAdmin={isAdmin}
+          companyId={companyId}
         />
       </div>
     </>

@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   // ── 3. 문서 조회 ────────────────────────────────────────────────────────
   const { data: doc, error: docErr } = await supabase
     .from('documents')
-    .select('id, filename, file_type, storage_path, uploaded_by, category')
+    .select('id, filename, file_type, storage_path, uploaded_by, category, company_id')
     .eq('id', documentId)
     .single();
 
@@ -95,6 +95,7 @@ export async function POST(request: Request) {
 
   const buffer = Buffer.from(await blob.arrayBuffer());
   const category = (doc.category ?? '') as string;
+  const docCompanyId = (doc as Record<string, unknown>).company_id as string | null ?? null;
   const fileSizeMB = (buffer.length / 1024 / 1024).toFixed(1);
   console.log(`[process:${documentId}] 폴더: "${category}", 파일: ${doc.filename}, 크기: ${fileSizeMB}MB`);
 
@@ -145,6 +146,7 @@ export async function POST(request: Request) {
             indication: p.indication?.trim() || null, status: p.status || '발매예정',
             insurance_code: p.insurance_code?.trim() || null, insurance_price: p.insurance_price?.trim() || null,
             created_at: now, updated_at: now,
+            company_id: docCompanyId,
           };
           if (withSrcId) row.source_document_id = documentId;
           return row;
@@ -174,14 +176,19 @@ export async function POST(request: Request) {
     if (parseError) return fail(`거래처 파싱 실패: ${parseError}`);
 
     if (rows.length > 0) {
-      // 최신 파일로 전체 교체 — 파일명 무관하게 기존 데이터 전부 삭제
-      await supabase.from('customer_status').delete().not('id', 'is', null);
+      // 최신 파일로 전체 교체 — 같은 위탁사의 기존 데이터만 삭제
+      if (docCompanyId) {
+        await supabase.from('customer_status').delete().eq('company_id', docCompanyId);
+      } else {
+        await supabase.from('customer_status').delete().not('id', 'is', null);
+      }
       const CHUNK = 500;
       let inserted = 0;
       for (let i = 0; i < rows.length; i += CHUNK) {
-        const { error: insErr } = await supabase.from('customer_status').insert(rows.slice(i, i + CHUNK));
+        const chunk = rows.slice(i, i + CHUNK).map((r: Record<string, unknown>) => ({ ...r, company_id: docCompanyId }));
+        const { error: insErr } = await supabase.from('customer_status').insert(chunk);
         if (insErr) console.warn(`[process:${documentId}] 거래처 삽입 오류:`, insErr.message);
-        else inserted += rows.slice(i, i + CHUNK).length;
+        else inserted += chunk.length;
       }
       console.log(`[process:${documentId}] 거래처 ${inserted}/${total}건 저장 완료`);
     }
@@ -239,7 +246,7 @@ export async function POST(request: Request) {
       let inserted = 0;
       let firstErr: string | null = null;
       for (let i = 0; i < rows.length; i += CHUNK) {
-        const chunk = rows.slice(i, i + CHUNK);
+        const chunk = (rows.slice(i, i + CHUNK) as Record<string, unknown>[]).map(r => ({ ...r, company_id: docCompanyId }));
         const { error: insErr } = await supabase.from('commission_settlements').insert(chunk);
         if (insErr) {
           console.error(`[process:${documentId}] 정산 삽입 오류(chunk ${i}):`, insErr.message);
@@ -250,7 +257,7 @@ export async function POST(request: Request) {
       }
       // 첫 번째 청크부터 실패한 경우(컬럼 누락 등) → 오류 반환
       if (inserted === 0 && firstErr) {
-        return fail(`수수료정산 DB 저장 실패: ${firstErr} — Supabase SQL Editor에서 20260606_cs_full_schema.sql 을 실행하세요`);
+        return fail(`수수료정산 DB 저장 실패: ${firstErr} — Supabase SQL Editor에서 20260628_company_id_isolation.sql 을 실행하세요`);
       }
       console.log(`[process:${documentId}] 수수료정산 ${inserted}/${total}건 저장 완료`);
       if (firstErr) console.warn(`[process:${documentId}] 일부 청크 오류: ${firstErr}`);

@@ -18,7 +18,7 @@ const MAX_ROWS = 100_000;
 
 /** trend_prescriptions 에 EDI 원본 행 동기화 (이미 존재하면 스킵) */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], data: EdiData, filename: string): Promise<void> {
+async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], data: EdiData, filename: string, companyId?: string | null): Promise<void> {
   try {
     // 이미 DB에 저장됐으면 스킵
     const { count } = await svc
@@ -39,6 +39,7 @@ async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], data: EdiD
       hospital_name: string | null;
       product_name: string | null;
       prescription_amount: number | null;
+      company_id: string | null;
     };
 
     const insertRows: InsertRow[] = [];
@@ -62,6 +63,7 @@ async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], data: EdiD
         hospital_name:        hos,
         product_name:         itm,
         prescription_amount:  amt > 0 ? amt : null,
+        company_id:           companyId ?? null,
       });
     }
 
@@ -164,7 +166,7 @@ export async function analyzeEdiFile(docId: string): Promise<{
   const svc = getSvc();
   const { data: doc, error: dbErr } = await svc
     .from('documents')
-    .select('id, filename, file_type, storage_path, created_at')
+    .select('id, filename, file_type, storage_path, created_at, company_id')
     .eq('id', docId).single();
   if (dbErr || !doc) return { error: '파일을 찾을 수 없습니다.' };
 
@@ -234,12 +236,13 @@ export async function analyzeEdiFile(docId: string): Promise<{
       await svc.storage.from(BUCKET_CACHE).upload(cacheKey, cBlob, { upsert: true });
     } catch { /* ignore */ }
     // DB 저장 (행 단위 구조화)
+    const ediCompanyId = (d as Record<string, unknown>).company_id as string | null ?? null;
     if (data) {
       // 성공한 headerRow의 rows를 다시 파싱
       const savedRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
         wb.Sheets[bestSheet], { defval: '', range: usedHeaderRow },
       ).slice(0, MAX_ROWS);
-      await syncEdiToDb(svc, savedRows, data, d.filename);
+      await syncEdiToDb(svc, savedRows, data, d.filename, ediCompanyId);
     }
     return { report };
   } catch (e) { return { error: e instanceof Error ? e.message : '분析 오류' }; }
@@ -253,7 +256,7 @@ export async function getEdiData(): Promise<{
 
   const { data: docs, error: dbErr } = await svc
     .from('documents')
-    .select('id, filename, file_type, storage_path, created_at')
+    .select('id, filename, file_type, storage_path, created_at, company_id')
     .eq('category', FOLDER_NAME)
     .in('file_type', ['xlsx', 'xls', 'csv', 'txt'])
     .order('created_at', { ascending: false });
@@ -381,7 +384,8 @@ export async function getEdiData(): Promise<{
       }
 
       // DB 저장 (행 단위 구조화)
-      await syncEdiToDb(svc, rows, data, doc.filename as string);
+      const docCoId = (doc as Record<string, unknown>).company_id as string | null ?? null;
+      await syncEdiToDb(svc, rows, data, doc.filename as string, docCoId);
 
       reports.push(report);
     } catch (e) {

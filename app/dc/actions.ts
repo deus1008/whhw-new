@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
-import { normalizeRole } from '@/lib/roles';
+import { normalizeRole, profileIsAdmin } from '@/lib/roles';
+import { getEffectiveCompanyId } from '@/lib/active-company';
 
 export type DcItem = {
   id: string;
@@ -42,7 +43,9 @@ async function verifyEditor(): Promise<{ userId: string; company_id: string | nu
   const editorRoles = ['관리자', '마케팅총괄', 'PM'];
   if (!editorRoles.includes(role)) throw new Error('편집 권한이 없습니다.');
 
-  return { userId: user.id, company_id: (profile.company_id as string) ?? null };
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const company_id = await getEffectiveCompanyId(profileCompanyId, profileIsAdmin(profile));
+  return { userId: user.id, company_id };
 }
 
 /* ── 전체 조회 ─────────────────────────────────────────────── */

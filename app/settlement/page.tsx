@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { profileIsAdmin } from '@/lib/roles';
+import { getEffectiveCompanyId } from '@/lib/active-company';
 
 import HomeButton from '@/components/HomeButton';
 import LogoutButton from '@/components/LogoutButton';
@@ -15,10 +16,12 @@ export default async function SettlementPage() {
   if (!user) redirect('/login');
 
   const { data: profile } = await supabase
-    .from('profiles').select('role, roles, status').eq('id', user.id).single();
+    .from('profiles').select('role, roles, status, company_id').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') redirect('/pending');
 
   const isAdmin = profileIsAdmin(profile);
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
 
   const svc = createSvcClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,17 +29,22 @@ export default async function SettlementPage() {
   );
 
   // ── 전체 행 병렬 페이지네이션 ──────────────────────────────────────────
-  // 순차 루프(~44회 ≈ 6초) → 병렬 배치(5라운드 ≈ 1초)로 교체
   const PAGE           = 1000;
-  const PARALLEL_BATCH = 10;   // 한 라운드에 동시 요청 수
+  const PARALLEL_BATCH = 10;
+
+  function buildQ(rangeStart: number, rangeEnd: number) {
+    let q = svc
+      .from('commission_settlements')
+      .select('*', rangeStart === 0 ? { count: 'exact' } : {})
+      .order('settlement_month', { ascending: false })
+      .order('cso_name')
+      .range(rangeStart, rangeEnd);
+    if (companyId) q = q.eq('company_id', companyId);
+    return q;
+  }
 
   // 1단계: 총 건수 + 첫 페이지를 한 번에
-  const { data: firstPage, count: totalCount, error: firstErr } = await svc
-    .from('commission_settlements')
-    .select('*', { count: 'exact' })
-    .order('settlement_month', { ascending: false })
-    .order('cso_name')
-    .range(0, PAGE - 1);
+  const { data: firstPage, count: totalCount, error: firstErr } = await buildQ(0, PAGE - 1) as Awaited<ReturnType<typeof buildQ>> & { count: number | null };
 
   let allRows: SettlementRowClient[] = [];
   if (!firstErr && firstPage) {
@@ -49,12 +57,7 @@ export default async function SettlementPage() {
       const batch = await Promise.all(
         Array.from({ length: be - bs }, (_, i) => {
           const pg = bs + i;
-          return svc
-            .from('commission_settlements')
-            .select('*')
-            .order('settlement_month', { ascending: false })
-            .order('cso_name')
-            .range(pg * PAGE, pg * PAGE + PAGE - 1);
+          return buildQ(pg * PAGE, pg * PAGE + PAGE - 1);
         }),
       );
       for (const r of batch) {
