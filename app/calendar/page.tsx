@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
@@ -69,13 +71,17 @@ export default async function MarketingPage() {
   const to = new Date();
   to.setMonth(to.getMonth() + 12);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let schedulesQ: any = getSvc()
+    .from('marketing_schedules')
+    .select('*')
+    .gte('start_date', from.toISOString().slice(0, 10))
+    .lte('start_date', to.toISOString().slice(0, 10))
+    .order('start_date', { ascending: true });
+  if (companyId) schedulesQ = schedulesQ.eq('company_id', companyId);
+
   const [{ data: schedules }, { data: categoryRows }] = await Promise.all([
-    supabase
-      .from('marketing_schedules')
-      .select('*')
-      .gte('start_date', from.toISOString().slice(0, 10))
-      .lte('start_date', to.toISOString().slice(0, 10))
-      .order('start_date', { ascending: true }),
+    schedulesQ,
     supabase
       .from('schedule_categories')
       .select('id, name, color, sort_order')
@@ -135,6 +141,7 @@ export default async function MarketingPage() {
         )}
 
         <MarketingClient
+          key={companyId ?? 'default'}
           initialSchedules={records}
           initialCategories={categories}
           userId={user.id}

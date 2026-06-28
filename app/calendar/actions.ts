@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import type { MarketingSchedule } from './page';
 
 function svc() {
@@ -39,14 +40,20 @@ async function getAuthorized() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, status')
+    .select('role, status, company_id')
     .eq('id', user.id)
     .single();
 
   if (!profile || profile.status !== 'approved')
     return { error: '승인된 계정이 아닙니다.' };
 
-  return { supabase, user, role: normalizeRole(profile.role) };
+  const role = normalizeRole(profile.role);
+  const isAdminRole = isAdmin(role);
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const isAllianceUser = isAllianceEmployee(profileCompanyId, isAdminRole);
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdminRole || isAllianceUser);
+
+  return { supabase, user, role, companyId };
 }
 
 function isAdmin(role: string) {
@@ -76,7 +83,7 @@ export async function createSchedule(
 
   const { data, error } = await auth.supabase
     .from('marketing_schedules')
-    .insert({ ...clean(input), user_id: auth.user!.id })
+    .insert({ ...clean(input), user_id: auth.user!.id, company_id: auth.companyId ?? null })
     .select()
     .single();
 
