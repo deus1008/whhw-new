@@ -339,10 +339,12 @@ export default async function AdminPage() {
   const sevenDaysAgo  = new Date(now.getTime() - 7  * 86_400_000).toISOString();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 86_400_000).toISOString();
 
-  const [authResp, visitResp, docResp] = await Promise.all([
+  const [authResp, visitResp, docResp, scheduleResp, contractResp] = await Promise.all([
     adminSvc.auth.admin.listUsers({ perPage: 1000 }),
     adminSvc.from('visit_records').select('user_id').gte('visited_at', thirtyDaysAgo),
     adminSvc.from('documents').select('uploaded_by').gte('created_at', thirtyDaysAgo),
+    adminSvc.from('marketing_schedules').select('id', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo),
+    adminSvc.from('new_contracts').select('id', { count: 'exact', head: true }).gte('created_at', thirtyDaysAgo),
   ]);
 
   const authUsers     = authResp.data?.users ?? [];
@@ -358,6 +360,15 @@ export default async function AdminPage() {
   const loggedIn7Days  = authUsers.filter(u => u.last_sign_in_at && u.last_sign_in_at >= sevenDaysAgo).length;
   const totalVisits30d = visitResp.data?.length ?? 0;
   const totalDocs30d   = docResp.data?.length ?? 0;
+
+  /* ── 페이지별 활동량 (상위 3) ── */
+  const pageStats = [
+    { label: '방문관리',    path: '/visits',   count: visitResp.data?.length ?? 0,    color: '#fde68a' },
+    { label: '마케팅 일정', path: '/calendar', count: scheduleResp.count ?? 0,         color: '#86efac' },
+    { label: '문서관리',    path: '/documents', count: docResp.data?.length ?? 0,      color: '#93c5fd' },
+    { label: '계약관리',    path: '/contracts', count: contractResp.count ?? 0,         color: '#c4b5fd' },
+  ].sort((a, b) => b.count - a.count).slice(0, 3);
+  const maxPageCount = pageStats[0]?.count || 1;
 
   const approvedSorted = [...approved].sort((a, b) => {
     const aS = lastSignInMap.get(a.id) ?? '';
@@ -423,6 +434,23 @@ export default async function AdminPage() {
               }}>
                 <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>{label}</div>
                 <div style={{ fontSize: '1.5rem', fontWeight: 700, color, lineHeight: 1 }}>{value}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* 페이지별 활동 TOP 3 */}
+          <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#475569', letterSpacing: '0.05em', textTransform: 'uppercase', margin: '0.85rem 0 0.55rem' }}>
+            페이지별 활동 (최근 30일 · 상위 3)
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginBottom: '1rem' }}>
+            {pageStats.map(({ label, count, color }, rank) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', width: 14, textAlign: 'right', flexShrink: 0 }}>{rank + 1}</span>
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, width: 80, flexShrink: 0 }}>{label}</span>
+                <div style={{ flex: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+                  <div style={{ width: `${Math.round(count / maxPageCount * 100)}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.3s' }} />
+                </div>
+                <span style={{ fontSize: '0.73rem', fontWeight: 700, color, width: 40, textAlign: 'right', flexShrink: 0 }}>{count.toLocaleString()}</span>
               </div>
             ))}
           </div>
