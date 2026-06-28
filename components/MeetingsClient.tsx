@@ -192,7 +192,21 @@ export default function MeetingsClient({ meetings: initial }: { meetings: Meetin
   const [isPending, startTransition] = useTransition();
 
   /* ── 분류 목록 관리 ──────────────────────────────────────────── */
-  const [managedCats, setManagedCats] = useState<string[]>([...DEFAULT_CATS]);
+  const [managedCats, setManagedCatsRaw] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return [...DEFAULT_CATS];
+    try {
+      const saved = localStorage.getItem('whhw_task_cats');
+      if (saved) return JSON.parse(saved) as string[];
+    } catch {}
+    return [...DEFAULT_CATS];
+  });
+  function setManagedCats(fn: string[] | ((prev: string[]) => string[])) {
+    setManagedCatsRaw(prev => {
+      const next = typeof fn === 'function' ? fn(prev) : fn;
+      try { localStorage.setItem('whhw_task_cats', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
   const [hoveredCat, setHoveredCat]   = useState<string | null>(null);
   const [editingCat, setEditingCat]   = useState<string | null>(null);
   const [editValue, setEditValue]     = useState('');

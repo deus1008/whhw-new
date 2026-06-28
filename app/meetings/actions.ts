@@ -54,7 +54,7 @@ export async function createMeeting(form: {
   if (!user) return { error: '인증이 필요합니다.' };
   const { data, error } = await svc()
     .from('meetings')
-    .insert({ ...form, content: '', todos: [], created_by: user.id })
+    .insert({ ...form, meeting_date: form.meeting_date || null, content: '', todos: [], created_by: user.id })
     .select('id')
     .single();
   if (error) return { error: error.message };
