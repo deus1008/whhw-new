@@ -36,9 +36,10 @@ export async function GET() {
 
   const svc = getSvc();
 
-  // 아주얼라이언스 직원: 쿠키에서 선택된 위탁사 읽기
+  // 관리자 포함 전환바 사용자: 쿠키에서 선택된 위탁사 읽기
+  const needsSwitcher = isAllianceUser || isAdmin;
   let effectiveCompanyId: string | null = profileCompanyId;
-  if (isAllianceUser) {
+  if (needsSwitcher) {
     const cookieStore = await cookies();
     effectiveCompanyId = cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value ?? null;
   }
@@ -54,9 +55,9 @@ export async function GET() {
     companyName = company?.name ?? null;
   }
 
-  // 아주얼라이언스 직원용 위탁사 목록
+  // 전환바 사용자(관리자 + 아주얼라이언스)용 위탁사 목록
   let companies: { id: string; name: string }[] = [];
-  if (isAllianceUser) {
+  if (needsSwitcher) {
     const { data: companiesData } = await svc
       .from('client_companies')
       .select('id, name')

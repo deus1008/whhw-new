@@ -464,8 +464,8 @@ export default function Home() {
 
       <div className="relative z-10 text-center px-6 py-8 w-full max-w-[700px]">
 
-        {/* 위탁사명 (로그인 + 위탁사 확정된 경우) */}
-        {isLoggedIn && companyName && (
+        {/* 위탁사명 — 전환바가 없는 위탁사 직원에게만 표시 */}
+        {isLoggedIn && companyName && !isAllianceUser && !isAdmin && (
           <p style={{
             fontSize: '4.5rem', fontWeight: 700, letterSpacing: '0.04em',
             color: '#a5b4fc', marginBottom: '0.2rem',
@@ -476,8 +476,8 @@ export default function Home() {
 
         <h1 className="domain">CSO Biz.</h1>
 
-        {/* 아주얼라이언스 직원 위탁사 선택/전환 바 */}
-        {isLoggedIn && isAllianceUser && (
+        {/* 위탁사 전환바 — 아주얼라이언스 직원 + 관리자 */}
+        {isLoggedIn && (isAllianceUser || isAdmin) && (
           <div style={{ marginTop: '0.75rem' }}>
             <AllianceCompanyBar
               companies={allianceCompanies}
