@@ -305,11 +305,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   const upcomingSchedules = schedules.filter(s => s.startDate >= todayStr).slice(0, 8);
   const recentSchedules   = schedules.filter(s => s.startDate < todayStr).slice(-6).reverse();
 
-  // 당월 기준 방문 상세 (지정 순서 정렬)
+  // 최근 2주 방문 상세 (담당자 지정 순서 → 업체명 → 날짜 정렬)
   const PERSON_ORDER = ['박동수', '김윤성', '임경봉', '김양희', '이정원', '이훈섭'];
-  const thisMonth = today.slice(0, 7);   // "2026-06"
-  const thisMonthVisits = (visitDetails ?? [])
-    .filter(v => v.month === thisMonth)
+  const since2w = new Date(today);
+  since2w.setDate(since2w.getDate() - 14);
+  const since2wStr = since2w.toISOString().slice(0, 10);
+  const recentVisits = (visitDetails ?? [])
+    .filter(v => v.visitedAt >= since2wStr)
     .sort((a, b) => {
       const ai = PERSON_ORDER.indexOf(a.personName);
       const bi = PERSON_ORDER.indexOf(b.personName);
@@ -319,6 +321,17 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         : a.customerName.localeCompare(b.customerName, 'ko')
           || a.visitedAt.localeCompare(b.visitedAt);
     });
+  // 2주 날짜 범위 라벨
+  const visitRangeLabel = (() => {
+    const f = since2w;
+    const t = new Date(today);
+    const fm = f.getMonth() + 1, fd = f.getDate();
+    const tm = t.getMonth() + 1, td = t.getDate();
+    const yr = String(t.getFullYear()).slice(2);
+    return fm === tm
+      ? `${yr}년 ${fm}월 ${fd}일 ~ ${td}일`
+      : `${yr}년 ${fm}월 ${fd}일 ~ ${tm}월 ${td}일`;
+  })();
 
   // DC 단계 상수
   const DC_STAGES = ['준비중', '접수', '코드인', '탈락'] as const;
@@ -1054,10 +1067,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           섹션 9: 현장활동현황
       ══════════════════════════════════════════════════════════ */}
       <Section title="👥 현장활동현황" id="s9">
-        {/* ── 담당자별 방문 현황 (당월) ── */}
-        <SubTitle>▸ 담당자별 방문 현황 ({fmtPeriod(thisMonth)})</SubTitle>
-        {thisMonthVisits.length === 0 ? (
-          <Empty msg="이번 달 영업활동 기록이 없습니다." />
+        {/* ── 담당자별 방문 현황 (최근 2주) ── */}
+        <SubTitle>▸ 담당자별 방문 현황 ({visitRangeLabel})</SubTitle>
+        {recentVisits.length === 0 ? (
+          <Empty msg="최근 2주간 영업활동 기록이 없습니다." />
         ) : (
           <table className="dash-table" style={{ marginBottom: '1.4rem' }}>
             <colgroup>
@@ -1077,7 +1090,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </tr>
             </thead>
             <tbody>
-              {thisMonthVisits.map((v, i) => (
+              {recentVisits.map((v, i) => (
                 <tr key={i}>
                   <td style={{ whiteSpace: 'nowrap' }}>{v.personName}</td>
                   <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.customerName}</td>

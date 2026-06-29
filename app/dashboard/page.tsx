@@ -94,6 +94,11 @@ export default async function DashboardPage() {
   since3m.setMonth(since3m.getMonth() - 3);
   const since3mStr = since3m.toISOString().slice(0, 10);
 
+  // 방문활동: 오늘 기준 2주 전
+  const since2w = new Date(now);
+  since2w.setDate(since2w.getDate() - 14);
+  const since2wStr = since2w.toISOString().slice(0, 10);
+
   const next2m = new Date(now);
   next2m.setMonth(next2m.getMonth() + 2);
   const next2mStr = next2m.toISOString().slice(0, 10);
@@ -224,7 +229,7 @@ export default async function DashboardPage() {
     custQ,
     svc.from('visit_records')
       .select('user_id, visited_at, customer_name, contact_name, content')
-      .gte('visited_at', since3mStr)
+      .gte('visited_at', since2wStr)
       .order('visited_at', { ascending: true }),
     svc.from('profiles')
       .select('id, email, full_name')
