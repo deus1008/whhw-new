@@ -77,6 +77,7 @@ export default async function MBOPage() {
           currentUserId={user.id}
           currentUserEmail={user.email ?? ''}
           members={members}
+          companyId={companyId}
         />
       </div>
     </>

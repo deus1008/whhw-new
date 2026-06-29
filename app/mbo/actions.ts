@@ -76,9 +76,11 @@ export async function getMboTargets(
   userId: string,
   year: number,
   month: number | null,
+  companyId: string | null,
 ): Promise<MboTarget[]> {
   const sb = serviceClient();
-  let q = sb
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = sb
     .from('mbo_targets')
     .select('*')
     .eq('user_id', userId)
@@ -86,11 +88,8 @@ export async function getMboTargets(
     .order('sort_order')
     .order('created_at');
 
-  if (month === null) {
-    q = q.is('month', null);
-  } else {
-    q = q.eq('month', month);
-  }
+  if (month === null) { q = q.is('month', null); } else { q = q.eq('month', month); }
+  if (companyId)      { q = q.eq('company_id', companyId); } else { q = q.is('company_id', null); }
 
   const { data, error } = await q;
   if (error) { console.error('[mbo] getMboTargets:', error.message); return []; }
@@ -106,6 +105,7 @@ export async function createMboTarget(payload: {
   target_value: string;
   unit:         string;
   sort_order:   number;
+  company_id:   string | null;
 }): Promise<{ error?: string }> {
   const auth = await getRole();
   if (!auth) return { error: '로그인이 필요합니다.' };
@@ -342,6 +342,7 @@ export async function copyMboTargets(
   fromUserId: string,
   toUserId:   string,
   year:       number,
+  companyId:  string | null,
 ): Promise<{ error?: string; count: number }> {
   const auth = await getRole();
   if (!auth?.isAdmin) return { error: '관리자만 복사할 수 있습니다.', count: 0 };
@@ -349,21 +350,27 @@ export async function copyMboTargets(
   const sb  = serviceClient();
   const now = new Date().toISOString();
 
-  // 원본 연간 목표 조회
-  const { data: sources, error: fetchErr } = await sb
+  // 원본 연간 목표 조회 (현재 위탁사 기준)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let srcQ: any = sb
     .from('mbo_targets')
     .select('item_name, target_value, unit, sort_order')
     .eq('user_id', fromUserId)
     .eq('year', year)
     .is('month', null)
     .order('sort_order');
+  srcQ = companyId ? srcQ.eq('company_id', companyId) : srcQ.is('company_id', null);
+  const { data: sources, error: fetchErr } = await srcQ;
 
   if (fetchErr) return { error: fetchErr.message, count: 0 };
   if (!sources || sources.length === 0) return { error: '복사할 목표 항목이 없습니다.', count: 0 };
 
   // 대상 멤버 기존 연간 목표 삭제 (덮어쓰기)
-  await sb.from('mbo_targets').delete()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let delQ: any = sb.from('mbo_targets').delete()
     .eq('user_id', toUserId).eq('year', year).is('month', null);
+  delQ = companyId ? delQ.eq('company_id', companyId) : delQ.is('company_id', null);
+  await delQ;
 
   // 복사 삽입 — target_value 유지, actual_value 초기화
   const rows = (sources as Array<{ item_name: string; target_value: string; unit: string; sort_order: number }>)
@@ -372,10 +379,11 @@ export async function copyMboTargets(
       year,
       month:        null,
       item_name:    s.item_name,
-      target_value: s.target_value,  // 목표값 그대로 복사 (나중에 수정 가능)
+      target_value: s.target_value,
       actual_value: '',
       unit:         s.unit,
       sort_order:   i,
+      company_id:   companyId ?? null,
       created_by:   auth.userId,
       created_at:   now,
       updated_at:   now,
@@ -393,10 +401,13 @@ export async function getMboStatus(
   userId: string,
   year: number,
   month: number | null,
+  companyId: string | null,
 ): Promise<string | null> {
   const sb = serviceClient();
-  let q = sb.from('mbo_status').select('status_color').eq('user_id', userId).eq('year', year);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = sb.from('mbo_status').select('status_color').eq('user_id', userId).eq('year', year);
   q = month === null ? q.is('month', null) : q.eq('month', month);
+  q = companyId ? q.eq('company_id', companyId) : q.is('company_id', null);
   const { data } = await q.maybeSingle();
   return (data as { status_color: string } | null)?.status_color ?? null;
 }
@@ -407,6 +418,7 @@ export async function setMboStatus(
   year: number,
   month: number | null,
   color: string,
+  companyId: string | null,
 ): Promise<{ error?: string }> {
   const auth = await getRole();
   if (!auth) return { error: '로그인이 필요합니다.' };
@@ -414,14 +426,16 @@ export async function setMboStatus(
   const sb = serviceClient();
   const now = new Date().toISOString();
 
-  let q = sb.from('mbo_status').select('id').eq('user_id', userId).eq('year', year);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = sb.from('mbo_status').select('id').eq('user_id', userId).eq('year', year);
   q = month === null ? q.is('month', null) : q.eq('month', month);
+  q = companyId ? q.eq('company_id', companyId) : q.is('company_id', null);
   const { data: existing } = await q.maybeSingle();
 
   if (existing) {
     await sb.from('mbo_status').update({ status_color: color, updated_at: now }).eq('id', (existing as { id: string }).id);
   } else {
-    await sb.from('mbo_status').insert({ user_id: userId, year, month, status_color: color, created_by: auth.userId });
+    await sb.from('mbo_status').insert({ user_id: userId, year, month, status_color: color, company_id: companyId ?? null, created_by: auth.userId });
   }
 
   revalidatePath('/mbo');

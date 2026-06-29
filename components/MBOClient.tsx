@@ -84,11 +84,13 @@ export default function MBOClient({
   currentUserId,
   currentUserEmail,
   members,
+  companyId,
 }: {
   isAdmin:           boolean;
   currentUserId:     string;
   currentUserEmail:  string;
   members:           Member[];
+  companyId:         string | null;
 }) {
   const [fyYear,      setFyYear]     = useState(CUR_FY_YEAR);
   const [selectedId,  setSelectedId] = useState(currentUserId);
@@ -109,8 +111,8 @@ export default function MBOClient({
     setLoading(true);
     try {
       const [data, color] = await Promise.all([
-        getMboTargets(selectedId, calYear, effectiveCalMonth),
-        getMboStatus(selectedId, calYear, effectiveCalMonth),
+        getMboTargets(selectedId, calYear, effectiveCalMonth, companyId),
+        getMboStatus(selectedId, calYear, effectiveCalMonth, companyId),
       ]);
       setTargets(data);
       setStatusColor(color);
@@ -163,7 +165,7 @@ export default function MBOClient({
     setStatusColor(color);                     // 낙관적 업데이트
     startStatus(async () => {
       try {
-        const res = await setMboStatus(selectedId, calYear, effectiveCalMonth, color);
+        const res = await setMboStatus(selectedId, calYear, effectiveCalMonth, color, companyId);
         if (res.error) showToast('⚠ ' + res.error);
       } catch {
         showToast('⚠ 현수준 저장 중 오류가 발생했습니다.');
@@ -230,6 +232,7 @@ export default function MBOClient({
               fromEmail={selectedName}
               fyYear={fyYear}
               members={members}
+              companyId={companyId}
               onCopied={(toId) => { setSelectedId(toId); reload(); }}
               onToast={showToast}
             />
@@ -304,6 +307,7 @@ export default function MBOClient({
           fyYear={fyYear}
           fyMonth={null}
           currentCount={targets.length}
+          companyId={companyId}
           onAdded={reload}
           onToast={showToast}
         />
@@ -620,7 +624,7 @@ function TargetRow({
    목표 추가 폼 (admin)
 ════════════════════════════════════════════ */
 function AddTargetForm({
-  userId, year, month, fyYear, fyMonth, currentCount, onAdded, onToast,
+  userId, year, month, fyYear, fyMonth, currentCount, companyId, onAdded, onToast,
 }: {
   userId:       string;
   year:         number;
@@ -628,6 +632,7 @@ function AddTargetForm({
   fyYear:       number;
   fyMonth:      number | null;
   currentCount: number;
+  companyId:    string | null;
   onAdded:      () => void;
   onToast:      (msg: string) => void;
 }) {
@@ -650,6 +655,7 @@ function AddTargetForm({
         target_value: targetVal.trim(),
         unit:         unit.trim(),
         sort_order:   currentCount,
+        company_id:   companyId,
       });
       if (res.error) { onToast('⚠ ' + res.error); return; }
       onToast('✓ 목표가 추가되었습니다.');
@@ -909,12 +915,13 @@ function MonthlyGrid({
    목표 복사 패널
 ════════════════════════════════════════════ */
 function CopyPanel({
-  fromUserId, fromEmail, fyYear, members, onCopied, onToast,
+  fromUserId, fromEmail, fyYear, members, companyId, onCopied, onToast,
 }: {
   fromUserId: string;
   fromEmail:  string;
   fyYear:     number;
   members:    Member[];
+  companyId:  string | null;
   onCopied:   (toId: string) => void;
   onToast:    (msg: string) => void;
 }) {
@@ -937,7 +944,7 @@ function CopyPanel({
 
     setCopying(true);
     try {
-      const res = await copyMboTargets(fromUserId, toId, fyYear);
+      const res = await copyMboTargets(fromUserId, toId, fyYear, companyId);
       if (res.error) { onToast('⚠ ' + res.error); return; }
       onToast(`✓ ${res.count}개 항목을 "${toName}"에게 복사했습니다.`);
       setOpen(false);
