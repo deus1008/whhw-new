@@ -8,7 +8,6 @@ import { normalizeRole } from '@/lib/roles';
 import ErrorReportModal from '@/components/ErrorReportModal';
 import { getPendingCount } from '@/app/errors/actions';
 import { getPendingUsersCount } from '@/app/admin/actions';
-import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 
 type NavItem = {
   href: string;
@@ -280,10 +279,8 @@ export default function Home() {
   const [adminBadge, setAdminBadge]   = useState(0);
 
   // 위탁사 정보
-  const [companyName,       setCompanyName]       = useState<string | null>(null);
-  const [isAllianceUser,    setIsAllianceUser]    = useState(false);
-  const [activeCompanyId,   setActiveCompanyId]   = useState<string | null>(null);
-  const [allianceCompanies, setAllianceCompanies] = useState<{ id: string; name: string }[]>([]);
+  const [companyName,    setCompanyName]    = useState<string | null>(null);
+  const [isAllianceUser, setIsAllianceUser] = useState(false);
 
   // 아이콘 배치 편집
   const [editMode,   setEditMode]   = useState(false);
@@ -301,8 +298,6 @@ export default function Home() {
         setErrorBadge(0);
         setCompanyName(null);
         setIsAllianceUser(false);
-        setActiveCompanyId(null);
-        setAllianceCompanies([]);
         return;
       }
       const { data } = await supabase.from('profiles').select('role, roles').eq('id', userId).single();
@@ -323,8 +318,6 @@ export default function Home() {
           const info = await res.json();
           setCompanyName(info.companyName);
           setIsAllianceUser(info.isAllianceUser);
-          setActiveCompanyId(info.companyId);
-          setAllianceCompanies(info.companies ?? []);
         }
       } catch (e) {
         console.error('[my-company]', e);
@@ -475,20 +468,6 @@ export default function Home() {
         )}
 
         <h1 className="domain">CSO Biz.</h1>
-
-        {/* 위탁사 전환바 — 아주얼라이언스 직원 + 관리자 */}
-        {isLoggedIn && (isAllianceUser || isAdmin) && (
-          <div style={{ marginTop: '0.75rem' }}>
-            <AllianceCompanyBar
-              companies={allianceCompanies}
-              activeCompanyId={activeCompanyId}
-              onAfterSelect={(id, name) => {
-                setActiveCompanyId(id);
-                setCompanyName(name);
-              }}
-            />
-          </div>
-        )}
 
         {/* 페이지 바로가기 아이콘 */}
         <div style={{
