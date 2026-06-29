@@ -770,62 +770,84 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         ) : (
           <>
             <SubTitle>▸ 3개월 처방액·정산액·수수료율 추이</SubTitle>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="dash-table">
-                <thead>
-                  <tr>
-                    <th>월</th><th>구분</th>
-                    <th className="right">처방액</th><th className="right">전월 대비</th>
-                    <th className="right">정산액</th><th className="right">전월 대비</th>
-                    <th className="right">수수료율</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {settlementTrend.map((row, ri) => {
-                    const prev = settlementTrend[ri - 1];
-                    const rows: ReactElement[] = [];
-                    if (row.clinic) {
-                      rows.push(
-                        <tr key={`${row.month}-cl`}>
-                          <td className="muted" rowSpan={[row.clinic, row.hospital, row.total].filter(Boolean).length}>{fmtPeriod(row.month)}</td>
-                          <td>의원</td>
-                          <td className="right">{fmtWon(row.clinic.prescAmt)}</td>
-                          <td className="right"><DeltaAmt cur={row.clinic.prescAmt} prev={prev?.clinic?.prescAmt} /></td>
-                          <td className="right">{fmtWon(row.clinic.settAmt)}</td>
-                          <td className="right"><DeltaAmt cur={row.clinic.settAmt} prev={prev?.clinic?.settAmt} /></td>
-                          <td className="right">{fmtRate(row.clinic.rate)}</td>
-                        </tr>
-                      );
-                    }
-                    if (row.hospital) {
-                      rows.push(
-                        <tr key={`${row.month}-hs`}>
-                          {!row.clinic && <td className="muted">{fmtPeriod(row.month)}</td>}
-                          <td>병원</td>
-                          <td className="right">{fmtWon(row.hospital.prescAmt)}</td>
-                          <td className="right"><DeltaAmt cur={row.hospital.prescAmt} prev={prev?.hospital?.prescAmt} /></td>
-                          <td className="right">{fmtWon(row.hospital.settAmt)}</td>
-                          <td className="right"><DeltaAmt cur={row.hospital.settAmt} prev={prev?.hospital?.settAmt} /></td>
-                          <td className="right">{fmtRate(row.hospital.rate)}</td>
-                        </tr>
-                      );
-                    }
-                    rows.push(
-                      <tr key={`${row.month}-total`} className="total-row">
-                        {!row.clinic && !row.hospital && <td className="muted">{fmtPeriod(row.month)}</td>}
-                        <td style={{ fontWeight: 700 }}>전체</td>
-                        <td className="right">{fmtWon(row.total.prescAmt)}</td>
-                        <td className="right"><DeltaAmt cur={row.total.prescAmt} prev={prev?.total.prescAmt} /></td>
-                        <td className="right">{fmtWon(row.total.settAmt)}</td>
-                        <td className="right"><DeltaAmt cur={row.total.settAmt} prev={prev?.total.settAmt} /></td>
-                        <td className="right" style={{ fontWeight: 700 }}>{fmtRate(row.total.rate)}</td>
+            {(() => {
+              type ST = (typeof settlementTrend)[0];
+              type Entry = { prescAmt: number; settAmt: number; rate: number };
+              const cur = settlementTrend[settlementTrend.length - 1];
+              const prv = settlementTrend[settlementTrend.length - 2];
+              const cats = [
+                { label: '의원', get: (r: ST): Entry | null => r.clinic,   isTotal: false },
+                { label: '병원', get: (r: ST): Entry | null => r.hospital, isTotal: false },
+                { label: '전체', get: (r: ST): Entry | null => r.total,    isTotal: true  },
+              ];
+              const metrics: Array<{ label: string; get: (e: Entry) => number; isRate: boolean }> = [
+                { label: '처방액',   get: e => e.prescAmt, isRate: false },
+                { label: '정산액',   get: e => e.settAmt,  isRate: false },
+                { label: '수수료율', get: e => e.rate,      isRate: true  },
+              ];
+              return (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="dash-table">
+                    <thead>
+                      <tr>
+                        <th className="center" style={{ width: '52px' }}>구분</th>
+                        <th style={{ width: '64px' }}>항목</th>
+                        {settlementTrend.map(r => (
+                          <th key={r.month} className="right">{fmtPeriod(r.month)}</th>
+                        ))}
+                        <th className="right">전월대비</th>
                       </tr>
-                    );
-                    return rows;
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody>
+                      {cats.flatMap((cat, ci) =>
+                        metrics.map((metric, mi) => {
+                          const curEntry = cur ? cat.get(cur) : null;
+                          const prvEntry = prv ? cat.get(prv) : null;
+                          const curVal   = curEntry ? metric.get(curEntry) : 0;
+                          const prvVal   = prvEntry ? metric.get(prvEntry) : undefined;
+                          const delta    = prvVal !== undefined ? curVal - prvVal : null;
+                          return (
+                            <tr key={`${ci}-${mi}`} className={cat.isTotal ? 'total-row' : ''}>
+                              {mi === 0 && (
+                                <td rowSpan={3} className="center"
+                                    style={{ verticalAlign: 'middle', fontWeight: 600, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                                  {cat.label}
+                                </td>
+                              )}
+                              <td className="muted" style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{metric.label}</td>
+                              {settlementTrend.map(r => {
+                                const entry = cat.get(r);
+                                const val   = entry ? metric.get(entry) : null;
+                                return (
+                                  <td key={r.month} className="right bold">
+                                    {val === null
+                                      ? <span className="muted">-</span>
+                                      : metric.isRate ? fmtRate(val) : fmtWon(val)}
+                                  </td>
+                                );
+                              })}
+                              <td className="right">
+                                {delta === null ? (
+                                  <span className="muted">-</span>
+                                ) : delta === 0 ? (
+                                  <span className="muted">±0</span>
+                                ) : metric.isRate ? (
+                                  <span className={delta > 0 ? 'up' : 'dn'} style={{ fontSize: '0.78rem' }}>
+                                    {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(1)}%
+                                  </span>
+                                ) : (
+                                  <DeltaAmt cur={curVal} prev={prvVal!} />
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
           </>
         )}
       </Section>
