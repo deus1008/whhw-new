@@ -307,17 +307,25 @@ export default async function DashboardPage() {
   }
 
   // ── [섹션 2] 거래처현황: CSO별 집계 ──────────────────────────────────────
-  type CsoAcc = { prescAmt: number; settAmt: number; hosps: Set<string> };
+  type CsoAcc = { prescAmt: number; settAmt: number; hosps: Set<string>; monthPrescs: Record<string, number> };
   const csoAccMap: Record<string, CsoAcc> = {};
   for (const r of normSett.filter(r => recentSet.has(r.prescription_month))) {
     const key = (r.cso_name ?? '').trim() || '미지정';
-    if (!csoAccMap[key]) csoAccMap[key] = { prescAmt: 0, settAmt: 0, hosps: new Set() };
-    csoAccMap[key].prescAmt += r.prescription_amount ?? 0;
-    csoAccMap[key].settAmt  += r.settlement_amount   ?? 0;
+    if (!csoAccMap[key]) csoAccMap[key] = { prescAmt: 0, settAmt: 0, hosps: new Set(), monthPrescs: {} };
+    const amt = r.prescription_amount ?? 0;
+    csoAccMap[key].prescAmt += amt;
+    csoAccMap[key].settAmt  += r.settlement_amount ?? 0;
     if (r.hospital_name) csoAccMap[key].hosps.add(r.hospital_name);
+    csoAccMap[key].monthPrescs[r.prescription_month] = (csoAccMap[key].monthPrescs[r.prescription_month] ?? 0) + amt;
   }
   const allCsoStats = Object.entries(csoAccMap)
-    .map(([name, v]) => ({ name, prescAmt: v.prescAmt, settAmt: v.settAmt, hospCount: v.hosps.size }))
+    .map(([name, v]) => ({
+      name,
+      prescAmt:  v.prescAmt,
+      settAmt:   v.settAmt,
+      hospCount: v.hosps.size,
+      months:    recentMonths.map(m => ({ month: m, prescAmt: v.monthPrescs[m] ?? 0 })),
+    }))
     .sort((a, b) => b.prescAmt - a.prescAmt);
   const totalCsoCount = allCsoStats.length;
   const csoStats = allCsoStats.slice(0, 10);
@@ -331,6 +339,14 @@ export default async function DashboardPage() {
     prescAmt:  allCsoStats.reduce((s, r) => s + r.prescAmt, 0),
     settAmt:   allCsoStats.reduce((s, r) => s + r.settAmt,  0),
   };
+  // 전체 CSO 월별 합산 (합산 행 표시용)
+  const csoMonthlyTotals = recentMonths.map(month => {
+    const rows    = normSett.filter(r => r.prescription_month === month);
+    const prescAmt = rows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0);
+    const settAmt  = rows.reduce((s, r) => s + (r.settlement_amount   ?? 0), 0);
+    const hosps    = new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!));
+    return { month, prescAmt, settAmt, hospCount: hosps.size };
+  });
 
   // ── [섹션 3] 처방처현황: 병원/의원 월별 분리 집계 ────────────────────────
   const settlementByCategory = recentMonths.map(month => {
@@ -655,6 +671,7 @@ export default async function DashboardPage() {
     csoStats,
     totalCsoCount,
     csoAllTotals,
+    csoMonthlyTotals,
     settlementByCategory,
     top10Customers,
     customerMonthly,

@@ -37,6 +37,14 @@ export type CsoStat = {
   hospCount: number;
   prescAmt:  number;
   settAmt:   number;
+  months:    { month: string; prescAmt: number }[];
+};
+
+export type CsoMonthlyTotal = {
+  month:     string;
+  prescAmt:  number;
+  settAmt:   number;
+  hospCount: number;
 };
 
 export type PrescMonthStat = {
@@ -154,6 +162,7 @@ export type DashboardData = {
   csoStats:             CsoStat[];         // 상위 10개
   totalCsoCount:        number;            // 전체 CSO 수
   csoAllTotals:         { hospCount: number; prescAmt: number; settAmt: number };
+  csoMonthlyTotals:     CsoMonthlyTotal[];  // 전체 CSO 월별 합산
   settlementByCategory: SettlementByCat[];
   top10Customers:       TopCustomer[];
   customerMonthly:      CustomerMonthStat[];
@@ -249,7 +258,7 @@ function SubTitle({ children }: { children: React.ReactNode }) {
 export default function DashboardClient({ data }: { data: DashboardData }) {
   const {
     reportDate, recentMonths,
-    csoStats, totalCsoCount, csoAllTotals,
+    csoStats, totalCsoCount, csoAllTotals, csoMonthlyTotals,
     settlementByCategory, top10Customers, customerMonthly,
     prescriptionMonthly,
     settlementTrend,
@@ -624,54 +633,83 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   <tr>
                     <th className="center">순위</th>
                     <th>CSO명</th>
-                    <th className="right">처방처수</th>
-                    <th className="right">처방액 합계</th>
-                    <th className="right">정산액 합계</th>
+                    {recentMonths.map(m => (
+                      <th key={m} className="right">{fmtPeriod(m)} 처방액</th>
+                    ))}
+                    <th className="right">전월대비</th>
                     <th className="right">정산율</th>
                   </tr>
                 </thead>
                 <tbody>
                   {csoStats.map((r, i) => {
-                    const rate = r.prescAmt > 0 ? Math.round(r.settAmt / r.prescAmt * 1000) / 10 : 0;
+                    const curAmt = r.months[r.months.length - 1]?.prescAmt ?? 0;
+                    const prvAmt = r.months[r.months.length - 2]?.prescAmt;
+                    const delta  = prvAmt !== undefined ? curAmt - prvAmt : null;
+                    const rate   = r.prescAmt > 0 ? Math.round(r.settAmt / r.prescAmt * 1000) / 10 : 0;
                     return (
                       <tr key={r.name}>
                         <td className="center muted">{i + 1}</td>
-                        <td style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                        <td style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
                           {r.name}
                         </td>
-                        <td className="right">{r.hospCount.toLocaleString()}</td>
-                        <td className="right bold">{fmtWon(r.prescAmt)}</td>
-                        <td className="right">{fmtWon(r.settAmt)}</td>
+                        {r.months.map(m => (
+                          <td key={m.month} className="right bold">
+                            {m.prescAmt > 0 ? fmtWon(m.prescAmt) : <span className="muted">-</span>}
+                          </td>
+                        ))}
+                        <td className="right">
+                          {delta === null ? <span className="muted">-</span>
+                           : delta === 0  ? <span className="muted">±0</span>
+                           : <DeltaAmt cur={curAmt} prev={prvAmt!} />}
+                        </td>
                         <td className="right" style={{ color: '#a8c4ff', fontSize: '0.82rem' }}>{fmtRate(rate)}</td>
                       </tr>
                     );
                   })}
-                  {/* 합산 / 평균 행 */}
-                  {(() => {
-                    const n  = totalCsoCount;
-                    const th = csoAllTotals.hospCount;
-                    const tp = csoAllTotals.prescAmt;
-                    const ts = csoAllTotals.settAmt;
-                    const overallRate = tp > 0 ? Math.round(ts / tp * 1000) / 10 : 0;
-                    return (
-                      <>
-                        <tr className="total-row">
-                          <td className="center" colSpan={2} style={{ fontWeight: 700 }}>전체 합산 ({n}개사)</td>
-                          <td className="right">{th.toLocaleString()}</td>
-                          <td className="right">{fmtWon(tp)}</td>
-                          <td className="right">{fmtWon(ts)}</td>
-                          <td className="right" style={{ color: '#a8c4ff' }}>{tp > 0 ? fmtRate(overallRate) : '-'}</td>
-                        </tr>
-                        <tr className="total-row" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                          <td className="center" colSpan={2}>CSO당 평균</td>
-                          <td className="right">{n > 0 ? Math.round(th / n).toLocaleString() : '-'}</td>
-                          <td className="right">{n > 0 ? fmtWon(Math.round(tp / n)) : '-'}</td>
-                          <td className="right">{n > 0 ? fmtWon(Math.round(ts / n)) : '-'}</td>
-                          <td className="right" style={{ color: '#a8c4ff' }}>{n > 0 && tp > 0 ? fmtRate(Math.round(ts / tp * 1000) / 10) : '-'}</td>
-                        </tr>
-                      </>
-                    );
-                  })()}
+                  {/* 전체 월별 합산 행 */}
+                  <tr className="total-row">
+                    <td className="center" colSpan={2} style={{ fontWeight: 700 }}>전체 합산 ({totalCsoCount}개사)</td>
+                    {csoMonthlyTotals.map((mt, mi) => {
+                      const prev = csoMonthlyTotals[mi - 1];
+                      return (
+                        <td key={mt.month} className="right">
+                          {fmtWon(mt.prescAmt)}
+                          {prev && (
+                            <span style={{ marginLeft: '0.35rem', fontSize: '0.72rem' }}>
+                              {mt.prescAmt > prev.prescAmt
+                                ? <span className="up">▲{fmtWon(mt.prescAmt - prev.prescAmt)}</span>
+                                : mt.prescAmt < prev.prescAmt
+                                ? <span className="dn">▼{fmtWon(prev.prescAmt - mt.prescAmt)}</span>
+                                : null}
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
+                    <td className="right">
+                      {csoMonthlyTotals.length >= 2 && (() => {
+                        const cur = csoMonthlyTotals[csoMonthlyTotals.length - 1].prescAmt;
+                        const prv = csoMonthlyTotals[csoMonthlyTotals.length - 2].prescAmt;
+                        return <DeltaAmt cur={cur} prev={prv} />;
+                      })()}
+                    </td>
+                    <td className="right" style={{ color: '#a8c4ff' }}>
+                      {csoAllTotals.prescAmt > 0 ? fmtRate(Math.round(csoAllTotals.settAmt / csoAllTotals.prescAmt * 1000) / 10) : '-'}
+                    </td>
+                  </tr>
+                  {/* CSO당 평균 행 */}
+                  <tr className="total-row" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                    <td className="center" colSpan={2}>CSO당 평균</td>
+                    {csoMonthlyTotals.map(mt => (
+                      <td key={mt.month} className="right">
+                        {totalCsoCount > 0 ? fmtWon(Math.round(mt.prescAmt / totalCsoCount)) : '-'}
+                      </td>
+                    ))}
+                    <td />
+                    <td className="right" style={{ color: '#a8c4ff' }}>
+                      {csoAllTotals.prescAmt > 0 ? fmtRate(Math.round(csoAllTotals.settAmt / csoAllTotals.prescAmt * 1000) / 10) : '-'}
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
