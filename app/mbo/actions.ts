@@ -23,6 +23,7 @@ export type MboTarget = {
 export type Member = {
   id:    string;
   email: string;
+  name:  string;
 };
 
 export type MonthlyActual = {
@@ -52,15 +53,22 @@ async function getRole(): Promise<{ userId: string; isAdmin: boolean } | null> {
   return { userId: user.id, isAdmin: userRoles.includes('관리자') };
 }
 
-/* ── 멤버 목록 (admin 전용) ── */
+/* ── 멤버 목록 (admin 전용) — 아주얼라이언스 직원만 ── */
 export async function getMembers(): Promise<Member[]> {
   const sb = serviceClient();
   const { data } = await sb
     .from('profiles')
-    .select('id, email')
+    .select('id, email, full_name, role, roles')
     .eq('status', 'approved')
-    .order('email');
-  return (data ?? []) as Member[];
+    .is('company_id', null)   // 위탁사 배정 없음 = 얼라이언스 직원
+    .order('full_name');
+
+  return ((data ?? []) as Array<{
+    id: string; email: string; full_name: string | null;
+    role: string | null; roles: string[] | null;
+  }>)
+    .filter(p => !getRoles(p).includes('관리자'))   // 관리자 제외
+    .map(p => ({ id: p.id, email: p.email, name: p.full_name ?? p.email }));
 }
 
 /* ── 목표 목록 조회 ── */

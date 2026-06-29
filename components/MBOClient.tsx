@@ -172,7 +172,7 @@ export default function MBOClient({
   }
 
   /* ── 연간 요약: 월별 항목 합산 ── */
-  const selectedEmail = members.find(m => m.id === selectedId)?.email ?? currentUserEmail;
+  const selectedName = members.find(m => m.id === selectedId)?.name ?? currentUserEmail;
 
   /* ── 달성률 전체 평균 (숫자 항목만) ── */
   const numericTargets = targets.filter(t => calcRate(t.actual_value, t.target_value) !== null);
@@ -213,7 +213,7 @@ export default function MBOClient({
               style={selectStyle}
             >
               {members.map(m => (
-                <option key={m.id} value={m.id}>{m.email}</option>
+                <option key={m.id} value={m.id}>{m.name}</option>
               ))}
             </select>
           )}
@@ -227,7 +227,7 @@ export default function MBOClient({
           {isAdmin && members.length > 1 && (
             <CopyPanel
               fromUserId={selectedId}
-              fromEmail={selectedEmail}
+              fromEmail={selectedName}
               fyYear={fyYear}
               members={members}
               onCopied={(toId) => { setSelectedId(toId); reload(); }}
@@ -239,7 +239,7 @@ export default function MBOClient({
         {/* 선택된 멤버 표시 */}
         {isAdmin && (
           <p style={{ fontSize: '0.73rem', color: 'rgba(165,180,252,0.7)', marginTop: '0.7rem', marginBottom: 0 }}>
-            📋 {selectedEmail} · FY{fyYear} ({fyYear}.04 ~ {fyYear + 1}.03)
+            📋 {selectedName} · FY{fyYear} ({fyYear}.04 ~ {fyYear + 1}.03)
           </p>
         )}
       </div>
@@ -932,14 +932,14 @@ function CopyPanel({
 
   async function handleCopy() {
     if (!toId) return;
-    const toEmail = members.find(m => m.id === toId)?.email ?? toId;
-    if (!confirm(`"${fromEmail}"의 FY${fyYear} 목표 항목을\n"${toEmail}"에게 복사할까요?\n\n기존 항목은 삭제됩니다.`)) return;
+    const toName = members.find(m => m.id === toId)?.name ?? toId;
+    if (!confirm(`"${fromEmail}"의 FY${fyYear} 목표 항목을\n"${toName}"에게 복사할까요?\n\n기존 항목은 삭제됩니다.`)) return;
 
     setCopying(true);
     try {
       const res = await copyMboTargets(fromUserId, toId, fyYear);
       if (res.error) { onToast('⚠ ' + res.error); return; }
-      onToast(`✓ ${res.count}개 항목을 "${toEmail}"에게 복사했습니다.`);
+      onToast(`✓ ${res.count}개 항목을 "${toName}"에게 복사했습니다.`);
       setOpen(false);
       onCopied(toId);
     } catch {
@@ -981,7 +981,7 @@ function CopyPanel({
         style={{ ...selectStyle, fontSize: '0.78rem', padding: '0.3rem 0.6rem' }}
       >
         {others.map(m => (
-          <option key={m.id} value={m.id}>{m.email}</option>
+          <option key={m.id} value={m.id}>{m.name}</option>
         ))}
       </select>
       <button
