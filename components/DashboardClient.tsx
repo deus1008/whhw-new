@@ -516,70 +516,93 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         ) : (
           <>
             <SubTitle>▸ 의원·병원별 처방 집계 ({recentMonths.length > 0 ? `${fmtPeriod(recentMonths[0])} ~ ${fmtPeriod(recentMonths[recentMonths.length - 1])}` : '최근 3개월'})</SubTitle>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="dash-table" style={{ tableLayout: 'fixed' }}>
-                <colgroup>
-                  <col style={{ width: '72px' }} />
-                  <col style={{ width: '64px' }} />
-                  <col style={{ width: '72px' }} />
-                  <col style={{ width: '80px' }} />
-                  <col style={{ width: '100px' }} />
-                  <col style={{ width: '90px' }} />
-                  <col style={{ width: '80px' }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th className="center">월</th>
-                    <th className="center">구분</th>
-                    <th className="center">처방처수</th>
-                    <th className="center">처방품목수</th>
-                    <th className="center">처방액 합계</th>
-                    <th className="center">처방액 평균</th>
-                    <th className="center">전월대비</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {settPrescMonthly.map((r, i) => {
-                    const prev = settPrescMonthly[i - 1];
-                    return (
-                      <Fragment key={r.month}>
-                        <tr>
-                          <td className="center muted" rowSpan={3} style={{ verticalAlign: 'middle', fontWeight: 600, fontSize: '0.8rem' }}>{fmtPeriod(r.month)}</td>
-                          <td className="center">의원</td>
-                          <td className="center bold">{r.clinicCount.toLocaleString()}</td>
-                          <td className="center">{r.clinicProductCount.toLocaleString()}</td>
-                          <td className="center bold">{fmtWon(r.clinicPrescAmt)}</td>
-                          <td className="center muted" style={{ fontSize: '0.78rem' }}>
-                            {r.clinicCount > 0 ? fmtWon(Math.round(r.clinicPrescAmt / r.clinicCount)) : '-'}
-                          </td>
-                          <td className="center"><DeltaAmt cur={r.clinicPrescAmt} prev={prev?.clinicPrescAmt} /></td>
-                        </tr>
-                        <tr>
-                          <td className="center">병원</td>
-                          <td className="center bold">{r.hospitalCount.toLocaleString()}</td>
-                          <td className="center">{r.hospitalProductCount.toLocaleString()}</td>
-                          <td className="center bold">{fmtWon(r.hospitalPrescAmt)}</td>
-                          <td className="center muted" style={{ fontSize: '0.78rem' }}>
-                            {r.hospitalCount > 0 ? fmtWon(Math.round(r.hospitalPrescAmt / r.hospitalCount)) : '-'}
-                          </td>
-                          <td className="center"><DeltaAmt cur={r.hospitalPrescAmt} prev={prev?.hospitalPrescAmt} /></td>
-                        </tr>
-                        <tr className="total-row">
-                          <td className="center" style={{ letterSpacing: '0.02em' }}>전체</td>
-                          <td className="center">{r.hospCount.toLocaleString()}</td>
-                          <td className="center">{r.productCount.toLocaleString()}</td>
-                          <td className="center">{fmtWon(r.totalPrescAmt)}</td>
-                          <td className="center muted" style={{ fontSize: '0.78rem' }}>
-                            {r.hospCount > 0 ? fmtWon(Math.round(r.totalPrescAmt / r.hospCount)) : '-'}
-                          </td>
-                          <td className="center"><DeltaAmt cur={r.totalPrescAmt} prev={prev?.totalPrescAmt} /></td>
-                        </tr>
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            {(() => {
+              type SPM = (typeof settPrescMonthly)[0];
+              const cur = settPrescMonthly[settPrescMonthly.length - 1];
+              const prv = settPrescMonthly[settPrescMonthly.length - 2];
+              const cats = [
+                {
+                  label: '의원', isTotal: false,
+                  metrics: [
+                    { label: '처방처수',   get: (r: SPM) => r.clinicCount,        isAmt: false },
+                    { label: '처방품목수', get: (r: SPM) => r.clinicProductCount,  isAmt: false },
+                    { label: '처방액합계', get: (r: SPM) => r.clinicPrescAmt,      isAmt: true  },
+                    { label: '처방액평균', get: (r: SPM) => r.clinicCount > 0 ? Math.round(r.clinicPrescAmt / r.clinicCount) : 0, isAmt: true },
+                  ],
+                },
+                {
+                  label: '병원', isTotal: false,
+                  metrics: [
+                    { label: '처방처수',   get: (r: SPM) => r.hospitalCount,        isAmt: false },
+                    { label: '처방품목수', get: (r: SPM) => r.hospitalProductCount,  isAmt: false },
+                    { label: '처방액합계', get: (r: SPM) => r.hospitalPrescAmt,      isAmt: true  },
+                    { label: '처방액평균', get: (r: SPM) => r.hospitalCount > 0 ? Math.round(r.hospitalPrescAmt / r.hospitalCount) : 0, isAmt: true },
+                  ],
+                },
+                {
+                  label: '전체', isTotal: true,
+                  metrics: [
+                    { label: '처방처수',   get: (r: SPM) => r.hospCount,     isAmt: false },
+                    { label: '처방품목수', get: (r: SPM) => r.productCount,   isAmt: false },
+                    { label: '처방액합계', get: (r: SPM) => r.totalPrescAmt,  isAmt: true  },
+                    { label: '처방액평균', get: (r: SPM) => r.hospCount > 0 ? Math.round(r.totalPrescAmt / r.hospCount) : 0, isAmt: true },
+                  ],
+                },
+              ];
+              return (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="dash-table">
+                    <thead>
+                      <tr>
+                        <th className="center" style={{ width: '52px' }}>구분</th>
+                        <th style={{ width: '76px' }}>항목</th>
+                        {settPrescMonthly.map(r => (
+                          <th key={r.month} className="center">{fmtPeriod(r.month)}</th>
+                        ))}
+                        <th className="center">전월대비</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cats.flatMap((cat, ci) =>
+                        cat.metrics.map((metric, mi) => {
+                          const curVal = cur ? metric.get(cur) : 0;
+                          const prvVal = prv ? metric.get(prv) : undefined;
+                          const delta  = prvVal !== undefined ? curVal - prvVal : null;
+                          return (
+                            <tr key={`${ci}-${mi}`} className={cat.isTotal ? 'total-row' : ''}>
+                              {mi === 0 && (
+                                <td rowSpan={4} className="center" style={{ verticalAlign: 'middle', fontWeight: 600, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                                  {cat.label}
+                                </td>
+                              )}
+                              <td className="muted" style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{metric.label}</td>
+                              {settPrescMonthly.map(r => (
+                                <td key={r.month} className="center bold">
+                                  {metric.isAmt ? fmtWon(metric.get(r)) : metric.get(r).toLocaleString()}
+                                </td>
+                              ))}
+                              <td className="center">
+                                {delta === null ? (
+                                  <span className="muted">-</span>
+                                ) : delta === 0 ? (
+                                  <span className="muted">±0</span>
+                                ) : metric.isAmt ? (
+                                  <DeltaAmt cur={curVal} prev={prvVal!} />
+                                ) : (
+                                  <span className={delta > 0 ? 'up' : 'dn'} style={{ fontSize: '0.78rem' }}>
+                                    {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toLocaleString()}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
           </>
         )}
       </Section>
