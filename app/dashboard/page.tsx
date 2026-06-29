@@ -127,6 +127,7 @@ export default async function DashboardPage() {
     )
     .not('prescription_month', 'is', null)
     .gte('prescription_month', since4mStr)
+    .order('id', { ascending: true })
     .range(0, PAGE - 1);
   if (companyId) settQ0 = settQ0.eq('company_id', companyId);
   const { data: firstSett, count: settCount } = await settQ0;
@@ -145,6 +146,7 @@ export default async function DashboardPage() {
             .select('prescription_month,hospital_name,hospital_category,hospital_type,product_name,prescription_amount,settlement_amount,cso_name')
             .not('prescription_month', 'is', null)
             .gte('prescription_month', since4mStr)
+            .order('id', { ascending: true })
             .range(pg * PAGE, pg * PAGE + PAGE - 1);
           if (companyId) pQ = pQ.eq('company_id', companyId);
           return pQ;
