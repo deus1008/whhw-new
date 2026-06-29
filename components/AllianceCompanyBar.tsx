@@ -24,15 +24,15 @@ export default function AllianceCompanyBar({ companies, activeCompanyId, onAfter
   async function confirm() {
     if (!selectedId || isPending) return;
     setIsPending(true);
+    await setActiveCompany(selectedId);
     if (onAfterSelect) {
-      await setActiveCompany(selectedId);
       setShowModal(false);
       const name = companies.find(c => c.id === selectedId)?.name ?? '';
       onAfterSelect(selectedId, name);
       setIsPending(false);
     } else {
-      // redirect()를 서버 액션 내부에서 호출 → 303 응답으로 브라우저가 완전 재로드
-      await setActiveCompany(selectedId, pathname);
+      // 쿠키 설정 완료 후 현재 페이지 강제 재로드 → 서버에서 새 쿠키 반영
+      window.location.reload();
     }
   }
 
