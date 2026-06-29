@@ -86,8 +86,9 @@ export default async function DashboardPage() {
   // ── 날짜 기준 ──────────────────────────────────────────────────────────────
   const now = new Date();
 
+  // 최근 3개월치 데이터를 안정적으로 포함하려면 6개월 윈도우가 필요
   const since4m = new Date(now);
-  since4m.setMonth(since4m.getMonth() - 4);
+  since4m.setMonth(since4m.getMonth() - 6);
   const since4mStr = `${since4m.getFullYear()}-${String(since4m.getMonth() + 1).padStart(2, '0')}`;
 
   const since3m = new Date(now);
