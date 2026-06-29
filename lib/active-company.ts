@@ -15,22 +15,15 @@ export async function getEffectiveCompanyId(
   // 관리자는 쿠키 우선 — profileCompanyId가 있어도 전환 가능해야 함
   if (isSystemAdmin) {
     const cookieStore = await cookies();
-    const cookieValue = cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value ?? null;
-    console.log('[getEffectiveCompanyId] admin | cookie:', cookieValue, '| profile:', profileCompanyId);
-    return cookieValue ?? profileCompanyId ?? null;
+    return cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value ?? profileCompanyId ?? null;
   }
 
   // 일반 사용자: 프로필 company_id 고정
-  if (profileCompanyId) {
-    console.log('[getEffectiveCompanyId] regular user | profile:', profileCompanyId);
-    return profileCompanyId;
-  }
+  if (profileCompanyId) return profileCompanyId;
 
   // 아주얼라이언스 직원 (company_id 없음): 쿠키 사용
   const cookieStore = await cookies();
-  const cookieValue = cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value ?? null;
-  console.log('[getEffectiveCompanyId] alliance employee | cookie:', cookieValue);
-  return cookieValue;
+  return cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value ?? null;
 }
 
 /** 아주얼라이언스 직원 여부 (위탁사 미배정 + 비관리자) */
