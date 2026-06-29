@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { setActiveCompany } from '@/app/actions/company-select';
 
@@ -16,24 +16,24 @@ interface Props {
 export default function AllianceCompanyBar({ companies, activeCompanyId, onAfterSelect }: Props) {
   const [showModal, setShowModal] = useState(!activeCompanyId);
   const [selectedId, setSelectedId] = useState(activeCompanyId ?? '');
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const pathname = usePathname();
 
   const activeName = companies.find(c => c.id === activeCompanyId)?.name ?? '';
 
-  function confirm() {
+  async function confirm() {
     if (!selectedId || isPending) return;
-    startTransition(async () => {
+    setIsPending(true);
+    if (onAfterSelect) {
       await setActiveCompany(selectedId);
       setShowModal(false);
-      if (onAfterSelect) {
-        const name = companies.find(c => c.id === selectedId)?.name ?? '';
-        onAfterSelect(selectedId, name);
-      } else {
-        // 완전한 브라우저 네비게이션으로 서버에서 새 쿠키 반영
-        window.location.href = pathname;
-      }
-    });
+      const name = companies.find(c => c.id === selectedId)?.name ?? '';
+      onAfterSelect(selectedId, name);
+      setIsPending(false);
+    } else {
+      // redirect()를 서버 액션 내부에서 호출 → 303 응답으로 브라우저가 완전 재로드
+      await setActiveCompany(selectedId, pathname);
+    }
   }
 
   return (
