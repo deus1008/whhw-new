@@ -68,18 +68,23 @@ export default async function CommissionRatePage() {
     allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
   }
 
-  const [{ data: dealerRows }, { data: pharmaRows }] = await Promise.all([
-    svc.from('documents')
-      .select('id, filename, file_type, created_at')
-      .eq('category', '수수료율(딜러)')
-      .in('file_type', ['xlsx', 'xls', 'xlsb'])
-      .order('created_at', { ascending: false }),
-    svc.from('documents')
-      .select('id, filename, file_type, created_at')
-      .eq('category', '수수료율(제약사)')
-      .in('file_type', ['xlsx', 'xls', 'xlsb'])
-      .order('created_at', { ascending: false }),
-  ]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let dealerQ: any = svc.from('documents')
+    .select('id, filename, file_type, created_at')
+    .eq('category', '수수료율(딜러)')
+    .in('file_type', ['xlsx', 'xls', 'xlsb'])
+    .order('created_at', { ascending: false });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let pharmaQ: any = svc.from('documents')
+    .select('id, filename, file_type, created_at')
+    .eq('category', '수수료율(제약사)')
+    .in('file_type', ['xlsx', 'xls', 'xlsb'])
+    .order('created_at', { ascending: false });
+  if (companyId) {
+    dealerQ = dealerQ.eq('company_id', companyId);
+    pharmaQ = pharmaQ.eq('company_id', companyId);
+  }
+  const [{ data: dealerRows }, { data: pharmaRows }] = await Promise.all([dealerQ, pharmaQ]);
 
   const folderGroups: CommissionFolderGroup[] = [
     { ...FOLDERS[0], docs: mapDocs(pharmaRows as Record<string, unknown>[] | null) },

@@ -43,10 +43,10 @@ export default async function ContractsPage() {
     allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
   }
 
-  const { data: contracts } = await svc
-    .from('new_contracts')
-    .select('*')
-    .order('contract_start', { ascending: false });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let contractsQ: any = svc.from('new_contracts').select('*').order('contract_start', { ascending: false });
+  if (companyId) contractsQ = contractsQ.eq('company_id', companyId);
+  const { data: contracts } = await contractsQ;
 
   const myName = (profile.full_name || profile.email) as string;
 

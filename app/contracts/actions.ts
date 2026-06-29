@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId } from '@/lib/active-company';
 
 export type ContractInput = {
   manager:         string;
@@ -26,10 +27,12 @@ async function getAuthorized() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: '인증이 필요합니다.' };
   const { data: profile } = await supabase
-    .from('profiles').select('role, status').eq('id', user.id).single();
+    .from('profiles').select('role, status, company_id').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') return { error: '승인된 계정이 아닙니다.' };
   const isAdmin = normalizeRole(profile.role) === '관리자';
-  return { supabase, user, isAdmin };
+  const profileCompanyId = (profile.company_id as string) ?? null;
+  const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
+  return { supabase, user, isAdmin, companyId };
 }
 
 function clean(input: ContractInput) {
@@ -60,7 +63,7 @@ export async function createContract(input: ContractInput): Promise<{ error?: st
 
   const { error } = await auth.supabase
     .from('new_contracts')
-    .insert({ ...clean(input), user_id: auth.user!.id });
+    .insert({ ...clean(input), user_id: auth.user!.id, company_id: auth.companyId ?? null });
 
   if (error) return { error: `저장 실패: ${error.message}` };
   revalidatePath('/contracts');
