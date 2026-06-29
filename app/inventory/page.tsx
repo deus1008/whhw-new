@@ -15,7 +15,7 @@ import type { DbItem } from '@/components/InventoryClient';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 
-export const revalidate = 1800;
+export const dynamic = 'force-dynamic';
 
 function getSvc() {
   return createSvcClient(
