@@ -97,6 +97,15 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(99,102,241,0.10)',
     bd:   'rgba(99,102,241,0.22)',
   },
+  // ⑦-1 위탁품목리스트
+  {
+    href: '/product-list',
+    icon: '📦',
+    label: '위탁품목',
+    color: '#6ee7b7',
+    bg:   'rgba(52,211,153,0.10)',
+    bd:   'rgba(52,211,153,0.22)',
+  },
   // ⑧ DC현황
   {
     href: '/dc',
