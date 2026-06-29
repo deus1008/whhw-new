@@ -47,15 +47,15 @@ export default async function ReportsPage() {
     allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
   }
 
-  const [{ data: rows }, { data: docRows }] = await Promise.all([
-    svc.from('reports')
-      .select('id, title, content, created_at, updated_at')
-      .order('created_at', { ascending: false }),
-    svc.from('documents')
-      .select('id, filename, file_type, storage_path, summary, created_at')
-      .eq('category', '분석리포트')
-      .order('created_at', { ascending: false }),
-  ]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let reportsQ: any = svc.from('reports').select('id, title, content, created_at, updated_at').order('created_at', { ascending: false });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let docsQ: any = svc.from('documents').select('id, filename, file_type, storage_path, summary, created_at').eq('category', '분석리포트').order('created_at', { ascending: false });
+  if (companyId) {
+    reportsQ = reportsQ.eq('company_id', companyId);
+    docsQ    = docsQ.eq('company_id', companyId);
+  }
+  const [{ data: rows }, { data: docRows }] = await Promise.all([reportsQ, docsQ]);
 
   const reports = (rows ?? []).map((r: Record<string, unknown>) => ({
     id:         r.id         as string,

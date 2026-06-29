@@ -44,7 +44,7 @@ export default async function MeetingsPage() {
   }
 
   const [meetings, userLevels] = await Promise.all([
-    getMeetings(),
+    getMeetings(companyId),
     isAdmin ? Promise.resolve(['공개', '내부', '기밀'] as TaskSecurity[]) : getUserAccessLevels(user.id),
   ]);
 

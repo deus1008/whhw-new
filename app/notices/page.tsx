@@ -53,11 +53,14 @@ export default async function NoticesPage() {
     allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
   }
 
-  const { data: rows } = await svc
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let noticesQ: any = svc
     .from('notices')
     .select('id, title, content, is_pinned, created_at, updated_at')
     .order('is_pinned', { ascending: false })
     .order('created_at', { ascending: false });
+  if (companyId) noticesQ = noticesQ.eq('company_id', companyId);
+  const { data: rows } = await noticesQ;
 
   const notices: Notice[] = (rows ?? []).map((r: Record<string, unknown>) => ({
     id:         r.id         as string,

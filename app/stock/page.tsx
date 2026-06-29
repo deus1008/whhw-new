@@ -8,7 +8,7 @@ import HomeButton        from '@/components/HomeButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import StockClient, { type StockPeriod } from '@/components/StockClient';
 
-export const revalidate = 3600;
+export const dynamic = 'force-dynamic';
 
 function getSvc() {
   return createSvcClient(
@@ -45,12 +45,15 @@ export default async function StockPage() {
   }
 
   // ── monthly_stock 테이블에서 기간별 데이터 조회 ──────────────────────────
-  const { data: raw } = await svc
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let stockQ: any = svc
     .from('monthly_stock')
     .select('year, period, source_file, material_code, material_name, unit, available_qty, transit_qty, total_qty')
     .order('year',   { ascending: false })
     .order('period', { ascending: false })
     .order('material_name', { ascending: true });
+  if (companyId) stockQ = stockQ.eq('company_id', companyId);
+  const { data: raw } = await stockQ;
 
   // 기간별로 그루핑 (파일명이 달라도 같은 연도+기간이면 하나로)
   const periodMap = new Map<string, StockPeriod>();

@@ -2,6 +2,8 @@
 
 import { createClient as createSvc } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
+import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId } from '@/lib/active-company';
 import type { Todo, MeetingRow, TaskSecurity } from './types';
 
 function svc() {
@@ -17,12 +19,27 @@ async function getUser() {
   return user;
 }
 
-export async function getMeetings(): Promise<MeetingRow[]> {
-  const { data } = await svc()
+async function getUserAndCompany() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { user: null, companyId: null };
+  const { data: profile } = await supabase
+    .from('profiles').select('role, company_id').eq('id', user.id).single();
+  if (!profile) return { user, companyId: null };
+  const isAdmin = normalizeRole(profile.role as string) === '관리자';
+  const companyId = await getEffectiveCompanyId((profile.company_id as string) ?? null, isAdmin);
+  return { user, companyId };
+}
+
+export async function getMeetings(companyId: string | null): Promise<MeetingRow[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = svc()
     .from('meetings')
     .select('id, title, category, meeting_date, todos, status, priority, security_level, created_at, updated_at')
     .order('created_at', { ascending: false });
-  return (data ?? []).map(r => ({
+  if (companyId) q = q.eq('company_id', companyId);
+  const { data } = await q;
+  return (data ?? []).map((r: Record<string, unknown>) => ({
     ...r,
     status:         (r.status         ?? '대기') as MeetingRow['status'],
     priority:       (r.priority       ?? '보통') as MeetingRow['priority'],
@@ -53,11 +70,11 @@ export async function createMeeting(form: {
   priority?: string;
   security_level?: string;
 }): Promise<{ id?: string; error?: string }> {
-  const user = await getUser();
+  const { user, companyId } = await getUserAndCompany();
   if (!user) return { error: '인증이 필요합니다.' };
   const { data, error } = await svc()
     .from('meetings')
-    .insert({ ...form, meeting_date: form.meeting_date || null, content: '', todos: [], created_by: user.id })
+    .insert({ ...form, meeting_date: form.meeting_date || null, content: '', todos: [], created_by: user.id, company_id: companyId ?? null })
     .select('id')
     .single();
   if (error) return { error: error.message };

@@ -2,6 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createUserClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { normalizeRole } from '@/lib/roles';
+import { getEffectiveCompanyId } from '@/lib/active-company';
 
 function getSvc() {
   return createClient(
@@ -40,14 +42,25 @@ export async function getDocFileUrl(
 
 type Result = { error?: string };
 
+async function getCompanyId(): Promise<string | null> {
+  const supabase = await createUserClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data: profile } = await supabase
+    .from('profiles').select('role, company_id').eq('id', user.id).single();
+  if (!profile) return null;
+  const isAdmin = normalizeRole(profile.role as string) === '관리자';
+  return getEffectiveCompanyId((profile.company_id as string) ?? null, isAdmin);
+}
+
 export async function createReport(data: {
   title: string;
   content: string;
 }): Promise<Result & { id?: string }> {
-  const svc = getSvc();
+  const [svc, companyId] = [getSvc(), await getCompanyId()];
   const { data: row, error } = await svc
     .from('reports')
-    .insert([{ title: data.title, content: data.content }])
+    .insert([{ title: data.title, content: data.content, company_id: companyId ?? null }])
     .select('id')
     .single();
   if (error) return { error: error.message };
