@@ -107,31 +107,55 @@ function AlertCard({ item, onEdit, onDelete }: {
         </div>
       </div>
 
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0.55rem 0.8rem', borderRadius: '10px',
-        background: 'rgba(255,255,255,0.04)', marginBottom: '0.8rem',
-      }}>
-        <div>
-          <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.32)', margin: '0 0 2px', letterSpacing: '0.04em' }}>재고일 (SF대비)</p>
-          <StockDaysBadge days={item.stock_days} />
+      {/* 재고 패널: 구형=재고일/잔여재고, 신형=집계월/품절일수 */}
+      {item.stock_days !== null || item.stock_amount !== null ? (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0.55rem 0.8rem', borderRadius: '10px',
+          background: 'rgba(255,255,255,0.04)', marginBottom: '0.8rem',
+        }}>
+          <div>
+            <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.32)', margin: '0 0 2px', letterSpacing: '0.04em' }}>재고일 (SF대비)</p>
+            <StockDaysBadge days={item.stock_days} />
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.32)', margin: '0 0 2px', letterSpacing: '0.04em' }}>잔여재고</p>
+            <span style={{
+              fontSize: '0.88rem', fontWeight: 700,
+              color: (item.stock_amount ?? -1) <= 0 ? '#ef4444' : 'rgba(255,255,255,0.7)',
+            }}>
+              {item.stock_amount !== null ? `${item.stock_amount.toFixed(2)} 백만` : '-'}
+            </span>
+          </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.32)', margin: '0 0 2px', letterSpacing: '0.04em' }}>잔여재고</p>
-          <span style={{
-            fontSize: '0.88rem', fontWeight: 700,
-            color: (item.stock_amount ?? -1) <= 0 ? '#ef4444' : 'rgba(255,255,255,0.7)',
-          }}>
-            {item.stock_amount !== null ? `${item.stock_amount.toFixed(2)} 백만` : '-'}
-          </span>
+      ) : item.collect_month ? (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '0.55rem 0.8rem', borderRadius: '10px',
+          background: 'rgba(255,255,255,0.04)', marginBottom: '0.8rem',
+        }}>
+          <div>
+            <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.32)', margin: '0 0 2px', letterSpacing: '0.04em' }}>집계월</p>
+            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>{item.collect_month}</span>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.32)', margin: '0 0 2px', letterSpacing: '0.04em' }}>품절 기간</p>
+            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#fbbf24' }}>{item.stockout_days ?? '-'}</span>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.55rem', marginBottom: '0.7rem' }}>
-        <Meta label="품절 예상일" value={fmtDate(item.stockout_start)} color="#fca5a5" />
-        <Meta label="공급 예정일" value={fmtDate(item.supply_date)}    color="#86efac" />
-        <Meta label="품절 기간"   value={item.stockout_days ?? '-'} />
-        <Meta label="직3매출"     value={item.sales_3m !== null ? `${item.sales_3m.toFixed(1)} 백만` : '-'} />
+        <Meta label="품절 시작일" value={fmtDate(item.stockout_start)} color="#fca5a5" />
+        <Meta label={item.collect_month ? '품절 종료일' : '공급 예정일'} value={fmtDate(item.supply_date)} color="#86efac" />
+        {item.collect_month
+          ? <Meta label="월평균 매출" value={item.sales_3m !== null ? `${item.sales_3m.toFixed(1)} 백만` : '-'} />
+          : <Meta label="품절 기간"   value={item.stockout_days ?? '-'} />
+        }
+        {item.collect_month
+          ? <Meta label="제조사 구분" value={item.manufacturer || '-'} />
+          : <Meta label="직3매출"     value={item.sales_3m !== null ? `${item.sales_3m.toFixed(1)} 백만` : '-'} />
+        }
       </div>
 
       <div style={{
