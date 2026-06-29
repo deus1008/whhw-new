@@ -138,6 +138,7 @@ export default function AllianceCompanyBar({ companies, activeCompanyId, onAfter
           borderRadius: '0 0 10px 10px',
           overflow: 'hidden',
           boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+          padding: '0 0.4rem',
         }}>
           {companies.map((c, i) => {
             const isActive = c.id === activeCompanyId;
@@ -148,16 +149,19 @@ export default function AllianceCompanyBar({ companies, activeCompanyId, onAfter
                 onClick={() => select(c.id)}
                 disabled={!!pendingId || isActive}
                 style={{
-                  display: 'flex', alignItems: 'center', width: '100%',
-                  padding: '0.65rem 0.85rem',
-                  borderTop: i > 0 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'flex-start',
+                  width: '100%',
+                  padding: isActive ? '0.6rem 0.85rem' : '0.65rem 0.85rem',
+                  margin: isActive ? '0.35rem 0' : 0,
+                  borderTop: i > 0 && !isActive ? '1px solid rgba(255,255,255,0.06)' : 'none',
                   background: isActive
-                    ? 'rgba(99,102,241,0.15)'
+                    ? 'rgba(255,255,255,0.92)'
                     : isPending
                     ? 'rgba(99,102,241,0.1)'
                     : 'transparent',
                   border: 'none',
-                  color: isActive ? '#a5b4fc' : isPending ? '#c4b5fd' : '#e2e8f0',
+                  borderRadius: isActive ? '6px' : 0,
+                  color: isActive ? '#1e1b4b' : isPending ? '#c4b5fd' : '#e2e8f0',
                   fontSize: '0.88rem', fontWeight: isActive ? 700 : 500,
                   cursor: isActive || pendingId ? 'default' : 'pointer',
                   fontFamily: 'inherit',
@@ -165,13 +169,13 @@ export default function AllianceCompanyBar({ companies, activeCompanyId, onAfter
                   opacity: pendingId && !isPending && !isActive ? 0.4 : 1,
                   transition: 'background 0.1s',
                   gap: '0.5rem',
+                  boxShadow: isActive ? '0 1px 6px rgba(0,0,0,0.25)' : 'none',
                 }}
               >
                 {/* 활성 표시 dot */}
                 <span style={{
                   width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0,
-                  background: isActive ? '#a5b4fc' : 'transparent',
-                  border: isActive ? 'none' : '1.5px solid rgba(255,255,255,0.2)',
+                  background: isActive ? '#4f46e5' : 'rgba(255,255,255,0.25)',
                 }} />
                 {c.name}
                 {isPending && (
@@ -180,7 +184,7 @@ export default function AllianceCompanyBar({ companies, activeCompanyId, onAfter
                   </span>
                 )}
                 {isActive && !isPending && (
-                  <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'rgba(165,180,252,0.5)' }}>
+                  <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#6366f1', fontWeight: 600 }}>
                     선택됨
                   </span>
                 )}
