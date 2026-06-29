@@ -429,14 +429,15 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
         /* ── 인쇄 ── */
         @media print {
-          @page { size: A4 portrait; margin: 12mm 14mm; }
+          @page { size: A4 portrait; margin: 8mm 10mm; }
 
           body, html {
             background: #fff !important;
             color: #111 !important;
             font-size: 9pt !important;
           }
-          .orb, .page-nav, .print-btn, .domain { display: none !important; }
+          .orb, .page-nav, .print-btn, .domain, .no-print { display: none !important; }
+          .dash-page-wrapper { padding: 0 !important; max-width: 100% !important; }
           .print-header {
             display: block !important;
             border-bottom: 2px solid #222;

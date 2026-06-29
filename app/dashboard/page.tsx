@@ -706,14 +706,14 @@ export default async function DashboardPage() {
       <div className="orb orb-3" />
 
       <div
-        className="relative z-10 w-full px-4"
+        className="relative z-10 w-full px-4 dash-page-wrapper"
         style={{ maxWidth: '860px', paddingTop: '2rem', paddingBottom: '2rem', alignSelf: 'flex-start' }}
       >
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>
           판매대행사업
         </p>
         {companyName && (
-          <p style={{ textAlign: 'center', marginBottom: '0.75rem' }}>
+          <p className="no-print" style={{ textAlign: 'center', marginBottom: '0.75rem' }}>
             <span style={{
               fontSize: '0.75rem', padding: '3px 12px', borderRadius: '100px',
               background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)',
@@ -723,16 +723,18 @@ export default async function DashboardPage() {
             </span>
           </p>
         )}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
+        <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
           <LogoutButton compact />
         </div>
 
         {(isAllianceUser || isAdmin) && (
-          <AllianceCompanyBar
-            companies={allianceCompanies}
-            activeCompanyId={companyId}
-          />
+          <div className="no-print">
+            <AllianceCompanyBar
+              companies={allianceCompanies}
+              activeCompanyId={companyId}
+            />
+          </div>
         )}
         <DashboardClient data={dashData} />
       </div>
