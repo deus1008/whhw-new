@@ -669,23 +669,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   {/* 전체 월별 합산 행 */}
                   <tr className="total-row">
                     <td className="center" colSpan={2} style={{ fontWeight: 700 }}>전체 합산 ({totalCsoCount}개사)</td>
-                    {csoMonthlyTotals.map((mt, mi) => {
-                      const prev = csoMonthlyTotals[mi - 1];
-                      return (
-                        <td key={mt.month} className="right">
-                          {fmtWon(mt.prescAmt)}
-                          {prev && (
-                            <span style={{ marginLeft: '0.35rem', fontSize: '0.72rem' }}>
-                              {mt.prescAmt > prev.prescAmt
-                                ? <span className="up">▲{fmtWon(mt.prescAmt - prev.prescAmt)}</span>
-                                : mt.prescAmt < prev.prescAmt
-                                ? <span className="dn">▼{fmtWon(prev.prescAmt - mt.prescAmt)}</span>
-                                : null}
-                            </span>
-                          )}
-                        </td>
-                      );
-                    })}
+                    {csoMonthlyTotals.map(mt => (
+                      <td key={mt.month} className="right">
+                        {fmtWon(mt.prescAmt)}
+                      </td>
+                    ))}
                     <td className="right">
                       {csoMonthlyTotals.length >= 2 && (() => {
                         const cur = csoMonthlyTotals[csoMonthlyTotals.length - 1].prescAmt;
