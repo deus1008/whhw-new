@@ -8,6 +8,9 @@ import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company'
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
+import ProductListClient from '@/components/ProductListClient';
+import type { ProductRow } from '@/components/ProductListClient';
+import XLSX from 'xlsx';
 
 function getSvc() {
   return createSvcClient(
@@ -16,20 +19,66 @@ function getSvc() {
   );
 }
 
-type DocRow = {
-  id: string;
-  filename: string;
-  file_type: string;
-  created_at: string;
-  signedUrl: string | null;
-};
+function col(row: unknown[], i: number): string {
+  return String((row as unknown[])[i] ?? '').trim();
+}
 
-const FILE_ICON: Record<string, string> = {
-  pdf:  '📄',
-  xlsx: '📊', xls: '📊', xlsb: '📊', xlsm: '📊',
-  docx: '📝', doc: '📝',
-  pptx: '📋', ppt: '📋',
-};
+function parseProductListBuffer(buf: Buffer): ProductRow[] {
+  const wb = XLSX.read(buf, { type: 'buffer' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const all = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown[][];
+
+  // 헤더 행 탐색: 비어있지 않은 셀이 5개 이상인 첫 번째 행
+  let headerIdx = -1;
+  for (let i = 0; i < Math.min(30, all.length); i++) {
+    if ((all[i] as unknown[]).filter(c => String(c).trim() !== '').length >= 5) {
+      headerIdx = i;
+      break;
+    }
+  }
+  if (headerIdx < 0) return [];
+
+  const hdr = (all[headerIdx] as unknown[]).map(c =>
+    String(c).replace(/\r\n|\n|\r/g, ' ').trim(),
+  );
+
+  const idx = (name: string) => hdr.findIndex(h => h === name || h.startsWith(name));
+
+  const i제조사   = idx('제조사');
+  const i품목그룹 = idx('품목그룹');
+  const i품목명   = idx('품목명');
+  const i내부품목 = idx('내부품목명');
+  const i대표코드 = idx('대표코드');
+  const i보험코드 = idx('보험(청구)코드');
+  const i규격     = idx('규격');
+  const i급여     = idx('급여');
+  const i약가     = idx('약가');
+  const i성분명   = idx('성분명');
+  const i사용     = idx('사용');
+  const i비고     = idx('비고');
+
+  const rows: ProductRow[] = [];
+  for (let r = headerIdx + 1; r < all.length; r++) {
+    const row = all[r] as unknown[];
+    const 품목명 = col(row, i품목명);
+    if (!품목명) continue; // 빈 행 스킵
+    rows.push({
+      제조사:      col(row, i제조사),
+      품목그룹:    col(row, i품목그룹),
+      품목명,
+      성분명:      i성분명 >= 0 ? col(row, i성분명) : '',
+      보험코드:    i보험코드 >= 0 ? col(row, i보험코드) : '',
+      규격:        i규격 >= 0 ? col(row, i규격) : '',
+      급여:        i급여 >= 0 ? col(row, i급여) : '',
+      약가:        i약가 >= 0 ? col(row, i약가) : '',
+      사용:        i사용 >= 0 ? col(row, i사용) : '1',
+      비고:        i비고 >= 0 ? col(row, i비고) : '',
+      _내부품목명: i내부품목 >= 0 ? col(row, i내부품목) : '',
+      _대표코드:   i대표코드 >= 0 ? col(row, i대표코드) : '',
+    });
+  }
+  return rows;
+}
 
 export default async function ProductListPage() {
   const supabase = await createClient();
@@ -65,31 +114,37 @@ export default async function ProductListPage() {
            .data?.name as string | undefined)
     : null;
 
-  // 위탁품목리스트 문서 조회
+  // 가장 최근 위탁품목리스트 문서 조회
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let docQ: any = svc
     .from('documents')
     .select('id, filename, file_type, storage_path, created_at')
     .eq('category', '위탁품목리스트')
-    .order('created_at', { ascending: false });
-  if (companyId) { docQ = docQ.eq('company_id', companyId); }
-  const { data: rawDocs } = await docQ;
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (companyId) docQ = docQ.eq('company_id', companyId);
+  const { data: rawDoc } = await docQ;
+  const latestDoc = (rawDoc ?? [])[0] as Record<string, unknown> | undefined;
 
-  // signed URL 생성 (1시간 유효)
-  const docs: DocRow[] = await Promise.all(
-    (rawDocs ?? []).map(async (r: Record<string, unknown>) => {
-      const { data: urlData } = await svc.storage
-        .from('documents')
-        .createSignedUrl(r.storage_path as string, 3600);
-      return {
-        id:         r.id         as string,
-        filename:   r.filename   as string,
-        file_type:  r.file_type  as string,
-        created_at: r.created_at as string,
-        signedUrl:  urlData?.signedUrl ?? null,
-      };
-    })
-  );
+  // signed URL + 파일 파싱
+  let signedUrl: string | null = null;
+  let productRows: ProductRow[] = [];
+  let updatedAt = '';
+
+  if (latestDoc?.storage_path) {
+    const [{ data: urlData }, { data: blob }] = await Promise.all([
+      svc.storage.from('documents').createSignedUrl(latestDoc.storage_path as string, 3600),
+      svc.storage.from('documents').download(latestDoc.storage_path as string),
+    ]);
+    signedUrl = urlData?.signedUrl ?? null;
+    if (blob) {
+      const buf = Buffer.from(await blob.arrayBuffer());
+      productRows = parseProductListBuffer(buf);
+    }
+    updatedAt = new Date(latestDoc.created_at as string).toLocaleDateString('ko-KR', {
+      year: 'numeric', month: 'long', day: 'numeric',
+    });
+  }
 
   return (
     <>
@@ -99,7 +154,7 @@ export default async function ProductListPage() {
 
       <div
         className="relative z-10 w-full px-4"
-        style={{ maxWidth: '820px', paddingTop: '2.5rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}
+        style={{ maxWidth: '1000px', paddingTop: '2.5rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}
       >
         {/* 상단 버튼 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
@@ -117,34 +172,19 @@ export default async function ProductListPage() {
           background: 'rgba(255,255,255,0.03)',
           border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: '16px',
-          padding: '1.5rem 1.75rem',
+          padding: '1.25rem 1.5rem',
           marginBottom: '1rem',
         }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <div>
-              <h1 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                📦 위탁품목리스트
-              </h1>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                {companyName ? `${companyName} 위탁 품목 목록` : '위탁제약사별 품목 목록'}
-              </p>
-            </div>
-            <span style={{
-              fontSize: '0.72rem', fontWeight: 600,
-              color: 'rgba(165,180,252,0.6)',
-              background: 'rgba(99,102,241,0.1)',
-              border: '1px solid rgba(99,102,241,0.2)',
-              borderRadius: '20px',
-              padding: '0.2rem 0.65rem',
-              whiteSpace: 'nowrap',
-            }}>
-              총 {docs.length}건
-            </span>
-          </div>
+          <h1 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            📦 위탁품목리스트
+          </h1>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+            {companyName ? `${companyName} 위탁 품목 목록` : '위탁제약사별 품목 목록'}
+          </p>
         </div>
 
-        {/* 문서 목록 */}
-        {docs.length === 0 ? (
+        {/* 검색 + 테이블 */}
+        {!latestDoc ? (
           <div style={{
             background: 'rgba(255,255,255,0.03)',
             border: '1px solid rgba(255,255,255,0.08)',
@@ -158,58 +198,18 @@ export default async function ProductListPage() {
             </p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {docs.map((doc, i) => {
-              const icon = FILE_ICON[doc.file_type] ?? '📎';
-              const date = new Date(doc.created_at).toLocaleDateString('ko-KR', {
-                year: 'numeric', month: 'long', day: 'numeric',
-              });
-              return (
-                <div key={doc.id} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '0.9rem 1.1rem',
-                  background: i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.015)',
-                  border: '1px solid rgba(255,255,255,0.07)',
-                  borderRadius: '12px',
-                  gap: '0.8rem',
-                  flexWrap: 'wrap',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
-                    <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>{icon}</span>
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{
-                        fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)',
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                        margin: 0,
-                      }}>
-                        {doc.filename}
-                      </p>
-                      <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                        {date} · {doc.file_type.toUpperCase()}
-                      </p>
-                    </div>
-                  </div>
-                  {doc.signedUrl ? (
-                    <a
-                      href={doc.signedUrl}
-                      download={doc.filename}
-                      style={{
-                        display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                        padding: '0.42rem 1rem', borderRadius: '8px',
-                        background: 'rgba(99,102,241,0.15)',
-                        border: '1px solid rgba(99,102,241,0.35)',
-                        color: '#a5b4fc', fontSize: '0.78rem', fontWeight: 600,
-                        textDecoration: 'none', whiteSpace: 'nowrap', flexShrink: 0,
-                      }}
-                    >
-                      ⬇ 다운로드
-                    </a>
-                  ) : (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>URL 오류</span>
-                  )}
-                </div>
-              );
-            })}
+          <div style={{
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            borderRadius: '16px',
+            padding: '1rem 1.25rem',
+          }}>
+            <ProductListClient
+              rows={productRows}
+              filename={latestDoc.filename as string}
+              signedUrl={signedUrl}
+              updatedAt={updatedAt}
+            />
           </div>
         )}
       </div>
