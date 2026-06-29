@@ -50,6 +50,7 @@ export default async function SettlementPage() {
       .select('*', rangeStart === 0 ? { count: 'exact' } : {})
       .order('settlement_month', { ascending: false })
       .order('cso_name')
+      .order('id', { ascending: true })   // 안정적 페이지네이션 보장
       .range(rangeStart, rangeEnd);
     if (companyId) q = q.eq('company_id', companyId);
     return q;

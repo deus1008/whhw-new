@@ -110,6 +110,7 @@ export async function getCommissionRates(companyId?: string | null): Promise<Com
       .select('company_name, product_name, rate')
       .eq('source_file', latest.filename)
       .order('company_name')
+      .order('id', { ascending: true })   // 안정적 페이지네이션 보장
       .range(page * PAGE, (page + 1) * PAGE - 1);
 
     if (error) { console.error('[getCommissionRates] 페이지', page, error); break; }
