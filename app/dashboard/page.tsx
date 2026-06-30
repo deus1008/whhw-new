@@ -104,60 +104,41 @@ export default async function DashboardPage() {
   next2m.setMonth(next2m.getMonth() + 2);
   const next2mStr = next2m.toISOString().slice(0, 10);
 
-  // ── A. commission_settlements (4개월, 병렬 페이지네이션) ──────────────────
-  type SRow = {
-    prescription_month:  string;
-    hospital_name:       string | null;
-    hospital_category:   string | null;
-    hospital_type:       string | null;
-    product_name:        string | null;
-    prescription_amount: number | null;
-    settlement_amount:   number | null;
-    cso_name:            string | null;
-  };
+  // ── A. commission_settlements → RPC 집계 (단일 DB 집계 쿼리) ────────────
+  type MonthTypeRow  = { prescription_month: string; is_clinic: boolean; hosp_cnt: number; prod_cnt: number; presc_amt: number; sett_amt: number };
+  type MonthTotalRow = { prescription_month: string; hosp_cnt: number; prod_cnt: number; presc_amt: number; sett_amt: number };
+  type CsoMonthRow   = { cso_name: string; prescription_month: string; hosp_cnt: number; presc_amt: number; sett_amt: number };
+  type CsoTotalRow   = { cso_name: string; hosp_cnt: number; presc_amt: number; sett_amt: number };
+  type HospMonthRow  = { hospital_name: string; category: string; prescription_month: string; presc_amt: number; sett_amt: number };
+  type ProdMonthRow  = { product_name: string; prescription_month: string; presc_amt: number };
+  type GrandTotals   = { hosp_cnt: number; presc_amt: number; sett_amt: number };
 
-  const PAGE  = 1000;
-  const BATCH = 10;
-  let allSett: SRow[] = [];
+  let byMonthType:  MonthTypeRow[]  = [];
+  let byMonthTotal: MonthTotalRow[] = [];
+  let byCsoMonth:   CsoMonthRow[]   = [];
+  let byCsoTotal:   CsoTotalRow[]   = [];
+  let byHospMonth:  HospMonthRow[]  = [];
+  let byProdMonth:  ProdMonthRow[]  = [];
+  let grandTotals:  GrandTotals     = { hosp_cnt: 0, presc_amt: 0, sett_amt: 0 };
+  let recentMonths: string[]        = [];
 
-  let settQ0 = svc
-    .from('commission_settlements')
-    .select(
-      'prescription_month,hospital_name,hospital_category,hospital_type,product_name,prescription_amount,settlement_amount,cso_name',
-      { count: 'exact' },
-    )
-    .not('prescription_month', 'is', null)
-    .gte('prescription_month', since4mStr)
-    .order('id', { ascending: true })
-    .range(0, PAGE - 1);
-  if (companyId) settQ0 = settQ0.eq('company_id', companyId);
-  const { data: firstSett, count: settCount } = await settQ0;
-
-  if (firstSett) allSett = firstSett as SRow[];
-
-  const settPages = Math.ceil((settCount ?? firstSett?.length ?? 0) / PAGE);
-  if (settPages > 1) {
-    for (let bs = 1; bs < settPages; bs += BATCH) {
-      const be    = Math.min(bs + BATCH, settPages);
-      const batch = await Promise.all(
-        Array.from({ length: be - bs }, (_, i) => {
-          const pg = bs + i;
-          let pQ = svc
-            .from('commission_settlements')
-            .select('prescription_month,hospital_name,hospital_category,hospital_type,product_name,prescription_amount,settlement_amount,cso_name')
-            .not('prescription_month', 'is', null)
-            .gte('prescription_month', since4mStr)
-            .order('id', { ascending: true })
-            .range(pg * PAGE, pg * PAGE + PAGE - 1);
-          if (companyId) pQ = pQ.eq('company_id', companyId);
-          return pQ;
-        }),
-      );
-      for (const r of batch) {
-        if (r.data) allSett = allSett.concat(r.data as SRow[]);
-      }
-    }
+  if (companyId) {
+    const { data: settRpcRaw, error: settErr } = await svc.rpc('get_dashboard_settlements', {
+      p_company_id:  companyId,
+      p_since_month: since4mStr,
+    });
+    if (settErr) console.error('[dashboard:settlements rpc]', settErr);
+    const sr = (settRpcRaw as Record<string, unknown>) ?? {};
+    byMonthType  = (sr.by_month_type  as MonthTypeRow[]  | null) ?? [];
+    byMonthTotal = (sr.by_month_total as MonthTotalRow[] | null) ?? [];
+    byCsoMonth   = (sr.by_cso_month  as CsoMonthRow[]   | null) ?? [];
+    byCsoTotal   = (sr.by_cso_total  as CsoTotalRow[]   | null) ?? [];
+    byHospMonth  = (sr.by_hosp_month as HospMonthRow[]  | null) ?? [];
+    byProdMonth  = (sr.by_prod_month as ProdMonthRow[]  | null) ?? [];
+    grandTotals  = (sr.grand_totals  as GrandTotals     | null) ?? grandTotals;
+    recentMonths = ((sr.recent_months as string[] | null) ?? []).slice().sort();
   }
+  const recentSet = new Set(recentMonths);
 
   // ── B. 나머지 쿼리 병렬 실행 (마감분석 데이터도 함께 병렬 시작) ───────────────
   const perfDataPromise = getPerformanceData(companyId);
@@ -281,227 +262,162 @@ export default async function DashboardPage() {
     };
   }
 
-  // ── C. Settlement 데이터 가공 ─────────────────────────────────────────────
-  const normSett = allSett.map(r => ({
-    ...r,
-    prescription_month: toYYYYMM(r.prescription_month),
-  }));
+  // ── C. Settlement 데이터 가공 (RPC 집계 기반) ────────────────────────────
 
-  const allMonths    = [...new Set(normSett.map(r => r.prescription_month))].sort();
-  const recentMonths = allMonths.slice(-3);
-  const recentSet    = new Set(recentMonths);
+  // 인덱스: month × is_clinic (key: "true"/"false")
+  const monthTypeIdx: Record<string, Record<string, MonthTypeRow>> = {};
+  for (const r of byMonthType) {
+    if (!monthTypeIdx[r.prescription_month]) monthTypeIdx[r.prescription_month] = {};
+    monthTypeIdx[r.prescription_month][String(r.is_clinic)] = r;
+  }
+  const monthTotalIdx = Object.fromEntries(byMonthTotal.map(r => [r.prescription_month, r]));
 
-  /** 행 집합을 집계: hospCount, totalPrescAmt, totalSettAmt, avgPrescAmt, avgSettAmt */
-  function aggRows(rows: SRow[]) {
-    const hosps    = new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!));
-    const prescAmt = rows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0);
-    const settAmt  = rows.reduce((s, r) => s + (r.settlement_amount  ?? 0), 0);
-    if (hosps.size === 0 && prescAmt === 0) return null;
+  function aggFromRpc(h: number, p: number, s: number) {
+    if (h === 0 && p === 0) return null;
     return {
-      hospCount:    hosps.size,
-      totalPrescAmt: prescAmt,
-      totalSettAmt:  settAmt,
-      avgPrescAmt:   hosps.size > 0 ? Math.round(prescAmt / hosps.size) : 0,
-      avgSettAmt:    hosps.size > 0 ? Math.round(settAmt  / hosps.size) : 0,
+      hospCount:     h,
+      totalPrescAmt: p,
+      totalSettAmt:  s,
+      avgPrescAmt:   h > 0 ? Math.round(p / h) : 0,
+      avgSettAmt:    h > 0 ? Math.round(s / h) : 0,
     };
   }
 
   // ── [섹션 2] 거래처현황: CSO별 집계 ──────────────────────────────────────
-  type CsoAcc = { prescAmt: number; settAmt: number; hosps: Set<string>; monthPrescs: Record<string, number> };
-  const csoAccMap: Record<string, CsoAcc> = {};
-  for (const r of normSett.filter(r => recentSet.has(r.prescription_month))) {
-    const key = (r.cso_name ?? '').trim() || '미지정';
-    if (!csoAccMap[key]) csoAccMap[key] = { prescAmt: 0, settAmt: 0, hosps: new Set(), monthPrescs: {} };
-    const amt = r.prescription_amount ?? 0;
-    csoAccMap[key].prescAmt += amt;
-    csoAccMap[key].settAmt  += r.settlement_amount ?? 0;
-    if (r.hospital_name) csoAccMap[key].hosps.add(r.hospital_name);
-    csoAccMap[key].monthPrescs[r.prescription_month] = (csoAccMap[key].monthPrescs[r.prescription_month] ?? 0) + amt;
+  const csoTotalIdx = Object.fromEntries(byCsoTotal.map(r => [r.cso_name, r]));
+  const csoAccMap: Record<string, { name: string; prescAmt: number; settAmt: number; hospCount: number; months: { month: string; prescAmt: number }[] }> = {};
+  for (const r of byCsoMonth) {
+    if (!recentSet.has(r.prescription_month)) continue;
+    if (!csoAccMap[r.cso_name]) {
+      csoAccMap[r.cso_name] = {
+        name:      r.cso_name,
+        prescAmt:  0,
+        settAmt:   0,
+        hospCount: csoTotalIdx[r.cso_name]?.hosp_cnt ?? 0,
+        months:    recentMonths.map(m => ({ month: m, prescAmt: 0 })),
+      };
+    }
+    csoAccMap[r.cso_name].prescAmt += r.presc_amt;
+    csoAccMap[r.cso_name].settAmt  += r.sett_amt;
+    const mi = csoAccMap[r.cso_name].months.findIndex(m => m.month === r.prescription_month);
+    if (mi >= 0) csoAccMap[r.cso_name].months[mi].prescAmt = r.presc_amt;
   }
-  const allCsoStats = Object.entries(csoAccMap)
-    .map(([name, v]) => ({
-      name,
-      prescAmt:  v.prescAmt,
-      settAmt:   v.settAmt,
-      hospCount: v.hosps.size,
-      months:    recentMonths.map(m => ({ month: m, prescAmt: v.monthPrescs[m] ?? 0 })),
-    }))
-    .sort((a, b) => b.prescAmt - a.prescAmt);
+  const allCsoStats = Object.values(csoAccMap).sort((a, b) => b.prescAmt - a.prescAmt);
   const totalCsoCount = allCsoStats.length;
   const csoStats = allCsoStats.slice(0, 10);
-  // 처방처수는 CSO별 Set 합산(중복 발생) 대신 전체 unique 병원명 Set으로 계산
-  const csoAllHospSet = new Set<string>();
-  for (const r of normSett.filter(r => recentSet.has(r.prescription_month))) {
-    if (r.hospital_name) csoAllHospSet.add(r.hospital_name);
-  }
   const csoAllTotals = {
-    hospCount: csoAllHospSet.size,
-    prescAmt:  allCsoStats.reduce((s, r) => s + r.prescAmt, 0),
-    settAmt:   allCsoStats.reduce((s, r) => s + r.settAmt,  0),
+    hospCount: grandTotals.hosp_cnt,
+    prescAmt:  grandTotals.presc_amt,
+    settAmt:   grandTotals.sett_amt,
   };
-  // 전체 CSO 월별 합산 (합산 행 표시용)
   const csoMonthlyTotals = recentMonths.map(month => {
-    const rows    = normSett.filter(r => r.prescription_month === month);
-    const prescAmt = rows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0);
-    const settAmt  = rows.reduce((s, r) => s + (r.settlement_amount   ?? 0), 0);
-    const hosps    = new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!));
-    return { month, prescAmt, settAmt, hospCount: hosps.size };
+    const t = monthTotalIdx[month];
+    return { month, prescAmt: t?.presc_amt ?? 0, settAmt: t?.sett_amt ?? 0, hospCount: t?.hosp_cnt ?? 0 };
   });
 
   // ── [섹션 3] 처방처현황: 병원/의원 월별 분리 집계 ────────────────────────
   const settlementByCategory = recentMonths.map(month => {
-    const rows   = normSett.filter(r => r.prescription_month === month);
-    const clRows = rows.filter(r =>  isClinic(r.hospital_category, r.hospital_type));
-    const hsRows = rows.filter(r => !isClinic(r.hospital_category, r.hospital_type));
-    return { month, clinic: aggRows(clRows), hospital: aggRows(hsRows) };
-  });
-
-  const prescriptionMonthly = recentMonths.map(month => {
-    const rows    = normSett.filter(r => r.prescription_month === month);
-    const clRows  = rows.filter(r =>  isClinic(r.hospital_category, r.hospital_type));
-    const hsRows  = rows.filter(r => !isClinic(r.hospital_category, r.hospital_type));
-    const allH    = new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!));
-    const clH     = new Set(clRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
-    const hsH     = new Set(hsRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
-    const prods   = new Set(rows.filter(r => r.product_name).map(r => r.product_name!));
+    const cl = monthTypeIdx[month]?.['true'];
+    const hs = monthTypeIdx[month]?.['false'];
     return {
       month,
-      hospCount:        allH.size,
-      clinicCount:      clH.size,
-      hospitalCount:    hsH.size,
-      productCount:     prods.size,
-      totalPrescAmt:    rows.reduce((s, r)   => s + (r.prescription_amount ?? 0), 0),
-      clinicPrescAmt:   clRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
-      hospitalPrescAmt: hsRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+      clinic:   aggFromRpc(cl?.hosp_cnt ?? 0, cl?.presc_amt ?? 0, cl?.sett_amt ?? 0),
+      hospital: aggFromRpc(hs?.hosp_cnt ?? 0, hs?.presc_amt ?? 0, hs?.sett_amt ?? 0),
     };
   });
 
-  // ── [섹션 2] 상위 10 거래처 (병원/의원 처방액 기준) ───────────────────────
-  type HospAcc = { category: string; prescAmt: number; settAmt: number };
-  const hospAccMap: Record<string, HospAcc> = {};
-  for (const r of normSett.filter(r => recentSet.has(r.prescription_month))) {
-    if (!r.hospital_name) continue;
-    if (!hospAccMap[r.hospital_name]) {
-      hospAccMap[r.hospital_name] = {
-        category: isClinic(r.hospital_category, r.hospital_type) ? '의원' : '병원',
-        prescAmt: 0, settAmt: 0,
-      };
-    }
-    hospAccMap[r.hospital_name].prescAmt += r.prescription_amount ?? 0;
-    hospAccMap[r.hospital_name].settAmt  += r.settlement_amount   ?? 0;
-  }
-  const top10Customers = Object.entries(hospAccMap)
-    .sort(([, a], [, b]) => b.prescAmt - a.prescAmt)
-    .slice(0, 10)
-    .map(([name, v]) => ({ name, ...v }));
+  const prescriptionMonthly = recentMonths.map(month => {
+    const t  = monthTotalIdx[month];
+    const cl = monthTypeIdx[month]?.['true'];
+    const hs = monthTypeIdx[month]?.['false'];
+    return {
+      month,
+      hospCount:        t?.hosp_cnt   ?? 0,
+      clinicCount:      cl?.hosp_cnt  ?? 0,
+      hospitalCount:    hs?.hosp_cnt  ?? 0,
+      productCount:     t?.prod_cnt   ?? 0,
+      totalPrescAmt:    t?.presc_amt  ?? 0,
+      clinicPrescAmt:   cl?.presc_amt ?? 0,
+      hospitalPrescAmt: hs?.presc_amt ?? 0,
+    };
+  });
 
-  // ── [섹션 2] 상위 10 처방처 ──────────────────────────────────────────────
-  type PrescriberAcc = { category: string; prescAmt: number; months: Record<string, number> };
-  const prescriberMap: Record<string, PrescriberAcc> = {};
-  for (const r of normSett.filter(r => recentSet.has(r.prescription_month))) {
-    if (!r.hospital_name) continue;
-    if (!prescriberMap[r.hospital_name]) {
-      prescriberMap[r.hospital_name] = {
-        category: isClinic(r.hospital_category, r.hospital_type) ? '의원' : '병원',
-        prescAmt: 0, months: {},
-      };
+  // ── [섹션 2] 상위 10 거래처 / 처방처 ─────────────────────────────────────
+  const hospTotals: Record<string, { category: string; prescAmt: number; settAmt: number; months: Record<string, number> }> = {};
+  for (const r of byHospMonth) {
+    if (!hospTotals[r.hospital_name]) {
+      hospTotals[r.hospital_name] = { category: r.category, prescAmt: 0, settAmt: 0, months: {} };
     }
-    const amt = r.prescription_amount ?? 0;
-    prescriberMap[r.hospital_name].prescAmt += amt;
-    prescriberMap[r.hospital_name].months[r.prescription_month] =
-      (prescriberMap[r.hospital_name].months[r.prescription_month] ?? 0) + amt;
+    hospTotals[r.hospital_name].prescAmt += r.presc_amt;
+    hospTotals[r.hospital_name].settAmt  += r.sett_amt;
+    hospTotals[r.hospital_name].months[r.prescription_month] = r.presc_amt;
   }
-  const top10Prescribers = Object.entries(prescriberMap)
-    .sort(([, a], [, b]) => b.prescAmt - a.prescAmt)
-    .slice(0, 10)
-    .map(([name, v]) => ({
-      name,
-      category:     v.category,
-      totalPrescAmt: v.prescAmt,
-      months: recentMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
-    }));
+  const sortedHosps = Object.entries(hospTotals).sort(([, a], [, b]) => b.prescAmt - a.prescAmt);
+  const top10Customers = sortedHosps.slice(0, 10).map(([name, v]) => ({
+    name, category: v.category, prescAmt: v.prescAmt, settAmt: v.settAmt,
+  }));
+  const top10Prescribers = sortedHosps.slice(0, 10).map(([name, v]) => ({
+    name,
+    category:      v.category,
+    totalPrescAmt: v.prescAmt,
+    months: recentMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
+  }));
 
   // ── [섹션 8] 품목현황: 상위/하위 10 품목 추이 ────────────────────────────
-  // commission_settlements의 recentMonths 데이터 활용
-  type ProdStat = { prescAmt: number; months: Record<string, number> };
-  const prodStatMap: Record<string, ProdStat> = {};
   const latestMonth = recentMonths[recentMonths.length - 1] ?? '';
-
-  for (const r of normSett.filter(r => recentSet.has(r.prescription_month))) {
-    if (!r.product_name) continue;
-    if (!prodStatMap[r.product_name]) prodStatMap[r.product_name] = { prescAmt: 0, months: {} };
-    const amt = r.prescription_amount ?? 0;
-    prodStatMap[r.product_name].prescAmt += amt;
-    prodStatMap[r.product_name].months[r.prescription_month] =
-      (prodStatMap[r.product_name].months[r.prescription_month] ?? 0) + amt;
+  const prevMonth   = recentMonths[recentMonths.length - 2] ?? '';
+  const prodTotals: Record<string, { prescAmt: number; months: Record<string, number> }> = {};
+  for (const r of byProdMonth) {
+    if (!prodTotals[r.product_name]) prodTotals[r.product_name] = { prescAmt: 0, months: {} };
+    prodTotals[r.product_name].prescAmt += r.presc_amt;
+    prodTotals[r.product_name].months[r.prescription_month] = r.presc_amt;
   }
-
-  // 최신월 기준 정렬 → 상위/하위 구분
-  const allProdsSorted = Object.entries(prodStatMap)
-    .map(([name, v]) => {
-      const latestAmt  = v.months[latestMonth] ?? 0;
-      const prevMonth  = recentMonths[recentMonths.length - 2] ?? '';
-      const prevAmt    = v.months[prevMonth] ?? 0;
-      return {
-        name,
-        totalPrescAmt: v.prescAmt,
-        latestAmt,
-        delta: latestAmt - prevAmt,
-        months: recentMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
-      };
-    })
-    // 최신월 데이터가 있는 품목만 포함 (전기 실적 없는 품목 제외)
+  const allProdsSorted = Object.entries(prodTotals)
+    .map(([name, v]) => ({
+      name,
+      totalPrescAmt: v.prescAmt,
+      latestAmt: v.months[latestMonth] ?? 0,
+      delta: (v.months[latestMonth] ?? 0) - (v.months[prevMonth] ?? 0),
+      months: recentMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
+    }))
     .filter(p => p.totalPrescAmt > 0)
     .sort((a, b) => b.latestAmt - a.latestAmt);
 
   const top10Products    = allProdsSorted.slice(0, 10);
-  const bottom10Products = allProdsSorted.slice(-10).reverse(); // 하위에서 낮은 것부터
+  const bottom10Products = allProdsSorted.slice(-10).reverse();
 
   // ── [섹션 1] 처방실적현황: 수수료정산 기반 월별 의원/병원 집계 ───────────────
   const settPrescMonthly = recentMonths.map(month => {
-    const rows    = normSett.filter(r => r.prescription_month === month);
-    const clRows  = rows.filter(r =>  isClinic(r.hospital_category, r.hospital_type));
-    const hsRows  = rows.filter(r => !isClinic(r.hospital_category, r.hospital_type));
-    const allH    = new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!));
-    const clH     = new Set(clRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
-    const hsH     = new Set(hsRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
-    const allP    = new Set(rows.filter(r => r.product_name).map(r => r.product_name!));
-    const clP     = new Set(clRows.filter(r => r.product_name).map(r => r.product_name!));
-    const hsP     = new Set(hsRows.filter(r => r.product_name).map(r => r.product_name!));
+    const t  = monthTotalIdx[month];
+    const cl = monthTypeIdx[month]?.['true'];
+    const hs = monthTypeIdx[month]?.['false'];
     return {
       month,
-      hospCount:            allH.size,
-      clinicCount:          clH.size,
-      hospitalCount:        hsH.size,
-      productCount:         allP.size,
-      clinicProductCount:   clP.size,
-      hospitalProductCount: hsP.size,
-      totalPrescAmt:        rows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
-      clinicPrescAmt:       clRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
-      hospitalPrescAmt:     hsRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+      hospCount:            t?.hosp_cnt   ?? 0,
+      clinicCount:          cl?.hosp_cnt  ?? 0,
+      hospitalCount:        hs?.hosp_cnt  ?? 0,
+      productCount:         t?.prod_cnt   ?? 0,
+      clinicProductCount:   cl?.prod_cnt  ?? 0,
+      hospitalProductCount: hs?.prod_cnt  ?? 0,
+      totalPrescAmt:        t?.presc_amt  ?? 0,
+      clinicPrescAmt:       cl?.presc_amt ?? 0,
+      hospitalPrescAmt:     hs?.presc_amt ?? 0,
     };
   });
 
   // ── [섹션 3] 수수료정산현황: 월별 의원/병원/전체 추이 ────────────────────
   const settlementTrend = recentMonths.map(month => {
-    const rows   = normSett.filter(r => r.prescription_month === month);
-    const clRows = rows.filter(r =>  isClinic(r.hospital_category, r.hospital_type));
-    const hsRows = rows.filter(r => !isClinic(r.hospital_category, r.hospital_type));
-
-    function aggTrend(rs: SRow[]) {
-      if (rs.length === 0) return null;
-      const p = rs.reduce((s, r) => s + (r.prescription_amount ?? 0), 0);
-      const se = rs.reduce((s, r) => s + (r.settlement_amount  ?? 0), 0);
-      return { prescAmt: p, settAmt: se, rate: p > 0 ? Math.round(se / p * 1000) / 10 : 0 };
+    const t  = monthTotalIdx[month];
+    const cl = monthTypeIdx[month]?.['true'];
+    const hs = monthTypeIdx[month]?.['false'];
+    function mkTrend(p: number, s: number) {
+      return { prescAmt: p, settAmt: s, rate: p > 0 ? Math.round(s / p * 1000) / 10 : 0 };
     }
-
-    const totalP = rows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0);
-    const totalS = rows.reduce((s, r) => s + (r.settlement_amount   ?? 0), 0);
     return {
       month,
-      clinic:   aggTrend(clRows),
-      hospital: aggTrend(hsRows),
-      total:    { prescAmt: totalP, settAmt: totalS, rate: totalP > 0 ? Math.round(totalS / totalP * 1000) / 10 : 0 },
+      clinic:   cl ? mkTrend(cl.presc_amt, cl.sett_amt) : null,
+      hospital: hs ? mkTrend(hs.presc_amt, hs.sett_amt) : null,
+      total:    mkTrend(t?.presc_amt ?? 0, t?.sett_amt ?? 0),
     };
   });
 
