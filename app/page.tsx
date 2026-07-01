@@ -178,16 +178,7 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(168,85,247,0.10)',
     bd:   'rgba(168,85,247,0.22)',
   },
-  // ⑭ 마감분석
-  {
-    href: '/performance',
-    icon: '📊',
-    label: '마감분석',
-    color: '#86efac',
-    bg:   'rgba(16,185,129,0.10)',
-    bd:   'rgba(16,185,129,0.22)',
-  },
-  // ⑮ 수수료정산
+  // ⑭ 수수료정산
   {
     href: '/settlement',
     icon: '💵',
@@ -261,7 +252,16 @@ const NAV_ITEMS: NavItem[] = [
     bd:   'rgba(239,68,68,0.20)',
     adminOnly: true,
   },
-  // ⑲ 관리자 (관리자 전용)
+  // ⑲ 위탁사현황
+  {
+    href: '/companies',
+    icon: '🏢',
+    label: '위탁사현황',
+    color: '#7dd3fc',
+    bg:   'rgba(14,165,233,0.10)',
+    bd:   'rgba(14,165,233,0.22)',
+  },
+  // ⑳ 관리자 (관리자 전용)
   {
     href: '/admin',
     icon: '⚙️',
