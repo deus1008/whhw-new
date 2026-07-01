@@ -7,7 +7,6 @@ import DashboardClient from '@/components/DashboardClient';
 import type { DashboardData } from '@/components/DashboardClient';
 import { parseInventoryBuffer } from '@/lib/inventory/parse';
 import type { StockAlertItem } from '@/lib/inventory/parse';
-import { getPerformanceData } from '@/app/performance/actions';
 import { profileIsAdmin } from '@/lib/roles';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
@@ -107,43 +106,18 @@ export default async function DashboardPage() {
   // ── A. commission_settlements → RPC 집계 (단일 DB 집계 쿼리) ────────────
   type MonthTypeRow  = { prescription_month: string; is_clinic: boolean; hosp_cnt: number; prod_cnt: number; presc_amt: number; sett_amt: number };
   type MonthTotalRow = { prescription_month: string; hosp_cnt: number; prod_cnt: number; presc_amt: number; sett_amt: number };
-  type CsoMonthRow   = { cso_name: string; prescription_month: string; hosp_cnt: number; presc_amt: number; sett_amt: number };
+  type CsoMonthRow   = { cso_name: string; prescription_month: string; hosp_cnt: number; prod_cnt: number; presc_amt: number; sett_amt: number };
   type CsoTotalRow   = { cso_name: string; hosp_cnt: number; presc_amt: number; sett_amt: number };
   type HospMonthRow  = { hospital_name: string; category: string; prescription_month: string; presc_amt: number; sett_amt: number };
   type ProdMonthRow  = { product_name: string; prescription_month: string; presc_amt: number };
   type GrandTotals   = { hosp_cnt: number; presc_amt: number; sett_amt: number };
 
-  let byMonthType:  MonthTypeRow[]  = [];
-  let byMonthTotal: MonthTotalRow[] = [];
-  let byCsoMonth:   CsoMonthRow[]   = [];
-  let byCsoTotal:   CsoTotalRow[]   = [];
-  let byHospMonth:  HospMonthRow[]  = [];
-  let byProdMonth:  ProdMonthRow[]  = [];
-  let grandTotals:  GrandTotals     = { hosp_cnt: 0, presc_amt: 0, sett_amt: 0 };
-  let recentMonths: string[]        = [];
+  // ── A + B. 모든 쿼리를 동시에 시작 ────────────────────────────────────────
+  // RPC(~2.8s)와 나머지 쿼리(~0.5s)를 병렬로 실행해 총 대기시간 최소화
+  const settRpcPromise = companyId
+    ? svc.rpc('get_dashboard_settlements', { p_company_id: companyId, p_since_month: since4mStr })
+    : Promise.resolve({ data: null, error: null });
 
-  if (companyId) {
-    const { data: settRpcRaw, error: settErr } = await svc.rpc('get_dashboard_settlements', {
-      p_company_id:  companyId,
-      p_since_month: since4mStr,
-    });
-    if (settErr) console.error('[dashboard:settlements rpc]', settErr);
-    const sr = (settRpcRaw as Record<string, unknown>) ?? {};
-    byMonthType  = (sr.by_month_type  as MonthTypeRow[]  | null) ?? [];
-    byMonthTotal = (sr.by_month_total as MonthTotalRow[] | null) ?? [];
-    byCsoMonth   = (sr.by_cso_month  as CsoMonthRow[]   | null) ?? [];
-    byCsoTotal   = (sr.by_cso_total  as CsoTotalRow[]   | null) ?? [];
-    byHospMonth  = (sr.by_hosp_month as HospMonthRow[]  | null) ?? [];
-    byProdMonth  = (sr.by_prod_month as ProdMonthRow[]  | null) ?? [];
-    grandTotals  = (sr.grand_totals  as GrandTotals     | null) ?? grandTotals;
-    recentMonths = ((sr.recent_months as string[] | null) ?? []).slice().sort();
-  }
-  const recentSet = new Set(recentMonths);
-
-  // ── B. 나머지 쿼리 병렬 실행 (마감분석 데이터도 함께 병렬 시작) ───────────────
-  const perfDataPromise = getPerformanceData(companyId);
-
-  // 위탁사 필터가 필요한 쿼리를 미리 빌드
   const ediQ = (() => {
     let q = svc.from('trend_prescriptions')
       .select('prescription_month,hospital_name,product_name,prescription_amount,hospital_type')
@@ -174,8 +148,6 @@ export default async function DashboardPage() {
     if (companyId) q = q.eq('company_id', companyId);
     return q;
   })();
-
-  // 위탁사 필터가 필요한 추가 쿼리 빌드
   const custQ = (() => {
     let q = svc.from('customer_status').select('source_file, created_at').gte('created_at', since3mStr);
     if (companyId) q = q.eq('company_id', companyId);
@@ -200,6 +172,7 @@ export default async function DashboardPage() {
   })();
 
   const [
+    { data: settRpcRaw, error: settErr },
     { data: custRows },
     { data: visitRows },
     { data: profileRows },
@@ -210,6 +183,7 @@ export default async function DashboardPage() {
     { data: dcRows },
     { data: invDoc },
   ] = await Promise.all([
+    settRpcPromise,
     custQ,
     svc.from('visit_records')
       .select('user_id, visited_at, customer_name, contact_name, content')
@@ -224,9 +198,7 @@ export default async function DashboardPage() {
       .lte('start_date', next2mStr)
       .order('start_date', { ascending: true })
       .limit(60),
-    // 처방실적(EDI/실적마감): 최근 3개월 (위탁사 필터 적용)
     ediQ,
-    // 발매예정: 단종·발매완료 제외, 발매일 → 성분명 순 (위탁사 필터 적용)
     upcomingQ,
     // 문서: 최근 3개월 (위탁사 필터 적용)
     docQ,
@@ -235,6 +207,19 @@ export default async function DashboardPage() {
     // 품절예측: 최신 파일 메타 (위탁사 필터 적용)
     invDocQ,
   ]);
+
+  // ── A-2. RPC 결과 파싱 ──────────────────────────────────────────────────────
+  if (settErr) console.error('[dashboard:settlements rpc]', settErr);
+  const sr = (settRpcRaw as Record<string, unknown>) ?? {};
+  const byMonthType:  MonthTypeRow[]  = (sr.by_month_type  as MonthTypeRow[]  | null) ?? [];
+  const byMonthTotal: MonthTotalRow[] = (sr.by_month_total as MonthTotalRow[] | null) ?? [];
+  const byCsoMonth:   CsoMonthRow[]   = (sr.by_cso_month  as CsoMonthRow[]   | null) ?? [];
+  const byCsoTotal:   CsoTotalRow[]   = (sr.by_cso_total  as CsoTotalRow[]   | null) ?? [];
+  const byHospMonth:  HospMonthRow[]  = (sr.by_hosp_month as HospMonthRow[]  | null) ?? [];
+  const byProdMonth:  ProdMonthRow[]  = (sr.by_prod_month as ProdMonthRow[]  | null) ?? [];
+  const grandTotals:  GrandTotals     = (sr.grand_totals  as GrandTotals     | null) ?? { hosp_cnt: 0, presc_amt: 0, sett_amt: 0 };
+  const recentMonths: string[]        = ((sr.recent_months as string[] | null) ?? []).slice().sort();
+  const recentSet = new Set(recentMonths);
 
   // ── B-2. 품절예측 파일 다운로드 + 파싱 ───────────────────────────────────────
   let stockItems: StockAlertItem[] = [];
@@ -249,18 +234,6 @@ export default async function DashboardPage() {
     }
   }
 
-  // ── B-3. 마감분석 처방처수 맵 빌드 (기간 "YYYY.MM" → "YYYY-MM" 변환) ────────
-  const perfResult = await perfDataPromise;
-  type PerfCount = { total: number; clinic?: number; hospital?: number };
-  const perfMap: Record<string, PerfCount> = {};
-  for (const report of (perfResult?.reports ?? [])) {
-    const period = report.period.replace('.', '-'); // "2026.05" → "2026-05"
-    perfMap[period] = {
-      total:    report.data.prescriptionCount,
-      clinic:   report.data.clinicPrescriptionCount,
-      hospital: report.data.hospitalPrescriptionCount,
-    };
-  }
 
   // ── C. Settlement 데이터 가공 (RPC 집계 기반) ────────────────────────────
 
@@ -285,7 +258,7 @@ export default async function DashboardPage() {
 
   // ── [섹션 2] 거래처현황: CSO별 집계 ──────────────────────────────────────
   const csoTotalIdx = Object.fromEntries(byCsoTotal.map(r => [r.cso_name, r]));
-  const csoAccMap: Record<string, { name: string; prescAmt: number; settAmt: number; hospCount: number; months: { month: string; prescAmt: number }[] }> = {};
+  const csoAccMap: Record<string, { name: string; prescAmt: number; settAmt: number; hospCount: number; months: { month: string; hospCount: number; prodCount: number; prescAmt: number }[] }> = {};
   for (const r of byCsoMonth) {
     if (!recentSet.has(r.prescription_month)) continue;
     if (!csoAccMap[r.cso_name]) {
@@ -294,17 +267,21 @@ export default async function DashboardPage() {
         prescAmt:  0,
         settAmt:   0,
         hospCount: csoTotalIdx[r.cso_name]?.hosp_cnt ?? 0,
-        months:    recentMonths.map(m => ({ month: m, prescAmt: 0 })),
+        months:    recentMonths.map(m => ({ month: m, hospCount: 0, prodCount: 0, prescAmt: 0 })),
       };
     }
     csoAccMap[r.cso_name].prescAmt += r.presc_amt;
     csoAccMap[r.cso_name].settAmt  += r.sett_amt;
     const mi = csoAccMap[r.cso_name].months.findIndex(m => m.month === r.prescription_month);
-    if (mi >= 0) csoAccMap[r.cso_name].months[mi].prescAmt = r.presc_amt;
+    if (mi >= 0) {
+      csoAccMap[r.cso_name].months[mi].prescAmt  = r.presc_amt;
+      csoAccMap[r.cso_name].months[mi].hospCount = r.hosp_cnt;
+      csoAccMap[r.cso_name].months[mi].prodCount = r.prod_cnt;
+    }
   }
   const allCsoStats = Object.values(csoAccMap).sort((a, b) => b.prescAmt - a.prescAmt);
   const totalCsoCount = allCsoStats.length;
-  const csoStats = allCsoStats.slice(0, 10);
+  const csoStats = allCsoStats.slice(0, 20);
   const csoAllTotals = {
     hospCount: grandTotals.hosp_cnt,
     prescAmt:  grandTotals.presc_amt,
@@ -312,7 +289,7 @@ export default async function DashboardPage() {
   };
   const csoMonthlyTotals = recentMonths.map(month => {
     const t = monthTotalIdx[month];
-    return { month, prescAmt: t?.presc_amt ?? 0, settAmt: t?.sett_amt ?? 0, hospCount: t?.hosp_cnt ?? 0 };
+    return { month, prescAmt: t?.presc_amt ?? 0, settAmt: t?.sett_amt ?? 0, hospCount: t?.hosp_cnt ?? 0, prodCount: t?.prod_cnt ?? 0 };
   });
 
   // ── [섹션 3] 처방처현황: 병원/의원 월별 분리 집계 ────────────────────────
