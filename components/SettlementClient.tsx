@@ -526,23 +526,52 @@ function AccordionTable5({
 }
 
 /* ── 메인 컴포넌트 ── */
-export default function SettlementClient({ rows }: { rows: SettlementRowClient[] }) {
-  // 파일 목록 (최신순 정렬)
-  const files = useMemo(() => {
+export default function SettlementClient({
+  rows: initialRows,
+  allFiles,
+}: {
+  rows: SettlementRowClient[];
+  allFiles?: { file: string; settMonth: string | null; prescMonth: string | null }[];
+}) {
+  const derivedFiles = useMemo(() => {
     const seen = new Set<string>();
     const list: { file: string; settMonth: string | null; prescMonth: string | null }[] = [];
-    for (const r of rows) {
+    for (const r of initialRows) {
       if (!r.source_file || seen.has(r.source_file)) continue;
       seen.add(r.source_file);
       list.push({ file: r.source_file, settMonth: r.settlement_month, prescMonth: r.prescription_month });
     }
     return list;
-  }, [rows]);
+  }, [initialRows]);
+
+  const files = (allFiles && allFiles.length > 0) ? allFiles : derivedFiles;
 
   const [selectedFile, setSelectedFile] = useState<string>(files[0]?.file ?? '');
   const [dropOpen,     setDropOpen]     = useState(false);
+  const [rows,         setRows]         = useState<SettlementRowClient[]>(initialRows);
+  const [loading,      setLoading]      = useState(false);
 
   const selectedMeta = files.find(f => f.file === selectedFile);
+
+  async function handleFileChange(file: string) {
+    setSelectedFile(file);
+    setDropOpen(false);
+    // 초기 로드 파일이면 initialRows 사용 (재fetch 불필요)
+    if (file === files[0]?.file) {
+      setRows(initialRows);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/settlement-rows?file=${encodeURIComponent(file)}`);
+      if (res.ok) {
+        const json = await res.json();
+        setRows(json.rows ?? []);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const monthRows = useMemo(
     () => rows.filter(r => r.source_file === selectedFile),
@@ -642,7 +671,7 @@ export default function SettlementClient({ rows }: { rows: SettlementRowClient[]
               return (
                 <button
                   key={f.file}
-                  onClick={() => { setSelectedFile(f.file); setDropOpen(false); }}
+                  onClick={() => handleFileChange(f.file)}
                   style={{
                     width: '100%', display: 'block', textAlign: 'left', padding: '0.6rem 1rem',
                     background: isActive ? 'rgba(99,102,241,0.25)' : 'transparent',
@@ -667,7 +696,11 @@ export default function SettlementClient({ rows }: { rows: SettlementRowClient[]
         )}
       </div>
 
-      {monthRows.length === 0 ? (
+      {loading ? (
+        <div style={{ ...CARD, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          데이터 불러오는 중…
+        </div>
+      ) : monthRows.length === 0 ? (
         <div style={{ ...CARD, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
           선택한 월의 정산 데이터가 없습니다.
         </div>

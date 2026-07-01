@@ -37,7 +37,7 @@ export type CsoStat = {
   hospCount: number;
   prescAmt:  number;
   settAmt:   number;
-  months:    { month: string; prescAmt: number }[];
+  months:    { month: string; hospCount: number; prodCount: number; prescAmt: number }[];
 };
 
 export type CsoMonthlyTotal = {
@@ -45,6 +45,7 @@ export type CsoMonthlyTotal = {
   prescAmt:  number;
   settAmt:   number;
   hospCount: number;
+  prodCount: number;
 };
 
 export type PrescMonthStat = {
@@ -248,8 +249,8 @@ function Section({ title, id, children }: { title: string; id?: string; children
   );
 }
 
-function SubTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="sub-title">{children}</h3>;
+function SubTitle({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return <h3 className="sub-title" style={style}>{children}</h3>;
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -618,151 +619,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </Section>
 
       {/* ══════════════════════════════════════════════════════════
-          섹션 2: 거래처현황 (CSO)
-      ══════════════════════════════════════════════════════════ */}
-      <Section title="🏢 거래처현황" id="s2">
-        {noSett ? (
-          <Empty msg="수수료정산 파일을 업로드하면 자동 집계됩니다." />
-        ) : csoStats.length === 0 ? (
-          <Empty msg="CSO 담당자 정보가 있는 파일을 업로드하면 집계됩니다." />
-        ) : (
-          <>
-            <SubTitle>▸ CSO별 집계 · 상위 {csoStats.length}개 / 전체 {totalCsoCount}개 ({recentMonths.length > 0 ? `${fmtPeriod(recentMonths[0])} ~ ${fmtPeriod(recentMonths[recentMonths.length - 1])}` : '최근 3개월'})</SubTitle>
-            <div style={{ overflowX: 'auto' }}>
-              <table className="dash-table">
-                <thead>
-                  <tr>
-                    <th className="center">순위</th>
-                    <th>CSO명</th>
-                    {recentMonths.map(m => (
-                      <th key={m} className="right">{fmtPeriod(m)} 처방액</th>
-                    ))}
-                    <th className="right">전월대비</th>
-                    <th className="right">정산율</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {csoStats.map((r, i) => {
-                    const curAmt = r.months[r.months.length - 1]?.prescAmt ?? 0;
-                    const prvAmt = r.months[r.months.length - 2]?.prescAmt;
-                    const delta  = prvAmt !== undefined ? curAmt - prvAmt : null;
-                    const rate   = r.prescAmt > 0 ? Math.round(r.settAmt / r.prescAmt * 1000) / 10 : 0;
-                    return (
-                      <tr key={r.name}>
-                        <td className="center muted">{i + 1}</td>
-                        <td style={{ maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
-                          {r.name}
-                        </td>
-                        {r.months.map(m => (
-                          <td key={m.month} className="right bold">
-                            {m.prescAmt > 0 ? fmtWon(m.prescAmt) : <span className="muted">-</span>}
-                          </td>
-                        ))}
-                        <td className="right">
-                          {delta === null ? <span className="muted">-</span>
-                           : delta === 0  ? <span className="muted">±0</span>
-                           : <DeltaAmt cur={curAmt} prev={prvAmt!} />}
-                        </td>
-                        <td className="right" style={{ color: '#a8c4ff', fontSize: '0.82rem' }}>{fmtRate(rate)}</td>
-                      </tr>
-                    );
-                  })}
-                  {/* 전체 월별 합산 행 */}
-                  <tr className="total-row">
-                    <td className="center" colSpan={2} style={{ fontWeight: 700 }}>전체 합산 ({totalCsoCount}개사)</td>
-                    {csoMonthlyTotals.map(mt => (
-                      <td key={mt.month} className="right">
-                        {fmtWon(mt.prescAmt)}
-                      </td>
-                    ))}
-                    <td className="right">
-                      {csoMonthlyTotals.length >= 2 && (() => {
-                        const cur = csoMonthlyTotals[csoMonthlyTotals.length - 1].prescAmt;
-                        const prv = csoMonthlyTotals[csoMonthlyTotals.length - 2].prescAmt;
-                        return <DeltaAmt cur={cur} prev={prv} />;
-                      })()}
-                    </td>
-                    <td className="right" style={{ color: '#a8c4ff' }}>
-                      {csoAllTotals.prescAmt > 0 ? fmtRate(Math.round(csoAllTotals.settAmt / csoAllTotals.prescAmt * 1000) / 10) : '-'}
-                    </td>
-                  </tr>
-                  {/* CSO당 평균 행 */}
-                  <tr className="total-row" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                    <td className="center" colSpan={2}>CSO당 평균</td>
-                    {csoMonthlyTotals.map(mt => (
-                      <td key={mt.month} className="right">
-                        {totalCsoCount > 0 ? fmtWon(Math.round(mt.prescAmt / totalCsoCount)) : '-'}
-                      </td>
-                    ))}
-                    <td />
-                    <td className="right" style={{ color: '#a8c4ff' }}>
-                      {csoAllTotals.prescAmt > 0 ? fmtRate(Math.round(csoAllTotals.settAmt / csoAllTotals.prescAmt * 1000) / 10) : '-'}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </Section>
-
-      {/* ══════════════════════════════════════════════════════════
-          섹션 4: 품목현황
-      ══════════════════════════════════════════════════════════ */}
-      <Section title="💊 품목현황" id="s4">
-        {top10Products.length === 0 ? (
-          <Empty msg="수수료정산 파일을 업로드하면 자동 집계됩니다." />
-        ) : (
-          <>
-            {([
-              { label: '▸ 상위 10 품목 (최신월 처방액 기준)', items: top10Products,    isTop: true,  accentColor: '#4ade80' },
-              { label: '▸ 하위 10 품목 (최신월 처방액 기준)', items: bottom10Products, isTop: false, accentColor: '#f87171' },
-            ] as { label: string; items: ProductRankItem[]; isTop: boolean; accentColor: string }[]).map(({ label, items, isTop, accentColor }) => (
-              items.length > 0 && (
-                <div key={label} style={{ marginBottom: '0.5rem' }}>
-                  <SubTitle>{label}</SubTitle>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table className="dash-table">
-                      <thead>
-                        <tr>
-                          <th className="center">순위</th>
-                          <th>품목명</th>
-                          {recentMonths.map(m => <th key={m} className="right">{fmtPeriod(m)}</th>)}
-                          <th className="right">전월대비</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {items.map((p, i) => (
-                          <tr key={p.name}>
-                            <td className="center" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>
-                              {isTop ? i + 1 : `▼${i + 1}`}
-                            </td>
-                            <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{p.name}</td>
-                            {p.months.map(m => (
-                              <td key={m.month} className="right" style={{ fontSize: '0.80rem' }}>
-                                {m.prescAmt > 0 ? fmtWon(m.prescAmt, true) : <span className="muted">-</span>}
-                              </td>
-                            ))}
-                            <td className="right" style={{ fontSize: '0.78rem' }}>
-                              {p.delta === 0
-                                ? <span className="muted">±0</span>
-                                : <span className={p.delta > 0 ? 'up' : 'dn'}>
-                                    {p.delta > 0 ? '▲' : '▼'}{fmtWon(Math.abs(p.delta), true)}
-                                  </span>}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )
-            ))}
-          </>
-        )}
-      </Section>
-
-      {/* ══════════════════════════════════════════════════════════
           섹션 5: 수수료정산현황
       ══════════════════════════════════════════════════════════ */}
       <Section title="💰 수수료정산현황" id="s5">
@@ -849,6 +705,287 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </div>
               );
             })()}
+          </>
+        )}
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════
+          섹션 4: 품목현황
+      ══════════════════════════════════════════════════════════ */}
+      <Section title="💊 품목현황" id="s4">
+        {top10Products.length === 0 ? (
+          <Empty msg="수수료정산 파일을 업로드하면 자동 집계됩니다." />
+        ) : (
+          <>
+            {([
+              { label: '▸ 상위 10 품목 (최신월 처방액 기준)', items: top10Products,    isTop: true,  accentColor: '#4ade80' },
+              { label: '▸ 하위 10 품목 (최신월 처방액 기준)', items: bottom10Products, isTop: false, accentColor: '#f87171' },
+            ] as { label: string; items: ProductRankItem[]; isTop: boolean; accentColor: string }[]).map(({ label, items, isTop, accentColor }) => (
+              items.length > 0 && (
+                <div key={label} style={{ marginBottom: '0.5rem' }}>
+                  <SubTitle>{label}</SubTitle>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="dash-table">
+                      <thead>
+                        <tr>
+                          <th className="center">순위</th>
+                          <th>품목명</th>
+                          {recentMonths.map(m => <th key={m} className="right">{fmtPeriod(m)}</th>)}
+                          <th className="right">전월대비</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((p, i) => (
+                          <tr key={p.name}>
+                            <td className="center" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>
+                              {isTop ? i + 1 : `▼${i + 1}`}
+                            </td>
+                            <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{p.name}</td>
+                            {p.months.map(m => (
+                              <td key={m.month} className="right" style={{ fontSize: '0.80rem' }}>
+                                {m.prescAmt > 0 ? fmtWon(m.prescAmt, true) : <span className="muted">-</span>}
+                              </td>
+                            ))}
+                            <td className="right" style={{ fontSize: '0.78rem' }}>
+                              {p.delta === 0
+                                ? <span className="muted">±0</span>
+                                : <span className={p.delta > 0 ? 'up' : 'dn'}>
+                                    {p.delta > 0 ? '▲' : '▼'}{fmtWon(Math.abs(p.delta), true)}
+                                  </span>}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )
+            ))}
+          </>
+        )}
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════
+          섹션 6b: 품절현황
+      ══════════════════════════════════════════════════════════ */}
+      <Section title="⚠️ 품절현황" id="s6b">
+        {stockItems.length === 0 ? (
+          <Empty msg="문서관리 > '품절예측' 폴더에 파일을 업로드하면 자동 표시됩니다." />
+        ) : (
+          <>
+            {/* 요약 pill */}
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              {(['품절', '예측'] as const).map(type => {
+                const cnt = stockItems.filter(i => i.alert_type === type).length;
+                const color = type === '품절' ? '#ef4444' : '#f59e0b';
+                return (
+                  <div key={type} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+                    padding: '0.28rem 0.85rem', borderRadius: '100px',
+                    background: `${color}14`, border: `1px solid ${color}33`,
+                  }}>
+                    <span style={{ fontSize: '1rem', fontWeight: 700, color, lineHeight: 1 }}>{cnt}</span>
+                    <span style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.6)' }}>{type}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+              <table className="dash-table">
+                <thead>
+                  <tr>
+                    <th className="center" style={{ width: '3.5rem' }}>구분</th>
+                    <th>제품명</th>
+                    <th className="center" style={{ width: '4rem' }}>재고일</th>
+                    <th className="center" style={{ width: '6rem' }}>품절시작일</th>
+                    <th className="center" style={{ width: '6rem' }}>공급예정일</th>
+                    <th>발생유형</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stockItems.map((item, idx) => {
+                    const color = item.alert_type === '품절' ? '#ef4444' : '#f59e0b';
+                    const dayColor =
+                      item.stock_days === null   ? 'rgba(255,255,255,0.4)'
+                      : item.stock_days <= 0     ? '#ef4444'
+                      : item.stock_days < 7      ? '#f87171'
+                      : item.stock_days < 14     ? '#fb923c'
+                      : item.stock_days < 30     ? '#fbbf24'
+                      : '#4ade80';
+                    const fmtD = (s: string | null) => {
+                      if (!s) return '-';
+                      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                      return m ? `${m[1].slice(2)}.${m[2]}.${m[3]}` : s;
+                    };
+                    return (
+                      <tr key={idx}>
+                        <td className="center" style={{ color, fontWeight: 700, fontSize: '0.78rem' }}>
+                          {item.alert_type}
+                        </td>
+                        <td style={{ fontWeight: 600, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.product_name}
+                        </td>
+                        <td className="center" style={{ color: dayColor, fontWeight: 700 }}>
+                          {item.stock_days !== null ? `${item.stock_days}일` : '-'}
+                        </td>
+                        <td className="center" style={{ fontSize: '0.8rem' }}>
+                          {fmtD(item.stockout_start)}
+                        </td>
+                        <td className="center" style={{ fontSize: '0.8rem' }}>
+                          {fmtD(item.supply_date)}
+                        </td>
+                        <td className="muted" style={{ fontSize: '0.78rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.cause || '-'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {stockFileName && (
+              <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.5rem', textAlign: 'right' }}>
+                출처: {stockFileName} · <a href="/inventory" style={{ color: '#a5b4fc' }}>품절현황</a>
+              </p>
+            )}
+          </>
+        )}
+      </Section>
+
+      {/* ══════════════════════════════════════════════════════════
+          섹션 2: 거래처현황 (CSO)
+      ══════════════════════════════════════════════════════════ */}
+      <Section title="🏢 거래처현황" id="s2">
+        {noSett ? (
+          <Empty msg="수수료정산 파일을 업로드하면 자동 집계됩니다." />
+        ) : csoStats.length === 0 ? (
+          <Empty msg="CSO 담당자 정보가 있는 파일을 업로드하면 집계됩니다." />
+        ) : (
+          <>
+            <SubTitle>▸ CSO별 집계 · 상위 {csoStats.length}개 / 전체 {totalCsoCount}개 ({recentMonths.length > 0 ? `${fmtPeriod(recentMonths[0])} ~ ${fmtPeriod(recentMonths[recentMonths.length - 1])}` : '최근 3개월'})</SubTitle>
+            <div style={{ overflowX: 'auto' }}>
+              {(() => {
+                type CsoMonth = CsoStat['months'][0];
+                type CsoMetric = { label: string; get: (m: CsoMonth) => number; isAmt: boolean };
+                const metrics: CsoMetric[] = [
+                  { label: '처방처수',      get: m => m.hospCount, isAmt: false },
+                  { label: '처방품목수',    get: m => m.prodCount,  isAmt: false },
+                  { label: '처방액합계',    get: m => m.prescAmt,   isAmt: true  },
+                  { label: '처별 처방액평균', get: m => m.hospCount > 0 ? Math.round(m.prescAmt / m.hospCount) : 0, isAmt: true },
+                ];
+                const overallRate = csoAllTotals.prescAmt > 0
+                  ? fmtRate(Math.round(csoAllTotals.settAmt / csoAllTotals.prescAmt * 1000) / 10)
+                  : '-';
+                return (
+                  <table className="dash-table">
+                    <thead>
+                      <tr>
+                        <th className="center" style={{ width: '2.5rem' }}>순위</th>
+                        <th style={{ width: '98px' }}>CSO명</th>
+                        <th style={{ width: '5rem' }}>항목</th>
+                        {recentMonths.map(m => (
+                          <th key={m} className="right">{fmtPeriod(m)}</th>
+                        ))}
+                        <th className="right">전월대비</th>
+                        <th className="right">정산율</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csoStats.map((r, i) => {
+                        const rate = r.prescAmt > 0 ? fmtRate(Math.round(r.settAmt / r.prescAmt * 1000) / 10) : '-';
+                        return metrics.map((metric, mi) => {
+                          const curVal = metric.get(r.months[r.months.length - 1] ?? { month: '', hospCount: 0, prodCount: 0, prescAmt: 0 });
+                          const prvM   = r.months[r.months.length - 2];
+                          const prvVal = prvM ? metric.get(prvM) : undefined;
+                          const delta  = prvVal !== undefined ? curVal - prvVal : null;
+                          return (
+                            <tr key={`${r.name}-${mi}`}>
+                              {mi === 0 && (
+                                <td rowSpan={4} className="center muted" style={{ verticalAlign: 'middle' }}>{i + 1}</td>
+                              )}
+                              {mi === 0 && (
+                                <td rowSpan={4} style={{ maxWidth: '98px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, verticalAlign: 'middle' }}>
+                                  {r.name}
+                                </td>
+                              )}
+                              <td className="muted" style={{ fontSize: '0.76rem', whiteSpace: 'nowrap' }}>{metric.label}</td>
+                              {r.months.map(m => (
+                                <td key={m.month} className="right bold">
+                                  {metric.isAmt
+                                    ? (metric.get(m) > 0 ? fmtWon(metric.get(m)) : <span className="muted">-</span>)
+                                    : metric.get(m).toLocaleString()}
+                                </td>
+                              ))}
+                              <td className="right">
+                                {delta === null ? <span className="muted">-</span>
+                                 : delta === 0  ? <span className="muted">±0</span>
+                                 : metric.isAmt
+                                   ? <DeltaAmt cur={curVal} prev={prvVal!} />
+                                   : <span className={delta > 0 ? 'up' : 'dn'} style={{ fontSize: '0.78rem' }}>
+                                       {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toLocaleString()}
+                                     </span>}
+                              </td>
+                              <td className="right" style={{ color: '#a8c4ff', fontSize: '0.82rem' }}>
+                                {mi === 3 ? rate : ''}
+                              </td>
+                            </tr>
+                          );
+                        });
+                      })}
+                      {/* 전체 합산 */}
+                      {metrics.map((metric, mi) => {
+                        const lastMt = csoMonthlyTotals[csoMonthlyTotals.length - 1];
+                        const prevMt = csoMonthlyTotals[csoMonthlyTotals.length - 2];
+                        const curVal = mi === 0 ? (lastMt?.hospCount ?? 0)
+                          : mi === 1 ? (lastMt?.prodCount ?? 0)
+                          : mi === 2 ? (lastMt?.prescAmt ?? 0)
+                          : (lastMt && lastMt.hospCount > 0 ? Math.round(lastMt.prescAmt / lastMt.hospCount) : 0);
+                        const prvVal = mi === 0 ? prevMt?.hospCount
+                          : mi === 1 ? prevMt?.prodCount
+                          : mi === 2 ? prevMt?.prescAmt
+                          : (prevMt && prevMt.hospCount > 0 ? Math.round(prevMt.prescAmt / prevMt.hospCount) : undefined);
+                        const delta = prvVal !== undefined ? curVal - prvVal : null;
+                        return (
+                          <tr key={`total-${mi}`} className="total-row">
+                            {mi === 0 && (
+                              <td rowSpan={4} className="center" colSpan={2} style={{ fontWeight: 700, verticalAlign: 'middle' }}>
+                                전체 합산<br /><span style={{ fontSize: '0.74rem', fontWeight: 400 }}>({totalCsoCount}개사)</span>
+                              </td>
+                            )}
+                            <td className="muted" style={{ fontSize: '0.76rem', whiteSpace: 'nowrap' }}>{metric.label}</td>
+                            {csoMonthlyTotals.map(mt => {
+                              const val = mi === 0 ? mt.hospCount
+                                : mi === 1 ? mt.prodCount
+                                : mi === 2 ? mt.prescAmt
+                                : (mt.hospCount > 0 ? Math.round(mt.prescAmt / mt.hospCount) : 0);
+                              return (
+                                <td key={mt.month} className="right">
+                                  {mi >= 2 ? fmtWon(val) : val.toLocaleString()}
+                                </td>
+                              );
+                            })}
+                            <td className="right">
+                              {delta === null ? '' : delta === 0 ? <span className="muted">±0</span>
+                               : mi >= 2
+                                 ? <DeltaAmt cur={curVal} prev={prvVal!} />
+                                 : <span className={delta > 0 ? 'up' : 'dn'} style={{ fontSize: '0.78rem' }}>
+                                     {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toLocaleString()}
+                                   </span>}
+                            </td>
+                            <td className="right" style={{ color: '#a8c4ff', fontSize: '0.82rem' }}>
+                              {mi === 3 ? overallRate : ''}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                );
+              })()}
+            </div>
+
           </>
         )}
       </Section>
@@ -949,95 +1086,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </>
           );
         })()}
-      </Section>
-
-      {/* ══════════════════════════════════════════════════════════
-          섹션 6b: 품절현황
-      ══════════════════════════════════════════════════════════ */}
-      <Section title="⚠️ 품절현황" id="s6b">
-        {stockItems.length === 0 ? (
-          <Empty msg="문서관리 > '품절예측' 폴더에 파일을 업로드하면 자동 표시됩니다." />
-        ) : (
-          <>
-            {/* 요약 pill */}
-            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-              {(['품절', '예측'] as const).map(type => {
-                const cnt = stockItems.filter(i => i.alert_type === type).length;
-                const color = type === '품절' ? '#ef4444' : '#f59e0b';
-                return (
-                  <div key={type} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
-                    padding: '0.28rem 0.85rem', borderRadius: '100px',
-                    background: `${color}14`, border: `1px solid ${color}33`,
-                  }}>
-                    <span style={{ fontSize: '1rem', fontWeight: 700, color, lineHeight: 1 }}>{cnt}</span>
-                    <span style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.6)' }}>{type}</span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div style={{ overflowX: 'auto' }}>
-              <table className="dash-table">
-                <thead>
-                  <tr>
-                    <th className="center" style={{ width: '3.5rem' }}>구분</th>
-                    <th>제품명</th>
-                    <th className="center" style={{ width: '4rem' }}>재고일</th>
-                    <th className="center" style={{ width: '6rem' }}>품절시작일</th>
-                    <th className="center" style={{ width: '6rem' }}>공급예정일</th>
-                    <th>발생유형</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stockItems.map((item, idx) => {
-                    const color = item.alert_type === '품절' ? '#ef4444' : '#f59e0b';
-                    const dayColor =
-                      item.stock_days === null   ? 'rgba(255,255,255,0.4)'
-                      : item.stock_days <= 0     ? '#ef4444'
-                      : item.stock_days < 7      ? '#f87171'
-                      : item.stock_days < 14     ? '#fb923c'
-                      : item.stock_days < 30     ? '#fbbf24'
-                      : '#4ade80';
-                    const fmtD = (s: string | null) => {
-                      if (!s) return '-';
-                      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-                      return m ? `${m[1].slice(2)}.${m[2]}.${m[3]}` : s;
-                    };
-                    return (
-                      <tr key={idx}>
-                        <td className="center" style={{ color, fontWeight: 700, fontSize: '0.78rem' }}>
-                          {item.alert_type}
-                        </td>
-                        <td style={{ fontWeight: 600, maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.product_name}
-                        </td>
-                        <td className="center" style={{ color: dayColor, fontWeight: 700 }}>
-                          {item.stock_days !== null ? `${item.stock_days}일` : '-'}
-                        </td>
-                        <td className="center" style={{ fontSize: '0.8rem' }}>
-                          {fmtD(item.stockout_start)}
-                        </td>
-                        <td className="center" style={{ fontSize: '0.8rem' }}>
-                          {fmtD(item.supply_date)}
-                        </td>
-                        <td className="muted" style={{ fontSize: '0.78rem', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {item.cause || '-'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {stockFileName && (
-              <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.5rem', textAlign: 'right' }}>
-                출처: {stockFileName} · <a href="/inventory" style={{ color: '#a5b4fc' }}>품절현황</a>
-              </p>
-            )}
-          </>
-        )}
       </Section>
 
       {/* ══════════════════════════════════════════════════════════

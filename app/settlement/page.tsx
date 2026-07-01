@@ -11,6 +11,50 @@ import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import SettlementClient from '@/components/SettlementClient';
 import type { SettlementRowClient } from '@/components/SettlementClient';
 
+/* Supabase PostgREST 기본 1000행 제한을 우회하는 병렬 페이지네이션 헬퍼 */
+async function fetchFileRows(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  svc: any,
+  sourceFile: string,
+  companyId: string | null,
+  cols: string,
+): Promise<SettlementRowClient[]> {
+  const PAGE  = 1000;
+  const BATCH = 10;
+
+  let cntQ = svc
+    .from('commission_settlements')
+    .select('id', { count: 'exact', head: true })
+    .eq('source_file', sourceFile);
+  if (companyId) cntQ = cntQ.eq('company_id', companyId);
+  const { count: fileCount } = await cntQ;
+
+  const totalPages = Math.ceil((fileCount ?? 0) / PAGE);
+  let result: SettlementRowClient[] = [];
+
+  for (let bs = 0; bs < totalPages; bs += BATCH) {
+    const be = Math.min(bs + BATCH, totalPages);
+    const batch = await Promise.all(
+      Array.from({ length: be - bs }, (_, i) => {
+        const pg = bs + i;
+        let q = svc
+          .from('commission_settlements')
+          .select(cols)
+          .eq('source_file', sourceFile)
+          .order('id', { ascending: true })
+          .range(pg * PAGE, pg * PAGE + PAGE - 1);
+        if (companyId) q = q.eq('company_id', companyId);
+        return q;
+      }),
+    );
+    for (const r of batch) {
+      if (r.data) result = result.concat(r.data as SettlementRowClient[]);
+    }
+  }
+
+  return result;
+}
+
 export default async function SettlementPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -40,45 +84,35 @@ export default async function SettlementPage() {
     allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
   }
 
-  // ── 전체 행 병렬 페이지네이션 ──────────────────────────────────────────
-  const PAGE           = 1000;
-  const PARALLEL_BATCH = 10;
+  // ── 파일 목록 경량 조회 (메타데이터만) ────────────────────────────────
+  // 전체 행을 모두 로드하면 메모리 초과가 발생하므로, 파일명+월 메타만 수집 후
+  // 최신 파일 1개의 행만 서버에서 로드한다. 다른 파일은 클라이언트가 API로 fetch.
+  let metaQ = svc
+    .from('commission_settlements')
+    .select('source_file,settlement_month,prescription_month')
+    .not('source_file', 'is', null)
+    .order('settlement_month', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(5000);
+  if (companyId) metaQ = metaQ.eq('company_id', companyId);
+  const { data: metaRows } = await metaQ;
 
-  function buildQ(rangeStart: number, rangeEnd: number) {
-    let q = svc
-      .from('commission_settlements')
-      .select('*', rangeStart === 0 ? { count: 'exact' } : {})
-      .order('settlement_month', { ascending: false })
-      .order('cso_name')
-      .order('id', { ascending: true })   // 안정적 페이지네이션 보장
-      .range(rangeStart, rangeEnd);
-    if (companyId) q = q.eq('company_id', companyId);
-    return q;
+  // 중복 제거 → 파일 목록 (최신순)
+  const seenFiles = new Set<string>();
+  const allFiles: { file: string; settMonth: string | null; prescMonth: string | null }[] = [];
+  for (const r of metaRows ?? []) {
+    if (!r.source_file || seenFiles.has(r.source_file)) continue;
+    seenFiles.add(r.source_file);
+    allFiles.push({ file: r.source_file, settMonth: r.settlement_month ?? null, prescMonth: r.prescription_month ?? null });
   }
 
-  // 1단계: 총 건수 + 첫 페이지를 한 번에
-  const { data: firstPage, count: totalCount, error: firstErr } = await buildQ(0, PAGE - 1) as Awaited<ReturnType<typeof buildQ>> & { count: number | null };
-
-  let allRows: SettlementRowClient[] = [];
-  if (!firstErr && firstPage) {
-    allRows = firstPage as SettlementRowClient[];
-    const totalPages = Math.ceil((totalCount ?? firstPage.length) / PAGE);
-
-    // 2단계: 나머지 페이지를 PARALLEL_BATCH 단위로 병렬 요청
-    for (let bs = 1; bs < totalPages; bs += PARALLEL_BATCH) {
-      const be = Math.min(bs + PARALLEL_BATCH, totalPages);
-      const batch = await Promise.all(
-        Array.from({ length: be - bs }, (_, i) => {
-          const pg = bs + i;
-          return buildQ(pg * PAGE, pg * PAGE + PAGE - 1);
-        }),
-      );
-      for (const r of batch) {
-        if (r.data) allRows = allRows.concat(r.data as SettlementRowClient[]);
-      }
-    }
+  // 최신 파일의 전체 행 — 병렬 페이지네이션으로 1000행 제한 우회
+  const SETT_COLS = 'id,source_file,settlement_month,prescription_month,manager,cso_name,hospital_name,product_name,approved_qty,unit_price,prescription_amount,hospital_category,hospital_type,commission_rate,settlement_amount';
+  let rows: SettlementRowClient[] = [];
+  const latestFile = allFiles[0]?.file;
+  if (latestFile) {
+    rows = await fetchFileRows(svc, latestFile, companyId, SETT_COLS);
   }
-  const rows = allRows;
 
   return (
     <>
@@ -106,7 +140,7 @@ export default async function SettlementPage() {
           <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
         )}
 
-        <SettlementClient rows={(rows ?? []) as SettlementRowClient[]} />
+        <SettlementClient rows={(rows ?? []) as SettlementRowClient[]} allFiles={allFiles} />
       </div>
     </>
   );
