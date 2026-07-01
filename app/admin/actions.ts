@@ -72,10 +72,11 @@ export async function updateUserCompany(formData: FormData) {
 
   if (!userId) throw new Error('Invalid parameters');
 
-  const { error } = await svc()
-    .from('profiles').update({ company_id: companyId }).eq('id', userId);
+  const { data, error } = await svc()
+    .from('profiles').update({ company_id: companyId }).eq('id', userId).select('id, company_id');
 
   if (error) { console.error('[updateUserCompany error]', error); throw new Error(error.message); }
+  console.log('[updateUserCompany ok]', { userId, companyId, updated: data });
   revalidatePath('/admin');
 }
 

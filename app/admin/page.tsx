@@ -87,7 +87,7 @@ function ActionButtons({ profile, companies }: { profile: Profile; companies: Cl
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
       {/* 담당 위탁사 */}
-      <form action={updateUserCompany} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+      <form key={`company-${profile.company_id ?? 'none'}`} action={updateUserCompany} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
         <input type="hidden" name="userId" value={profile.id} />
         <select
           name="companyId"
@@ -493,11 +493,11 @@ export default async function AdminPage() {
         }}>
           <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#475569', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 0.65rem' }}>관리 도구</p>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <Link href="/admin/companies" style={{
+            <Link href="/companies" style={{
               padding: '0.48rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600,
               background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)',
               color: '#a5b4fc', textDecoration: 'none',
-            }}>🏢 위탁사 관리</Link>
+            }}>🏢 위탁사현황</Link>
             <Link href="/admin/customer-aliases" style={{
               padding: '0.48rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600,
               background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)',
