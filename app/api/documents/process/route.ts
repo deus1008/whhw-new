@@ -240,8 +240,18 @@ export async function POST(request: Request) {
     if (parseError) return fail(`수수료정산 파싱 실패: ${parseError}`);
 
     if (rows.length > 0) {
-      // 동일 파일명 기준 삭제 → 재업로드 시 덮어쓰기
-      await supabase.from('commission_settlements').delete().eq('source_file', doc.filename);
+      // 동일 파일명 기준 전체 삭제 (루프로 PostgREST 1000행 제한 우회)
+      while (true) {
+        const { data: ids } = await supabase
+          .from('commission_settlements')
+          .select('id')
+          .eq('source_file', doc.filename)
+          .limit(500);
+        if (!ids || ids.length === 0) break;
+        await supabase.from('commission_settlements')
+          .delete().in('id', ids.map((r: { id: string }) => r.id));
+        if (ids.length < 500) break;
+      }
       const CHUNK = 500;
       let inserted = 0;
       let firstErr: string | null = null;

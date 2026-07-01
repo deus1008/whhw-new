@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 
 /* ── 타입 ── */
 export type SettlementRowClient = {
@@ -551,16 +551,26 @@ export default function SettlementClient({
   const [rows,         setRows]         = useState<SettlementRowClient[]>(initialRows);
   const [loading,      setLoading]      = useState(false);
 
+  // 서버에서 행을 내려주지 않는 경우 마운트 시 첫 파일 자동 fetch
+  useEffect(() => {
+    const firstFile = files[0]?.file;
+    if (!firstFile || initialRows.length > 0) return;
+    setLoading(true);
+    fetch(`/api/settlement-rows?file=${encodeURIComponent(firstFile)}`)
+      .then(r => r.ok ? r.json() : { rows: [] })
+      .then(json => setRows(json.rows ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const selectedMeta = files.find(f => f.file === selectedFile);
 
   async function handleFileChange(file: string) {
+    if (file === selectedFile) { setDropOpen(false); return; }
     setSelectedFile(file);
     setDropOpen(false);
-    // 초기 로드 파일이면 initialRows 사용 (재fetch 불필요)
-    if (file === files[0]?.file) {
-      setRows(initialRows);
-      return;
-    }
+    setRows([]);
     setLoading(true);
     try {
       const res = await fetch(`/api/settlement-rows?file=${encodeURIComponent(file)}`);
