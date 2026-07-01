@@ -108,6 +108,10 @@ export default function MarketingClient({
   /* ── 달력 계산 ─────────────────────────────────────── */
   const grid     = getCalendarGrid(year, month);
   const todayYMD = toYMD(today);
+  const thirtyDaysLater = new Date(today);
+  thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30);
+  const thirtyDaysLaterYMD = toYMD(thirtyDaysLater);
+
   const monthStr = `${year}-${String(month + 1).padStart(2, '0')}`;
   const monthSchedules = schedules.filter(s => s.start_date.startsWith(monthStr));
 
@@ -124,7 +128,7 @@ export default function MarketingClient({
   const listSchedules = (() => {
     let base = selectedDate
       ? schedules.filter(s => s.start_date === selectedDate)
-      : monthSchedules;
+      : schedules.filter(s => s.start_date >= todayYMD && s.start_date <= thirtyDaysLaterYMD);
     if (filterCat) base = base.filter(s => (s.category ?? '기타') === filterCat);
     return base;
   })();
@@ -367,7 +371,7 @@ export default function MarketingClient({
       <div className="auth-card">
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1rem', flexWrap:'wrap', gap:'0.5rem' }}>
           <h2 style={{ fontSize:'0.95rem', fontWeight:700, color:'var(--text-primary)', margin:0, display:'flex', alignItems:'center', flexWrap:'wrap', gap:'0.4rem' }}>
-            {selectedDate ? `${formatDate(selectedDate)} 일정` : `${year}년 ${MONTHS_KO[month]}`}
+            {selectedDate ? `${formatDate(selectedDate)} 일정` : `오늘부터 1개월 (${formatDate(todayYMD)} ~ ${formatDate(thirtyDaysLaterYMD)})`}
             {filterCat && (
               <span style={{ fontSize:'0.72rem', fontWeight:600, padding:'1px 8px', borderRadius:'100px',
                 background: catColor(filterCat).bg, color: catColor(filterCat).text }}>
@@ -388,7 +392,7 @@ export default function MarketingClient({
 
         {listSchedules.length === 0 ? (
           <p style={{ color:'var(--text-muted)', fontSize:'0.85rem', textAlign:'center', padding:'2rem 0' }}>
-            {selectedDate ? '이 날 등록된 일정이 없습니다.' : '이번 달 등록된 일정이 없습니다.'}
+            {selectedDate ? '이 날 등록된 일정이 없습니다.' : '향후 30일간 등록된 일정이 없습니다.'}
           </p>
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem' }}>
