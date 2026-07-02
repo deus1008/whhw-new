@@ -640,10 +640,21 @@ export default function SettlementClient({
   }
 
   return (
+    <>
+    <style>{`
+      @media print {
+        .orb, .page-nav, .no-print { display: none !important; }
+        .print-only { display: block !important; }
+        @page { margin: 1.5cm; size: A4; }
+        body { background: white !important; }
+        table td, table th { color: #111 !important; border-color: #ddd !important; }
+        table tr { background: transparent !important; }
+      }
+    `}</style>
     <div style={{ marginTop: '1rem' }}>
 
       {/* ── 파일 선택 드롭다운 ── */}
-      <div style={{ position: 'relative', marginBottom: '1rem' }}>
+      <div className="no-print" style={{ position: 'relative', marginBottom: '1rem' }}>
         {/* 선택된 파일 표시 버튼 */}
         <button
           onClick={() => setDropOpen(v => !v)}
@@ -719,6 +730,33 @@ export default function SettlementClient({
         </div>
       ) : (
         <>
+          {/* 인쇄 전용 헤더 (화면에서 숨김, 인쇄 시 표시) */}
+          <div className="print-only" style={{ display: 'none', marginBottom: '1rem', borderBottom: '2px solid #333', paddingBottom: '0.5rem' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#111' }}>{selectedFile}</h2>
+            {selectedMeta && (selectedMeta.settMonth || selectedMeta.prescMonth) && (
+              <p style={{ fontSize: '0.82rem', margin: '0.2rem 0 0', color: '#444' }}>
+                {selectedMeta.settMonth  && <span>{fmtMonth(selectedMeta.settMonth)} 정산</span>}
+                {selectedMeta.settMonth && selectedMeta.prescMonth && <span> · </span>}
+                {selectedMeta.prescMonth && <span>{fmtMonth(selectedMeta.prescMonth)} 처방</span>}
+              </p>
+            )}
+          </div>
+
+          {/* 인쇄 버튼 */}
+          <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+            <button
+              onClick={() => window.print()}
+              style={{
+                padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: 600,
+                background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.18)',
+                borderRadius: '8px', color: '#e2e8f0', cursor: 'pointer', fontFamily: 'inherit',
+                letterSpacing: '0.03em',
+              }}
+            >
+              인쇄
+            </button>
+          </div>
+
           {/* ── 요약 스탯 ── */}
           <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
             <StatCard label="총 처방금액 (천원)" value={fmtChunBig(totalPresc)} color="#a8c4ff" />
@@ -782,5 +820,6 @@ export default function SettlementClient({
         </>
       )}
     </div>
+    </>
   );
 }
