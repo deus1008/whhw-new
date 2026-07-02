@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
 import { profileIsAdmin } from '@/lib/roles';
-import { getEffectiveCompanyId } from '@/lib/active-company';
+// getEffectiveCompanyId 불필요 — Ubist는 시장 전체 데이터
 
 export const dynamic = 'force-dynamic';
 
@@ -23,9 +23,9 @@ function svc() {
 }
 
 // 최근 N개월 처방액 집계: product_name → { period: amount }
+// Ubist는 시장 전체 데이터이므로 company_id 필터 없이 조회
 async function fetchUbistAmounts(
   productNames: string[],
-  companyId: string | null,
   months = 3,
 ): Promise<{ byProduct: Map<string, Record<string, number>>; periods: string[] }> {
   if (!productNames.length) return { byProduct: new Map(), periods: [] };
@@ -38,17 +38,13 @@ async function fetchUbistAmounts(
     periods.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let q: any = svc()
+  const { data } = await svc()
     .from('ubist_data')
     .select('product_name, period, prescription_amount')
     .in('product_name', productNames)
     .in('period', periods)
     .not('prescription_amount', 'is', null);
 
-  if (companyId) q = q.eq('company_id', companyId);
-
-  const { data } = await q;
   const byProduct = new Map<string, Record<string, number>>();
   for (const row of data ?? []) {
     const k = (row.product_name ?? '').trim();
@@ -98,7 +94,6 @@ export async function GET(req: NextRequest) {
   }
 
   const isAdmin = profileIsAdmin(profile);
-  const companyId = await getEffectiveCompanyId((profile.company_id as string) ?? null, isAdmin);
 
   const sp   = req.nextUrl.searchParams;
   const mode = sp.get('mode') ?? 'groups';
@@ -213,7 +208,7 @@ export async function GET(req: NextRequest) {
 
     // 병렬: Ubist 처방액 + 수수료율
     const [ubistData, rateMap] = await Promise.all([
-      fetchUbistAmounts(productNames, companyId, 3),
+      fetchUbistAmounts(productNames, 3),
       fetchCommissionRates(manufacturers, productNames),
     ]);
 
