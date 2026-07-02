@@ -19,6 +19,7 @@ export default function NoticesClient({
   isAdmin: boolean;
 }) {
   const [notices, setNotices] = useState<Notice[]>(initial);
+  const [query, setQuery] = useState('');
   const [modal, setModal] = useState<{ mode: 'create' | 'edit'; notice?: Notice } | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [err, setErr] = useState('');
@@ -83,16 +84,60 @@ export default function NoticesClient({
     });
   }
 
-  const pinned  = notices.filter(n => n.is_pinned);
-  const regular = notices.filter(n => !n.is_pinned);
+  const q        = query.trim().toLowerCase();
+  const filtered = q
+    ? notices.filter(n =>
+        n.title.toLowerCase().includes(q) ||
+        n.content.toLowerCase().includes(q)
+      )
+    : notices;
+
+  const pinned  = filtered.filter(n => n.is_pinned);
+  const regular = filtered.filter(n => !n.is_pinned);
   const total   = notices.length;
 
   return (
     <>
-      {/* 관리자 작성 버튼 */}
-      {isAdmin && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
-          <button onClick={openCreate} style={BTN_PRIMARY}>+ 공지 작성</button>
+      {/* 검색 + 관리자 작성 버튼 */}
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <span style={{
+            position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+            fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none',
+          }}>🔍</span>
+          <input
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="제목 또는 내용 검색"
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              paddingLeft: '2.2rem', paddingRight: query ? '2rem' : '0.8rem',
+              paddingTop: '0.5rem', paddingBottom: '0.5rem',
+              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '8px', color: '#e2e8f0', fontSize: '0.85rem',
+              outline: 'none', fontFamily: 'inherit',
+            }}
+          />
+          {query && (
+            <button
+              onClick={() => setQuery('')}
+              style={{
+                position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)',
+                cursor: 'pointer', fontSize: '0.85rem', padding: '2px 4px',
+              }}
+            >✕</button>
+          )}
+        </div>
+        {isAdmin && (
+          <button onClick={openCreate} style={{ ...BTN_PRIMARY, flexShrink: 0 }}>+ 공지 작성</button>
+        )}
+      </div>
+
+      {/* 검색 결과 카운트 */}
+      {q && (
+        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginBottom: '0.5rem' }}>
+          &quot;{query}&quot; 검색 결과 {filtered.length}건 / 전체 {total}건
         </div>
       )}
 
@@ -101,6 +146,11 @@ export default function NoticesClient({
         {notices.length === 0 && (
           <div style={{ padding: '3rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.88rem' }}>
             등록된 공지사항이 없습니다.
+          </div>
+        )}
+        {q && filtered.length === 0 && notices.length > 0 && (
+          <div style={{ padding: '2.5rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.88rem' }}>
+            검색 결과가 없습니다.
           </div>
         )}
 
@@ -206,11 +256,11 @@ function NoticeCard({
         background: hover
           ? (pinned ? 'rgba(251,191,36,0.07)' : 'rgba(255,255,255,0.05)')
           : (pinned ? 'rgba(251,191,36,0.04)' : 'rgba(255,255,255,0.02)'),
-        padding: '0.65rem 0.9rem',
+        padding: '0.65rem 0.45rem',
         transition: 'background 0.12s',
         display: 'flex',
         alignItems: 'center',
-        gap: '0.6rem',
+        gap: '0.3rem',
       }}
     >
       {/* 번호 */}
@@ -234,6 +284,7 @@ function NoticeCard({
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          textAlign: 'left',
         }}
       >
         {notice.title}
