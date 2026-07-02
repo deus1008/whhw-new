@@ -22,7 +22,8 @@ export type SettlementRowClient = {
 };
 
 /* ── 집계 트리 타입 ── */
-type L3 = { name: string; presc: number; sett: number; cnt: number };
+type L4 = { name: string; presc: number; sett: number; cnt: number };
+type L3 = { name: string; presc: number; sett: number; cnt: number; sub?: L4[] };
 type L2 = { name: string; presc: number; sett: number; cnt: number; sub: L3[] };
 type L1 = { name: string; presc: number; sett: number; cnt: number; sub: L2[] };
 
@@ -55,6 +56,57 @@ function buildTree(
       const sub3: L3[] = Object.entries(l3map)
         .map(([n3, v]) => ({ name: n3, presc: v.p, sett: v.s, cnt: v.c }))
         .sort((a, b) => b.sett - a.sett);
+      return {
+        name: n2,
+        presc: sub3.reduce((s, x) => s + x.presc, 0),
+        sett:  sub3.reduce((s, x) => s + x.sett,  0),
+        cnt:   sub3.reduce((s, x) => s + x.cnt,   0),
+        sub:   sub3,
+      };
+    }).sort((a, b) => b.sett - a.sett);
+    return {
+      name: n1,
+      presc: sub2.reduce((s, x) => s + x.presc, 0),
+      sett:  sub2.reduce((s, x) => s + x.sett,  0),
+      cnt:   sub2.reduce((s, x) => s + x.cnt,   0),
+      sub:   sub2,
+    };
+  }).sort((a, b) => b.sett - a.sett);
+}
+
+/* ── 4단 집계 빌더 (병의원 하부 품목 드릴다운) ── */
+function buildTree4(
+  rows: SettlementRowClient[],
+  getL1: (r: SettlementRowClient) => string,
+  getL2: (r: SettlementRowClient) => string,
+  getL3: (r: SettlementRowClient) => string,
+  getL4: (r: SettlementRowClient) => string,
+): L1[] {
+  const data: Record<string, Record<string, Record<string, Record<string, { p: number; s: number; c: number }>>>> = {};
+  for (const r of rows) {
+    const k1 = getL1(r), k2 = getL2(r), k3 = getL3(r), k4 = getL4(r);
+    if (!data[k1])             data[k1]             = {};
+    if (!data[k1][k2])         data[k1][k2]         = {};
+    if (!data[k1][k2][k3])     data[k1][k2][k3]     = {};
+    if (!data[k1][k2][k3][k4]) data[k1][k2][k3][k4] = { p: 0, s: 0, c: 0 };
+    data[k1][k2][k3][k4].p += r.prescription_amount ?? 0;
+    data[k1][k2][k3][k4].s += r.settlement_amount   ?? 0;
+    data[k1][k2][k3][k4].c++;
+  }
+  return Object.entries(data).map(([n1, l2map]) => {
+    const sub2: L2[] = Object.entries(l2map).map(([n2, l3map]) => {
+      const sub3: L3[] = Object.entries(l3map).map(([n3, l4map]) => {
+        const sub4: L4[] = Object.entries(l4map)
+          .map(([n4, v]) => ({ name: n4, presc: v.p, sett: v.s, cnt: v.c }))
+          .sort((a, b) => b.sett - a.sett);
+        return {
+          name: n3,
+          presc: sub4.reduce((s, x) => s + x.presc, 0),
+          sett:  sub4.reduce((s, x) => s + x.sett,  0),
+          cnt:   sub4.reduce((s, x) => s + x.cnt,   0),
+          sub:   sub4,
+        };
+      }).sort((a, b) => b.sett - a.sett);
       return {
         name: n2,
         presc: sub3.reduce((s, x) => s + x.presc, 0),
@@ -234,15 +286,21 @@ function AccordionTable({
 }: AccordionTableProps) {
   const [openL1, setOpenL1] = useState<string | null>(null);
   const [openL2, setOpenL2] = useState<string | null>(null);
+  const [openL3, setOpenL3] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
 
   function toggleL1(name: string) {
     const next = openL1 === name ? null : name;
     setOpenL1(next);
     setOpenL2(null);
+    setOpenL3(null);
   }
   function toggleL2(key: string) {
     setOpenL2(openL2 === key ? null : key);
+    setOpenL3(null);
+  }
+  function toggleL3(key: string) {
+    setOpenL3(openL3 === key ? null : key);
   }
 
   const visible = showAll ? tree : tree.slice(0, SHOW_LIMIT);
@@ -298,21 +356,47 @@ function AccordionTable({
                           <td style={{ ...TD, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{l2.cnt.toLocaleString()}</td>
                         </tr>
 
-                        {/* ── L3 ── */}
-                        {l2Open && l2.sub.map((l3, i) => (
-                          <tr key={l3.name}
-                            style={{ background: i % 2 === 0 ? 'rgba(120,100,200,0.04)' : undefined }}>
-                            <td style={{ ...TD_L, paddingLeft: '3.2rem', fontSize: '0.7rem',
-                              color: 'rgba(200,200,230,0.55)', maxWidth: '200px',
-                              overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {l3.name}
-                            </td>
-                            <td style={{ ...TD, color: '#7a9fd4', fontSize: '0.7rem' }}>{fmtChun(l3.presc)}</td>
-                            <td style={{ ...TD, color: '#34c472', fontSize: '0.7rem' }}>{fmtChun(l3.sett)}</td>
-                            <td style={{ ...TD, color: '#c49a30', fontSize: '0.7rem' }}>{calcRate(l3.sett, l3.presc)}</td>
-                            <td style={{ ...TD, fontSize: '0.7rem', color: 'var(--text-muted)' }}>{l3.cnt.toLocaleString()}</td>
-                          </tr>
-                        ))}
+                        {/* ── L3 (병의원) + L4 (품목 드릴다운) ── */}
+                        {l2Open && l2.sub.map((l3, i) => {
+                          const l3Key  = `${l2Key}||${l3.name}`;
+                          const l3Open = openL3 === l3Key;
+                          const hasL4  = (l3.sub?.length ?? 0) > 0;
+                          return (
+                            <React.Fragment key={l3.name}>
+                              <tr
+                                onClick={hasL4 ? () => toggleL3(l3Key) : undefined}
+                                style={{
+                                  background: l3Open ? 'rgba(120,100,200,0.09)' : (i % 2 === 0 ? 'rgba(120,100,200,0.04)' : undefined),
+                                  cursor: hasL4 ? 'pointer' : undefined,
+                                }}
+                              >
+                                <td style={{ ...TD_L, paddingLeft: '3.2rem', fontSize: '0.7rem',
+                                  color: 'rgba(200,200,230,0.55)', maxWidth: '200px',
+                                  overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {hasL4 && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.4 }}>{l3Open ? '▲' : '▶'}</span>}
+                                  {l3.name}
+                                </td>
+                                <td style={{ ...TD, color: '#7a9fd4', fontSize: '0.7rem' }}>{fmtChun(l3.presc)}</td>
+                                <td style={{ ...TD, color: '#34c472', fontSize: '0.7rem' }}>{fmtChun(l3.sett)}</td>
+                                <td style={{ ...TD, color: '#c49a30', fontSize: '0.7rem' }}>{calcRate(l3.sett, l3.presc)}</td>
+                                <td style={{ ...TD, fontSize: '0.7rem', color: 'var(--text-muted)' }}>{l3.cnt.toLocaleString()}</td>
+                              </tr>
+                              {l3Open && l3.sub?.map((l4, j) => (
+                                <tr key={l4.name} style={{ background: j % 2 === 0 ? 'rgba(100,80,180,0.05)' : undefined }}>
+                                  <td style={{ ...TD_L, paddingLeft: '4.8rem', fontSize: '0.66rem',
+                                    color: 'rgba(160,160,210,0.5)', maxWidth: '180px',
+                                    overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {l4.name}
+                                  </td>
+                                  <td style={{ ...TD, color: '#6a8fc4', fontSize: '0.66rem' }}>{fmtChun(l4.presc)}</td>
+                                  <td style={{ ...TD, color: '#2ab460', fontSize: '0.66rem' }}>{fmtChun(l4.sett)}</td>
+                                  <td style={{ ...TD, color: '#b48820', fontSize: '0.66rem' }}>{calcRate(l4.sett, l4.presc)}</td>
+                                  <td style={{ ...TD, fontSize: '0.66rem', color: 'var(--text-muted)' }}>{l4.cnt.toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </React.Fragment>
+                          );
+                        })}
                       </React.Fragment>
                     );
                   })}
@@ -322,7 +406,7 @@ function AccordionTable({
 
             {/* 더 보기 / 접기 */}
             {tree.length > SHOW_LIMIT && (
-              <ShowMoreRow hidden={hidden} onShow={() => setShowAll(true)} onHide={() => { setShowAll(false); setOpenL1(null); setOpenL2(null); }} />
+              <ShowMoreRow hidden={hidden} onShow={() => setShowAll(true)} onHide={() => { setShowAll(false); setOpenL1(null); setOpenL2(null); setOpenL3(null); }} />
             )}
 
             {/* 합계 행 */}
@@ -603,12 +687,13 @@ export default function SettlementClient({
     r => r.product_name  ?? '미상',
   ), [monthRows]);
 
-  // 담당자별: L1=내부담당자  L2=담당CSO  L3=처방처명
-  const mgrTree = useMemo(() => buildTree(
+  // 담당자별: L1=내부담당자  L2=담당CSO  L3=처방처명  L4=품목명
+  const mgrTree = useMemo(() => buildTree4(
     monthRows,
     r => r.manager       ?? '미상',
     r => r.cso_name      ?? '미상',
     r => r.hospital_name ?? '미상',
+    r => r.product_name  ?? '미상',
   ), [monthRows]);
 
   // 품목별: L1=품목  L2=기조실병의원구분  L3=병원  L4=담당자  L5=CSO
@@ -621,12 +706,13 @@ export default function SettlementClient({
     r => r.cso_name          ?? '미상',
   ), [monthRows]);
 
-  // 종별: L1=기조실병의원구분  L2=종별구분  L3=처방처명
-  const typeTree = useMemo(() => buildTree(
+  // 종별: L1=기조실병의원구분  L2=종별구분  L3=처방처명  L4=품목명
+  const typeTree = useMemo(() => buildTree4(
     monthRows,
     r => r.hospital_category ?? '미분류',
     r => r.hospital_type     ?? '미분류',
     r => r.hospital_name     ?? '미상',
+    r => r.product_name      ?? '미상',
   ), [monthRows]);
 
   // 파일 자체가 없을 때만 "업로드 안내" 표시 (로딩 중엔 표시 안 함)
