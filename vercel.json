@@ -3,6 +3,21 @@
     "app/api/documents/process/route.ts": {
       "memory": 2048,
       "maxDuration": 300
+    },
+    "app/api/admin/sync-hira/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/admin/sync-mfds/route.ts": {
+      "maxDuration": 300
+    },
+    "app/api/admin/import-disease-drugs/route.ts": {
+      "maxDuration": 120
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/daily-logout",
+      "schedule": "0 15 * * *"
+    }
+  ]
 }

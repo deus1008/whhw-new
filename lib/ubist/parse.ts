@@ -20,6 +20,7 @@ export type UbistRow = {
   region:              string | null;
   prescription_amount: number | null;       // 원 단위 정수
   prescription_count:  number | null;
+  atc_code:            string | null;       // ATC 코드 (Ubist D1 포맷에서 추출)
 };
 
 export type ParseUbistResult = {
@@ -37,6 +38,7 @@ const HOSP_KW       = ['병원구분','의료기관종별','종별구분','병�
 const REGION_KW     = ['지역','시도','지역명','region','광역'];
 const AMOUNT_KW     = ['처방금액','처방조제액','금액','처방액','amount','처방매출','매출액','처방총액','측정치'];
 const COUNT_KW      = ['처방건수','건수','처방수','count','rx건수','건'];
+const ATC_KW        = ['atc','atc코드','atccode','약효분류코드'];
 
 function norm(s: unknown): string {
   return String(s ?? '').replace(/[\s\r\n_\-\.\:%()\[\] ]/g, '').toLowerCase();
@@ -140,7 +142,7 @@ export function parseUbistBuffer(
 
     // 컬럼 인덱스 매핑
     let periodCol = -1, ingrCol = -1, prodCol = -1, mfrCol = -1;
-    let hospCol = -1, regionCol = -1, amountCol = -1, countCol = -1;
+    let hospCol = -1, regionCol = -1, amountCol = -1, countCol = -1, atcCol = -1;
 
     headers.forEach((h, i) => {
       // 헤더 자체가 기간 값(예: "2025년 3월")이면 wide-format 금액 컬럼 — period 컬럼으로 잡지 않음
@@ -152,6 +154,7 @@ export function parseUbistBuffer(
       if (regionCol  === -1 && matchKw(h, REGION_KW))  regionCol  = i;
       if (amountCol  === -1 && matchKw(h, AMOUNT_KW))  amountCol  = i;
       if (countCol   === -1 && matchKw(h, COUNT_KW))   countCol   = i;
+      if (atcCol     === -1 && matchKw(h, ATC_KW))     atcCol     = i;
     });
 
     // ── Wide-format 감지: 금액 컬럼명이 기간인 경우 ──────────────────────
@@ -160,7 +163,7 @@ export function parseUbistBuffer(
     const wideAmountCols: PeriodAmountCol[] = [];
 
     if (amountCol === -1) {
-      const fixedCols = new Set([periodCol, ingrCol, prodCol, mfrCol, hospCol, regionCol, countCol].filter(c => c >= 0));
+      const fixedCols = new Set([periodCol, ingrCol, prodCol, mfrCol, hospCol, regionCol, countCol, atcCol].filter(c => c >= 0));
       headers.forEach((h, i) => {
         if (fixedCols.has(i)) return;
         const candidate = normalizePeriod(h);
@@ -183,6 +186,7 @@ export function parseUbistBuffer(
       const mfr      = mfrCol    >= 0 ? (String(row[mfrCol]    ?? '')).trim() || null : null;
       const hospType = hospCol   >= 0 ? (String(row[hospCol]   ?? '')).trim() || null : null;
       const region   = regionCol >= 0 ? (String(row[regionCol] ?? '')).trim() || null : null;
+      const atcCode  = atcCol    >= 0 ? (String(row[atcCol]    ?? '')).trim() || null : null;
 
       if (wideAmountCols.length > 0) {
         // Wide format: 기간 컬럼별로 행 생성
@@ -200,6 +204,7 @@ export function parseUbistBuffer(
             region,
             prescription_amount: amount,
             prescription_count:  countCol >= 0 ? toNum(row[countCol]) : null,
+            atc_code:            atcCode,
           });
         }
       } else {
@@ -220,6 +225,7 @@ export function parseUbistBuffer(
           region,
           prescription_amount: amount,
           prescription_count:  count,
+          atc_code:            atcCode,
         });
       }
     }
