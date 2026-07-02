@@ -170,9 +170,7 @@ export async function GET(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!drugs?.length) return NextResponse.json({ drugs: [] });
 
-    const db2 = svc();
-
-    // drug_prices 에서 동일 성분 제네릭 보강
+    // 식약처 DrugPrdtPrmsnInfoService07 API로 동일 성분 제네릭 보강
     const uniqueIngrs = [...new Set(
       (drugs as Record<string, unknown>[])
         .map(d => (d.ingredient_name as string | null)?.trim())
@@ -182,21 +180,40 @@ export async function GET(req: NextRequest) {
       (drugs as Record<string, unknown>[]).map(d => (d.product_name as string | null)?.trim()).filter(Boolean)
     );
 
+    const PRMSN_URL = 'https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService07/getDrugPrdtPrmsnDtlInq06';
+    const drugApiKey = process.env.DRUG_API_KEY ?? '';
+
     const extraDrugs: Record<string, unknown>[] = [];
     for (const ingrName of uniqueIngrs) {
-      // 성분명의 핵심어(숫자·괄호 이전)로 drug_prices 검색
+      // 성분명 핵심어 추출 (숫자·괄호 이전)
       const coreIngr = ingrName.replace(/[\s（((\d].*$/, '').trim();
-      if (coreIngr.length < 2) continue;
+      if (coreIngr.length < 2 || !drugApiKey) continue;
       try {
-        const { data: priceRows, error: pe } = await db2
-          .from('drug_prices')
-          .select('item_name, manufacturer, standard, max_price, pay_type, ingredient_name')
-          .ilike('ingredient_name', `%${coreIngr}%`)
-          .order('item_name')
-          .limit(300);
-        if (pe?.code === '42P01') break; // 테이블 없음 → 중단
-        for (const row of priceRows ?? []) {
-          const pName = (row.item_name as string | null)?.trim();
+        const qs = new URLSearchParams({
+          serviceKey: drugApiKey,
+          pageNo: '1',
+          numOfRows: '200',
+          type: 'json',
+          item_name: coreIngr,
+        });
+        const res = await fetch(`${PRMSN_URL}?${qs}`, {
+          headers: { Accept: 'application/json' },
+          next: { revalidate: 86400 },
+        });
+        if (!res.ok) continue;
+
+        const json = await res.json() as Record<string, unknown>;
+        const body = ((json?.response as Record<string, unknown>)?.body) as Record<string, unknown> | undefined;
+        const rawItems: Record<string, unknown>[] = Array.isArray(body?.items)
+          ? (body!.items as Record<string, unknown>[])
+          : Array.isArray((body?.items as Record<string, unknown> | undefined)?.item)
+            ? ((body!.items as Record<string, unknown>).item as Record<string, unknown>[])
+            : (body?.items as Record<string, unknown> | undefined)?.item
+              ? [(body!.items as Record<string, unknown>).item as Record<string, unknown>]
+              : [];
+
+        for (const item of rawItems) {
+          const pName = (item.ITEM_NAME as string | null)?.trim();
           if (!pName || knownNames.has(pName)) continue;
           knownNames.add(pName);
           extraDrugs.push({
@@ -206,24 +223,24 @@ export async function GET(req: NextRequest) {
             treatment_class: null,
             ingredient_name: ingrName,
             product_name: pName,
-            manufacturer: row.manufacturer ?? null,
+            manufacturer: (item.ENTP_NAME as string | null) ?? null,
             distributor: null,
-            standard: row.standard ?? null,
-            pay_type: row.pay_type ?? null,
+            standard: (item.CHART as string | null) ?? null,
+            pay_type: null,
             is_original: false,
             mechanism: null,
             note: null,
             atc_code: null,
             atc_name: null,
-            item_code: null,
-            max_price: row.max_price ?? null,
+            item_code: String(item.ITEM_SEQ ?? '') || null,
+            max_price: null,
             reference_drug: null,
-            permit_kind: null,
-            approval_date: null,
+            permit_kind: (item.ETC_OTC_CODE as string | null) ?? null,
+            approval_date: (item.ITEM_PERMIT_DATE as string | null) ?? null,
             from_price_db: true,
           });
         }
-      } catch { /* drug_prices 없으면 skip */ }
+      } catch { /* API 실패 시 스킵 */ }
     }
 
     const allDrugs = [...(drugs as Record<string, unknown>[]), ...extraDrugs];
