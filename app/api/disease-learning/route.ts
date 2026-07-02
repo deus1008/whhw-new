@@ -55,32 +55,56 @@ async function fetchUbistAmounts(
   return { byProduct, periods };
 }
 
-// 수수료율: manufacturer → rate (품목 미지정 시 제조사 기본값)
+// 수수료율: 수수료율(딜러) 폴더의 최신 파일 기준 조회
+// product_name 일치 우선, 없으면 company_name(제약사) 일치
 async function fetchCommissionRates(
   manufacturers: string[],
   productNames: string[],
 ): Promise<Map<string, number>> {
-  if (!manufacturers.length) return new Map();
+  // 최신 수수료율(딜러) 파일명 조회
+  const { data: latestDoc } = await svc()
+    .from('documents')
+    .select('filename')
+    .eq('category', '수수료율(딜러)')
+    .eq('status', 'ready')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
-  const { data } = await svc()
+  // 최신 파일 기준으로 전체 수수료율 로드 (파일이 없으면 전체)
+  let q = svc()
     .from('commission_rates')
-    .select('company_name, product_name, rate')
-    .or(`company_name.in.(${manufacturers.map(m => `"${m}"`).join(',')}),product_name.in.(${productNames.map(p => `"${p}"`).join(',')})`);
+    .select('company_name, product_name, rate');
+
+  if (latestDoc?.filename) {
+    q = q.eq('source_file', latestDoc.filename);
+  }
+
+  const { data: rows } = await q;
+  if (!rows?.length) return new Map();
+
+  // JS에서 매칭: product_name 우선, 없으면 company_name
+  const mfrSet  = new Set(manufacturers.map(m => m.trim().toLowerCase()));
+  const prodSet = new Set(productNames.map(p => p.trim().toLowerCase()));
 
   const byProduct = new Map<string, number>();
   const byMfr     = new Map<string, number>();
 
-  for (const row of data ?? []) {
-    const rate = Number(row.rate ?? 0);
-    if (row.product_name) {
-      byProduct.set(row.product_name.trim(), rate);
-    } else if (row.company_name) {
-      byMfr.set(row.company_name.trim(), rate);
+  for (const row of rows) {
+    const rate    = Number(row.rate ?? 0);
+    const prod    = (row.product_name as string | null)?.trim() ?? '';
+    const company = (row.company_name as string).trim();
+
+    if (prod && prodSet.has(prod.toLowerCase())) {
+      byProduct.set(prod, rate);
+    }
+    if (mfrSet.has(company.toLowerCase())) {
+      byMfr.set(company, rate);
     }
   }
 
-  // 결과: productName → rate (제품명 우선, 없으면 제조사 기본)
-  return new Map([...byProduct, ...byMfr]);
+  // productName → rate 우선, manufacturer → rate 보조
+  return new Map([...byMfr, ...byProduct]);
 }
 
 export async function GET(req: NextRequest) {
