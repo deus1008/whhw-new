@@ -180,16 +180,30 @@ export async function GET(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!drugs?.length) return NextResponse.json({ drugs: [] });
 
+    // ── disease_drugs 내 동일 제품명 중복 제거 (데이터 더 완전한 행 우선) ──
+    const fieldScore = (d: Record<string, unknown>) =>
+      Object.values(d).filter(v => v !== null && v !== undefined && v !== '' && v !== '-').length;
+
+    const baseDrugsMap = new Map<string, Record<string, unknown>>();
+    for (const d of drugs as Record<string, unknown>[]) {
+      const key = ((d.product_name as string | null) ?? '').trim().toLowerCase();
+      if (!key) continue;
+      const prev = baseDrugsMap.get(key);
+      if (!prev || fieldScore(d as Record<string, unknown>) > fieldScore(prev)) {
+        baseDrugsMap.set(key, d as Record<string, unknown>);
+      }
+    }
+    const baseDrugs = Array.from(baseDrugsMap.values());
+
     // 성분명 기반 API 전체 품목 보강
     // 1) HIRA 약가 API (ingrNm): 급여 등재 전 품목 (이미 승인된 서비스)
     // 2) 식약처 DrugPrdtPrmsnInfoService07 (item_ingr_name): 허가 DB 전체
     const uniqueIngrs = [...new Set(
-      (drugs as Record<string, unknown>[])
-        .map(d => (d.ingredient_name as string | null)?.trim())
-        .filter(Boolean) as string[]
+      baseDrugs.map(d => (d.ingredient_name as string | null)?.trim()).filter(Boolean) as string[]
     )];
+    // 소문자 정규화: 대소문자·공백 차이로 인한 중복 방지
     const knownNames = new Set(
-      (drugs as Record<string, unknown>[]).map(d => (d.product_name as string | null)?.trim()).filter(Boolean)
+      baseDrugs.map(d => ((d.product_name as string | null) ?? '').trim().toLowerCase()).filter(Boolean)
     );
 
     const HIRA_PRICE_URL = 'https://apis.data.go.kr/B551182/dgamtCrtrInfoService1.2/getDgamtList';
@@ -256,8 +270,9 @@ export async function GET(req: NextRequest) {
         // HIRA 결과 처리
         if (hiraRes.status === 'fulfilled' && hiraRes.value) {
           for (const item of parseHiraXml(hiraRes.value)) {
-            if (!item.name || knownNames.has(item.name)) continue;
-            knownNames.add(item.name);
+            const norm = item.name.trim().toLowerCase();
+            if (!norm || knownNames.has(norm)) continue;
+            knownNames.add(norm);
             extraDrugs.push({
               id: null, disease_group: group, sub_category: sub ?? null, treatment_class: null,
               ingredient_name: ingrName, product_name: item.name, manufacturer: item.mfr || null,
@@ -272,8 +287,9 @@ export async function GET(req: NextRequest) {
         // 식약처 결과 처리 (HIRA에 없는 품목 추가)
         if (prmsnRes.status === 'fulfilled' && prmsnRes.value) {
           for (const item of parsePrmsnJson(prmsnRes.value)) {
-            if (!item.name || knownNames.has(item.name)) continue;
-            knownNames.add(item.name);
+            const norm = item.name.trim().toLowerCase();
+            if (!norm || knownNames.has(norm)) continue;
+            knownNames.add(norm);
             extraDrugs.push({
               id: null, disease_group: group, sub_category: sub ?? null, treatment_class: null,
               ingredient_name: ingrName, product_name: item.name, manufacturer: item.mfr || null,
@@ -288,7 +304,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const allDrugs = [...(drugs as Record<string, unknown>[]), ...extraDrugs];
+    const allDrugs = [...baseDrugs, ...extraDrugs];
     const productNames  = allDrugs.map(d => d.product_name as string).filter(Boolean);
     const manufacturers = [...new Set(allDrugs.map(d => d.manufacturer as string).filter(Boolean))];
 
