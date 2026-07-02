@@ -310,7 +310,7 @@ export async function GET(req: NextRequest) {
 
     // 병렬: Ubist 처방액 + 수수료율
     const [ubistData, rateMap] = await Promise.all([
-      fetchUbistAmounts(productNames, 3),
+      fetchUbistAmounts(productNames, 1),
       fetchCommissionRates(manufacturers, productNames),
     ]);
 
