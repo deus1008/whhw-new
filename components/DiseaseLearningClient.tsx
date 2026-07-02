@@ -24,7 +24,7 @@ type DrugItem = {
   reference_drug: string | null;
   permit_kind: string | null;
   approval_date: string | null;
-  ubist_amount: number | null;
+  ubist_monthly: Record<string, number> | null; // period('YYYY-MM') → amount
   commission_rate: number | null;
 };
 
@@ -38,6 +38,11 @@ function fmtWon(n: number | null): string {
 function fmtPrice(n: number | null): string {
   if (n == null) return '-';
   return n.toLocaleString() + '원';
+}
+function fmtPeriod(p: string): string {
+  // '2026-05' → '26.05'
+  const [yr, mo] = p.split('-');
+  return `${yr.slice(2)}.${mo}`;
 }
 
 /* ── 질환군 아이콘 ── */
@@ -65,6 +70,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     groups.length > 0 && groups[0].subs.length > 0 ? groups[0].subs[0] : null
   );
   const [drugs, setDrugs] = useState<DrugItem[]>([]);
+  const [periods, setPeriods] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'original' | 'generic'>('all');
   const [search, setSearch] = useState('');
@@ -81,8 +87,10 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
       const res = await fetch(`/api/disease-learning?${params}`);
       const json = await res.json();
       setDrugs(json.drugs ?? []);
+      setPeriods(json.periods ?? []);
     } catch {
       setDrugs([]);
+      setPeriods([]);
     } finally {
       setLoading(false);
     }
@@ -124,10 +132,13 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   }
 
   // 통계
-  const origCount   = drugs.filter(d =>  d.is_original).length;
+  const origCount    = drugs.filter(d =>  d.is_original).length;
   const genericCount = drugs.filter(d => !d.is_original).length;
-  const ubistTotal  = drugs.reduce((s, d) => s + (d.ubist_amount ?? 0), 0);
-  const mechText    = drugs.find(d => d.mechanism)?.mechanism ?? null;
+  const ubistTotal   = drugs.reduce((s, d) => {
+    if (!d.ubist_monthly) return s;
+    return s + Object.values(d.ubist_monthly).reduce((a, b) => a + b, 0);
+  }, 0);
+  const mechText = drugs.find(d => d.mechanism)?.mechanism ?? null;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '1rem', marginTop: '1.25rem' }}>
@@ -232,7 +243,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                 <Stat label="전체" value={drugs.length} color="#93c5fd" />
                 <Stat label="오리지널" value={origCount} color="#fbbf24" />
                 <Stat label="제네릭" value={genericCount} color="#6ee7b7" />
-                {ubistTotal > 0 && <Stat label="처방액(3M)" value={fmtWon(ubistTotal)} color="#f9a8d4" />}
+                {ubistTotal > 0 && <Stat label={`처방액(${periods.length}M)`} value={fmtWon(ubistTotal)} color="#f9a8d4" />}
               </div>
             </div>
 
@@ -309,7 +320,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {Array.from(ingredientGroups.entries()).map(([ingr, items]) => (
-              <IngredientGroup key={ingr} ingredient={ingr} items={items} />
+              <IngredientGroup key={ingr} ingredient={ingr} items={items} periods={periods} />
             ))}
           </div>
         )}
@@ -319,9 +330,12 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
 }
 
 /* ── 성분별 그룹 카드 ── */
-function IngredientGroup({ ingredient, items }: { ingredient: string; items: DrugItem[] }) {
+function IngredientGroup({ ingredient, items, periods }: { ingredient: string; items: DrugItem[]; periods: string[] }) {
   const [open, setOpen] = useState(true);
   const origCount = items.filter(d => d.is_original).length;
+
+  const fixedHeaders = ['제품명', '제조사', '구분', '대조약', '규격', '약가(상한)', '급여', '수수료율'];
+  const periodHeaders = periods.map(fmtPeriod);
 
   return (
     <div style={{
@@ -352,14 +366,19 @@ function IngredientGroup({ ingredient, items }: { ingredient: string; items: Dru
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
             <thead>
               <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
-                {['제품명', '제조사', '구분', '대조약', '규격', '약가(상한)', '급여', '수수료율', '처방액(3M)'].map(h => (
+                {fixedHeaders.map(h => (
                   <th key={h} style={TH}>{h}</th>
+                ))}
+                {periodHeaders.map((h, i) => (
+                  <th key={periods[i]} style={{ ...TH, textAlign: 'right', color: 'rgba(165,243,252,0.55)' }}>
+                    처방액<br /><span style={{ fontSize: '0.65rem' }}>{h}</span>
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {items.map((d, i) => (
-                <DrugRow key={d.id} drug={d} even={i % 2 === 0} />
+                <DrugRow key={d.id} drug={d} even={i % 2 === 0} periods={periods} />
               ))}
             </tbody>
           </table>
@@ -370,7 +389,8 @@ function IngredientGroup({ ingredient, items }: { ingredient: string; items: Dru
 }
 
 /* ── 의약품 테이블 행 ── */
-function DrugRow({ drug: d, even }: { drug: DrugItem; even: boolean }) {
+function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; periods: string[] }) {
+  const isGibyo = d.pay_type?.includes('급여') && !d.pay_type?.includes('비');
   return (
     <tr style={{ background: even ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
       <td style={TD}>
@@ -423,9 +443,9 @@ function DrugRow({ drug: d, even }: { drug: DrugItem; even: boolean }) {
         {d.pay_type ? (
           <span style={{
             fontSize: '0.67rem', padding: '1px 7px', borderRadius: '10px',
-            background: d.pay_type.includes('급여') && !d.pay_type.includes('비') ? 'rgba(52,211,153,0.12)' : 'rgba(156,163,175,0.12)',
-            color: d.pay_type.includes('급여') && !d.pay_type.includes('비') ? '#6ee7b7' : 'rgba(255,255,255,0.35)',
-            border: `1px solid ${d.pay_type.includes('급여') && !d.pay_type.includes('비') ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.1)'}`,
+            background: isGibyo ? 'rgba(52,211,153,0.12)' : 'rgba(156,163,175,0.12)',
+            color: isGibyo ? '#6ee7b7' : 'rgba(255,255,255,0.35)',
+            border: `1px solid ${isGibyo ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.1)'}`,
           }}>
             {d.pay_type === '-' ? '정보없음' : d.pay_type}
           </span>
@@ -438,13 +458,19 @@ function DrugRow({ drug: d, even }: { drug: DrugItem; even: boolean }) {
           </span>
         ) : <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.72rem' }}>-</span>}
       </td>
-      <td style={{ ...TD, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-        {d.ubist_amount ? (
-          <span style={{ color: '#a5f3fc', fontSize: '0.78rem', fontWeight: 600 }}>
-            {fmtWon(d.ubist_amount)}
-          </span>
-        ) : <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.72rem' }}>-</span>}
-      </td>
+      {/* 월별 처방액 (오래된 순) */}
+      {periods.map(p => {
+        const amt = d.ubist_monthly?.[p] ?? null;
+        return (
+          <td key={p} style={{ ...TD, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+            {amt != null ? (
+              <span style={{ color: '#a5f3fc', fontSize: '0.78rem', fontWeight: 600 }}>
+                {fmtWon(amt)}
+              </span>
+            ) : <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.72rem' }}>-</span>}
+          </td>
+        );
+      })}
     </tr>
   );
 }

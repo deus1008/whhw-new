@@ -22,18 +22,18 @@ function svc() {
   );
 }
 
-// 최근 N개월 처방액 집계: product_name → total_amount
+// 최근 N개월 처방액 집계: product_name → { period: amount }
 async function fetchUbistAmounts(
   productNames: string[],
   companyId: string | null,
   months = 3,
-): Promise<Map<string, number>> {
-  if (!productNames.length) return new Map();
+): Promise<{ byProduct: Map<string, Record<string, number>>; periods: string[] }> {
+  if (!productNames.length) return { byProduct: new Map(), periods: [] };
 
-  // 최근 months개 period 계산
+  // 오래된 순서로 정렬 (예: ['2026-05','2026-06','2026-07'])
   const now = new Date();
   const periods: string[] = [];
-  for (let i = 0; i < months; i++) {
+  for (let i = months - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     periods.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   }
@@ -41,7 +41,7 @@ async function fetchUbistAmounts(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let q: any = svc()
     .from('ubist_data')
-    .select('product_name, prescription_amount')
+    .select('product_name, period, prescription_amount')
     .in('product_name', productNames)
     .in('period', periods)
     .not('prescription_amount', 'is', null);
@@ -49,12 +49,14 @@ async function fetchUbistAmounts(
   if (companyId) q = q.eq('company_id', companyId);
 
   const { data } = await q;
-  const map = new Map<string, number>();
+  const byProduct = new Map<string, Record<string, number>>();
   for (const row of data ?? []) {
     const k = (row.product_name ?? '').trim();
-    map.set(k, (map.get(k) ?? 0) + (row.prescription_amount ?? 0));
+    if (!byProduct.has(k)) byProduct.set(k, {});
+    const cur = byProduct.get(k)!;
+    cur[row.period] = (cur[row.period] ?? 0) + (row.prescription_amount ?? 0);
   }
-  return map;
+  return { byProduct, periods };
 }
 
 // 수수료율: manufacturer → rate (품목 미지정 시 제조사 기본값)
@@ -153,7 +155,7 @@ export async function GET(req: NextRequest) {
     const manufacturers = [...new Set(drugs.map((d: { manufacturer: string }) => d.manufacturer).filter(Boolean) as string[])];
 
     // 병렬: Ubist 처방액 + 수수료율
-    const [ubistMap, rateMap] = await Promise.all([
+    const [ubistData, rateMap] = await Promise.all([
       fetchUbistAmounts(productNames, companyId, 3),
       fetchCommissionRates(manufacturers, productNames),
     ]);
@@ -172,14 +174,14 @@ export async function GET(req: NextRequest) {
       return {
         ...d,
         reference_drug:  (d.reference_drug as string | null) ?? computedRef,
-        ubist_amount:    ubistMap.get((d.product_name as string) ?? '') ?? null,
+        ubist_monthly:   ubistData.byProduct.get((d.product_name as string) ?? '') ?? null,
         commission_rate: rateMap.get((d.product_name as string) ?? '')
           ?? rateMap.get((d.manufacturer as string) ?? '')
           ?? null,
       };
     });
 
-    return NextResponse.json({ drugs: enriched });
+    return NextResponse.json({ drugs: enriched, periods: ubistData.periods });
   }
 
   // ── mode=mechanism: 작용기전 ────────────────────────────────────────────
