@@ -158,13 +158,26 @@ export async function GET(req: NextRequest) {
       fetchCommissionRates(manufacturers, productNames),
     ]);
 
-    const enriched = drugs.map((d: Record<string, unknown>) => ({
-      ...d,
-      ubist_amount:    ubistMap.get((d.product_name as string) ?? '') ?? null,
-      commission_rate: rateMap.get((d.product_name as string) ?? '')
-        ?? rateMap.get((d.manufacturer as string) ?? '')
-        ?? null,
-    }));
+    // 성분명별 오리지널 제품명 → 제네릭의 대조약으로 사용
+    const origByIngr = new Map<string, string>();
+    for (const d of drugs as Record<string, unknown>[]) {
+      if (d.is_original && d.ingredient_name && d.product_name) {
+        origByIngr.set((d.ingredient_name as string).trim(), (d.product_name as string).trim());
+      }
+    }
+
+    const enriched = drugs.map((d: Record<string, unknown>) => {
+      const ingrKey = ((d.ingredient_name as string | null) ?? '').trim();
+      const computedRef = !d.is_original ? (origByIngr.get(ingrKey) ?? null) : null;
+      return {
+        ...d,
+        reference_drug:  (d.reference_drug as string | null) ?? computedRef,
+        ubist_amount:    ubistMap.get((d.product_name as string) ?? '') ?? null,
+        commission_rate: rateMap.get((d.product_name as string) ?? '')
+          ?? rateMap.get((d.manufacturer as string) ?? '')
+          ?? null,
+      };
+    });
 
     return NextResponse.json({ drugs: enriched });
   }

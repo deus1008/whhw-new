@@ -54,7 +54,6 @@ function ResultBox({ result, status }: { result: SyncResult | null; status: stri
 export default function DiseaseAdminPage() {
   const importDrugs = useSync('/api/admin/import-disease-drugs');
   const syncHira    = useSync('/api/admin/sync-hira');
-  const syncMfds    = useSync('/api/admin/sync-mfds');
 
   return (
     <div style={{ maxWidth: '800px', margin: '2rem auto', padding: '0 1rem' }}>
@@ -71,7 +70,7 @@ export default function DiseaseAdminPage() {
         <SyncCard
           step={1}
           title="질환DB 임포트"
-          desc="public/data/질환별의약품_DB.xlsx → disease_drugs 테이블 일괄 적재. 기존 데이터를 삭제 후 재적재합니다."
+          desc="public/data/질환별의약품_DB.xlsx → disease_drugs 테이블 일괄 적재. 기존 데이터를 삭제 후 재적재합니다. 대조약은 동일 성분 내 오리지널 제품으로 자동 표시됩니다."
           warning={null}
           onRun={importDrugs.run}
           status={importDrugs.status}
@@ -82,46 +81,29 @@ export default function DiseaseAdminPage() {
         <SyncCard
           step={2}
           title="HIRA 동기화"
-          desc="건강보험심사평가원 약제급여목록 API → ATC 코드, 상한가, 품목기준코드를 disease_drugs에 업데이트합니다."
-          warning="HIRA_API_KEY 환경변수가 필요합니다. 공공데이터포털(data.go.kr)에서 '건강보험심사평가원_보험의약품정보서비스'를 신청하세요."
+          desc="건강보험심사평가원_보험의약품정보서비스 API → ATC 코드, 상한가, 급여여부, 품목기준코드를 disease_drugs에 업데이트합니다. 기존 연동된 DRUG_API_KEY를 자동으로 사용합니다."
+          warning={null}
           onRun={syncHira.run}
           status={syncHira.status}
           result={syncHira.result}
         />
 
-        {/* Step 3 */}
-        <SyncCard
-          step={3}
-          title="식약처 동기화"
-          desc="식약처 생물학적동등성시험 API → 대조약명, 식약처 허가정보 API → 허가종류·허가일자를 업데이트합니다."
-          warning="MFDS_API_KEY 환경변수가 필요합니다. data.go.kr에서 (1) DrugPrdtPrmsnInfoService06, (2) BioeqDrugService01 신청 후 Vercel 환경변수에 등록하세요."
-          onRun={syncMfds.run}
-          status={syncMfds.status}
-          result={syncMfds.result}
-        />
-
-        {/* 환경변수 안내 */}
+        {/* 안내 */}
         <div style={{
           padding: '1rem 1.25rem',
           background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
           borderRadius: '12px',
         }}>
-          <h3 style={{ fontSize: '0.85rem', color: '#fde68a', fontWeight: 600, margin: '0 0 0.75rem' }}>
-            환경변수 설정 방법
+          <h3 style={{ fontSize: '0.85rem', color: '#fde68a', fontWeight: 600, margin: '0 0 0.5rem' }}>
+            실행 순서
           </h3>
           <ol style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', lineHeight: 2 }}>
-            <li>
-              <a href="https://www.data.go.kr" target="_blank" rel="noreferrer"
-                style={{ color: '#93c5fd' }}>공공데이터포털 (data.go.kr)</a> 회원가입 후 아래 서비스 신청 (1~2일 승인)
-              <ul style={{ marginTop: '4px', paddingLeft: '1rem', lineHeight: 1.8, color: 'rgba(255,255,255,0.4)' }}>
-                <li><code style={{ color: '#f9a8d4' }}>건강보험심사평가원_보험의약품정보서비스</code> → HIRA_API_KEY</li>
-                <li><code style={{ color: '#f9a8d4' }}>식품의약품안전처_의약품 허가목록 (DrugPrdtPrmsnInfoService06)</code> → MFDS_API_KEY</li>
-                <li><code style={{ color: '#f9a8d4' }}>식품의약품안전처_생물학적동등성시험결과 (BioeqDrugService01)</code> → 위와 동일 키 사용 가능</li>
-              </ul>
-            </li>
-            <li>Vercel 대시보드 → 프로젝트 → Settings → Environment Variables에 각 키 등록</li>
-            <li>등록 후 Step 1 → Step 2 → Step 3 순서로 실행</li>
+            <li>Step 1 — 질환DB 임포트 (엑셀 파일 기반, API 키 불필요)</li>
+            <li>Step 2 — HIRA 동기화 (ATC 코드·약가 보강, DRUG_API_KEY 사용)</li>
           </ol>
+          <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>
+            대조약명은 엑셀 데이터 내 오리지널 여부(오리지널여부=오리지널)를 기준으로 동일 성분 제네릭에 자동 표시됩니다.
+          </p>
         </div>
       </div>
     </div>

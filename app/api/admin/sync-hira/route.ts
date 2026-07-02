@@ -25,10 +25,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  if (!process.env.HIRA_API_KEY) {
+  if (!process.env.HIRA_API_KEY && !process.env.DRUG_API_KEY) {
     return NextResponse.json({
-      error: 'HIRA_API_KEY 환경변수가 설정되지 않았습니다.',
-      guide: 'Vercel 대시보드 → 프로젝트 → Settings → Environment Variables에 HIRA_API_KEY를 추가하세요.',
+      error: 'HIRA_API_KEY (또는 DRUG_API_KEY) 환경변수가 설정되지 않았습니다.',
+      guide: 'Vercel 대시보드 → 프로젝트 → Settings → Environment Variables에 HIRA_API_KEY 또는 DRUG_API_KEY를 추가하세요.',
     }, { status: 503 });
   }
 

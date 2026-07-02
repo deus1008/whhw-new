@@ -51,8 +51,8 @@ interface RawItem {
 }
 
 function apiKey(): string {
-  const k = process.env.HIRA_API_KEY;
-  if (!k) throw new Error('HIRA_API_KEY 환경변수가 설정되지 않았습니다.');
+  const k = process.env.HIRA_API_KEY ?? process.env.DRUG_API_KEY;
+  if (!k) throw new Error('HIRA_API_KEY (또는 DRUG_API_KEY) 환경변수가 설정되지 않았습니다.');
   return k;
 }
 
