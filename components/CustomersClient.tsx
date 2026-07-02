@@ -1,58 +1,66 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import dynamic from 'next/dynamic';
 
-const CustomerMap = dynamic(() => import('./CustomerMap'), { ssr: false });
-
-type Customer = {
-  id:            string;
-  customer_code: string | null;
-  customer_name: string;
-  customer_type: string | null;
-  region:        string | null;
-  sub_region:    string | null;
-  address:       string | null;
-  phone:         string | null;
-  manager:       string | null;
-  cso:           string | null;
-  manager_email: string | null;
-  memo:          string | null;
-  source_file:   string;
+type CustomerRow = {
+  no:           number;
+  code:         string;
+  level:        string;
+  name:         string;
+  root:         string;
+  bizType:      string;
+  start:        string;
+  end:          string;
+  bizNo:        string;
+  address:      string;
+  phone:        string;
+  rep:          string;
+  repEmail:     string;
+  manager:      string;
+  managerEmail: string;
+  docScore:     number;
 };
 
-type ManagerCount = { manager: string; count: number };
-type Meta = { regions: string[]; types: string[]; managers: string[]; managerCounts: ManagerCount[]; totalCount: number };
+type LevelCount = { level: string; count: number };
+type Meta = {
+  levels: string[];
+  levelCounts: LevelCount[];
+  bizTypes: string[];
+  totalCount: number;
+  filename: string;
+  updatedAt: string;
+};
 
 export default function CustomersClient() {
   const [query,    setQuery]    = useState('');
-  const [region,   setRegion]   = useState('');
-  const [type,     setType]     = useState('');
-  const [manager,  setManager]  = useState('');
-  const [items,    setItems]    = useState<Customer[]>([]);
+  const [level,    setLevel]    = useState('');
+  const [bizType,  setBizType]  = useState('');
+  const [items,    setItems]    = useState<CustomerRow[]>([]);
   const [total,    setTotal]    = useState(0);
   const [page,     setPage]     = useState(1);
   const [loading,  setLoading]  = useState(false);
+  const [metaLoading, setMetaLoading] = useState(true);
   const [searched, setSearched] = useState(false);
-  const [meta,     setMeta]     = useState<Meta>({ regions: [], types: [], managers: [], managerCounts: [], totalCount: 0 });
+  const [meta,     setMeta]     = useState<Meta>({ levels: [], levelCounts: [], bizTypes: [], totalCount: 0, filename: '', updatedAt: '' });
   const inputRef = useRef<HTMLInputElement>(null);
 
-  /* ── 메타 로드 ── */
   useEffect(() => {
+    setMetaLoading(true);
     fetch('/api/customers?meta=1')
-      .then(r => r.json()).then(setMeta).catch(console.error);
+      .then(r => r.json())
+      .then(d => { setMeta(d); setMetaLoading(false); })
+      .catch(() => setMetaLoading(false));
   }, []);
 
-  /* ── 검색 ── */
-  const search = useCallback(async (pg = 1) => {
+  const search = useCallback(async (pg = 1, opts?: { level?: string; bizType?: string }) => {
     setLoading(true);
     try {
+      const effectiveLevel   = opts?.level   !== undefined ? opts.level   : level;
+      const effectiveBizType = opts?.bizType !== undefined ? opts.bizType : bizType;
       const params = new URLSearchParams({ page: String(pg) });
-      if (query)   params.set('q',       query);
-      if (region)  params.set('region',  region);
-      if (type)    params.set('type',    type);
-      if (manager) params.set('manager', manager);
-
+      if (query)              params.set('q',       query);
+      if (effectiveLevel)     params.set('level',   effectiveLevel);
+      if (effectiveBizType)   params.set('bizType', effectiveBizType);
       const res  = await fetch(`/api/customers?${params}`);
       const data = await res.json();
       setItems(data.items ?? []);
@@ -61,108 +69,96 @@ export default function CustomersClient() {
       setSearched(true);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, [query, region, type, manager]);
+  }, [query, level, bizType]);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    search(1);
-  }
+  function handleSubmit(e: React.FormEvent) { e.preventDefault(); search(1); }
 
   function reset() {
-    setQuery(''); setRegion(''); setType(''); setManager('');
+    setQuery(''); setLevel(''); setBizType('');
     setItems([]); setTotal(0); setSearched(false);
     inputRef.current?.focus();
   }
 
   const totalPages = Math.ceil(total / 50);
+  const LEVEL_COLORS: Record<string, string> = {
+    '1차': '#a78bfa', '2차': '#34d399', '3차': '#fbbf24',
+    '4차': '#f87171', '5차': '#60a5fa', '6차': '#f472b6',
+    '7차': '#a3e635', '8차': '#fb923c', '9차': '#94a3b8',
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
 
-      {/* ── 담당자별 거래처 수 요약 + 지도 ── */}
-      <style>{`.mgr-map-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem;align-items:stretch}@media(max-width:768px){.mgr-map-grid{grid-template-columns:1fr}}`}</style>
-      {meta.managerCounts.length > 0 && (
-        <div className="mgr-map-grid">
-          {/* 요약 테이블 */}
-          <div style={card}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.4rem' }}>
-              <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                👤 담당사원별 거래처 현황
-              </h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                전체 <strong style={{ color: '#a5b4fc' }}>{meta.totalCount.toLocaleString()}</strong>개
-              </span>
+      {/* ── 레벨별 요약 ── */}
+      {(metaLoading || meta.levelCounts.length > 0) && (
+        <div style={card}>
+          {metaLoading ? (
+            <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              ⏳ 데이터 로딩 중… (최초 1회 파일 파싱)
             </div>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ borderCollapse: 'collapse', fontSize: '0.82rem', width: '100%' }}>
-                <thead>
-                  <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
-                    <th style={{ ...th, width: 40 }}>순위</th>
-                    <th style={th}>담당사원(지역장)</th>
-                    <th style={{ ...th, textAlign: 'right' }}>거래처 수</th>
-                    <th style={{ ...th, textAlign: 'right' }}>비중</th>
-                    <th style={{ ...th, minWidth: 120 }}>비율</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {meta.managerCounts.map((m, i) => {
-                    const pct = meta.totalCount > 0 ? (m.count / meta.totalCount) * 100 : 0;
-                    const colors = ['#a78bfa','#34d399','#fbbf24','#f87171','#ffffff','#c4b5fd','#86efac','#fde68a','#fb923c','#60a5fa'];
-                    const color = colors[i % colors.length];
-                    return (
-                      <tr key={m.manager} style={{ borderTop: '1px solid rgba(255,255,255,0.04)',
-                        background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
-                        cursor: 'pointer' }}
-                        onClick={() => { setManager(m.manager); search(1); }}>
-                        <td style={{ ...td, color: 'var(--text-muted)', width: 40 }}>{i + 1}</td>
-                        <td style={{ ...td, fontWeight: 600, color }}>{m.manager}</td>
-                        <td style={{ ...td, textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                          {m.count.toLocaleString()}
-                        </td>
-                        <td style={{ ...td, textAlign: 'right', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                          {pct.toFixed(1)}%
-                        </td>
-                        <td style={{ ...td }}>
-                          <div style={{ height: 7, borderRadius: 4, background: 'rgba(255,255,255,0.07)', overflow: 'hidden', minWidth: 80 }}>
-                            <div style={{ height: '100%', width: `${pct}%`, background: color, borderRadius: 4, transition: 'width 0.4s ease' }} />
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.5rem', textAlign: 'right' }}>
-              * 행 클릭 시 해당 담당사원으로 필터링됩니다
-            </p>
-          </div>
-
-          {/* 지도 */}
-          <CustomerMap managerOrder={meta.managerCounts.map(m => m.manager)} />
+          ) : (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  📊 재위탁 차수별 현황
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  전체 <strong style={{ color: '#a5b4fc' }}>{meta.totalCount.toLocaleString()}</strong>개
+                  {meta.filename && <span style={{ marginLeft: '0.5rem', color: 'rgba(255,255,255,0.2)' }}>— {meta.filename}</span>}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
+                {meta.levelCounts.map(lc => {
+                  const color = LEVEL_COLORS[lc.level] ?? '#94a3b8';
+                  const pct   = meta.totalCount > 0 ? (lc.count / meta.totalCount) * 100 : 0;
+                  return (
+                    <div
+                      key={lc.level}
+                      onClick={() => { const nl = level === lc.level ? '' : lc.level; setLevel(nl); search(1, { level: nl }); }}
+                      style={{
+                        cursor: 'pointer', borderRadius: '10px', padding: '0.55rem 1rem',
+                        background: level === lc.level ? `rgba(${hexToRgb(color)},0.15)` : 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${level === lc.level ? color : 'rgba(255,255,255,0.08)'}`,
+                        display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: '80px',
+                      }}
+                    >
+                      <span style={{ fontSize: '0.7rem', color, fontWeight: 700 }}>{lc.level}</span>
+                      <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {lc.count.toLocaleString()}
+                      </span>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{pct.toFixed(1)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {meta.updatedAt && (
+                <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', margin: '0.6rem 0 0', textAlign: 'right' }}>
+                  기준: {meta.updatedAt}
+                </p>
+              )}
+            </>
+          )}
         </div>
       )}
 
-      {/* ── 헤더 ── */}
+      {/* ── 검색 폼 ── */}
       <div style={card}>
-        <div style={{ marginBottom: '1rem' }}>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-            🏢 거래처현황
+        <div style={{ marginBottom: '0.8rem' }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            🏢 거래처 검색
           </h2>
           <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-            거래처명·코드·주소로 검색하고 담당 지역장을 확인하세요.
+            업체명·코드·사업자번호·대표자·주소로 검색하세요.
           </p>
         </div>
 
-        {/* 검색 폼 */}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-          {/* 키워드 검색 */}
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <input
               ref={inputRef}
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="CSO명 / 사업자번호 / 내부명 / 주소 검색"
+              placeholder="업체명 / 사업자번호 / 대표자명 / 주소 검색"
               style={{ flex: 1, ...inputSel }}
             />
             <button type="submit" disabled={loading}
@@ -180,20 +176,14 @@ export default function CustomersClient() {
               </button>
             )}
           </div>
-
-          {/* 필터 */}
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <select value={region} onChange={e => setRegion(e.target.value)} style={inputSel}>
-              <option value="">전체 지역</option>
-              {meta.regions.map(r => <option key={r} value={r}>{r}</option>)}
+            <select value={level} onChange={e => setLevel(e.target.value)} style={inputSel}>
+              <option value="">전체 구분</option>
+              {meta.levels.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
-            <select value={type} onChange={e => setType(e.target.value)} style={inputSel}>
-              <option value="">전체 종별</option>
-              {meta.types.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <select value={manager} onChange={e => setManager(e.target.value)} style={inputSel}>
-              <option value="">전체 담당사원(지역장)</option>
-              {meta.managers.map(m => <option key={m} value={m}>{m}</option>)}
+            <select value={bizType} onChange={e => setBizType(e.target.value)} style={inputSel}>
+              <option value="">개인/법인 전체</option>
+              {meta.bizTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
         </form>
@@ -218,73 +208,85 @@ export default function CustomersClient() {
               {totalPages > 1 && ` (${page}/${totalPages} 페이지)`}
             </span>
             {totalPages > 1 && (
-              <div style={{ display: 'flex', gap: '0.3rem' }}>
-                <PgBtn label="◀" disabled={page <= 1} onClick={() => search(page - 1)} />
-                {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map(pg => (
-                  <PgBtn key={pg} label={String(pg)} active={pg === page} onClick={() => search(pg)} />
-                ))}
-                {totalPages > 7 && <span style={{ color: 'var(--text-muted)', lineHeight: '2rem', padding: '0 4px' }}>…</span>}
+              <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
+                <PgBtn label="◀" disabled={page <= 1}         onClick={() => search(page - 1)} />
+                {pageRange(page, totalPages).map((pg, i) =>
+                  pg === '…'
+                    ? <span key={`e${i}`} style={{ color: 'var(--text-muted)', lineHeight: '2rem', padding: '0 4px' }}>…</span>
+                    : <PgBtn key={pg} label={String(pg)} active={pg === page} onClick={() => search(pg as number)} />
+                )}
                 <PgBtn label="▶" disabled={page >= totalPages} onClick={() => search(page + 1)} />
               </div>
             )}
           </div>
 
           <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  {['No.','CSO명','담당자','업체담당자이메일','주소','사업자번호','담당사원명'].map(h => (
+                  {['No','업체명','구분','1차업체','개인/법인','계약기간','사업자번호','대표자','담당자','주소'].map(h => (
                     <th key={h} style={th}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {items.map((c, i) => (
-                  <tr key={c.id} style={{ borderTop: '1px solid rgba(255,255,255,0.04)',
-                    background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                    {/* No. */}
-                    <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.72rem', width: 40, textAlign: 'center' }}>
-                      {(page - 1) * 50 + i + 1}
-                    </td>
-                    {/* CSO명 */}
-                    <td style={{ ...td, fontWeight: 600, color: 'var(--text-primary)', minWidth: 130 }}>
-                      {c.customer_name}
-                    </td>
-                    {/* 담당자 (CSO 업체 담당자) */}
-                    <td style={{ ...td, color: 'rgba(240,244,255,0.8)', whiteSpace: 'nowrap', minWidth: 80 }}>
-                      {c.cso ?? '—'}
-                    </td>
-                    {/* 업체담당자이메일 */}
-                    <td style={{ ...td, fontSize: '0.75rem', color: '#67e8f9', minWidth: 160 }}>
-                      {c.manager_email || '—'}
-                    </td>
-                    {/* 주소 */}
-                    <td style={{ ...td, fontSize: '0.74rem', color: 'var(--text-muted)', maxWidth: 220,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                      title={c.address ?? ''}>
-                      {c.address || '—'}
-                    </td>
-                    {/* 사업자번호 */}
-                    <td style={{ ...td, color: 'var(--text-muted)', fontSize: '0.75rem', whiteSpace: 'nowrap', minWidth: 120, fontVariantNumeric: 'tabular-nums' }}>
-                      {c.customer_code ?? '—'}
-                    </td>
-                    {/* 담당사원명 */}
-                    <td style={{ ...td, fontWeight: c.manager ? 700 : 400, color: c.manager ? '#a5b4fc' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      {c.manager ?? '—'}
-                    </td>
-                  </tr>
-                ))}
+                {items.map((c, i) => {
+                  const color = LEVEL_COLORS[c.level] ?? '#94a3b8';
+                  const isExpired = c.end && new Date(c.end) < new Date();
+                  return (
+                    <tr key={`${c.no}-${i}`} style={{
+                      borderTop: '1px solid rgba(255,255,255,0.04)',
+                      background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+                    }}>
+                      <td style={{ ...td, color: 'var(--text-muted)', width: 36, textAlign: 'center' }}>{c.no}</td>
+                      <td style={{ ...td, fontWeight: 600, color: 'var(--text-primary)', minWidth: 120 }}>{c.name || '—'}</td>
+                      <td style={{ ...td, whiteSpace: 'nowrap' }}>
+                        <span style={{
+                          fontSize: '0.68rem', padding: '0.1rem 0.5rem', borderRadius: 4,
+                          background: `rgba(${hexToRgb(color)},0.12)`,
+                          border: `1px solid ${color}40`, color,
+                        }}>{c.level}</span>
+                      </td>
+                      <td style={{ ...td, fontSize: '0.74rem', color: 'rgba(255,255,255,0.5)', minWidth: 100 }}>
+                        {c.root !== c.name ? c.root : '—'}
+                      </td>
+                      <td style={{ ...td, whiteSpace: 'nowrap', fontSize: '0.74rem' }}>
+                        {c.bizType === '법인' ? (
+                          <span style={{ color: '#60a5fa' }}>법인</span>
+                        ) : c.bizType === '개인' || c.bizType === '개인사업자' ? (
+                          <span style={{ color: '#34d399' }}>개인</span>
+                        ) : c.bizType || '—'}
+                      </td>
+                      <td style={{ ...td, whiteSpace: 'nowrap', fontSize: '0.74rem' }}>
+                        {c.start && c.end ? (
+                          <span style={{ color: isExpired ? '#f87171' : 'var(--text-muted)' }}>
+                            {c.start}<br /><span style={{ color: 'rgba(255,255,255,0.2)' }}>~</span> {c.end}
+                            {isExpired && <span style={{ color: '#f87171', fontSize: '0.65rem', marginLeft: '0.3rem' }}>만료</span>}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.74rem', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>
+                        {c.bizNo || '—'}
+                      </td>
+                      <td style={{ ...td, whiteSpace: 'nowrap' }}>{c.rep || '—'}</td>
+                      <td style={{ ...td, whiteSpace: 'nowrap', color: 'rgba(255,255,255,0.65)' }}>{c.manager || '—'}</td>
+                      <td style={{ ...td, fontSize: '0.72rem', color: 'var(--text-muted)', maxWidth: 180,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        title={c.address}>{c.address || '—'}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {!searched && !loading && (
+      {!searched && !loading && !metaLoading && (
         <div style={{ ...card, textAlign: 'center', padding: '3rem' }}>
           <p style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🏢</p>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem' }}>
-            검색어를 입력하거나 필터를 선택해 거래처를 찾아보세요.
+            검색어를 입력하거나 차수 카드를 클릭해 거래처를 조회하세요.
           </p>
         </div>
       )}
@@ -292,14 +294,26 @@ export default function CustomersClient() {
   );
 }
 
-/* ── 종별 색상 ── */
-function typeColor(t: string): { bg: string; bd: string; color: string } {
-  const tl = t.toLowerCase();
-  if (tl.includes('상급') || tl.includes('종합병원')) return { bg: 'rgba(239,68,68,0.1)', bd: 'rgba(239,68,68,0.3)', color: '#f87171' };
-  if (tl.includes('병원'))   return { bg: 'rgba(251,191,36,0.1)', bd: 'rgba(251,191,36,0.3)', color: '#fbbf24' };
-  if (tl.includes('의원'))   return { bg: 'rgba(52,211,153,0.1)', bd: 'rgba(52,211,153,0.3)', color: '#34d399' };
-  if (tl.includes('약국'))   return { bg: 'rgba(96,165,250,0.1)', bd: 'rgba(96,165,250,0.3)', color: '#60a5fa' };
-  return { bg: 'rgba(148,163,184,0.1)', bd: 'rgba(148,163,184,0.2)', color: '#94a3b8' };
+function hexToRgb(hex: string): string {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) return '255,255,255';
+  return `${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)}`;
+}
+
+function pageRange(current: number, total: number): (number | '…')[] {
+  const delta = 2;
+  const left  = current - delta;
+  const right = current + delta;
+  const pages: (number | '…')[] = [];
+  let prev = 0;
+  for (let p = 1; p <= total; p++) {
+    if (p === 1 || p === total || (p >= left && p <= right)) {
+      if (prev && p - prev > 1) pages.push('…');
+      pages.push(p);
+      prev = p;
+    }
+  }
+  return pages;
 }
 
 function PgBtn({ label, active, disabled, onClick }: {
@@ -318,28 +332,24 @@ function PgBtn({ label, active, disabled, onClick }: {
   );
 }
 
-/* ── 스타일 ── */
 const card: React.CSSProperties = {
   background: 'rgba(255,255,255,0.02)',
   border: '1px solid rgba(255,255,255,0.08)',
   borderRadius: 14,
   padding: '1.2rem 1.4rem',
 };
-
 const inputSel: React.CSSProperties = {
   padding: '0.5rem 0.8rem', borderRadius: 9, fontSize: '0.85rem',
   background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
   color: 'var(--text-primary)', fontFamily: 'inherit', cursor: 'pointer',
 };
-
 const th: React.CSSProperties = {
-  padding: '0.5rem 0.75rem', textAlign: 'left', fontWeight: 600,
-  color: 'var(--text-muted)', fontSize: '0.75rem', whiteSpace: 'nowrap',
+  padding: '0.45rem 0.65rem', textAlign: 'left', fontWeight: 600,
+  color: 'var(--text-muted)', fontSize: '0.72rem', whiteSpace: 'nowrap',
   borderBottom: '1px solid rgba(255,255,255,0.08)',
 };
-
 const td: React.CSSProperties = {
-  padding: '0.5rem 0.75rem',
+  padding: '0.45rem 0.65rem',
   color: 'rgba(240,244,255,0.85)',
   verticalAlign: 'middle',
 };
