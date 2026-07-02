@@ -180,7 +180,9 @@ export async function GET(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!drugs?.length) return NextResponse.json({ drugs: [] });
 
-    // 식약처 DrugPrdtPrmsnInfoService07 API로 동일 성분 제네릭 보강
+    // 성분명 기반 API 전체 품목 보강
+    // 1) HIRA 약가 API (ingrNm): 급여 등재 전 품목 (이미 승인된 서비스)
+    // 2) 식약처 DrugPrdtPrmsnInfoService07 (item_ingr_name): 허가 DB 전체
     const uniqueIngrs = [...new Set(
       (drugs as Record<string, unknown>[])
         .map(d => (d.ingredient_name as string | null)?.trim())
@@ -190,67 +192,100 @@ export async function GET(req: NextRequest) {
       (drugs as Record<string, unknown>[]).map(d => (d.product_name as string | null)?.trim()).filter(Boolean)
     );
 
-    const PRMSN_URL = 'https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService07/getDrugPrdtPrmsnDtlInq06';
-    const drugApiKey = process.env.DRUG_API_KEY ?? '';
+    const HIRA_PRICE_URL = 'https://apis.data.go.kr/B551182/dgamtCrtrInfoService1.2/getDgamtList';
+    const PRMSN_URL      = 'https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService07/getDrugPrdtPrmsnDtlInq06';
+    const drugApiKey     = process.env.DRUG_API_KEY ?? '';
+
+    // HIRA XML → items 파싱
+    function parseHiraXml(xml: string): Array<{ name: string; mfr: string; std: string; price: number | null; payType: string | null }> {
+      const out: Array<{ name: string; mfr: string; std: string; price: number | null; payType: string | null }> = [];
+      for (const block of xml.match(/<item>([\s\S]*?)<\/item>/g) ?? []) {
+        const g = (tag: string) => block.match(new RegExp(`<${tag}>([^<]*)<\/${tag}>`))?.[1]?.trim() ?? '';
+        const raw = g('itmNm');
+        if (!raw) continue;
+        // 제조사이관 표기 제거: "약품명(A->B)" → "약품명"
+        const name = raw.replace(/\s*[\(（][^)\）]*(?:->|→)[^)\）]*[\)）]/g, '').trim();
+        const priceRaw = Number(g('mxCprc').replace(/[^0-9]/g, ''));
+        out.push({ name, mfr: g('mnfEntpNm'), std: g('nomNm'), price: isNaN(priceRaw) || priceRaw === 0 ? null : priceRaw, payType: g('payTpNm') || null });
+      }
+      return out;
+    }
+
+    // 식약처 JSON body → items
+    function parsePrmsnJson(json: Record<string, unknown>): Array<{ name: string; mfr: string; std: string; seq: string; permitDate: string; etcOtc: string }> {
+      const body = ((json?.response as Record<string, unknown>)?.body) as Record<string, unknown> | undefined;
+      const raw: Record<string, unknown>[] = Array.isArray(body?.items)
+        ? (body!.items as Record<string, unknown>[])
+        : Array.isArray((body?.items as Record<string, unknown> | undefined)?.item)
+          ? ((body!.items as Record<string, unknown>).item as Record<string, unknown>[])
+          : (body?.items as Record<string, unknown> | undefined)?.item
+            ? [(body!.items as Record<string, unknown>).item as Record<string, unknown>]
+            : [];
+      return raw.map(it => ({
+        name:       ((it.ITEM_NAME as string | null) ?? '').trim(),
+        mfr:        ((it.ENTP_NAME as string | null) ?? '').trim(),
+        std:        ((it.CHART    as string | null) ?? '').trim(),
+        seq:        String(it.ITEM_SEQ ?? ''),
+        permitDate: ((it.ITEM_PERMIT_DATE as string | null) ?? '').trim(),
+        etcOtc:     ((it.ETC_OTC_CODE    as string | null) ?? '').trim(),
+      })).filter(x => x.name);
+    }
 
     const extraDrugs: Record<string, unknown>[] = [];
-    for (const ingrName of uniqueIngrs) {
-      // 성분명 핵심어 추출 (숫자·괄호 이전)
-      const coreIngr = ingrName.replace(/[\s（((\d].*$/, '').trim();
-      if (coreIngr.length < 2 || !drugApiKey) continue;
-      try {
-        const qs = new URLSearchParams({
-          serviceKey: drugApiKey,
-          pageNo: '1',
-          numOfRows: '200',
-          type: 'json',
-          item_name: coreIngr,
-        });
-        const res = await fetch(`${PRMSN_URL}?${qs}`, {
-          headers: { Accept: 'application/json' },
-          next: { revalidate: 86400 },
-        });
-        if (!res.ok) continue;
 
-        const json = await res.json() as Record<string, unknown>;
-        const body = ((json?.response as Record<string, unknown>)?.body) as Record<string, unknown> | undefined;
-        const rawItems: Record<string, unknown>[] = Array.isArray(body?.items)
-          ? (body!.items as Record<string, unknown>[])
-          : Array.isArray((body?.items as Record<string, unknown> | undefined)?.item)
-            ? ((body!.items as Record<string, unknown>).item as Record<string, unknown>[])
-            : (body?.items as Record<string, unknown> | undefined)?.item
-              ? [(body!.items as Record<string, unknown>).item as Record<string, unknown>]
-              : [];
+    if (drugApiKey) {
+      for (const ingrName of uniqueIngrs) {
+        const coreIngr = ingrName.replace(/[\s（((\d].*$/, '').trim();
+        if (coreIngr.length < 2) continue;
 
-        for (const item of rawItems) {
-          const pName = (item.ITEM_NAME as string | null)?.trim();
-          if (!pName || knownNames.has(pName)) continue;
-          knownNames.add(pName);
-          extraDrugs.push({
-            id: null,
-            disease_group: group,
-            sub_category: sub ?? null,
-            treatment_class: null,
-            ingredient_name: ingrName,
-            product_name: pName,
-            manufacturer: (item.ENTP_NAME as string | null) ?? null,
-            distributor: null,
-            standard: (item.CHART as string | null) ?? null,
-            pay_type: null,
-            is_original: false,
-            mechanism: null,
-            note: null,
-            atc_code: null,
-            atc_name: null,
-            item_code: String(item.ITEM_SEQ ?? '') || null,
-            max_price: null,
-            reference_drug: null,
-            permit_kind: (item.ETC_OTC_CODE as string | null) ?? null,
-            approval_date: (item.ITEM_PERMIT_DATE as string | null) ?? null,
-            from_price_db: true,
-          });
+        // 두 API 병렬 호출
+        const [hiraRes, prmsnRes] = await Promise.allSettled([
+          // 1) HIRA 약가 (ingrNm 파라미터 → 성분 기반 전체 급여품목)
+          fetch(
+            `${HIRA_PRICE_URL}?ServiceKey=${encodeURIComponent(drugApiKey)}&ingrNm=${encodeURIComponent(coreIngr)}&numOfRows=500&pageNo=1`,
+            { next: { revalidate: 86400 } },
+          ).then(r => r.ok ? r.text() : ''),
+
+          // 2) 식약처 DrugPrdtPrmsnInfoService07 (item_ingr_name → 허가 DB 성분 검색)
+          fetch(
+            `${PRMSN_URL}?${new URLSearchParams({ serviceKey: drugApiKey, pageNo: '1', numOfRows: '500', type: 'json', item_ingr_name: coreIngr })}`,
+            { headers: { Accept: 'application/json' }, next: { revalidate: 86400 } },
+          ).then(r => r.ok ? r.json() as Promise<Record<string, unknown>> : {}),
+        ]);
+
+        // HIRA 결과 처리
+        if (hiraRes.status === 'fulfilled' && hiraRes.value) {
+          for (const item of parseHiraXml(hiraRes.value)) {
+            if (!item.name || knownNames.has(item.name)) continue;
+            knownNames.add(item.name);
+            extraDrugs.push({
+              id: null, disease_group: group, sub_category: sub ?? null, treatment_class: null,
+              ingredient_name: ingrName, product_name: item.name, manufacturer: item.mfr || null,
+              distributor: null, standard: item.std || null, pay_type: item.payType,
+              is_original: false, mechanism: null, note: null, atc_code: null, atc_name: null,
+              item_code: null, max_price: item.price, reference_drug: null,
+              permit_kind: null, approval_date: null, from_price_db: true,
+            });
+          }
         }
-      } catch { /* API 실패 시 스킵 */ }
+
+        // 식약처 결과 처리 (HIRA에 없는 품목 추가)
+        if (prmsnRes.status === 'fulfilled' && prmsnRes.value) {
+          for (const item of parsePrmsnJson(prmsnRes.value)) {
+            if (!item.name || knownNames.has(item.name)) continue;
+            knownNames.add(item.name);
+            extraDrugs.push({
+              id: null, disease_group: group, sub_category: sub ?? null, treatment_class: null,
+              ingredient_name: ingrName, product_name: item.name, manufacturer: item.mfr || null,
+              distributor: null, standard: item.std || null, pay_type: null,
+              is_original: false, mechanism: null, note: null, atc_code: null, atc_name: null,
+              item_code: item.seq || null, max_price: null, reference_drug: null,
+              permit_kind: item.etcOtc || null, approval_date: item.permitDate || null,
+              from_price_db: true,
+            });
+          }
+        }
+      }
     }
 
     const allDrugs = [...(drugs as Record<string, unknown>[]), ...extraDrugs];
