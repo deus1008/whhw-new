@@ -81,7 +81,7 @@ export default function DiseaseAdminPage() {
         <SyncCard
           step={2}
           title="HIRA 동기화"
-          desc="건강보험심사평가원_보험의약품정보서비스 API → ATC 코드, 상한가, 급여여부, 품목기준코드를 disease_drugs에 업데이트합니다. 기존 연동된 DRUG_API_KEY를 자동으로 사용합니다."
+          desc="건강보험심사평가원 보험의약품정보서비스 API → ATC 코드, 품목기준코드를 disease_drugs에 업데이트합니다. 서비스 승인 여부를 먼저 확인하고, 미승인 시 즉시 안내 메시지를 반환합니다 (약가·급여여부는 Step 1에서 이미 적재됩니다)."
           warning={null}
           onRun={syncHira.run}
           status={syncHira.status}
