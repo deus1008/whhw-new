@@ -30,11 +30,21 @@ async function fetchUbistAmounts(
 ): Promise<{ byProduct: Map<string, Record<string, number>>; periods: string[] }> {
   if (!productNames.length) return { byProduct: new Map(), periods: [] };
 
-  // 오래된 순서로 정렬 (예: ['2026-05','2026-06','2026-07'])
-  const now = new Date();
+  // ubist_data에 실제 존재하는 가장 최신 기간 기준으로 N개월 산출
+  const { data: latestRow } = await svc()
+    .from('ubist_data')
+    .select('period')
+    .not('period', 'is', null)
+    .order('period', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!latestRow?.period) return { byProduct: new Map(), periods: [] };
+
+  const [latestY, latestM] = (latestRow.period as string).split('-').map(Number);
   const periods: string[] = [];
   for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const d = new Date(latestY, latestM - 1 - i, 1);
     periods.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   }
 
