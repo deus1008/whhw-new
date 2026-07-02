@@ -1,65 +1,115 @@
 /**
- * 건강보험심사평가원(HIRA) 약제급여목록 API 클라이언트
+ * 건강보험심사평가원(HIRA) API 클라이언트
  *
- * 공공데이터포털(data.go.kr) API 키 필요:
- *   서비스명: 건강보험심사평가원_보험의약품정보서비스
- *   발급: https://www.data.go.kr → 회원가입 → 서비스 신청 → 1~2일 승인
+ * 사용 API:
+ *   1) dgamtCrtrInfoService1.2  - 약제급여 기준금액 (약가·급여여부) — XML — DRUG_API_KEY로 이미 사용 중
+ *   2) msInfrMedBassInfoService  - 보험의약품정보서비스 (ATC코드·상한가) — JSON — 별도 서비스 승인 필요
  *
- * 환경변수: HIRA_API_KEY (공공데이터포털에서 발급받은 일반인증키, URL 인코딩 불필요)
- *
- * 주요 반환 필드:
- *   ITEM_SEQ      품목일련번호 (식약처 연계 키)
- *   ITEM_NAME     품목명
- *   ENTP_NAME     업체명
- *   MAIN_INGR_ENG 주성분(영문)
- *   ATC_CODE      ATC 코드
- *   ATC_NAME      ATC 한글명
- *   MEDI_PAY_YN   급여여부 (Y/N)
- *   MAX_PRICE     상한가 (원)
+ * 환경변수: HIRA_API_KEY 또는 DRUG_API_KEY (공공데이터포털 일반인증키)
  */
 
-const BASE = 'https://apis.data.go.kr/B551182/msInfrMedBassInfoService';
+const PRICE_URL = 'https://apis.data.go.kr/B551182/dgamtCrtrInfoService1.2/getDgamtList';
+const BASE      = 'https://apis.data.go.kr/B551182/msInfrMedBassInfoService';
 
-export interface HiraDrugItem {
-  itemSeq:    string;
-  itemName:   string;
-  entpName:   string;
-  atcCode:    string;
-  atcName:    string;
-  mediPayYn:  string;  // Y=급여, N=비급여
-  maxPrice:   number | null;
-  ingrName:   string;
-}
-
-export interface HiraAtcItem {
-  code:    string;
-  nameKo:  string;
-  level:   number;
-  parent:  string | null;
-}
-
-interface RawItem {
-  ITEM_SEQ?: string;
-  ITEM_NAME?: string;
-  ENTP_NAME?: string;
-  ATC_CODE?: string;
-  ATC_NAME?: string;
-  MEDI_PAY_YN?: string;
-  MAX_PRICE?: string | number;
-  MAIN_INGR?: string;
-  INGR_NAME?: string;
-}
-
+/* ── 환경변수 ── */
 function apiKey(): string {
   const k = process.env.HIRA_API_KEY ?? process.env.DRUG_API_KEY;
   if (!k) throw new Error('HIRA_API_KEY (또는 DRUG_API_KEY) 환경변수가 설정되지 않았습니다.');
   return k;
 }
 
+/* ── XML 파서 (dgamtCrtrInfoService1.2용) ── */
+function decodeXml(s: string): string {
+  return s
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+}
+
+function parseXmlItems(xml: string): Record<string, string>[] {
+  const items: Record<string, string>[] = [];
+  for (const block of xml.match(/<item>([\s\S]*?)<\/item>/g) ?? []) {
+    const obj: Record<string, string> = {};
+    for (const f of block.match(/<(\w+)>([^<]*)<\/\1>/g) ?? []) {
+      const m = f.match(/<(\w+)>([^<]*)<\/\1>/);
+      if (m) obj[m[1]] = decodeXml(m[2]);
+    }
+    items.push(obj);
+  }
+  return items;
+}
+
 function parsePrice(v: string | number | undefined): number | null {
   if (v == null || v === '') return null;
   const n = Number(String(v).replace(/[,\s원]/g, ''));
-  return isNaN(n) ? null : n;
+  return isNaN(n) || n === 0 ? null : n;
+}
+
+/* ── 타입 ── */
+export interface HiraPriceItem {
+  itmNm:        string;
+  maxPrice:     number | null;
+  payType:      string | null;
+  manufacturer: string | null;
+  standard:     string | null;
+}
+
+export interface HiraDrugItem {
+  itemSeq:   string;
+  itemName:  string;
+  entpName:  string;
+  atcCode:   string;
+  atcName:   string;
+  mediPayYn: string;
+  maxPrice:  number | null;
+  ingrName:  string;
+}
+
+export interface HiraAtcItem {
+  code:   string;
+  nameKo: string;
+  level:  number;
+  parent: string | null;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * 1) dgamtCrtrInfoService1.2  — 약가·급여여부 (XML, DRUG_API_KEY로 동작)
+ * ══════════════════════════════════════════════════════════════════ */
+
+/**
+ * 제품명으로 약가 조회 (XML 기반, 이미 승인된 API)
+ */
+export async function searchHiraDrugPrice(itmNm: string): Promise<HiraPriceItem[]> {
+  const key = apiKey();
+  const url = `${PRICE_URL}?ServiceKey=${encodeURIComponent(key)}&itmNm=${encodeURIComponent(itmNm)}&numOfRows=20&pageNo=1`;
+
+  let xml: string;
+  try {
+    const res = await fetch(url, { next: { revalidate: 86400 } });
+    if (!res.ok) return [];
+    xml = await res.text();
+  } catch {
+    return [];
+  }
+
+  if (!xml.includes('<item>')) return [];
+
+  return parseXmlItems(xml).map(item => ({
+    itmNm:        item.itmNm     || '',
+    maxPrice:     parsePrice(item.mxCprc),
+    payType:      item.payTpNm   || null,
+    manufacturer: item.mnfEntpNm || null,
+    standard:     item.nomNm     || null,
+  }));
+}
+
+/* ══════════════════════════════════════════════════════════════════
+ * 2) msInfrMedBassInfoService  — ATC코드 (JSON, 별도 서비스 승인 필요)
+ * ══════════════════════════════════════════════════════════════════ */
+
+interface RawItem {
+  ITEM_SEQ?: string; ITEM_NAME?: string; ENTP_NAME?: string;
+  ATC_CODE?: string; ATC_NAME?: string; MEDI_PAY_YN?: string;
+  MAX_PRICE?: string | number; MAIN_INGR?: string; INGR_NAME?: string;
 }
 
 function normalizeItem(r: RawItem): HiraDrugItem {
@@ -76,19 +126,14 @@ function normalizeItem(r: RawItem): HiraDrugItem {
 }
 
 /**
- * 성분명 또는 품목명으로 HIRA 약제급여목록 검색
- * pageNo 1-based, numOfRows 최대 100
+ * 보험의약품정보서비스로 ATC코드·상한가 조회 (JSON, 서비스 미승인 시 빈 배열 반환)
  */
 export async function searchHiraDrugs(opts: {
-  ingrName?: string;
-  itemName?: string;
-  pageNo?: number;
-  numOfRows?: number;
+  ingrName?: string; itemName?: string; pageNo?: number; numOfRows?: number;
 }): Promise<{ items: HiraDrugItem[]; totalCount: number }> {
   const key = apiKey();
   const params = new URLSearchParams({
-    serviceKey: key,
-    type:       'json',
+    serviceKey: key, type: 'json',
     numOfRows:  String(opts.numOfRows ?? 100),
     pageNo:     String(opts.pageNo ?? 1),
   });
@@ -96,60 +141,58 @@ export async function searchHiraDrugs(opts: {
   if (opts.itemName) params.set('itemName', opts.itemName);
 
   const url = `${BASE}/getInfrMedBassInfoList?${params}`;
-  const res = await fetch(url, { next: { revalidate: 0 } });
-  if (!res.ok) throw new Error(`HIRA API 오류: ${res.status}`);
+  let text: string;
+  try {
+    const res = await fetch(url, { next: { revalidate: 0 } });
+    if (!res.ok) return { items: [], totalCount: 0 };
+    text = await res.text();
+  } catch {
+    return { items: [], totalCount: 0 };
+  }
 
-  const json = await res.json();
-  const body = json?.response?.body;
-  const items = (body?.items?.item ?? []) as RawItem[];
+  // 서비스 미승인 시 XML/텍스트 에러 반환 → JSON 파싱 실패 → 빈 결과
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return { items: [], totalCount: 0 };
+  }
+
+  const body = (json as { response?: { body?: { items?: { item?: unknown }; totalCount?: unknown } } })
+    ?.response?.body;
+  const rawItems = (body?.items?.item ?? []) as RawItem[];
   const totalCount = Number(body?.totalCount ?? 0);
 
   return {
-    items: (Array.isArray(items) ? items : [items]).map(normalizeItem),
+    items: (Array.isArray(rawItems) ? rawItems : [rawItems]).map(normalizeItem),
     totalCount,
   };
 }
 
 /**
- * 품목명 목록으로 HIRA 정보 일괄 조회 (청크 단위 처리)
- */
-export async function fetchHiraByItemNames(
-  names: string[],
-  onProgress?: (done: number, total: number) => void,
-): Promise<HiraDrugItem[]> {
-  const results: HiraDrugItem[] = [];
-  for (let i = 0; i < names.length; i++) {
-    try {
-      const { items } = await searchHiraDrugs({ itemName: names[i], numOfRows: 10 });
-      results.push(...items);
-    } catch (e) {
-      console.warn(`[HIRA] ${names[i]} 조회 실패:`, e);
-    }
-    onProgress?.(i + 1, names.length);
-  }
-  return results;
-}
-
-/**
- * ATC 코드 계층 조회 (level 1~5)
- * HIRA API에서 전체 ATC 목록 반환
+ * ATC 코드 계층 조회 (서비스 미승인 시 빈 배열 반환)
  */
 export async function fetchHiraAtcList(atcCode?: string): Promise<HiraAtcItem[]> {
   const key = apiKey();
   const params = new URLSearchParams({
-    serviceKey: key,
-    type:       'json',
-    numOfRows:  '1000',
-    pageNo:     '1',
+    serviceKey: key, type: 'json', numOfRows: '1000', pageNo: '1',
   });
   if (atcCode) params.set('atcCode', atcCode);
 
   const url = `${BASE}/getInfrMedBassInfoAtcList?${params}`;
-  const res = await fetch(url, { next: { revalidate: 3600 } });
-  if (!res.ok) throw new Error(`HIRA ATC API 오류: ${res.status}`);
+  let text: string;
+  try {
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    if (!res.ok) return [];
+    text = await res.text();
+  } catch {
+    return [];
+  }
 
-  const json = await res.json();
-  const body = json?.response?.body;
+  let json: unknown;
+  try { json = JSON.parse(text); } catch { return []; }
+
+  const body = (json as { response?: { body?: { items?: { item?: unknown } } } })?.response?.body;
   const rawItems = body?.items?.item ?? [];
   const items = Array.isArray(rawItems) ? rawItems : [rawItems];
 
