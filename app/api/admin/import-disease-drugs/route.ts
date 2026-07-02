@@ -21,6 +21,7 @@ interface ExcelRow {
   성분명?: string;
   제품명?: string;
   제조사?: string;
+  판매사?: string;
   규격?: string;
   가격?: string;
   급여여부?: string;
@@ -86,6 +87,10 @@ export async function POST(req: NextRequest) {
       const mechKey = `${r.질환군 ?? ''}||${r.중분류 ?? ''}||${r.치료분류 ?? ''}`;
       const mechFallback = `${r.질환군 ?? ''}||||`;
 
+      const origRaw = (r.오리지널여부 ?? '').trim().toLowerCase();
+      const isOriginal = origRaw === '오리지널' || origRaw === 'o' || origRaw === 'y'
+        || origRaw === '○' || origRaw === '예' || origRaw === 'true' || origRaw === '1';
+
       return {
         disease_group:   (r.질환군   ?? '').trim() || null,
         sub_category:    (r.중분류   ?? '').trim() || null,
@@ -93,9 +98,10 @@ export async function POST(req: NextRequest) {
         ingredient_name: (r.성분명   ?? '').trim() || null,
         product_name:    (r.제품명   ?? '').trim() || null,
         manufacturer:    (r.제조사   ?? '').trim() || null,
+        distributor:     (r.판매사   ?? '').trim() || null,
         standard:        (r.규격     ?? '').trim() || null,
         pay_type:        (r.급여여부 ?? '').trim() || null,
-        is_original:     (r.오리지널여부 ?? '').trim() === '오리지널',
+        is_original:     isOriginal,
         mechanism:       (mechMap.get(mechKey) ?? mechMap.get(mechFallback) ?? (r.작용기전 ?? '').trim()) || null,
         note:            (r.비고     ?? '').trim() || null,
         max_price:       parsePrice(r.가격 as string | undefined),

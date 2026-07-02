@@ -139,7 +139,7 @@ export async function GET(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let q: any = svc()
       .from('disease_drugs')
-      .select('id, disease_group, sub_category, treatment_class, ingredient_name, product_name, manufacturer, standard, pay_type, is_original, mechanism, note, atc_code, atc_name, item_code, max_price, reference_drug, permit_kind, approval_date')
+      .select('id, disease_group, sub_category, treatment_class, ingredient_name, product_name, manufacturer, distributor, standard, pay_type, is_original, mechanism, note, atc_code, atc_name, item_code, max_price, reference_drug, permit_kind, approval_date')
       .eq('disease_group', group)
       .order('is_original', { ascending: false })
       .order('ingredient_name')
@@ -151,8 +151,65 @@ export async function GET(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!drugs?.length) return NextResponse.json({ drugs: [] });
 
-    const productNames  = drugs.map((d: { product_name: string }) => d.product_name).filter(Boolean) as string[];
-    const manufacturers = [...new Set(drugs.map((d: { manufacturer: string }) => d.manufacturer).filter(Boolean) as string[])];
+    const db2 = svc();
+
+    // drug_prices 에서 동일 성분 제네릭 보강
+    const uniqueIngrs = [...new Set(
+      (drugs as Record<string, unknown>[])
+        .map(d => (d.ingredient_name as string | null)?.trim())
+        .filter(Boolean) as string[]
+    )];
+    const knownNames = new Set(
+      (drugs as Record<string, unknown>[]).map(d => (d.product_name as string | null)?.trim()).filter(Boolean)
+    );
+
+    const extraDrugs: Record<string, unknown>[] = [];
+    for (const ingrName of uniqueIngrs) {
+      // 성분명의 핵심어(숫자·괄호 이전)로 drug_prices 검색
+      const coreIngr = ingrName.replace(/[\s（((\d].*$/, '').trim();
+      if (coreIngr.length < 2) continue;
+      try {
+        const { data: priceRows, error: pe } = await db2
+          .from('drug_prices')
+          .select('item_name, manufacturer, standard, max_price, pay_type, ingredient_name')
+          .ilike('ingredient_name', `%${coreIngr}%`)
+          .order('item_name')
+          .limit(300);
+        if (pe?.code === '42P01') break; // 테이블 없음 → 중단
+        for (const row of priceRows ?? []) {
+          const pName = (row.item_name as string | null)?.trim();
+          if (!pName || knownNames.has(pName)) continue;
+          knownNames.add(pName);
+          extraDrugs.push({
+            id: null,
+            disease_group: group,
+            sub_category: sub ?? null,
+            treatment_class: null,
+            ingredient_name: ingrName,
+            product_name: pName,
+            manufacturer: row.manufacturer ?? null,
+            distributor: null,
+            standard: row.standard ?? null,
+            pay_type: row.pay_type ?? null,
+            is_original: false,
+            mechanism: null,
+            note: null,
+            atc_code: null,
+            atc_name: null,
+            item_code: null,
+            max_price: row.max_price ?? null,
+            reference_drug: null,
+            permit_kind: null,
+            approval_date: null,
+            from_price_db: true,
+          });
+        }
+      } catch { /* drug_prices 없으면 skip */ }
+    }
+
+    const allDrugs = [...(drugs as Record<string, unknown>[]), ...extraDrugs];
+    const productNames  = allDrugs.map(d => d.product_name as string).filter(Boolean);
+    const manufacturers = [...new Set(allDrugs.map(d => d.manufacturer as string).filter(Boolean))];
 
     // 병렬: Ubist 처방액 + 수수료율
     const [ubistData, rateMap] = await Promise.all([
@@ -162,13 +219,13 @@ export async function GET(req: NextRequest) {
 
     // 성분명별 오리지널 제품명 → 제네릭의 대조약으로 사용
     const origByIngr = new Map<string, string>();
-    for (const d of drugs as Record<string, unknown>[]) {
+    for (const d of allDrugs) {
       if (d.is_original && d.ingredient_name && d.product_name) {
         origByIngr.set((d.ingredient_name as string).trim(), (d.product_name as string).trim());
       }
     }
 
-    const enriched = drugs.map((d: Record<string, unknown>) => {
+    const enriched = allDrugs.map((d: Record<string, unknown>) => {
       const ingrKey = ((d.ingredient_name as string | null) ?? '').trim();
       const computedRef = !d.is_original ? (origByIngr.get(ingrKey) ?? null) : null;
       return {

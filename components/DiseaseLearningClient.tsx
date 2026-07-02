@@ -6,13 +6,14 @@ import { useState, useEffect, useCallback } from 'react';
 type GroupItem = { group: string; subs: string[] };
 
 type DrugItem = {
-  id: number;
+  id: number | null;
   disease_group: string;
   sub_category: string | null;
   treatment_class: string | null;
   ingredient_name: string | null;
   product_name: string | null;
   manufacturer: string | null;
+  distributor: string | null;
   standard: string | null;
   pay_type: string | null;
   is_original: boolean;
@@ -26,6 +27,7 @@ type DrugItem = {
   approval_date: string | null;
   ubist_monthly: Record<string, number> | null; // period('YYYY-MM') → amount
   commission_rate: number | null;
+  from_price_db?: boolean; // drug_prices 테이블에서 보강된 항목
 };
 
 /* ── 유틸 ── */
@@ -332,9 +334,10 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
 /* ── 성분별 그룹 카드 ── */
 function IngredientGroup({ ingredient, items, periods }: { ingredient: string; items: DrugItem[]; periods: string[] }) {
   const [open, setOpen] = useState(true);
-  const origCount = items.filter(d => d.is_original).length;
+  const origCount    = items.filter(d =>  d.is_original).length;
+  const genericCount = items.filter(d => !d.is_original).length;
 
-  const fixedHeaders = ['제품명', '제조사', '구분', '대조약', '규격', '약가(상한)', '급여', '수수료율'];
+  const fixedHeaders = ['제품명', '제조사', '판매사', '구분', '대조약', '규격', '약가(상한)', '급여', '수수료율'];
   const periodHeaders = periods.map(fmtPeriod);
 
   return (
@@ -354,7 +357,7 @@ function IngredientGroup({ ingredient, items, periods }: { ingredient: string; i
       >
         <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#93c5fd' }}>{ingredient}</span>
         <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>
-          오리지널 {origCount} / 제네릭 {items.length - origCount} / 총 {items.length}
+          오리지널 {origCount} / 제네릭 {genericCount} / 총 {items.length}
         </span>
         <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>
           {open ? '▲' : '▼'}
@@ -394,8 +397,13 @@ function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; pe
   return (
     <tr style={{ background: even ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
       <td style={TD}>
-        <div style={{ fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#fde68a' : '#e2e8f0' }}>
+        <div style={{ fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#fde68a' : '#e2e8f0', display: 'flex', alignItems: 'center', gap: '5px' }}>
           {d.product_name ?? '-'}
+          {d.from_price_db && (
+            <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', padding: '0 3px', flexShrink: 0 }}>
+              보험DB
+            </span>
+          )}
         </div>
         {d.atc_code && (
           <div style={{ fontSize: '0.65rem', color: 'rgba(147,197,253,0.7)', marginTop: '1px' }}>
@@ -405,6 +413,9 @@ function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; pe
       </td>
       <td style={{ ...TD, color: 'rgba(255,255,255,0.55)', fontSize: '0.73rem' }}>
         {d.manufacturer ?? '-'}
+      </td>
+      <td style={{ ...TD, color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem' }}>
+        {d.distributor ?? '-'}
       </td>
       <td style={{ ...TD, textAlign: 'center' }}>
         <span style={{
