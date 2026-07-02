@@ -549,7 +549,8 @@ export default function SettlementClient({
   const [selectedFile, setSelectedFile] = useState<string>(files[0]?.file ?? '');
   const [dropOpen,     setDropOpen]     = useState(false);
   const [rows,         setRows]         = useState<SettlementRowClient[]>(initialRows);
-  const [loading,      setLoading]      = useState(false);
+  // 파일이 있는데 initialRows가 비어 있으면 마운트 즉시 로딩 중 상태로 시작 (빈 화면 방지)
+  const [loading,      setLoading]      = useState(initialRows.length === 0 && (allFiles?.length ?? 0) > 0);
 
   // 서버에서 행을 내려주지 않는 경우 마운트 시 첫 파일 자동 fetch
   useEffect(() => {
@@ -628,7 +629,8 @@ export default function SettlementClient({
     r => r.hospital_name     ?? '미상',
   ), [monthRows]);
 
-  if (rows.length === 0) {
+  // 파일 자체가 없을 때만 "업로드 안내" 표시 (로딩 중엔 표시 안 함)
+  if (files.length === 0 && !loading) {
     return (
       <div style={{ ...CARD, textAlign: 'center', padding: '2rem',
         color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '1rem' }}>
@@ -707,12 +709,13 @@ export default function SettlementClient({
       </div>
 
       {loading ? (
-        <div style={{ ...CARD, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          데이터 불러오는 중…
+        <div style={{ ...CARD, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '2rem' }}>
+          <div style={{ marginBottom: '0.5rem', fontSize: '1.2rem', opacity: 0.5 }}>⟳</div>
+          DB에서 정산 데이터를 불러오는 중입니다…
         </div>
       ) : monthRows.length === 0 ? (
         <div style={{ ...CARD, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          선택한 월의 정산 데이터가 없습니다.
+          선택한 파일의 정산 데이터가 없습니다.
         </div>
       ) : (
         <>
