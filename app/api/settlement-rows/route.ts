@@ -6,10 +6,44 @@ import { getEffectiveCompanyId } from '@/lib/active-company';
 
 export const dynamic = 'force-dynamic';
 
-// OFFSET 기반 페이지네이션은 offset이 커질수록 Supabase statement timeout 발생.
-// 커서 기반(id > lastId)으로 교체하면 offset 없이 항상 빠른 쿼리 가능.
-const COLS = 'id,source_file,settlement_month,prescription_month,manager,cso_name,hospital_name,product_name,approved_qty,unit_price,prescription_amount,hospital_category,hospital_type,commission_rate,settlement_amount';
-const PAGE  = 1000;
+// 집계에 필요한 9개 컬럼만 조회 (15→9, 약 40% 페이로드 절감)
+const COLS = 'id,hospital_category,hospital_type,hospital_name,product_name,manager,cso_name,prescription_amount,settlement_amount';
+const PAGE = 5000; // 페이지당 5000행 (3 round-trip → 1-2로 감소)
+
+type RawRow = {
+  id: string;
+  hospital_category: string | null;
+  hospital_type:     string | null;
+  hospital_name:     string | null;
+  product_name:      string | null;
+  manager:           string | null;
+  cso_name:          string | null;
+  prescription_amount: number | null;
+  settlement_amount:   number | null;
+};
+
+type AggNode = { name: string; presc: number; sett: number; cnt: number; sub?: AggNode[] };
+
+function aggTree(rows: RawRow[], keyFns: ((r: RawRow) => string)[]): AggNode[] {
+  const [getKey, ...rest] = keyFns;
+  const map = new Map<string, { p: number; s: number; c: number; ch: RawRow[] }>();
+  for (const r of rows) {
+    const k = getKey(r);
+    let e = map.get(k);
+    if (!e) { e = { p: 0, s: 0, c: 0, ch: [] }; map.set(k, e); }
+    e.p += r.prescription_amount ?? 0;
+    e.s += r.settlement_amount   ?? 0;
+    e.c++;
+    e.ch.push(r);
+  }
+  return Array.from(map.entries())
+    .map(([name, { p, s, c, ch }]) => {
+      const node: AggNode = { name, presc: p, sett: s, cnt: c };
+      if (rest.length > 0) node.sub = aggTree(ch, rest);
+      return node;
+    })
+    .sort((a, b) => b.sett - a.sett);
+}
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -33,9 +67,8 @@ export async function GET(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
-  // 커서 기반 페이지네이션: id > lastId LIMIT 1000
-  // OFFSET 방식 대비 어느 위치에서도 동일하게 빠른 쿼리 (offset 스캔 없음)
-  const allRows: unknown[] = [];
+  // 커서 기반 페이지네이션: id > lastId LIMIT 5000
+  const allRows: RawRow[] = [];
   let lastId: string | null = null;
 
   while (true) {
@@ -50,14 +83,27 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await q;
     if (error) {
-      console.error('[settlement-rows] fetch error:', error.message, 'after id:', lastId);
+      console.error('[settlement-rows] fetch error:', error.message);
       break;
     }
     if (!data || data.length === 0) break;
-    allRows.push(...data);
+    allRows.push(...(data as RawRow[]));
     if (data.length < PAGE) break;
-    lastId = (data[data.length - 1] as { id: string }).id;
+    lastId = (data[data.length - 1] as RawRow).id;
   }
 
-  return NextResponse.json({ rows: allRows });
+  const str = (v: string | null) => v ?? '미상';
+  const cat = (v: string | null) => v ?? '미분류';
+
+  return NextResponse.json({
+    summary: {
+      totalPresc: allRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+      totalSett:  allRows.reduce((s, r) => s + (r.settlement_amount   ?? 0), 0),
+      totalCnt:   allRows.length,
+    },
+    csoTree:     aggTree(allRows, [r => str(r.cso_name), r => str(r.hospital_name), r => str(r.product_name)]),
+    mgrTree:     aggTree(allRows, [r => str(r.manager), r => str(r.cso_name), r => str(r.hospital_name), r => str(r.product_name)]),
+    productTree: aggTree(allRows, [r => str(r.product_name), r => cat(r.hospital_category), r => str(r.hospital_name), r => str(r.manager), r => str(r.cso_name)]),
+    typeTree:    aggTree(allRows, [r => cat(r.hospital_category), r => cat(r.hospital_type), r => str(r.hospital_name), r => str(r.product_name)]),
+  });
 }

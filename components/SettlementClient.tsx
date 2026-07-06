@@ -1,24 +1,15 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
-/* ── 타입 ── */
-export type SettlementRowClient = {
-  id:                  string;
-  source_file:         string;
-  settlement_month:    string | null;
-  prescription_month:  string | null;
-  manager:             string | null;
-  cso_name:            string | null;
-  hospital_name:       string | null;
-  product_name:        string | null;
-  approved_qty:        number | null;
-  unit_price:          number | null;
-  prescription_amount: number | null;
-  hospital_category:   string | null;
-  hospital_type:       string | null;
-  commission_rate:     number | null;
-  settlement_amount:   number | null;
+/* ── API 응답 집계 타입 ── */
+type AggNode = { name: string; presc: number; sett: number; cnt: number; sub?: AggNode[] };
+type AggData = {
+  summary:     { totalPresc: number; totalSett: number; totalCnt: number };
+  csoTree:     AggNode[];
+  mgrTree:     AggNode[];
+  productTree: AggNode[];
+  typeTree:    AggNode[];
 };
 
 /* ── 집계 트리 타입 ── */
@@ -34,134 +25,6 @@ type L3_5 = { name: string; presc: number; sett: number; cnt: number; sub: L4_5[
 type L2_5 = { name: string; presc: number; sett: number; cnt: number; sub: L3_5[] };
 type L1_5 = { name: string; presc: number; sett: number; cnt: number; sub: L2_5[] };
 
-/* ── 3단 집계 빌더 ── */
-function buildTree(
-  rows: SettlementRowClient[],
-  getL1: (r: SettlementRowClient) => string,
-  getL2: (r: SettlementRowClient) => string,
-  getL3: (r: SettlementRowClient) => string,
-): L1[] {
-  const data: Record<string, Record<string, Record<string, { p: number; s: number; c: number }>>> = {};
-  for (const r of rows) {
-    const k1 = getL1(r); const k2 = getL2(r); const k3 = getL3(r);
-    if (!data[k1])         data[k1]         = {};
-    if (!data[k1][k2])     data[k1][k2]     = {};
-    if (!data[k1][k2][k3]) data[k1][k2][k3] = { p: 0, s: 0, c: 0 };
-    data[k1][k2][k3].p += r.prescription_amount ?? 0;
-    data[k1][k2][k3].s += r.settlement_amount   ?? 0;
-    data[k1][k2][k3].c++;
-  }
-  return Object.entries(data).map(([n1, l2map]) => {
-    const sub2: L2[] = Object.entries(l2map).map(([n2, l3map]) => {
-      const sub3: L3[] = Object.entries(l3map)
-        .map(([n3, v]) => ({ name: n3, presc: v.p, sett: v.s, cnt: v.c }))
-        .sort((a, b) => b.sett - a.sett);
-      return {
-        name: n2,
-        presc: sub3.reduce((s, x) => s + x.presc, 0),
-        sett:  sub3.reduce((s, x) => s + x.sett,  0),
-        cnt:   sub3.reduce((s, x) => s + x.cnt,   0),
-        sub:   sub3,
-      };
-    }).sort((a, b) => b.sett - a.sett);
-    return {
-      name: n1,
-      presc: sub2.reduce((s, x) => s + x.presc, 0),
-      sett:  sub2.reduce((s, x) => s + x.sett,  0),
-      cnt:   sub2.reduce((s, x) => s + x.cnt,   0),
-      sub:   sub2,
-    };
-  }).sort((a, b) => b.sett - a.sett);
-}
-
-/* ── 4단 집계 빌더 (병의원 하부 품목 드릴다운) ── */
-function buildTree4(
-  rows: SettlementRowClient[],
-  getL1: (r: SettlementRowClient) => string,
-  getL2: (r: SettlementRowClient) => string,
-  getL3: (r: SettlementRowClient) => string,
-  getL4: (r: SettlementRowClient) => string,
-): L1[] {
-  const data: Record<string, Record<string, Record<string, Record<string, { p: number; s: number; c: number }>>>> = {};
-  for (const r of rows) {
-    const k1 = getL1(r), k2 = getL2(r), k3 = getL3(r), k4 = getL4(r);
-    if (!data[k1])             data[k1]             = {};
-    if (!data[k1][k2])         data[k1][k2]         = {};
-    if (!data[k1][k2][k3])     data[k1][k2][k3]     = {};
-    if (!data[k1][k2][k3][k4]) data[k1][k2][k3][k4] = { p: 0, s: 0, c: 0 };
-    data[k1][k2][k3][k4].p += r.prescription_amount ?? 0;
-    data[k1][k2][k3][k4].s += r.settlement_amount   ?? 0;
-    data[k1][k2][k3][k4].c++;
-  }
-  return Object.entries(data).map(([n1, l2map]) => {
-    const sub2: L2[] = Object.entries(l2map).map(([n2, l3map]) => {
-      const sub3: L3[] = Object.entries(l3map).map(([n3, l4map]) => {
-        const sub4: L4[] = Object.entries(l4map)
-          .map(([n4, v]) => ({ name: n4, presc: v.p, sett: v.s, cnt: v.c }))
-          .sort((a, b) => b.sett - a.sett);
-        return {
-          name: n3,
-          presc: sub4.reduce((s, x) => s + x.presc, 0),
-          sett:  sub4.reduce((s, x) => s + x.sett,  0),
-          cnt:   sub4.reduce((s, x) => s + x.cnt,   0),
-          sub:   sub4,
-        };
-      }).sort((a, b) => b.sett - a.sett);
-      return {
-        name: n2,
-        presc: sub3.reduce((s, x) => s + x.presc, 0),
-        sett:  sub3.reduce((s, x) => s + x.sett,  0),
-        cnt:   sub3.reduce((s, x) => s + x.cnt,   0),
-        sub:   sub3,
-      };
-    }).sort((a, b) => b.sett - a.sett);
-    return {
-      name: n1,
-      presc: sub2.reduce((s, x) => s + x.presc, 0),
-      sett:  sub2.reduce((s, x) => s + x.sett,  0),
-      cnt:   sub2.reduce((s, x) => s + x.cnt,   0),
-      sub:   sub2,
-    };
-  }).sort((a, b) => b.sett - a.sett);
-}
-
-/* ── 5단 집계 빌더 ── */
-type D5 = Record<string, Record<string, Record<string, Record<string, Record<string, { p: number; s: number; c: number }>>>>>;
-function buildTree5(
-  rows: SettlementRowClient[],
-  getL1: (r: SettlementRowClient) => string,
-  getL2: (r: SettlementRowClient) => string,
-  getL3: (r: SettlementRowClient) => string,
-  getL4: (r: SettlementRowClient) => string,
-  getL5: (r: SettlementRowClient) => string,
-): L1_5[] {
-  const data: D5 = {};
-  for (const r of rows) {
-    const k1=getL1(r), k2=getL2(r), k3=getL3(r), k4=getL4(r), k5=getL5(r);
-    if (!data[k1])                 data[k1]                 = {};
-    if (!data[k1][k2])             data[k1][k2]             = {};
-    if (!data[k1][k2][k3])         data[k1][k2][k3]         = {};
-    if (!data[k1][k2][k3][k4])     data[k1][k2][k3][k4]     = {};
-    if (!data[k1][k2][k3][k4][k5]) data[k1][k2][k3][k4][k5] = { p: 0, s: 0, c: 0 };
-    data[k1][k2][k3][k4][k5].p += r.prescription_amount ?? 0;
-    data[k1][k2][k3][k4][k5].s += r.settlement_amount   ?? 0;
-    data[k1][k2][k3][k4][k5].c++;
-  }
-  const agg = (vs: { p:number; s:number; c:number }[]) => ({ presc: vs.reduce((s,x)=>s+x.p,0), sett: vs.reduce((s,x)=>s+x.s,0), cnt: vs.reduce((s,x)=>s+x.c,0) });
-  return Object.entries(data).map(([n1, m2]) => {
-    const sub2: L2_5[] = Object.entries(m2).map(([n2, m3]) => {
-      const sub3: L3_5[] = Object.entries(m3).map(([n3, m4]) => {
-        const sub4: L4_5[] = Object.entries(m4).map(([n4, m5]) => {
-          const sub5: L5[] = Object.entries(m5).map(([n5, v]) => ({ name: n5, presc: v.p, sett: v.s, cnt: v.c })).sort((a,b)=>b.sett-a.sett);
-          return { name: n4, ...agg(sub5.map(x=>({p:x.presc,s:x.sett,c:x.cnt}))), sub: sub5 };
-        }).sort((a,b)=>b.sett-a.sett);
-        return { name: n3, ...agg(sub4.map(x=>({p:x.presc,s:x.sett,c:x.cnt}))), sub: sub4 };
-      }).sort((a,b)=>b.sett-a.sett);
-      return { name: n2, ...agg(sub3.map(x=>({p:x.presc,s:x.sett,c:x.cnt}))), sub: sub3 };
-    }).sort((a,b)=>b.sett-a.sett);
-    return { name: n1, ...agg(sub2.map(x=>({p:x.presc,s:x.sett,c:x.cnt}))), sub: sub2 };
-  }).sort((a,b)=>b.sett-a.sett);
-}
 
 /* ── 포맷 유틸 ── */
 function fmtChun(n: number | null | undefined): string {
@@ -611,39 +474,25 @@ function AccordionTable5({
 
 /* ── 메인 컴포넌트 ── */
 export default function SettlementClient({
-  rows: initialRows,
   allFiles,
 }: {
-  rows: SettlementRowClient[];
   allFiles?: { file: string; settMonth: string | null; prescMonth: string | null }[];
 }) {
-  const derivedFiles = useMemo(() => {
-    const seen = new Set<string>();
-    const list: { file: string; settMonth: string | null; prescMonth: string | null }[] = [];
-    for (const r of initialRows) {
-      if (!r.source_file || seen.has(r.source_file)) continue;
-      seen.add(r.source_file);
-      list.push({ file: r.source_file, settMonth: r.settlement_month, prescMonth: r.prescription_month });
-    }
-    return list;
-  }, [initialRows]);
-
-  const files = (allFiles && allFiles.length > 0) ? allFiles : derivedFiles;
+  const files = allFiles ?? [];
 
   const [selectedFile, setSelectedFile] = useState<string>(files[0]?.file ?? '');
   const [dropOpen,     setDropOpen]     = useState(false);
-  const [rows,         setRows]         = useState<SettlementRowClient[]>(initialRows);
-  // 파일이 있는데 initialRows가 비어 있으면 마운트 즉시 로딩 중 상태로 시작 (빈 화면 방지)
-  const [loading,      setLoading]      = useState(initialRows.length === 0 && (allFiles?.length ?? 0) > 0);
+  const [aggData,      setAggData]      = useState<AggData | null>(null);
+  const [loading,      setLoading]      = useState(files.length > 0);
 
-  // 서버에서 행을 내려주지 않는 경우 마운트 시 첫 파일 자동 fetch
+  // 마운트 시 첫 파일 자동 fetch
   useEffect(() => {
     const firstFile = files[0]?.file;
-    if (!firstFile || initialRows.length > 0) return;
+    if (!firstFile) return;
     setLoading(true);
     fetch(`/api/settlement-rows?file=${encodeURIComponent(firstFile)}`)
-      .then(r => r.ok ? r.json() : { rows: [] })
-      .then(json => setRows(json.rows ?? []))
+      .then(r => r.ok ? r.json() : null)
+      .then((json: AggData | null) => setAggData(json))
       .catch(() => {})
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -655,67 +504,19 @@ export default function SettlementClient({
     if (file === selectedFile) { setDropOpen(false); return; }
     setSelectedFile(file);
     setDropOpen(false);
-    setRows([]);
+    setAggData(null);
     setLoading(true);
     try {
       const res = await fetch(`/api/settlement-rows?file=${encodeURIComponent(file)}`);
-      if (res.ok) {
-        const json = await res.json();
-        setRows(json.rows ?? []);
-      }
+      if (res.ok) setAggData(await res.json());
     } finally {
       setLoading(false);
     }
   }
 
-  const monthRows = useMemo(
-    () => rows.filter(r => r.source_file === selectedFile),
-    [rows, selectedFile],
-  );
+  const { totalPresc, totalSett, totalCnt } = aggData?.summary ?? { totalPresc: 0, totalSett: 0, totalCnt: 0 };
+  const avgRate = totalPresc > 0 ? (totalSett / totalPresc) * 100 : 0;
 
-  /* ── 요약 집계 ── */
-  const totalPresc = monthRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0);
-  const totalSett  = monthRows.reduce((s, r) => s + (r.settlement_amount   ?? 0), 0);
-  const avgRate    = totalPresc > 0 ? (totalSett / totalPresc) * 100 : 0;
-
-  /* ── 3단 트리 ── */
-  // CSO별: L1=담당CSO  L2=처방처명  L3=품목명
-  const csoTree = useMemo(() => buildTree(
-    monthRows,
-    r => r.cso_name      ?? '미상',
-    r => r.hospital_name ?? '미상',
-    r => r.product_name  ?? '미상',
-  ), [monthRows]);
-
-  // 담당자별: L1=내부담당자  L2=담당CSO  L3=처방처명  L4=품목명
-  const mgrTree = useMemo(() => buildTree4(
-    monthRows,
-    r => r.manager       ?? '미상',
-    r => r.cso_name      ?? '미상',
-    r => r.hospital_name ?? '미상',
-    r => r.product_name  ?? '미상',
-  ), [monthRows]);
-
-  // 품목별: L1=품목  L2=기조실병의원구분  L3=병원  L4=담당자  L5=CSO
-  const productTree = useMemo(() => buildTree5(
-    monthRows,
-    r => r.product_name      ?? '미상',
-    r => r.hospital_category ?? '미분류',
-    r => r.hospital_name     ?? '미상',
-    r => r.manager           ?? '미상',
-    r => r.cso_name          ?? '미상',
-  ), [monthRows]);
-
-  // 종별: L1=기조실병의원구분  L2=종별구분  L3=처방처명  L4=품목명
-  const typeTree = useMemo(() => buildTree4(
-    monthRows,
-    r => r.hospital_category ?? '미분류',
-    r => r.hospital_type     ?? '미분류',
-    r => r.hospital_name     ?? '미상',
-    r => r.product_name      ?? '미상',
-  ), [monthRows]);
-
-  // 파일 자체가 없을 때만 "업로드 안내" 표시 (로딩 중엔 표시 안 함)
   if (files.length === 0 && !loading) {
     return (
       <div style={{ ...CARD, textAlign: 'center', padding: '2rem',
@@ -728,6 +529,11 @@ export default function SettlementClient({
   return (
     <>
     <style>{`
+      @keyframes skel-pulse {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.65; }
+      }
+      .skel { animation: skel-pulse 1.4s ease-in-out infinite; background: rgba(255,255,255,0.09); border-radius: 5px; }
       @media print {
         .orb, .page-nav, .no-print { display: none !important; }
         .print-only { display: block !important; }
@@ -741,7 +547,6 @@ export default function SettlementClient({
 
       {/* ── 파일 선택 드롭다운 ── */}
       <div className="no-print" style={{ position: 'relative', marginBottom: '1rem' }}>
-        {/* 선택된 파일 표시 버튼 */}
         <button
           onClick={() => setDropOpen(v => !v)}
           style={{
@@ -767,7 +572,6 @@ export default function SettlementClient({
           </span>
         </button>
 
-        {/* 드롭다운 목록 */}
         {dropOpen && (
           <div style={{
             position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 50,
@@ -805,18 +609,48 @@ export default function SettlementClient({
         )}
       </div>
 
+      {/* ── 로딩 스켈레톤 ── */}
       {loading ? (
-        <div style={{ ...CARD, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', padding: '2rem' }}>
-          <div style={{ marginBottom: '0.5rem', fontSize: '1.2rem', opacity: 0.5 }}>⟳</div>
-          DB에서 정산 데이터를 불러오는 중입니다…
+        <div>
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+            {[140, 110, 80, 90].map((w, i) => (
+              <div key={i} style={{
+                flex: 1, minWidth: '130px', background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '0.85rem 1rem',
+              }}>
+                <div className="skel" style={{ height: '9px', width: `${Math.round(w * 0.58)}px`, marginBottom: '0.5rem' }} />
+                <div className="skel" style={{ height: '14px', width: `${Math.round(w * 0.45)}px` }} />
+              </div>
+            ))}
+          </div>
+          {[4, 5, 4].map((rowCnt, si) => (
+            <div key={si} style={{ ...CARD, marginBottom: '0.75rem' }}>
+              <div className="skel" style={{ height: '10px', width: '110px', marginBottom: '0.75rem' }} />
+              {Array.from({ length: rowCnt }).map((_, ri) => (
+                <div key={ri} style={{
+                  display: 'flex', gap: '0.5rem', padding: '0.4rem 0',
+                  borderBottom: '1px solid rgba(255,255,255,0.03)', alignItems: 'center',
+                }}>
+                  <div className="skel" style={{ height: '9px', flex: 3 }} />
+                  <div className="skel" style={{ height: '9px', flex: 1 }} />
+                  <div className="skel" style={{ height: '9px', flex: 1 }} />
+                  <div className="skel" style={{ height: '9px', flex: 0.8 }} />
+                  <div className="skel" style={{ height: '9px', flex: 0.6 }} />
+                </div>
+              ))}
+            </div>
+          ))}
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '0.5rem', opacity: 0.55 }}>
+            정산 데이터를 서버에서 집계하는 중입니다…
+          </div>
         </div>
-      ) : monthRows.length === 0 ? (
+      ) : !aggData ? (
         <div style={{ ...CARD, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
           선택한 파일의 정산 데이터가 없습니다.
         </div>
       ) : (
         <>
-          {/* 인쇄 전용 헤더 (화면에서 숨김, 인쇄 시 표시) */}
+          {/* 인쇄 전용 헤더 */}
           <div className="print-only" style={{ display: 'none', marginBottom: '1rem', borderBottom: '2px solid #333', paddingBottom: '0.5rem' }}>
             <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#111' }}>{selectedFile}</h2>
             {selectedMeta && (selectedMeta.settMonth || selectedMeta.prescMonth) && (
@@ -848,15 +682,15 @@ export default function SettlementClient({
             <StatCard label="총 처방금액 (천원)" value={fmtChunBig(totalPresc)} color="#a8c4ff" />
             <StatCard label="총 정산액 (천원)"   value={fmtChunBig(totalSett)}  color="#4ade80" />
             <StatCard label="평균 수수료율"       value={fmtPct(avgRate)}        color="#fbbf24" />
-            <StatCard label="처방 건수"           value={`${monthRows.length.toLocaleString()}건`} />
+            <StatCard label="처방 건수"           value={`${totalCnt.toLocaleString()}건`} />
           </div>
 
-          {/* 종별: L1=기조실병의원구분, L2=종별구분, L3=처방처명 */}
-          {typeTree.length > 0 && (
+          {/* 종별: L1=기조실병의원구분, L2=종별구분, L3=처방처명, L4=품목명 */}
+          {aggData.typeTree.length > 0 && (
             <AccordionTable
               title="🏥 종별 현황"
-              tree={typeTree}
-              totalPresc={totalPresc} totalSett={totalSett} totalCnt={monthRows.length}
+              tree={aggData.typeTree as unknown as L1[]}
+              totalPresc={totalPresc} totalSett={totalSett} totalCnt={totalCnt}
               accentL1="rgba(167,139,250,0.14)"
               accentL2="rgba(167,139,250,0.09)"
               accentL3="rgba(167,139,250,0.04)"
@@ -865,12 +699,12 @@ export default function SettlementClient({
             />
           )}
 
-          {/* 담당자별: L1=내부담당자, L2=담당CSO, L3=처방처명 */}
-          {mgrTree.length > 0 && (
+          {/* 담당자별: L1=내부담당자, L2=담당CSO, L3=처방처명, L4=품목명 */}
+          {aggData.mgrTree.length > 0 && (
             <AccordionTable
               title="👤 담당자별 현황"
-              tree={mgrTree}
-              totalPresc={totalPresc} totalSett={totalSett} totalCnt={monthRows.length}
+              tree={aggData.mgrTree as unknown as L1[]}
+              totalPresc={totalPresc} totalSett={totalSett} totalCnt={totalCnt}
               accentL1="rgba(251,191,36,0.14)"
               accentL2="rgba(251,191,36,0.09)"
               accentL3="rgba(251,191,36,0.04)"
@@ -882,8 +716,8 @@ export default function SettlementClient({
           {/* CSO별: L1=담당CSO, L2=처방처명, L3=품목명 */}
           <AccordionTable
             title="🏢 CSO별 현황"
-            tree={csoTree}
-            totalPresc={totalPresc} totalSett={totalSett} totalCnt={monthRows.length}
+            tree={aggData.csoTree as unknown as L1[]}
+            totalPresc={totalPresc} totalSett={totalSett} totalCnt={totalCnt}
             accentL1="rgba(99,102,241,0.14)"
             accentL2="rgba(99,102,241,0.09)"
             accentL3="rgba(99,102,241,0.04)"
@@ -891,11 +725,11 @@ export default function SettlementClient({
           />
 
           {/* 품목별: L1=품목, L2=기조실병의원구분, L3=병원, L4=담당자, L5=CSO */}
-          {productTree.length > 0 && (
+          {aggData.productTree.length > 0 && (
             <AccordionTable5
               title="📦 품목별 현황"
-              tree={productTree}
-              totalPresc={totalPresc} totalSett={totalSett} totalCnt={monthRows.length}
+              tree={aggData.productTree as unknown as L1_5[]}
+              totalPresc={totalPresc} totalSett={totalSett} totalCnt={totalCnt}
               accentL1="rgba(16,185,129,0.14)"
               accentL2="rgba(16,185,129,0.09)"
               accentL3="rgba(16,185,129,0.05)"

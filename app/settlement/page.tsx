@@ -9,7 +9,6 @@ import HomeButton from '@/components/HomeButton';
 import LogoutButton from '@/components/LogoutButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import SettlementClient from '@/components/SettlementClient';
-import type { SettlementRowClient } from '@/components/SettlementClient';
 
 /* 파일명에서 정산월·처방월 파싱 (예: 판매대행수수료정산_26.07정산_26.05처방.xlsx) */
 function parseMonthsFromFilename(filename: string): { settMonth: string | null; prescMonth: string | null } {
@@ -70,9 +69,6 @@ export default async function SettlementPage() {
     return pb.localeCompare(pa); // 처방월 desc
   });
 
-  // 행은 클라이언트 사이드에서 /api/settlement-rows 로 fetch (빠른 초기 로딩)
-  const rows: SettlementRowClient[] = [];
-
   return (
     <>
       <div className="orb orb-1" />
@@ -99,7 +95,7 @@ export default async function SettlementPage() {
           <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
         )}
 
-        <SettlementClient rows={(rows ?? []) as SettlementRowClient[]} allFiles={allFiles} />
+        <SettlementClient allFiles={allFiles} />
       </div>
     </>
   );
