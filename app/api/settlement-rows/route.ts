@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 // 집계에 필요한 9개 컬럼만 조회 (15→9, 약 40% 페이로드 절감)
 const COLS = 'id,hospital_category,hospital_type,hospital_name,product_name,manager,cso_name,prescription_amount,settlement_amount';
-const PAGE = 5000; // 페이지당 5000행 (3 round-trip → 1-2로 감소)
+const PAGE = 1000; // idx_cs_source_file_id 인덱스 적용 후 5000으로 상향 가능
 
 type RawRow = {
   id: string;
@@ -67,9 +67,10 @@ export async function GET(request: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
-  // 커서 기반 페이지네이션: id > lastId LIMIT 5000
+  // 커서 기반 페이지네이션: id > lastId LIMIT 1000
   const allRows: RawRow[] = [];
   let lastId: string | null = null;
+  let dbError: string | null = null;
 
   while (true) {
     let q = db
@@ -84,12 +85,18 @@ export async function GET(request: NextRequest) {
     const { data, error } = await q;
     if (error) {
       console.error('[settlement-rows] fetch error:', error.message);
+      dbError = error.message;
       break;
     }
     if (!data || data.length === 0) break;
     allRows.push(...(data as RawRow[]));
     if (data.length < PAGE) break;
     lastId = (data[data.length - 1] as RawRow).id;
+  }
+
+  // DB 오류이면서 행이 0개인 경우 503 반환 (timeout 등)
+  if (dbError && allRows.length === 0) {
+    return NextResponse.json({ error: dbError }, { status: 503 });
   }
 
   const str = (v: string | null) => v ?? '미상';

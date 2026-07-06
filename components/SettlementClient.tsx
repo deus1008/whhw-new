@@ -484,17 +484,28 @@ export default function SettlementClient({
   const [dropOpen,     setDropOpen]     = useState(false);
   const [aggData,      setAggData]      = useState<AggData | null>(null);
   const [loading,      setLoading]      = useState(files.length > 0);
+  const [fetchError,   setFetchError]   = useState(false);
+
+  async function loadFile(file: string) {
+    setAggData(null);
+    setFetchError(false);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/settlement-rows?file=${encodeURIComponent(file)}`);
+      if (res.ok) setAggData(await res.json());
+      else setFetchError(true);
+    } catch {
+      setFetchError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // 마운트 시 첫 파일 자동 fetch
   useEffect(() => {
     const firstFile = files[0]?.file;
     if (!firstFile) return;
-    setLoading(true);
-    fetch(`/api/settlement-rows?file=${encodeURIComponent(firstFile)}`)
-      .then(r => r.ok ? r.json() : null)
-      .then((json: AggData | null) => setAggData(json))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    loadFile(firstFile);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -504,14 +515,7 @@ export default function SettlementClient({
     if (file === selectedFile) { setDropOpen(false); return; }
     setSelectedFile(file);
     setDropOpen(false);
-    setAggData(null);
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/settlement-rows?file=${encodeURIComponent(file)}`);
-      if (res.ok) setAggData(await res.json());
-    } finally {
-      setLoading(false);
-    }
+    loadFile(file);
   }
 
   const { totalPresc, totalSett, totalCnt } = aggData?.summary ?? { totalPresc: 0, totalSett: 0, totalCnt: 0 };
@@ -609,8 +613,29 @@ export default function SettlementClient({
         )}
       </div>
 
+      {/* ── DB 조회 오류 (timeout 등) ── */}
+      {fetchError && !loading && (
+        <div style={{ ...CARD, textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+          <div style={{ fontSize: '1.4rem', marginBottom: '0.6rem', opacity: 0.6 }}>⚠️</div>
+          <div style={{ marginBottom: '0.4rem', color: '#fca5a5' }}>데이터 조회 중 오류가 발생했습니다.</div>
+          <div style={{ fontSize: '0.78rem', marginBottom: '1rem', opacity: 0.6 }}>
+            DB 부하로 인한 일시적 오류일 수 있습니다. 잠시 후 다시 시도해주세요.
+          </div>
+          <button
+            onClick={() => loadFile(selectedFile)}
+            style={{
+              padding: '0.5rem 1.4rem', fontSize: '0.82rem', fontWeight: 600,
+              background: 'rgba(99,102,241,0.25)', border: '1px solid rgba(99,102,241,0.5)',
+              borderRadius: '8px', color: '#c4b5fd', cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            다시 시도
+          </button>
+        </div>
+      )}
+
       {/* ── 로딩 스켈레톤 ── */}
-      {loading ? (
+      {!fetchError && loading ? (
         <div>
           <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
             {[140, 110, 80, 90].map((w, i) => (
@@ -644,11 +669,11 @@ export default function SettlementClient({
             정산 데이터를 서버에서 집계하는 중입니다…
           </div>
         </div>
-      ) : !aggData ? (
+      ) : !fetchError && !aggData ? (
         <div style={{ ...CARD, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
           선택한 파일의 정산 데이터가 없습니다.
         </div>
-      ) : (
+      ) : !fetchError && aggData !== null ? (
         <>
           {/* 인쇄 전용 헤더 */}
           <div className="print-only" style={{ display: 'none', marginBottom: '1rem', borderBottom: '2px solid #333', paddingBottom: '0.5rem' }}>
@@ -738,7 +763,7 @@ export default function SettlementClient({
             />
           )}
         </>
-      )}
+      ) : null}
     </div>
     </>
   );
