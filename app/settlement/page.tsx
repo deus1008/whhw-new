@@ -63,7 +63,12 @@ export default async function SettlementPage() {
   const allFiles = (docFileList ?? []).map((d: { filename: string; created_at: string }) => ({
     file: d.filename,
     ...parseMonthsFromFilename(d.filename),
-  }));
+  })).sort((a, b) => {
+    const sa = a.settMonth ?? '', sb = b.settMonth ?? '';
+    if (sb !== sa) return sb.localeCompare(sa); // 정산월 desc
+    const pa = a.prescMonth ?? '', pb = b.prescMonth ?? '';
+    return pb.localeCompare(pa); // 처방월 desc
+  });
 
   // 행은 클라이언트 사이드에서 /api/settlement-rows 로 fetch (빠른 초기 로딩)
   const rows: SettlementRowClient[] = [];
