@@ -35,7 +35,7 @@ const PRIORITY_META: Record<TaskPriority, { color: string; bg: string }> = {
   '낮음': { color: '#94a3b8', bg: 'rgba(148,163,184,0.11)' },
 };
 
-export default function MeetingDetailClient({ meeting: initial, isAdmin = false }: { meeting: MeetingRow; isAdmin?: boolean }) {
+export default function MeetingDetailClient({ meeting: initial, isAdmin = false, availableCategories = [] }: { meeting: MeetingRow; isAdmin?: boolean; availableCategories?: string[] }) {
   const [meeting, setMeeting]   = useState<MeetingRow>(initial);
   const [editMode, setEditMode] = useState(false);
   const [draft, setDraft]       = useState({
@@ -162,9 +162,16 @@ export default function MeetingDetailClient({ meeting: initial, isAdmin = false 
             placeholder="과업명" style={{ ...INPUT, fontSize: '1.1rem', fontWeight: 700 }}
           />
           <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-            <select value={draft.category} onChange={e => setDraft(d => ({ ...d, category: e.target.value }))} style={{ ...INPUT_SM, flex: 1 }}>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <input
+              list="cat-list"
+              value={draft.category}
+              onChange={e => setDraft(d => ({ ...d, category: e.target.value }))}
+              placeholder="분류 선택 또는 직접 입력"
+              style={{ ...INPUT_SM, flex: 1 }}
+            />
+            <datalist id="cat-list">
+              {availableCategories.map(c => <option key={c} value={c} />)}
+            </datalist>
             <input type="date" value={draft.meeting_date} onChange={e => setDraft(d => ({ ...d, meeting_date: e.target.value }))} style={{ ...INPUT_SM, flex: 1 }} />
           </div>
         </div>

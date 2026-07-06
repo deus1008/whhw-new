@@ -26,6 +26,15 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
   const isAdmin = profileIsAdmin(profile);
   const sl = (meeting.security_level ?? '공개') as TaskSecurity;
 
+  // DB에 존재하는 분류 목록 조회 (동적)
+  const { data: catRows } = await supabase
+    .from('meetings')
+    .select('category')
+    .not('category', 'is', null);
+  const availableCategories = [
+    ...new Set((catRows ?? []).map(r => r.category as string).filter(Boolean))
+  ].sort();
+
   if (!isAdmin && sl !== '공개') {
     const userLevels = await getUserAccessLevels(user.id);
     if (!userLevels.includes(sl)) {
@@ -40,7 +49,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
       <div className="relative z-10 w-full px-4"
         style={{ maxWidth: '900px', paddingTop: '2rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           <HomeButton />
           <a
             href="/meetings"
@@ -55,7 +64,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
           <LogoutButton compact />
         </div>
 
-        <MeetingDetailClient meeting={meeting} isAdmin={isAdmin} />
+        <MeetingDetailClient meeting={meeting} isAdmin={isAdmin} availableCategories={availableCategories} />
       </div>
     </>
   );

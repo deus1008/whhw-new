@@ -1,22 +1,29 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { createClient as createSvcClient } from '@supabase/supabase-js';
+import { createClient as createSvc } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
-import CommissionClient from '@/components/CommissionClient';
-import { getCommissionRates } from './actions';
+import MonthlyReportClient from '@/components/MonthlyReportClient';
+import { getMonthData, getUbistData, getMboTargetsForReport } from './actions';
+import { BRAND_GROUPS, NEW_PRODUCTS } from './constants';
+
+export const dynamic = 'force-dynamic';
 
 function getSvc() {
-  return createSvcClient(
+  return createSvc(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 }
 
-export default async function CommissionPage() {
+export default async function MonthlyReportPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
@@ -44,18 +51,21 @@ export default async function CommissionPage() {
     allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
   }
 
-  const { rates, sourceFile } = await getCommissionRates(companyId);
+  const params = await searchParams;
+  let selectedMonth = params.month ?? '';
 
-  // 위탁사 이름 조회 (하이라이트용)
-  let companyName: string | null = null;
-  if (companyId) {
-    const { data: co } = await getSvc()
-      .from('client_companies')
-      .select('name')
-      .eq('id', companyId)
-      .single();
-    companyName = (co?.name as string) ?? null;
+  const effectiveMonth = selectedMonth || '2026-01';
+  const [monthData, ubistData, mboTargets] = await Promise.all([
+    getMonthData(effectiveMonth, companyId),
+    getUbistData(effectiveMonth),
+    getMboTargetsForReport(effectiveMonth),
+  ]);
+
+  if (!selectedMonth && monthData.available_months.length > 0) {
+    selectedMonth = monthData.available_months[0];
   }
+
+  const displayMonth = selectedMonth || effectiveMonth;
 
   return (
     <>
@@ -63,11 +73,13 @@ export default async function CommissionPage() {
       <div className="orb orb-2" />
       <div className="orb orb-3" />
 
-      <div className="relative z-10 w-full" style={{ maxWidth: '1100px', padding: '2rem 1rem', minHeight: '100vh' }}>
+      <div
+        className="relative z-10 w-full px-4"
+        style={{ maxWidth: '1100px', paddingTop: '2.5rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}
+      >
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>
-          수수료시뮬
+          월간 회의자료
         </p>
-
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
           <LogoutButton compact />
@@ -77,20 +89,15 @@ export default async function CommissionPage() {
           <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
         )}
 
-        <div style={{ marginBottom: '1.5rem' }}>
-          <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            💰 수수료 시뮬레이션
-          </h1>
-          <p style={{ margin: '0.4rem 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-            성분명 검색 → 약가 × 처방예상수량 = 처방액 → 수수료율 적용 → 정산액 산출
-            {rates.length > 0
-              ? <span style={{ marginLeft: '0.6rem', color: '#4ade80' }}>· {sourceFile} 기준</span>
-              : <span style={{ marginLeft: '0.6rem', color: '#fbbf24' }}>· 문서관리 &gt; 수수료율(딜러) 폴더에 파일을 업로드/처리하면 수수료율이 자동 적용됩니다</span>
-            }
-          </p>
-        </div>
-
-        <CommissionClient initialRates={rates} sourceFile={sourceFile} companyName={companyName} />
+        <MonthlyReportClient
+          initialMonth={displayMonth}
+          monthData={monthData}
+          ubistData={ubistData}
+          brandGroups={BRAND_GROUPS}
+          newProducts={NEW_PRODUCTS}
+          mboTargets={mboTargets}
+          isAdmin={isAdmin}
+        />
       </div>
     </>
   );

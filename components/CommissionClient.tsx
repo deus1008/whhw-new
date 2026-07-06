@@ -96,13 +96,23 @@ function RateInput({ value, onChange }: { value: number; onChange: (v: number) =
   );
 }
 
+/* ── 위탁사 이름 일치 여부 ───────────────────────────────── */
+function isMyCompany(manufacturer: string | null, myName: string | null): boolean {
+  if (!manufacturer || !myName) return false;
+  const mfVars = companyVariants(manufacturer);
+  const myVars = companyVariants(myName);
+  return mfVars.some(m => myVars.some(my => m === my || m.includes(my) || my.includes(m)));
+}
+
 /* ── 메인 컴포넌트 ───────────────────────────────────────── */
 export default function CommissionClient({
   initialRates,
   sourceFile,
+  companyName,
 }: {
   initialRates: CommissionRate[];
   sourceFile: string | null;
+  companyName?: string | null;
 }) {
   const [rates] = useState<CommissionRate[]>(initialRates);
 
@@ -197,10 +207,29 @@ export default function CommissionClient({
     }
   }
 
+  /* ── 순위 계산 (standard competition rank: 공동 24위 3개 → 다음은 27위) ── */
+  function calcRanks(rs: SimRow[]): { rankMap: Map<number, number>; nonZeroCount: number } {
+    const nonZeroRows = rs.filter(r => Math.floor(r.settlement_amount) > 0);
+    const nonZeroCount = nonZeroRows.length;
+    const rankMap = new Map<number, number>();
+    // rows는 이미 settlement_amount 내림차순 정렬 상태
+    // position = 현재 행의 위치(1-based) → 동점 첫 등장 시만 rankMap에 저장
+    for (let pos = 0; pos < nonZeroRows.length; pos++) {
+      const amt = Math.floor(nonZeroRows[pos].settlement_amount);
+      if (!rankMap.has(amt)) rankMap.set(amt, pos + 1); // 첫 등장 위치 = 순위
+    }
+    return { rankMap, nonZeroCount };
+  }
+
   /* ── CSV 내보내기 ────────────────────────────────────────── */
   function exportCsv() {
-    const header = ['제약사','제품명','규격','보험코드','약가(원)','수량','처방액(원)','수수료율(%)','정산액(원)'];
-    const dataRows = rows.map(r => [r.manufacturer??'', r.item_name, r.standard??'', r.item_code??'', r.max_price??0, r.quantity, r.prescription_amount, r.commission_rate, r.settlement_amount]);
+    const { rankMap, nonZeroCount } = calcRanks(rows);
+    const header = ['제약사','제품명','규격','보험코드','약가(원)','수량','처방액(원)','수수료율(%)','정산액(원)','순위'];
+    const dataRows = rows.map(r => {
+      const amt = Math.floor(r.settlement_amount);
+      const rank = amt > 0 ? rankMap.get(amt) : null;
+      return [r.manufacturer??'', r.item_name, r.standard??'', r.item_code??'', r.max_price??0, r.quantity, r.prescription_amount, r.commission_rate, r.settlement_amount, rank != null ? `${rank}/${nonZeroCount}` : '-'];
+    });
     const csv = [header, ...dataRows].map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
     const blob = new Blob(['﻿'+csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -334,7 +363,7 @@ export default function CommissionClient({
 
           {/* 테이블 */}
           <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '860px' }}>
               <thead>
                 <tr>
                   <th style={thStyle}>제약사</th>
@@ -345,15 +374,23 @@ export default function CommissionClient({
                   <th style={{ ...thStyle, textAlign: 'right' }}>처방액(원)</th>
                   <th style={{ ...thStyle, textAlign: 'center' }}>수수료율</th>
                   <th style={{ ...thStyle, textAlign: 'right' }}>정산액(원)</th>
+                  <th style={{ ...thStyle, textAlign: 'center' }}>순위</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r, i) => (
+                {(() => {
+                  const { rankMap, nonZeroCount } = calcRanks(rows);
+                  return rows.map((r, i) => {
+                    const amt = Math.floor(r.settlement_amount);
+                    const rank = amt > 0 ? rankMap.get(amt) : null;
+                    const mine = isMyCompany(r.manufacturer, companyName ?? null);
+                    return (
                   <tr key={i}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = '')}
+                    style={mine ? { background: 'rgba(250,204,21,0.07)', borderLeft: '3px solid #facc15' } : {}}
+                    onMouseEnter={e => (e.currentTarget.style.background = mine ? 'rgba(250,204,21,0.13)' : 'rgba(255,255,255,0.03)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = mine ? 'rgba(250,204,21,0.07)' : '')}
                   >
-                    <td style={{ ...tdStyle, color: '#93c5fd', fontWeight: 500 }}>{r.manufacturer ?? '-'}</td>
+                    <td style={{ ...tdStyle, color: mine ? '#facc15' : '#93c5fd', fontWeight: mine ? 700 : 500 }}>{r.manufacturer ?? '-'}</td>
                     <td style={{ ...tdStyle, color: 'var(--text-primary)', fontWeight: 500, maxWidth: '200px' }}>{r.item_name}</td>
                     <td style={{ ...tdStyle, color: 'var(--text-muted)', fontSize: '0.78rem' }}>{r.standard ?? '-'}</td>
                     <td style={{ ...tdStyle, textAlign: 'right', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
@@ -377,8 +414,19 @@ export default function CommissionClient({
                     <td style={{ ...tdStyle, textAlign: 'right', color: '#4ade80', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
                       {r.settlement_amount.toLocaleString()}
                     </td>
+                    <td style={{ ...tdStyle, textAlign: 'center', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                      {rank != null
+                        ? <span style={{ fontSize: '0.8rem' }}>
+                            <span style={{ fontWeight: 700, color: rank === 1 ? '#fbbf24' : '#ffffff' }}>{rank}</span>
+                            <span style={{ color: '#ffffff', opacity: 0.55 }}>/{nonZeroCount}</span>
+                          </span>
+                        : <span style={{ color: 'rgba(255,255,255,0.3)' }}>-</span>
+                      }
+                    </td>
                   </tr>
-                ))}
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>

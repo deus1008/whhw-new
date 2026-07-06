@@ -57,6 +57,17 @@ function Badge({ label, color, bg, bd }: { label: string; color: string; bg: str
   );
 }
 
+/**
+ * 파일명에서 정산월/처방월 정렬키를 추출.
+ * 패턴: 판매대행수수료정산_YY.MM정산_YY.MM처방
+ * 반환: "YYMM_YYMM" 형식 (정산월_처방월), 없으면 null
+ */
+function extractSettlementSortKey(filename: string): string | null {
+  const m = filename.match(/(\d{2})\.(\d{2})정산_(\d{2})\.(\d{2})처방/);
+  if (!m) return null;
+  return `${m[1]}${m[2]}_${m[3]}${m[4]}`;
+}
+
 /** 고유 폴더 목록 추출 (null → '미분류') */
 function extractFolders(docs: Document[]): string[] {
   const set = new Set<string>();
@@ -128,10 +139,20 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 현재 탭에 표시할 문서
-  const visibleDocs = activeFolder === null
-    ? documents
-    : documents.filter(d => (d.category ?? '미분류') === activeFolder);
+  // 현재 탭에 표시할 문서 (정산월_처방월 패턴 파일은 해당 키 기준 내림차순, 나머지는 created_at 순 유지)
+  const visibleDocs = (() => {
+    const filtered = activeFolder === null
+      ? documents
+      : documents.filter(d => (d.category ?? '미분류') === activeFolder);
+    return [...filtered].sort((a, b) => {
+      const ka = extractSettlementSortKey(a.filename);
+      const kb = extractSettlementSortKey(b.filename);
+      if (ka && kb) return kb.localeCompare(ka); // 정산월 desc → 처방월 desc
+      if (ka) return -1; // 정산 파일을 앞으로
+      if (kb) return 1;
+      return 0; // 나머지는 서버 순서(created_at desc) 유지
+    });
+  })();
 
   /* ── 파일 추가 ────────────────────────────────────────── */
   function addFiles(incoming: File[]) {

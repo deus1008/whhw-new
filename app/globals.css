@@ -452,3 +452,9 @@ select.auth-input { background-color: #1e293b; }
 @media (max-width: 480px) {
   .chat-height { height: calc(100dvh - 200px); min-height: 380px; }
 }
+
+@media print {
+  .no-print { display: none !important; }
+  .orb { display: none !important; }
+  body { background: #fff !important; color: #000 !important; }
+}

@@ -11,6 +11,8 @@ CREATE INDEX IF NOT EXISTS idx_atc_level  ON atc_codes (level);
 CREATE INDEX IF NOT EXISTS idx_atc_parent ON atc_codes (parent_code);
 
 ALTER TABLE atc_codes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "atc_read"  ON atc_codes;
+DROP POLICY IF EXISTS "atc_write" ON atc_codes;
 CREATE POLICY "atc_read" ON atc_codes FOR SELECT USING (true);
 CREATE POLICY "atc_write" ON atc_codes FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','관리자')))

@@ -300,6 +300,48 @@ export async function POST(request: Request) {
       else inserted += rows.slice(i, i + CHUNK).length;
     }
     console.log(`[process:${documentId}] Ubist ${inserted}/${total}건 저장 완료`);
+
+    // Ubist 파싱 결과로 disease_drugs 교정 (is_original + manufacturer + distributor)
+    {
+      const normP = (s: string) => s.replace(/[\s\.\-\/,·]/g, '').toLowerCase();
+      type Info = { isOrig: boolean | null; mfr: string | null; dist: string | null };
+      const ubistMap = new Map<string, Info>();
+      for (const row of rows) {
+        if (!row.product_name) continue;
+        const key = normP(row.product_name);
+        if (!ubistMap.has(key)) {
+          ubistMap.set(key, {
+            isOrig: row.is_original ?? null,
+            mfr:    row.manufacturer ?? null,
+            dist:   null, // 판매사는 UbistRow에 없음 — 나중에 스키마 추가 후 활용
+          });
+        }
+      }
+      if (ubistMap.size > 0) {
+        const { data: ddRows } = await supabase
+          .from('disease_drugs')
+          .select('id, product_name, is_original, manufacturer, distributor');
+        for (const drug of ddRows ?? []) {
+          const n = normP((drug.product_name as string) ?? '');
+          if (!n) continue;
+          let info: Info | null = ubistMap.get(n) ?? null;
+          if (!info) {
+            for (const [un, v] of ubistMap) {
+              if (un.startsWith(n) || n.startsWith(un)) { info = v; break; }
+            }
+          }
+          if (!info) continue;
+          const patch: Record<string, unknown> = {};
+          if (info.isOrig !== null && info.isOrig !== (drug.is_original as boolean | null))
+            patch.is_original = info.isOrig;
+          if (info.mfr && !(drug.manufacturer as string | null))
+            patch.manufacturer = info.mfr;
+          if (Object.keys(patch).length > 0)
+            await supabase.from('disease_drugs').update(patch).eq('id', drug.id);
+        }
+      }
+    }
+
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     return Response.json({ ok: true, inserted });
   }

@@ -15,6 +15,23 @@ export async function proxy(request: NextRequest) {
   const { supabaseResponse, user, supabase } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
+  // 로그인 추적: 인증된 사용자, 하루 1회
+  if (user) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (request.cookies.get('_ll_d')?.value !== today) {
+      await supabase.from('login_logs').insert({
+        user_id: user.id,
+        logged_in_at: new Date().toISOString(),
+      });
+      supabaseResponse.cookies.set('_ll_d', today, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24,
+      });
+    }
+  }
+
   // 인증 필요 경로
   const isProtected =
     pathname.startsWith('/dashboard') ||

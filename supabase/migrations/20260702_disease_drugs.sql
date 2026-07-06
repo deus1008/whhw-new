@@ -37,6 +37,8 @@ CREATE INDEX IF NOT EXISTS idx_dd_atc       ON disease_drugs (atc_code);
 CREATE INDEX IF NOT EXISTS idx_dd_is_orig   ON disease_drugs (is_original);
 
 ALTER TABLE disease_drugs ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "dd_read"  ON disease_drugs;
+DROP POLICY IF EXISTS "dd_write" ON disease_drugs;
 CREATE POLICY "dd_read" ON disease_drugs FOR SELECT
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND status = 'approved'));
 CREATE POLICY "dd_write" ON disease_drugs FOR ALL
@@ -54,6 +56,8 @@ CREATE TABLE IF NOT EXISTS disease_info (
 );
 
 ALTER TABLE disease_info ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "di_read"  ON disease_info;
+DROP POLICY IF EXISTS "di_write" ON disease_info;
 CREATE POLICY "di_read" ON disease_info FOR SELECT USING (true);
 CREATE POLICY "di_write" ON disease_info FOR ALL
   USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','관리자')))

@@ -3,32 +3,20 @@
 import { useState, useMemo } from 'react';
 
 export type ProductRow = {
-  제조사:       string;
-  품목그룹:     string;
-  품목명:       string;
-  성분명:       string;
-  보험코드:     string;
-  규격:         string;
-  급여:         string;
-  약가:         string;
-  사용:         string;
-  비고:         string;
-  // 검색 전용 (비표시)
-  _내부품목명:  string;
-  _대표코드:    string;
+  no:           number;
+  code:         string;
+  name:         string;
+  ingredient:   string;
+  rate:         number;
+  distribution: string;  // 유통중 | 유통중단 | 유통예정
+  note:         string;  // 참고사항
 };
 
-const COLS: { key: keyof ProductRow; label: string; style?: React.CSSProperties }[] = [
-  { key: '제조사',   label: '제조사',       style: { minWidth: '90px' } },
-  { key: '품목그룹', label: '품목그룹',      style: { minWidth: '80px' } },
-  { key: '품목명',   label: '품목명',       style: { minWidth: '200px', fontWeight: 600 } },
-  { key: '성분명',   label: '성분명',       style: { minWidth: '140px' } },
-  { key: '보험코드', label: '보험코드',      style: { minWidth: '110px' } },
-  { key: '규격',     label: '규격',        style: { minWidth: '80px' } },
-  { key: '급여',     label: '급여',        style: { minWidth: '60px', textAlign: 'center' } },
-  { key: '약가',     label: '약가(원)',     style: { minWidth: '70px', textAlign: 'right' } },
-  { key: '비고',     label: '비고',        style: { minWidth: '120px' } },
-];
+const DIST_STYLE: Record<string, { color: string; bg: string }> = {
+  '유통중':   { color: '#34d399', bg: 'rgba(52,211,153,0.12)' },
+  '유통중단': { color: '#f87171', bg: 'rgba(248,113,113,0.12)' },
+  '유통예정': { color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
+};
 
 export default function ProductListClient({
   rows,
@@ -36,32 +24,40 @@ export default function ProductListClient({
   signedUrl,
   updatedAt,
 }: {
-  rows: ProductRow[];
-  filename: string;
+  rows:      ProductRow[];
+  filename:  string;
   signedUrl: string | null;
   updatedAt: string;
 }) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery]   = useState('');
+  const [dist,  setDist]    = useState<string | null>(null);
+
+  // 유통여부 값 목록
+  const distValues = useMemo(() => {
+    const s = new Set(rows.map(r => r.distribution).filter(Boolean));
+    const ORDER = ['유통중', '유통예정', '유통중단'];
+    return ORDER.filter(v => s.has(v));
+  }, [rows]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(r =>
-      r.제조사.toLowerCase().includes(q) ||
-      r.품목명.toLowerCase().includes(q) ||
-      r._내부품목명.toLowerCase().includes(q) ||
-      r.성분명.toLowerCase().includes(q) ||
-      r.보험코드.toLowerCase().includes(q) ||
-      r._대표코드.toLowerCase().includes(q) ||
-      r.비고.toLowerCase().includes(q)
-    );
-  }, [rows, query]);
+    return rows.filter(r => {
+      if (dist && r.distribution !== dist) return false;
+      if (!q) return true;
+      return (
+        r.name.toLowerCase().includes(q) ||
+        r.ingredient.toLowerCase().includes(q) ||
+        r.code.includes(q) ||
+        r.note.toLowerCase().includes(q)
+      );
+    });
+  }, [rows, query, dist]);
 
   return (
     <div>
       {/* 검색 + 다운로드 */}
       <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
           <span style={{
             position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)',
             color: 'rgba(255,255,255,0.3)', fontSize: '0.9rem', pointerEvents: 'none',
@@ -70,7 +66,7 @@ export default function ProductListClient({
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="품목명, 성분명, 제조사, 보험코드 검색..."
+            placeholder="품목명, 성분명, 대표코드, 참고사항 검색..."
             style={{
               width: '100%', padding: '0.55rem 0.75rem 0.55rem 2.2rem',
               background: 'rgba(255,255,255,0.06)',
@@ -98,11 +94,40 @@ export default function ProductListClient({
         )}
       </div>
 
+      {/* 유통여부 필터 칩 */}
+      {distValues.length > 0 && (
+        <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+          {distValues.map(v => {
+            const s = DIST_STYLE[v] ?? { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' };
+            const active = dist === v;
+            return (
+              <button key={v} onClick={() => setDist(active ? null : v)} style={{
+                fontSize: '0.75rem', padding: '0.25rem 0.8rem', borderRadius: '100px',
+                cursor: 'pointer', fontFamily: 'inherit', fontWeight: active ? 700 : 400,
+                background: active ? s.bg : 'transparent',
+                border: `1px solid ${active ? s.color + '70' : 'rgba(255,255,255,0.12)'}`,
+                color: active ? s.color : 'rgba(255,255,255,0.45)',
+              }}>
+                {v} {active ? `(${filtered.length})` : `(${rows.filter(r => r.distribution === v).length})`}
+              </button>
+            );
+          })}
+          {dist && (
+            <button onClick={() => setDist(null)} style={{
+              fontSize: '0.68rem', padding: '0.2rem 0.55rem', borderRadius: '100px',
+              cursor: 'pointer', fontFamily: 'inherit',
+              background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
+              color: 'rgba(255,255,255,0.3)',
+            }}>✕ 초기화</button>
+          )}
+        </div>
+      )}
+
       {/* 결과 카운트 + 기준일 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
         <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', margin: 0 }}>
-          {query
-            ? <><span style={{ color: '#a5b4fc', fontWeight: 600 }}>{filtered.length.toLocaleString()}</span>건 검색됨 / 전체 {rows.length.toLocaleString()}건</>
+          {(query || dist)
+            ? <><span style={{ color: '#a5b4fc', fontWeight: 600 }}>{filtered.length.toLocaleString()}</span>건 / 전체 {rows.length.toLocaleString()}건</>
             : <>전체 <span style={{ color: '#a5b4fc', fontWeight: 600 }}>{rows.length.toLocaleString()}</span>건</>
           }
         </p>
@@ -121,49 +146,40 @@ export default function ProductListClient({
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
-                <th style={{ padding: '0.45rem 0.6rem', fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600, textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap', minWidth: '32px' }}>
-                  #
-                </th>
-                {COLS.map(c => (
-                  <th key={c.key} style={{ padding: '0.45rem 0.6rem', fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap', ...c.style, textAlign: (c.style?.textAlign as React.CSSProperties['textAlign']) ?? 'left' }}>
-                    {c.label}
-                  </th>
-                ))}
+                <th style={{ ...th, width: '3rem', textAlign: 'center' }}>NO</th>
+                <th style={{ ...th, minWidth: '130px' }}>대표코드</th>
+                <th style={{ ...th, minWidth: '200px' }}>품목명</th>
+                <th style={{ ...th, minWidth: '240px' }}>성분명</th>
+                <th style={{ ...th, width: '75px', textAlign: 'right' }}>수수료율</th>
+                <th style={{ ...th, width: '80px', textAlign: 'center' }}>유통여부</th>
+                <th style={{ ...th, minWidth: '120px' }}>참고사항</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((row, i) => {
-                const bg = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.012)';
-                const inUse = row.사용 === '0' || row.사용.toLowerCase() === 'false';
+                const ds = DIST_STYLE[row.distribution] ?? { color: '#94a3b8', bg: 'rgba(148,163,184,0.08)' };
                 return (
-                  <tr key={i} style={{ background: bg, opacity: inUse ? 0.45 : 1 }}>
-                    <td style={{ padding: '0.38rem 0.6rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.04)', whiteSpace: 'nowrap' }}>
-                      {i + 1}
+                  <tr key={row.no} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.012)' }}>
+                    <td style={{ ...td, textAlign: 'center', color: 'rgba(255,255,255,0.25)' }}>{row.no}</td>
+                    <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.78rem', color: 'rgba(255,255,255,0.55)' }}>{row.code}</td>
+                    <td style={{ ...td, fontWeight: 600 }}>{row.name}</td>
+                    <td style={{ ...td, fontSize: '0.78rem', color: 'rgba(255,255,255,0.65)' }}>{row.ingredient}</td>
+                    <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: '#a5b4fc' }}>
+                      {row.rate > 0 ? `${(row.rate * 100).toFixed(1)}%` : '—'}
                     </td>
-                    {COLS.map(c => (
-                      <td key={c.key} style={{ padding: '0.38rem 0.6rem', fontSize: '0.82rem', color: 'rgba(255,255,255,0.85)', borderBottom: '1px solid rgba(255,255,255,0.04)', verticalAlign: 'middle', ...c.style, fontWeight: c.key === '품목명' ? 600 : 'normal' }}>
-                        {c.key === '급여' ? (
-                          <span style={{
-                            fontSize: '0.72rem', padding: '0.1rem 0.45rem', borderRadius: '3px',
-                            background: row[c.key] === '급여' ? 'rgba(74,222,128,0.12)' : 'rgba(255,255,255,0.06)',
-                            color: row[c.key] === '급여' ? '#4ade80' : 'rgba(255,255,255,0.5)',
-                            whiteSpace: 'nowrap',
-                          }}>
-                            {row[c.key] || '-'}
-                          </span>
-                        ) : c.key === '약가' ? (
-                          <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-                            {row[c.key] && row[c.key] !== '0' && row[c.key] !== ''
-                              ? Number(row[c.key]).toLocaleString()
-                              : <span style={{ color: 'rgba(255,255,255,0.25)' }}>-</span>}
-                          </span>
-                        ) : (
-                          <span style={{ whiteSpace: c.key === '품목명' || c.key === '성분명' ? 'normal' : 'nowrap' }}>
-                            {row[c.key] || <span style={{ color: 'rgba(255,255,255,0.2)' }}>-</span>}
-                          </span>
-                        )}
-                      </td>
-                    ))}
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      {row.distribution ? (
+                        <span style={{
+                          fontSize: '0.68rem', padding: '0.15rem 0.5rem', borderRadius: '4px',
+                          background: ds.bg, color: ds.color, whiteSpace: 'nowrap',
+                        }}>
+                          {row.distribution}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td style={{ ...td, fontSize: '0.77rem', color: 'rgba(255,255,255,0.5)' }}>
+                      {row.note || '—'}
+                    </td>
                   </tr>
                 );
               })}
@@ -179,3 +195,12 @@ export default function ProductListClient({
     </div>
   );
 }
+
+const th: React.CSSProperties = {
+  padding: '0.45rem 0.7rem', fontSize: '0.72rem', color: 'rgba(255,255,255,0.45)',
+  fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap', textAlign: 'left',
+};
+const td: React.CSSProperties = {
+  padding: '0.4rem 0.7rem', fontSize: '0.83rem', color: 'rgba(255,255,255,0.85)',
+  borderBottom: '1px solid rgba(255,255,255,0.04)', verticalAlign: 'middle',
+};

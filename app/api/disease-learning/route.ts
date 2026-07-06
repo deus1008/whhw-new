@@ -217,8 +217,11 @@ export async function GET(req: NextRequest) {
         const g = (tag: string) => block.match(new RegExp(`<${tag}>([^<]*)<\/${tag}>`))?.[1]?.trim() ?? '';
         const raw = g('itmNm');
         if (!raw) continue;
-        // 제조사이관 표기 제거: "약품명(A->B)" → "약품명"
-        const name = raw.replace(/\s*[\(（][^)\）]*(?:->|→)[^)\）]*[\)）]/g, '').trim();
+        // 제조사이관 표기·약가인하율 제거: "(A->B)", "(27%)", "(48%->42%)" → ""
+        const name = raw
+          .replace(/\s*[\(（][^)\）]*(?:->|→)[^)\）]*[\)）]/g, '')
+          .replace(/\s*[\(（]\d+(?:\.\d+)?%[\)）]/g, '')
+          .trim();
         const priceRaw = Number(g('mxCprc').replace(/[^0-9]/g, ''));
         out.push({ name, mfr: g('mnfEntpNm'), std: g('nomNm'), price: isNaN(priceRaw) || priceRaw === 0 ? null : priceRaw, payType: g('payTpNm') || null });
       }
@@ -304,15 +307,84 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ── drug_prices에서 누락 데이터 보완 (max_price/manufacturer/pay_type null 인 baseDrug) ──
+    // HIRA API 성분명이 영문인 경우 ingredient_name 검색 실패 → 제품명 prefix로 직접 조회
+    const normP0 = (s: string) => s.replace(/[\s\.\-\/,·]/g, '').toLowerCase();
+    const baseMissingPrice = baseDrugs.filter(d => !d.max_price && d.product_name);
+    if (baseMissingPrice.length > 0) {
+      const orFilter = baseMissingPrice
+        .map(d => `item_name.ilike.${(d.product_name as string).replace(/[%*?]/g, '')}%`)
+        .join(',');
+      const { data: dpRows } = await svc()
+        .from('drug_prices')
+        .select('item_name, max_price, manufacturer, pay_type, standard')
+        .or(orFilter)
+        .limit(200);
+      // 제품명 앞부분(괄호 이전) 기준 맵 구성
+      const dpMap = new Map<string, Record<string, unknown>>();
+      for (const row of dpRows ?? []) {
+        const baseKey = normP0(((row.item_name as string) ?? '').replace(/[（(].*$/, '').trim());
+        if (!dpMap.has(baseKey)) dpMap.set(baseKey, row as Record<string, unknown>);
+      }
+      for (const drug of baseDrugs) {
+        if (drug.max_price || !drug.product_name) continue;
+        const key = normP0((drug.product_name as string).replace(/[（(].*$/, '').trim());
+        const found = dpMap.get(key);
+        if (!found) continue;
+        if (!drug.max_price   && found.max_price)   drug.max_price   = found.max_price;
+        if (!drug.manufacturer && found.manufacturer) drug.manufacturer = found.manufacturer;
+        if (!drug.pay_type    && found.pay_type)    drug.pay_type    = found.pay_type;
+        if (!drug.standard    && found.standard)    drug.standard    = found.standard;
+      }
+    }
+
     const allDrugs = [...baseDrugs, ...extraDrugs];
     const productNames  = allDrugs.map(d => d.product_name as string).filter(Boolean);
+
+    // 제조사 누락 제품 목록 (ubist_data에서 실시간 보완)
+    const missingMfrProds = allDrugs
+      .filter(d => !d.manufacturer && d.product_name)
+      .map(d => d.product_name as string);
+
     const manufacturers = [...new Set(allDrugs.map(d => d.manufacturer as string).filter(Boolean))];
 
-    // 병렬: Ubist 처방액 + 수수료율
-    const [ubistData, rateMap] = await Promise.all([
+    // 병렬: Ubist 처방액 + 수수료율 + 제조사 보완
+    const [ubistData, rateMap, ubistMfrRows] = await Promise.all([
       fetchUbistAmounts(productNames, 1),
       fetchCommissionRates(manufacturers, productNames),
+      missingMfrProds.length > 0
+        ? svc()
+            .from('ubist_data')
+            .select('product_name, manufacturer')
+            .in('ingredient_name', uniqueIngrs)
+            .not('manufacturer', 'is', null)
+            .limit(3000)
+            .then(r => r.data ?? [])
+        : Promise.resolve([]),
     ]);
+
+    // normProd(ubist_product_name) → manufacturer 맵으로 누락 제조사 보완
+    if (ubistMfrRows.length > 0) {
+      const normP = (s: string) => s.replace(/[\s\.\-\/,·]/g, '').toLowerCase();
+      const mfrMap = new Map<string, string>();
+      for (const row of ubistMfrRows) {
+        if (row.product_name && row.manufacturer)
+          mfrMap.set(normP(row.product_name as string), row.manufacturer as string);
+      }
+      for (const drug of allDrugs) {
+        if (drug.manufacturer || !drug.product_name) continue;
+        const n = normP(drug.product_name as string);
+        let mfr: string | undefined;
+        if (mfrMap.has(n)) {
+          mfr = mfrMap.get(n);
+        } else {
+          for (const [un, m] of mfrMap) {
+            if (un.startsWith(n) || n.startsWith(un)) { mfr = m; break; }
+          }
+        }
+        if (mfr) drug.manufacturer = mfr;
+      }
+    }
 
     // 성분명별 오리지널 제품명 → 제네릭의 대조약으로 사용
     const origByIngr = new Map<string, string>();

@@ -19,7 +19,6 @@ function readUrlParams() {
     ingrs:  p.getAll('ingr'),
     prods:  p.getAll('prod'),
     period: p.get('period') !== null ? Number(p.get('period')) : null,
-    hosps:  p.getAll('hosp'),
   };
 }
 
@@ -28,14 +27,12 @@ function writeUrlParams(params: {
   ingrs: string[];
   prods: string[];
   period: number;
-  hosps: string[];   // empty = 전체
 }) {
   const p = new URLSearchParams();
   if (params.q) p.set('q', params.q);
   params.ingrs.forEach(v => p.append('ingr', v));
   params.prods.forEach(v => p.append('prod', v));
   p.set('period', String(params.period));
-  params.hosps.forEach(v => p.append('hosp', v));
   window.history.replaceState(null, '', `?${p.toString()}`);
 }
 
@@ -61,9 +58,6 @@ const disabledBtn: React.CSSProperties = {
   color: 'var(--text-muted)',
   cursor: 'not-allowed',
 };
-
-const ALL_HOSP_TYPES = ['상급종합병원', '종합병원', '병원', '의원', '보건소', '기타'] as const;
-type HospType = typeof ALL_HOSP_TYPES[number];
 
 /* ── 유틸 ────────────────────────────────────────────────────── */
 function fmt백만(won: number): string {
@@ -198,9 +192,8 @@ export default function MarketAnalysisClient() {
   // 3단계: 분석
   const [analysis,    setAnalysis]    = useState<UbistProductAnalysis[] | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [error,          setError]          = useState('');
-  const [periodLimit,    setPeriodLimit]    = useState(12);
-  const [selectedHosp,   setSelectedHosp]  = useState<Set<HospType>>(new Set(ALL_HOSP_TYPES));
+  const [error,       setError]       = useState('');
+  const [periodLimit, setPeriodLimit] = useState(12);
 
   /* ── URL → 상태 복원 (마운트 1회) ── */
   useEffect(() => {
@@ -210,9 +203,6 @@ export default function MarketAnalysisClient() {
     setInputVal(saved.q);
     setQuery(saved.q);
     if (saved.period !== null) setPeriodLimit(saved.period);
-    if (saved.hosps.length > 0 && saved.hosps.length < ALL_HOSP_TYPES.length) {
-      setSelectedHosp(new Set(saved.hosps as HospType[]));
-    }
 
     (async () => {
       const opts = await findUbistIngredientOptions(saved.q);
@@ -227,9 +217,7 @@ export default function MarketAnalysisClient() {
       if (saved.prods.length === 0) return;
       setSelected(new Set(saved.prods));
 
-      const hospFilter = saved.hosps.length > 0 && saved.hosps.length < ALL_HOSP_TYPES.length
-        ? saved.hosps : [];
-      const data = await analyzeUbistItems(saved.prods, hospFilter);
+      const data = await analyzeUbistItems(saved.prods);
       setAnalysis(data);
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -238,13 +226,12 @@ export default function MarketAnalysisClient() {
   useEffect(() => {
     if (!query) return;
     writeUrlParams({
-      q:      query,
-      ingrs:  Array.from(selectedIngr),
-      prods:  Array.from(selected),
+      q:     query,
+      ingrs: Array.from(selectedIngr),
+      prods: Array.from(selected),
       period: periodLimit,
-      hosps:  selectedHosp.size < ALL_HOSP_TYPES.length ? Array.from(selectedHosp) : [],
     });
-  }, [query, selectedIngr, selected, periodLimit, selectedHosp]);
+  }, [query, selectedIngr, selected, periodLimit]);
 
   /* ── 1단계: 성분명 후보 검색 ── */
   function handleSearch() {
@@ -260,7 +247,7 @@ export default function MarketAnalysisClient() {
     startSearchTransition(async () => {
       const opts = await findUbistIngredientOptions(q);
       setIngredientOptions(opts);
-      if (opts.length === 0) setError('검색 결과가 없습니다. Ubist 폴더에 데이터를 먼저 업로드해 주세요.');
+      if (opts.length === 0) setError(`'${q}'에 해당하는 성분·제품을 찾을 수 없습니다. 다른 검색어를 입력해 보세요.`);
     });
   }
 
@@ -307,39 +294,13 @@ export default function MarketAnalysisClient() {
     setIsAnalyzing(true);
     setError('');
     try {
-      // 전체 선택이면 필터 없음, 일부 선택이면 해당 종별만
-      const hospFilter = selectedHosp.size === ALL_HOSP_TYPES.length
-        ? []
-        : Array.from(selectedHosp);
-      const data = await analyzeUbistItems(Array.from(selected), hospFilter);
+      const data = await analyzeUbistItems(Array.from(selected));
       setAnalysis(data);
     } catch {
       setError('분석 중 오류가 발생했습니다.');
     } finally {
       setIsAnalyzing(false);
     }
-  }
-
-  /* ── 종별 토글 ── */
-  function toggleHosp(t: HospType) {
-    setSelectedHosp(prev => {
-      // 전체 선택 상태에서 개별 항목 클릭 → 해당 항목만 선택
-      if (prev.size === ALL_HOSP_TYPES.length) return new Set([t]);
-      const next = new Set(prev);
-      if (next.has(t)) {
-        next.delete(t);
-        // 마지막 항목 해제 시 전체 선택으로 복귀
-        if (next.size === 0) return new Set(ALL_HOSP_TYPES);
-      } else {
-        next.add(t);
-        // 모두 선택되면 전체 선택 상태로 복귀
-        if (next.size === ALL_HOSP_TYPES.length) return new Set(ALL_HOSP_TYPES);
-      }
-      return next;
-    });
-  }
-  function toggleAllHosp() {
-    setSelectedHosp(new Set(ALL_HOSP_TYPES));
   }
 
   /* ── 전체 기간 수집 ── */
@@ -505,63 +466,6 @@ export default function MarketAnalysisClient() {
           </div>
             );
           })()}
-        </div>
-      )}
-
-      {/* ── Step 2.5: 종별 선택 ── */}
-      {results.length > 0 && (
-        <div className="auth-card" style={{ marginBottom: '1rem', padding: '0.65rem 1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, whiteSpace: 'nowrap' }}>
-              종별
-            </span>
-            {/* 전체선택 */}
-            <div style={{
-              display: 'inline-flex',
-              background: 'rgba(255,255,255,0.06)',
-              borderRadius: '8px',
-              padding: '2px',
-              gap: '2px',
-              flexWrap: 'wrap',
-            }}>
-              <button
-                onClick={toggleAllHosp}
-                style={{
-                  padding: '0.18rem 0.55rem', borderRadius: '6px', border: 'none',
-                  fontSize: '0.72rem', fontFamily: 'inherit', cursor: 'pointer',
-                  background: selectedHosp.size === ALL_HOSP_TYPES.length
-                    ? 'rgba(99,102,241,0.45)' : 'transparent',
-                  color: selectedHosp.size === ALL_HOSP_TYPES.length
-                    ? '#c7d2fe' : 'var(--text-muted)',
-                  fontWeight: selectedHosp.size === ALL_HOSP_TYPES.length ? 700 : 400,
-                  transition: 'all 0.12s',
-                }}
-              >
-                전체
-              </button>
-              {ALL_HOSP_TYPES.map(t => {
-                const active = selectedHosp.has(t);
-                return (
-                  <button
-                    key={t}
-                    onClick={() => toggleHosp(t)}
-                    style={{
-                      padding: '0.18rem 0.55rem', borderRadius: '6px', border: 'none',
-                      fontSize: '0.72rem', fontFamily: 'inherit', cursor: 'pointer',
-                      background: active && selectedHosp.size < ALL_HOSP_TYPES.length
-                        ? 'rgba(99,102,241,0.45)' : 'transparent',
-                      color: active && selectedHosp.size < ALL_HOSP_TYPES.length
-                        ? '#c7d2fe' : 'var(--text-muted)',
-                      fontWeight: active && selectedHosp.size < ALL_HOSP_TYPES.length ? 700 : 400,
-                      transition: 'all 0.12s',
-                    }}
-                  >
-                    {t}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
       )}
 
