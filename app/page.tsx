@@ -196,6 +196,15 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(74,222,128,0.10)',
     bd:   'rgba(74,222,128,0.22)',
   },
+  // ⑮ 의약품 허가현황
+  {
+    href: '/approval',
+    icon: '🔬',
+    label: '허가현황',
+    color: '#7dd3fc',
+    bg:   'rgba(14,165,233,0.10)',
+    bd:   'rgba(14,165,233,0.22)',
+  },
   // ⑯ 문서관리
   {
     href: '/documents',
