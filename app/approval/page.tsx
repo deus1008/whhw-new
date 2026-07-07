@@ -53,11 +53,35 @@ export default async function ApprovalPage() {
   if (companyId) fileQ = fileQ.eq('company_id', companyId);
   const { data: fileDocs } = await fileQ;
 
-  const allFiles = (fileDocs ?? []).map((d: { id: string; filename: string; created_at: string }) => ({
-    id: d.id,
-    filename: d.filename,
-    createdAt: d.created_at,
-  }));
+  function extractFilenameDate(filename: string): string {
+    const base = filename.replace(/\.[^.]+$/, '');
+    let m = base.match(/(\d{2})\.(\d{2})정산/);
+    if (m) return `20${m[1]}${m[2]}`;
+    m = base.match(/(\d{4})년\s*(\d{1,2})월/);
+    if (m) return `${m[1]}${m[2].padStart(2, '0')}`;
+    m = base.match(/(\d{2})년\s*(\d{1,2})월/);
+    if (m) return `20${m[1]}${m[2].padStart(2, '0')}`;
+    m = base.match(/[_\-](\d{4})[.\-](\d{2})$/);
+    if (m && +m[2] >= 1 && +m[2] <= 12) return `${m[1]}${m[2]}`;
+    m = base.match(/[_\-](\d{2})[.\-](\d{2})$/);
+    if (m && +m[1] >= 24 && +m[1] <= 35 && +m[2] >= 1 && +m[2] <= 12) return `20${m[1]}${m[2]}`;
+    return '';
+  }
+
+  const allFiles = (fileDocs ?? [])
+    .map((d: { id: string; filename: string; created_at: string }) => ({
+      id: d.id,
+      filename: d.filename,
+      createdAt: d.created_at,
+    }))
+    .sort((a: { id: string; filename: string; createdAt: string }, b: { id: string; filename: string; createdAt: string }) => {
+      const da = extractFilenameDate(a.filename);
+      const db = extractFilenameDate(b.filename);
+      if (da && db) return db.localeCompare(da); // 날짜 desc
+      if (da) return -1;
+      if (db) return 1;
+      return a.filename.localeCompare(b.filename, 'ko');
+    });
 
   return (
     <>

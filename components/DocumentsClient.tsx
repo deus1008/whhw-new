@@ -58,14 +58,36 @@ function Badge({ label, color, bg, bd }: { label: string; color: string; bg: str
 }
 
 /**
- * 파일명에서 정산월/처방월 정렬키를 추출.
- * 패턴: 판매대행수수료정산_YY.MM정산_YY.MM처방
- * 반환: "YYMM_YYMM" 형식 (정산월_처방월), 없으면 null
+ * 파일명에서 날짜 정렬키(YYYYMM)를 추출.
+ * 파일명 끝에 년도·월이 표기된 다양한 패턴 지원:
+ *   _26.06 / _2026.06 / _2026-06 / 2026년6월 / 26년6월 / _YY.MM정산
+ * 반환: "YYYYMM" 문자열(내림차순 비교용), 없으면 null
  */
-function extractSettlementSortKey(filename: string): string | null {
-  const m = filename.match(/(\d{2})\.(\d{2})정산_(\d{2})\.(\d{2})처방/);
-  if (!m) return null;
-  return `${m[1]}${m[2]}_${m[3]}${m[4]}`;
+function extractFilenameSortKey(filename: string): string | null {
+  const base = filename.replace(/\.[^.]+$/, ''); // 확장자 제거
+
+  // 수수료정산 패턴: YY.MM정산 → 정산월 기준
+  let m = base.match(/(\d{2})\.(\d{2})정산/);
+  if (m) return `20${m[1]}${m[2]}`;
+
+  // 2026년6월 / 2026년 6월 / 26년6월 / 26년 6월
+  m = base.match(/(\d{4})년\s*(\d{1,2})월/);
+  if (m) return `${m[1]}${m[2].padStart(2, '0')}`;
+
+  m = base.match(/(\d{2})년\s*(\d{1,2})월/);
+  if (m) return `20${m[1]}${m[2].padStart(2, '0')}`;
+
+  // _2026.06 / _2026-06 (끝 부분, 4자리 연도)
+  m = base.match(/[_\-](\d{4})[.\-](\d{2})$/);
+  if (m && +m[2] >= 1 && +m[2] <= 12) return `${m[1]}${m[2]}`;
+
+  // _26.06 / _26-06 (끝 부분, 2자리 연도 24~35)
+  m = base.match(/[_\-](\d{2})[.\-](\d{2})$/);
+  if (m && +m[1] >= 24 && +m[1] <= 35 && +m[2] >= 1 && +m[2] <= 12) {
+    return `20${m[1]}${m[2]}`;
+  }
+
+  return null;
 }
 
 /** 고유 폴더 목록 추출 (null → '미분류') */
@@ -139,18 +161,19 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 현재 탭에 표시할 문서 (정산월_처방월 패턴 파일은 해당 키 기준 내림차순, 나머지는 created_at 순 유지)
+  // 현재 탭에 표시할 문서 — 파일명에서 추출한 날짜(YYYYMM) 기준 내림차순
   const visibleDocs = (() => {
     const filtered = activeFolder === null
       ? documents
       : documents.filter(d => (d.category ?? '미분류') === activeFolder);
     return [...filtered].sort((a, b) => {
-      const ka = extractSettlementSortKey(a.filename);
-      const kb = extractSettlementSortKey(b.filename);
-      if (ka && kb) return kb.localeCompare(ka); // 정산월 desc → 처방월 desc
-      if (ka) return -1; // 정산 파일을 앞으로
+      const ka = extractFilenameSortKey(a.filename);
+      const kb = extractFilenameSortKey(b.filename);
+      if (ka && kb) return kb.localeCompare(ka); // 날짜 desc
+      if (ka) return -1; // 날짜 있는 파일 먼저
       if (kb) return 1;
-      return 0; // 나머지는 서버 순서(created_at desc) 유지
+      // 날짜 없는 파일끼리는 파일명 알파벳순
+      return a.filename.localeCompare(b.filename, 'ko');
     });
   })();
 
