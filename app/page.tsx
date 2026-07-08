@@ -24,11 +24,11 @@ type NavItem = {
 const NEWS_URL = process.env.NEXT_PUBLIC_NEWS_URL ?? '';
 
 const NAV_ITEMS: NavItem[] = [
-  // ① 대시보드
+  // ① 주간회의
   {
-    href: '/dashboard',
-    icon: '🏠',
-    label: '대시보드',
+    href: '/weekly',
+    icon: '📋',
+    label: '주간회의',
     color: '#93c5fd',
     bg:   'rgba(59,130,246,0.10)',
     bd:   'rgba(59,130,246,0.22)',
@@ -204,6 +204,24 @@ const NAV_ITEMS: NavItem[] = [
     color: '#7dd3fc',
     bg:   'rgba(14,165,233,0.10)',
     bd:   'rgba(14,165,233,0.22)',
+  },
+  // ⑮-1 처방처현황
+  {
+    href: '/prescription',
+    icon: '🏥',
+    label: '처방처현황',
+    color: '#86efac',
+    bg:   'rgba(74,222,128,0.10)',
+    bd:   'rgba(74,222,128,0.22)',
+  },
+  // ⑮-2 코드삭제대상처
+  {
+    href: '/code-delete',
+    icon: '🗑',
+    label: '삭제대상처',
+    color: '#f87171',
+    bg:   'rgba(239,68,68,0.10)',
+    bd:   'rgba(239,68,68,0.22)',
   },
   // ⑯ 문서관리
   {
