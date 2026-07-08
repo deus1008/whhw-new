@@ -90,6 +90,16 @@ function monthLabel(m: string): string {
   return `${y}년 ${parseInt(mo)}월`;
 }
 
+function periodLabel(months: string[]): string {
+  if (months.length === 0) return '';
+  const sorted = [...months].sort();
+  if (months.length === 1) return monthLabel(sorted[0]);
+  const [sy, sm] = sorted[0].split('-');
+  const [ey, em] = sorted[sorted.length - 1].split('-');
+  if (sy === ey) return `${sy}년 ${parseInt(sm)}~${parseInt(em)}월`;
+  return `${monthLabel(sorted[0])} ~ ${monthLabel(sorted[sorted.length - 1])}`;
+}
+
 function shortMonth(m: string): string {
   if (!m) return '';
   const [y, mo] = m.split('-');
@@ -244,7 +254,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 
 /* ── 메인 컴포넌트 ───────────────────────────────────────────── */
 type Props = {
-  initialMonth: string;
+  initialMonths: string[];
   monthData: MonthDataResult;
   ubistData: {
     periods: string[];
@@ -258,7 +268,7 @@ type Props = {
 };
 
 export default function MonthlyReportClient({
-  initialMonth,
+  initialMonths,
   monthData,
   ubistData,
   brandGroups,
@@ -268,6 +278,24 @@ export default function MonthlyReportClient({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [activeSection, setActiveSection] = useState<string>('실적');
+  const [selectedMonths, setSelectedMonths] = useState<string[]>(initialMonths);
+
+  const isSingle = selectedMonths.length === 1;
+
+  function toggleMonth(m: string) {
+    let next: string[];
+    if (selectedMonths.includes(m)) {
+      if (selectedMonths.length === 1) return; // 최소 1개 유지
+      next = selectedMonths.filter(x => x !== m);
+    } else {
+      next = [...selectedMonths, m];
+    }
+    next = next.sort().reverse();
+    setSelectedMonths(next);
+    startTransition(() => {
+      router.push(`/monthly-report?months=${next.join(',')}`);
+    });
+  }
 
   const {
     available_months,
@@ -344,24 +372,33 @@ export default function MonthlyReportClient({
   return (
     <div>
       {/* ── 기간 선택 & 섹션 탭 ── */}
-      <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        <select
-          defaultValue={initialMonth}
-          onChange={e => {
-            startTransition(() => { router.push(`/monthly-report?month=${e.target.value}`); });
-          }}
-          style={{
-            padding: '0.5rem 0.8rem', borderRadius: 10,
-            background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.13)',
-            color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: '0.9rem',
-            cursor: 'pointer', minHeight: 40,
-          }}
-        >
-          {available_months.map(m => (
-            <option key={m} value={m}>{monthLabel(m)}</option>
-          ))}
-        </select>
-        {isPending && <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>로딩 중…</span>}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          {available_months.map(m => {
+            const isActive = selectedMonths.includes(m);
+            return (
+              <button
+                key={m}
+                onClick={() => toggleMonth(m)}
+                style={{
+                  padding: '0.38rem 0.85rem',
+                  borderRadius: 20,
+                  border: `1px solid ${isActive ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                  background: isActive ? 'rgba(255,255,255,0.13)' : 'transparent',
+                  color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  fontSize: '0.82rem',
+                  fontWeight: isActive ? 600 : 400,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {monthLabel(m)}
+              </button>
+            );
+          })}
+          {isPending && <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>로딩 중…</span>}
+        </div>
       </div>
 
       {/* 섹션 탭 */}
@@ -416,7 +453,7 @@ export default function MonthlyReportClient({
 
           {/* 담당자별 실적 테이블 */}
           <div style={card}>
-            <div style={sectionTitle}>담당자별 실적 ({monthLabel(initialMonth)})</div>
+            <div style={sectionTitle}>담당자별 실적 ({periodLabel(selectedMonths)})</div>
             <div style={{ overflowX: 'auto' }}>
               <table style={tableStyle}>
                 <thead>
@@ -426,8 +463,8 @@ export default function MonthlyReportClient({
                     <th style={th}>목표</th>
                     <th style={th}>달성율</th>
                     <th style={th}>구성비</th>
-                    <th style={th}>전월</th>
-                    <th style={th}>증감</th>
+                    {isSingle && <th style={th}>전월</th>}
+                    {isSingle && <th style={th}>증감</th>}
                     <th style={th}>가동처</th>
                     <th style={{ ...th, minWidth: 100 }}>비중</th>
                   </tr>
@@ -457,8 +494,8 @@ export default function MonthlyReportClient({
                           {achievePct != null ? achievePct.toFixed(1) + '%' : '-'}
                         </td>
                         <td style={td}>{grand_total > 0 ? ((r.total_amount / grand_total) * 100).toFixed(1) : 0}%</td>
-                        <td style={{ ...td, color: 'var(--text-muted)' }}>{fmt백만(r.prev_amount)}M</td>
-                        <td style={{ ...td, color: pctColor(r.change_pct) }}>{fmtPct(r.change_pct)}</td>
+                        {isSingle && <td style={{ ...td, color: 'var(--text-muted)' }}>{fmt백만(r.prev_amount)}M</td>}
+                        {isSingle && <td style={{ ...td, color: pctColor(r.change_pct) }}>{fmtPct(r.change_pct)}</td>}
                         <td style={td}>{r.hospital_cnt.toLocaleString('ko-KR')}</td>
                         <td style={td}>
                           <PctBar value={r.total_amount} max={maxMgrAmount} color={mgrColor(r.manager)} />
@@ -497,8 +534,8 @@ export default function MonthlyReportClient({
                           {totalAchieve != null ? totalAchieve.toFixed(1) + '%' : '-'}
                         </td>
                         <td style={footTd}>100%</td>
-                        <td style={{ ...footTd, color: 'var(--text-muted)' }}>{fmt백만(prev_grand_total)}M</td>
-                        <td style={{ ...footTd, color: pctColor(grandChangePctTotal) }}>{fmtPct(grandChangePctTotal)}</td>
+                        {isSingle && <td style={{ ...footTd, color: 'var(--text-muted)' }}>{fmt백만(prev_grand_total)}M</td>}
+                        {isSingle && <td style={{ ...footTd, color: pctColor(grandChangePctTotal) }}>{fmtPct(grandChangePctTotal)}</td>}
                         <td style={footTd}>{totalHospCnt.toLocaleString('ko-KR')}</td>
                         <td style={footTd} />
                       </tr>
@@ -558,7 +595,7 @@ export default function MonthlyReportClient({
       {/* ═══════════════ 가동처 현황 ═══════════════ */}
       {activeSection === '가동처' && (
         <div style={card}>
-          <div style={sectionTitle}>담당자별 가동처 현황 ({monthLabel(initialMonth)})</div>
+          <div style={sectionTitle}>담당자별 가동처 현황 ({periodLabel(selectedMonths)})</div>
           <div style={{ overflowX: 'auto' }}>
             <table style={tableStyle}>
               <thead>

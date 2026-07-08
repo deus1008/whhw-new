@@ -87,18 +87,25 @@ export async function getAvailableMonths(companyId?: string | null): Promise<str
 
 /* ── 특정 월의 전체 데이터 로드 (trend_prescriptions) ──────────── */
 
-export async function getMonthData(month: string, companyId?: string | null): Promise<MonthDataResult> {
-  const prevDate = new Date(month + '-01');
+export async function getMonthData(months: string | string[], companyId?: string | null): Promise<MonthDataResult> {
+  const monthsArr = Array.isArray(months) ? months : [months];
+  const sortedMonths = [...monthsArr].sort(); // ascending
+  const latestMonth  = sortedMonths[sortedMonths.length - 1];
+  const earliestMonth = sortedMonths[0];
+
+  // 전월: 선택 월 중 가장 이른 달의 이전 달 (단일 선택 시에만 의미 있음)
+  const prevDate = new Date(earliestMonth + '-01');
   prevDate.setMonth(prevDate.getMonth() - 1);
   const prevMonth = prevDate.toISOString().slice(0, 7);
 
-  const trendStartDate = new Date(month + '-01');
+  const trendStartDate = new Date(latestMonth + '-01');
   trendStartDate.setMonth(trendStartDate.getMonth() - 11);
   const trendStart = trendStartDate.toISOString().slice(0, 7);
 
-  const monthQ      = toYYYYMM(month);
+  const monthQs     = monthsArr.map(toYYYYMM);
   const prevMonthQ  = toYYYYMM(prevMonth);
   const trendStartQ = toYYYYMM(trendStart);
+  const latestMonthQ = toYYYYMM(latestMonth);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function withCompany(q: any) {
@@ -109,7 +116,7 @@ export async function getMonthData(month: string, companyId?: string | null): Pr
     withCompany(svc()
       .from('trend_prescriptions')
       .select('sales_rep, cso_name, hospital_name, hospital_type, prescription_amount')
-      .eq('prescription_month', monthQ)
+      .in('prescription_month', monthQs)
       .not('sales_rep', 'is', null))
       .limit(200000),
 
@@ -124,7 +131,7 @@ export async function getMonthData(month: string, companyId?: string | null): Pr
       .from('trend_prescriptions')
       .select('sales_rep, prescription_month, prescription_amount')
       .gte('prescription_month', trendStartQ)
-      .lte('prescription_month', monthQ)
+      .lte('prescription_month', latestMonthQ)
       .not('sales_rep', 'is', null)
       .not('prescription_month', 'is', null))
       .limit(1000000),

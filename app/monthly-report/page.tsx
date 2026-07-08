@@ -22,7 +22,7 @@ function getSvc() {
 export default async function MonthlyReportPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; months?: string }>;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -52,23 +52,25 @@ export default async function MonthlyReportPage({
   }
 
   const params = await searchParams;
-  let selectedMonth = params.month ?? '';
+  // ?months=2026-05,2026-04 or legacy ?month=2026-05
+  const rawMonths = params.months ?? params.month ?? '';
+  let selectedMonths: string[] = rawMonths ? rawMonths.split(',').filter(Boolean) : [];
 
   // 월이 지정되지 않은 경우 최신 월로 리디렉션
-  if (!selectedMonth) {
+  if (selectedMonths.length === 0) {
     const { getAvailableMonths } = await import('./actions');
-    const months = await getAvailableMonths(companyId);
-    if (months.length > 0) redirect(`/monthly-report?month=${months[0]}`);
+    const avail = await getAvailableMonths(companyId);
+    if (avail.length > 0) redirect(`/monthly-report?months=${avail[0]}`);
   }
 
-  const effectiveMonth = selectedMonth || '2026-01';
-  const [monthData, ubistData, mboTargets] = await Promise.all([
-    getMonthData(effectiveMonth, companyId),
-    getUbistData(effectiveMonth),
-    getMboTargetsForReport(effectiveMonth),
-  ]);
+  const effectiveMonths = selectedMonths.length > 0 ? selectedMonths : ['2026-01'];
+  const latestMonth = [...effectiveMonths].sort().reverse()[0];
 
-  const displayMonth = selectedMonth || effectiveMonth;
+  const [monthData, ubistData, mboTargets] = await Promise.all([
+    getMonthData(effectiveMonths, companyId),
+    getUbistData(latestMonth),
+    getMboTargetsForReport(latestMonth),
+  ]);
 
   return (
     <>
@@ -93,7 +95,7 @@ export default async function MonthlyReportPage({
         )}
 
         <MonthlyReportClient
-          initialMonth={displayMonth}
+          initialMonths={effectiveMonths}
           monthData={monthData}
           ubistData={ubistData}
           brandGroups={BRAND_GROUPS}
