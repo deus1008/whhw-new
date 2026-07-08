@@ -718,8 +718,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         ) : (
           <>
             {([
-              { label: '▸ 상위 10 품목 (최신월 처방액 기준)', items: top10Products,    isTop: true,  accentColor: '#4ade80' },
-              { label: '▸ 하위 10 품목 (최신월 처방액 기준)', items: bottom10Products, isTop: false, accentColor: '#f87171' },
+              { label: '▸ 상위 10 품목 (최신월 처방정산자료 기준)', items: top10Products,    isTop: true,  accentColor: '#4ade80' },
+              { label: '▸ 하위 10 품목 (최신월 처방정산자료 기준)', items: bottom10Products, isTop: false, accentColor: '#f87171' },
             ] as { label: string; items: ProductRankItem[]; isTop: boolean; accentColor: string }[]).map(({ label, items, isTop, accentColor }) => (
               items.length > 0 && (
                 <div key={label} style={{ marginBottom: '0.5rem' }}>
