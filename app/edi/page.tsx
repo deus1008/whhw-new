@@ -66,7 +66,7 @@ export default async function EdiPage() {
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
-          <Link href="/dashboard" style={navLinkStyle}>← 대시보드</Link>
+          <Link href="/weekly" style={navLinkStyle}>← 대시보드</Link>
           {isAdmin && (
             <Link href="/documents" style={navLinkStyle}>📁 문서관리</Link>
           )}

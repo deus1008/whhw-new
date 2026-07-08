@@ -54,16 +54,19 @@ export default async function MonthlyReportPage({
   const params = await searchParams;
   let selectedMonth = params.month ?? '';
 
+  // 월이 지정되지 않은 경우 최신 월로 리디렉션
+  if (!selectedMonth) {
+    const { getAvailableMonths } = await import('./actions');
+    const months = await getAvailableMonths(companyId);
+    if (months.length > 0) redirect(`/monthly-report?month=${months[0]}`);
+  }
+
   const effectiveMonth = selectedMonth || '2026-01';
   const [monthData, ubistData, mboTargets] = await Promise.all([
     getMonthData(effectiveMonth, companyId),
     getUbistData(effectiveMonth),
     getMboTargetsForReport(effectiveMonth),
   ]);
-
-  if (!selectedMonth && monthData.available_months.length > 0) {
-    selectedMonth = monthData.available_months[0];
-  }
 
   const displayMonth = selectedMonth || effectiveMonth;
 

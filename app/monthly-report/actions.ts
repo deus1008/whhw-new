@@ -55,25 +55,37 @@ export type MboTarget = {
   monthly_target: number; // 백만원 단위
 };
 
+/* ── 월 형식 변환 헬퍼 (YYYY-MM ↔ YYYYMM) ───────────────────── */
+
+function toYYYYMM(m: string): string {
+  return m.replace('-', '');
+}
+
+function fromYYYYMM(m: string): string {
+  return m.length === 6 ? `${m.slice(0, 4)}-${m.slice(4)}` : m;
+}
+
 /* ── 사용 가능한 월 목록 ────────────────────────────────────────── */
 
 export async function getAvailableMonths(companyId?: string | null): Promise<string[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let q: any = svc()
-    .from('commission_settlements')
+    .from('trend_prescriptions')
     .select('prescription_month')
     .not('prescription_month', 'is', null)
-    .not('manager', 'is', null);
+    .not('sales_rep', 'is', null)
+    .order('prescription_month', { ascending: false })
+    .limit(5000);
   if (companyId) q = q.eq('company_id', companyId);
-  const { data } = await q.order('prescription_month', { ascending: false }).limit(5000);
+  const { data } = await q;
 
-  const months = [...new Set(((data ?? []) as { prescription_month: string }[]).map(r => r.prescription_month))]
+  const months = [...new Set(((data ?? []) as { prescription_month: string }[]).map(r => fromYYYYMM(r.prescription_month)))]
     .sort()
     .reverse();
   return months;
 }
 
-/* ── 특정 월의 전체 데이터 로드 (commission_settlements) ─────── */
+/* ── 특정 월의 전체 데이터 로드 (trend_prescriptions) ──────────── */
 
 export async function getMonthData(month: string, companyId?: string | null): Promise<MonthDataResult> {
   const prevDate = new Date(month + '-01');
@@ -84,56 +96,61 @@ export async function getMonthData(month: string, companyId?: string | null): Pr
   trendStartDate.setMonth(trendStartDate.getMonth() - 11);
   const trendStart = trendStartDate.toISOString().slice(0, 7);
 
+  const monthQ      = toYYYYMM(month);
+  const prevMonthQ  = toYYYYMM(prevMonth);
+  const trendStartQ = toYYYYMM(trendStart);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function withCompany(q: any) {
     return companyId ? q.eq('company_id', companyId) : q;
   }
 
   const [currRes, prevRes, trendRes, monthsRes] = await Promise.all([
     withCompany(svc()
-      .from('commission_settlements')
-      .select('manager, cso_name, hospital_name, hospital_type, prescription_amount')
-      .eq('prescription_month', month)
-      .not('manager', 'is', null))
+      .from('trend_prescriptions')
+      .select('sales_rep, cso_name, hospital_name, hospital_type, prescription_amount')
+      .eq('prescription_month', monthQ)
+      .not('sales_rep', 'is', null))
       .limit(200000),
 
     withCompany(svc()
-      .from('commission_settlements')
-      .select('manager, prescription_amount')
-      .eq('prescription_month', prevMonth)
-      .not('manager', 'is', null))
+      .from('trend_prescriptions')
+      .select('sales_rep, prescription_amount')
+      .eq('prescription_month', prevMonthQ)
+      .not('sales_rep', 'is', null))
       .limit(200000),
 
     withCompany(svc()
-      .from('commission_settlements')
-      .select('manager, prescription_month, prescription_amount')
-      .gte('prescription_month', trendStart)
-      .lte('prescription_month', month)
-      .not('manager', 'is', null)
+      .from('trend_prescriptions')
+      .select('sales_rep, prescription_month, prescription_amount')
+      .gte('prescription_month', trendStartQ)
+      .lte('prescription_month', monthQ)
+      .not('sales_rep', 'is', null)
       .not('prescription_month', 'is', null))
       .limit(1000000),
 
     withCompany(svc()
-      .from('commission_settlements')
+      .from('trend_prescriptions')
       .select('prescription_month')
       .not('prescription_month', 'is', null)
-      .not('manager', 'is', null)
+      .not('sales_rep', 'is', null)
       .order('prescription_month', { ascending: false }))
       .limit(5000),
   ]);
 
-  const currData = currRes.data ?? [];
-  const prevData = prevRes.data ?? [];
+  const currData  = currRes.data  ?? [];
+  const prevData  = prevRes.data  ?? [];
   const trendData = trendRes.data ?? [];
 
-  // Available months
-  const available_months = [...new Set(((monthsRes.data ?? []) as { prescription_month: string }[]).map(r => r.prescription_month))]
+  // Available months (YYYYMM → YYYY-MM)
+  const available_months = [...new Set(((monthsRes.data ?? []) as { prescription_month: string }[]).map(r => fromYYYYMM(r.prescription_month)))]
     .sort().reverse();
 
-  // Current month: aggregation by manager
+  // Current month: aggregation by sales_rep
   type MgrEntry = { total: number; hospitals: Set<string> };
   const mgrMap = new Map<string, MgrEntry>();
   for (const r of currData) {
-    const mgr = (r.manager as string)?.trim();
+    const mgr = (r.sales_rep as string)?.trim();
     if (!mgr) continue;
     if (!mgrMap.has(mgr)) mgrMap.set(mgr, { total: 0, hospitals: new Set() });
     const e = mgrMap.get(mgr)!;
@@ -141,10 +158,10 @@ export async function getMonthData(month: string, companyId?: string | null): Pr
     if (r.hospital_name) e.hospitals.add(r.hospital_name as string);
   }
 
-  // Previous month: by manager
+  // Previous month: by sales_rep
   const prevMap = new Map<string, number>();
   for (const r of prevData) {
-    const mgr = (r.manager as string)?.trim();
+    const mgr = (r.sales_rep as string)?.trim();
     if (!mgr) continue;
     prevMap.set(mgr, (prevMap.get(mgr) ?? 0) + Number(r.prescription_amount ?? 0));
   }
@@ -159,7 +176,7 @@ export async function getMonthData(month: string, companyId?: string | null): Pr
   type CsoEntry = { total: number; hospitals: Set<string> };
   const csoMap = new Map<string, CsoEntry>();
   for (const r of currData) {
-    const mgr = (r.manager as string)?.trim();
+    const mgr = (r.sales_rep as string)?.trim();
     const cso = ((r.cso_name as string) ?? '미지정').trim() || '미지정';
     if (!mgr) continue;
     const key = `${mgr}||${cso}`;
@@ -183,7 +200,7 @@ export async function getMonthData(month: string, companyId?: string | null): Pr
   type HospEntry = { total: number; hospitals: Set<string> };
   const hospMap = new Map<string, HospEntry>();
   for (const r of currData) {
-    const mgr = (r.manager as string)?.trim();
+    const mgr = (r.sales_rep as string)?.trim();
     const ht  = (r.hospital_type as string)?.trim() || '기타';
     if (!mgr) continue;
     const key = `${mgr}||${ht}`;
@@ -203,11 +220,11 @@ export async function getMonthData(month: string, companyId?: string | null): Pr
       return mc !== 0 ? mc : b.total_amount - a.total_amount;
     });
 
-  // Trend data
+  // Trend data (YYYYMM → YYYY-MM for prescription_month)
   const trendAgg = new Map<string, number>();
   for (const r of trendData) {
-    const mgr = (r.manager as string)?.trim();
-    const pm  = (r.prescription_month as string)?.trim();
+    const mgr = (r.sales_rep as string)?.trim();
+    const pm  = fromYYYYMM((r.prescription_month as string)?.trim() ?? '');
     if (!mgr || !pm) continue;
     const key = `${mgr}||${pm}`;
     trendAgg.set(key, (trendAgg.get(key) ?? 0) + Number(r.prescription_amount ?? 0));

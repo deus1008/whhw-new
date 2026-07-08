@@ -16,20 +16,26 @@ const CACHE_PREFIX = 'edi-';
 /** 한 파일에서 처리할 최대 행 수 (메모리 보호) */
 const MAX_ROWS = 100_000;
 
-/** trend_prescriptions 에 EDI 원본 행 동기화 (이미 존재하면 스킵) */
+const CACHE_VERSION = 20;
+
+/** trend_prescriptions 에 EDI 원본 행 동기화 (기존 데이터 삭제 후 재삽입) */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], data: EdiData, filename: string, companyId?: string | null): Promise<void> {
   try {
-    // 이미 DB에 저장됐으면 스킵
-    const { count } = await svc
-      .from('trend_prescriptions')
-      .select('id', { count: 'exact', head: true })
-      .eq('source_file', filename);
-    if ((count ?? 0) > 0) return;
-
     const { detectedCols, period } = data;
     // period "YYYY.MM" → "YYYYMM"
     const prescMonth = period ? period.replace('.', '') : null;
+
+    // 기존 행 삭제: 같은 source_file 또는 같은 처방월+company의 모든 행 삭제
+    // (다른 파일명으로 업로드된 중복 데이터가 합산되는 것을 방지)
+    await svc.from('trend_prescriptions').delete().eq('source_file', filename);
+    if (prescMonth) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let delQ: any = svc.from('trend_prescriptions').delete().eq('prescription_month', prescMonth);
+      if (companyId) delQ = delQ.eq('company_id', companyId);
+      else delQ = delQ.is('company_id', null);
+      await delQ;
+    }
 
     type InsertRow = {
       source_file: string;
@@ -48,9 +54,7 @@ async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], data: EdiD
       const cso = detectedCols.cso         ? String(r[detectedCols.cso]         ?? '').trim() || null : null;
       const hos = detectedCols.hospital    ? String(r[detectedCols.hospital]    ?? '').trim() || null : null;
       const itm = detectedCols.item        ? String(r[detectedCols.item]        ?? '').trim() || null : null;
-      const amt = detectedCols.finalAmount
-        ? (Number(r[detectedCols.finalAmount]) || 0)
-        : detectedCols.amount ? (Number(r[detectedCols.amount]) || 0) : 0;
+      const amt = detectedCols.amount ? (Number(r[detectedCols.amount]) || 0) : 0;
 
       // 의미 있는 데이터가 있는 행만 저장
       if (!hos && !itm && amt === 0) continue;
@@ -111,7 +115,6 @@ function detectHeaderRow(rawArrays: unknown[][]): number {
     '처방처명','처방처',                    // hospital
     '품목명','약품명',                      // item
     '처방금액','처방액',                    // amount
-    '최종실적',                            // final
     '종별구분','종별',                      // type
     '실적월','처방월','청구월',             // date
   ]);
@@ -158,7 +161,17 @@ export async function getEdiFileList(companyId?: string | null): Promise<{
   if (companyId) q = q.eq('company_id', companyId);
   const { data: docs, error: dbErr } = await q;
   if (dbErr) return { files: [], error: dbErr.message };
-  return { files: (docs ?? []) as { id: string; filename: string; created_at: string }[] };
+
+  // 파일명에서 연월(YYYYMM 또는 YYYY-MM) 추출 후 내림차순 정렬
+  const extractYearMonth = (filename: string): string => {
+    const m = filename.match(/(\d{4})[.\-_]?(\d{2})/);
+    return m ? `${m[1]}${m[2]}` : '000000';
+  };
+
+  const sorted = ((docs ?? []) as { id: string; filename: string; created_at: string }[])
+    .sort((a, b) => extractYearMonth(b.filename).localeCompare(extractYearMonth(a.filename)));
+
+  return { files: sorted };
 }
 
 /* ── 단건 파일 분析 ── */
@@ -175,13 +188,12 @@ export async function analyzeEdiFile(docId: string): Promise<{
 
   const d = doc as Record<string,string>;
   const cacheKey = `${CACHE_PREFIX}${d.id}.json`;
-  const CV = 18;
   try {
     const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
     if (blob) {
       const cached = JSON.parse(await blob.text()) as EdiReport & { cacheVersion?: number };
       const cd = cached.data as unknown as Record<string,unknown>;
-      if ((cached as unknown as Record<string,unknown>).cacheVersion === CV &&
+      if ((cached as unknown as Record<string,unknown>).cacheVersion === CACHE_VERSION &&
           Array.isArray(cd.salesPersonStats) &&
           Array.isArray(cd.itemHospStats)) {
         return { report: cached };
@@ -233,7 +245,7 @@ export async function analyzeEdiFile(docId: string): Promise<{
       } catch { /* 이 행은 헤더가 아님, 다음 시도 */ }
     }
     if (!data) throw new Error('유효한 헤더 행을 찾을 수 없습니다 (행 0-9 시도 실패)');
-    const report = { period: data!.period || d.filename, filename: d.filename, data, updated_at: d.created_at, doc_id: d.id, cacheVersion: CV } as EdiReport & { cacheVersion: number };
+    const report = { period: data!.period || d.filename, filename: d.filename, data, updated_at: d.created_at, doc_id: d.id, cacheVersion: CACHE_VERSION } as EdiReport & { cacheVersion: number };
     try {
       const cBlob = new Blob([JSON.stringify(report)], { type: 'application/json' });
       await svc.storage.from(BUCKET_CACHE).upload(cacheKey, cBlob, { upsert: true });
@@ -282,8 +294,6 @@ export async function getEdiData(): Promise<{
       const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
       if (blob) {
         const cached = JSON.parse(await blob.text()) as EdiReport;
-        // 구버전 캐시 감지: 필수 필드 없거나 캐시 버전 불일치 시 재처리
-        const CACHE_VERSION = 18; // totalHospitalCount 등 실제 건수 필드 추가
         const d = cached.data as unknown as Record<string, unknown>;
         if (
           !Array.isArray(d.salesPersonStats) ||
@@ -346,36 +356,38 @@ export async function getEdiData(): Promise<{
         if (rowCount > bestRows) { bestRows = rowCount; bestSheet = name; }
       }
 
-      // 실제 헤더 행 탐색 (첫 행이 제목/단위 행일 경우 대비)
-      // 키워드가 포함된 행을 헤더로 사용
-      const rawArrays2 = XLSX.utils.sheet_to_json<unknown[]>(
-        wb.Sheets[bestSheet], { header: 1, defval: '' },
-      );
-      const headerRowIdx = detectHeaderRow(rawArrays2);
+      // 행 0-9를 순서대로 헤더로 시도 (analyzeEdiFile과 동일한 방식)
+      let data: ReturnType<typeof processEdi> | null = null;
+      let savedRows: Record<string, unknown>[] = [];
+      for (let hri = 0; hri <= 9; hri++) {
+        try {
+          let tryRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+            wb.Sheets[bestSheet], { defval: '', range: hri },
+          );
+          if (!tryRows.length) continue;
+          if (tryRows.length > MAX_ROWS) tryRows = tryRows.slice(0, MAX_ROWS);
+          const tryData = processEdi(tryRows, doc.filename);
+          if (tryData.salesPersonStats.length > 0 || tryData.hospitalRanking.length > 0) {
+            data = tryData;
+            savedRows = tryRows;
+            console.log(`[getEdiData] ${doc.filename}: 헤더행=${hri} 성공`);
+            break;
+          }
+        } catch { /* 이 행은 헤더가 아님, 다음 시도 */ }
+      }
 
-      let rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-        wb.Sheets[bestSheet], { defval: '', range: headerRowIdx },
-      );
-
-      if (!rows.length) {
-        errors.push({ filename: doc.filename, message: '데이터 행이 없습니다.' });
+      if (!data) {
+        errors.push({ filename: doc.filename, message: '유효한 헤더 행을 찾을 수 없습니다.' });
         continue;
       }
 
-      // 행 수 제한
-      if (rows.length > MAX_ROWS) {
-        console.warn(`[getEdiData] ${doc.filename}: ${rows.length}행 → ${MAX_ROWS}행으로 제한`);
-        rows = rows.slice(0, MAX_ROWS);
-      }
-
-      const data = processEdi(rows, doc.filename);
       const report: EdiReport & { cacheVersion: number } = {
         period:       data.period || doc.filename,
         filename:     doc.filename,
         data,
         updated_at:   doc.created_at as string,
         doc_id:       doc.id as string,
-        cacheVersion: 18,
+        cacheVersion: CACHE_VERSION,
       };
 
       // 캐시 저장 (실패해도 무시)
@@ -388,7 +400,7 @@ export async function getEdiData(): Promise<{
 
       // DB 저장 (행 단위 구조화)
       const docCoId = (doc as Record<string, unknown>).company_id as string | null ?? null;
-      await syncEdiToDb(svc, rows, data, doc.filename as string, docCoId);
+      await syncEdiToDb(svc, savedRows, data, doc.filename as string, docCoId);
 
       reports.push(report);
     } catch (e) {
