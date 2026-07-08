@@ -526,7 +526,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           <Empty msg="수수료 정산 파일을 업로드하면 자동 집계됩니다." />
         ) : (
           <>
-            <SubTitle>▸ 의원·병원별 처방 집계 ({recentMonths.length > 0 ? `${fmtPeriod(recentMonths[0])} ~ ${fmtPeriod(recentMonths[recentMonths.length - 1])}` : '최근 3개월'})</SubTitle>
+            <SubTitle>▸ 의원·병원별 처방정산자료 집계 ({recentMonths.length > 0 ? `${fmtPeriod(recentMonths[0])} ~ ${fmtPeriod(recentMonths[recentMonths.length - 1])}` : '최근 3개월'})</SubTitle>
             {(() => {
               type SPM = (typeof settPrescMonthly)[0];
               const cur = settPrescMonthly[settPrescMonthly.length - 1];
