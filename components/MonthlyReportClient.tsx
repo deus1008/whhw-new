@@ -367,7 +367,7 @@ export default function MonthlyReportClient({
     values: allNewProdPeriods.map(p => ubistData.newProductData[g.name]?.[p] ?? null),
   })).filter(s => s.values.some(v => v != null && v > 0));
 
-  const SECTIONS = ['실적', '트렌드', '가동처', 'CSO', '브랜드', '신제품'];
+  const SECTIONS = ['실적', '트렌드', ...(by_hosp_type.length > 0 ? ['가동처'] : []), 'CSO', '브랜드', '신제품'];
 
   return (
     <div>

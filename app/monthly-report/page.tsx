@@ -8,10 +8,10 @@ import HomeButton from '@/components/HomeButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import MonthlyReportClient from '@/components/MonthlyReportClient';
 import { getMonthData, getUbistData, getMboTargetsForReport, getAvailableMonths } from './actions';
-import { syncAllEdiToDb } from '@/app/edi/actions';
 import { BRAND_GROUPS, NEW_PRODUCTS } from './constants';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 function getSvc() {
   return createSvc(
@@ -89,22 +89,6 @@ export default async function MonthlyReportPage({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
           <LogoutButton compact />
-          {isAdmin && (
-            <form action={async () => {
-              'use server';
-              await syncAllEdiToDb();
-              const months = await getAvailableMonths(companyId);
-              redirect(`/monthly-report?months=${months[0] ?? ''}`);
-            }}>
-              <button type="submit" style={{
-                padding: '0.4rem 0.9rem', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
-                background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)',
-                fontFamily: 'inherit', fontSize: '0.8rem', cursor: 'pointer',
-              }}>
-                EDI 동기화
-              </button>
-            </form>
-          )}
         </div>
 
         {(isAllianceUser || isAdmin) && (
