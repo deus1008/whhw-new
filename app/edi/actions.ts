@@ -263,7 +263,7 @@ export async function analyzeEdiFile(docId: string): Promise<{
   } catch (e) { return { error: e instanceof Error ? e.message : '분析 오류' }; }
 }
 
-export async function getEdiData(): Promise<{
+export async function getEdiData(force = false): Promise<{
   reports: EdiReport[];
   errors:  { filename: string; message: string }[];
 }> {
@@ -289,24 +289,26 @@ export async function getEdiData(): Promise<{
   for (const doc of docs) {
     const cacheKey = `${CACHE_PREFIX}${doc.id}.json`;
 
-    /* ── 캐시 확인 ── */
-    try {
-      const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
-      if (blob) {
-        const cached = JSON.parse(await blob.text()) as EdiReport;
-        const d = cached.data as unknown as Record<string, unknown>;
-        if (
-          !Array.isArray(d.salesPersonStats) ||
-          !Array.isArray(d.itemStats) ||
-          !Array.isArray(d.itemHospStats) ||
-          (cached as unknown as Record<string, unknown>).cacheVersion !== CACHE_VERSION
-        ) {
-          throw new Error('cache outdated – reprocess');
+    /* ── 캐시 확인 (force=true 시 건너뜀) ── */
+    if (!force) {
+      try {
+        const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
+        if (blob) {
+          const cached = JSON.parse(await blob.text()) as EdiReport;
+          const d = cached.data as unknown as Record<string, unknown>;
+          if (
+            !Array.isArray(d.salesPersonStats) ||
+            !Array.isArray(d.itemStats) ||
+            !Array.isArray(d.itemHospStats) ||
+            (cached as unknown as Record<string, unknown>).cacheVersion !== CACHE_VERSION
+          ) {
+            throw new Error('cache outdated – reprocess');
+          }
+          reports.push(cached);
+          continue;
         }
-        reports.push(cached);
-        continue;
-      }
-    } catch { /* 캐시 없음 또는 구버전 */ }
+      } catch { /* 캐시 없음 또는 구버전 */ }
+    }
 
     /* ── 원본 파일 처리 ── */
     try {
@@ -419,6 +421,16 @@ export async function getEdiData(): Promise<{
 }
 
 /* ── 캐시 초기화 (관리자 전용) ──────────────────────────────── */
+/** 모든 EDI 파일을 강제 재처리하여 trend_prescriptions DB를 최신화 */
+export async function syncAllEdiToDb(): Promise<{ synced: number; errors: number; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { synced: 0, errors: 0, error: '로그인이 필요합니다.' };
+
+  const result = await getEdiData(true); // 캐시 건너뜀 → Excel 재처리 → DB 동기화
+  return { synced: result.reports.length, errors: result.errors.length };
+}
+
 export async function forceRefreshEdi(): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
