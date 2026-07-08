@@ -1,9 +1,14 @@
 -- ============================================================
 -- Supabase SQL Editor에서 실행하세요
+-- (기존 함수 교체 - correlated subquery 제거 최적화)
 -- ============================================================
 
 CREATE INDEX IF NOT EXISTS idx_commsett_company_month
   ON commission_settlements(company_id, prescription_month);
+
+CREATE INDEX IF NOT EXISTS idx_commsett_company_month_prod
+  ON commission_settlements(company_id, prescription_month, product_name)
+  WHERE product_name IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION get_dashboard_settlements(
   p_company_id UUID,
@@ -18,7 +23,7 @@ DECLARE
   v_recent_months TEXT[];
   v_result        JSON;
 BEGIN
-  SET LOCAL work_mem = '64MB';
+  SET LOCAL work_mem = '128MB';
 
   -- 최근 3개월 결정
   SELECT ARRAY(
@@ -32,7 +37,6 @@ BEGIN
   ) INTO v_recent_months;
 
   WITH filtered AS MATERIALIZED (
-    -- 1회 테이블 스캔: 85k 행
     SELECT
       prescription_month,
       hospital_name,
@@ -47,89 +51,104 @@ BEGIN
       AND prescription_month IS NOT NULL
       AND prescription_month = ANY(v_recent_months)
   ),
-  -- 병원별 사전 집계: 85k → ~21k 행 (hospital × month × is_clinic × cso)
-  -- COUNT(DISTINCT) 연산을 이 작은 집합에서 수행해 속도 향상
+  -- 병원별 사전 집계
   h AS MATERIALIZED (
     SELECT
-      prescription_month,
-      hospital_name,
-      is_clinic,
-      cso_norm,
+      prescription_month, hospital_name, is_clinic, cso_norm,
       SUM(prescription_amount)::bigint AS pa,
       SUM(settlement_amount)::bigint   AS sa
     FROM filtered
     WHERE hospital_name IS NOT NULL
     GROUP BY 1, 2, 3, 4
   ),
-  -- 제품별 사전 집계: by_prod_month 용
+  -- 제품별 사전 집계
   p AS MATERIALIZED (
     SELECT
-      prescription_month,
-      product_name,
-      is_clinic,
+      prescription_month, product_name, is_clinic,
       SUM(prescription_amount)::bigint AS pa
     FROM filtered
     WHERE product_name IS NOT NULL
     GROUP BY 1, 2, 3
   ),
-  -- CSO별 × 월별 품목 수: by_cso_month prod_cnt 용
+  -- 월별 × 의원/병원별 품목 수 (correlated subquery 제거)
+  prod_cnt_type AS MATERIALIZED (
+    SELECT prescription_month, is_clinic,
+      COUNT(DISTINCT product_name)::int AS prod_cnt
+    FROM p
+    GROUP BY 1, 2
+  ),
+  -- 월별 전체 품목 수 (correlated subquery 제거)
+  prod_cnt_month AS MATERIALIZED (
+    SELECT prescription_month,
+      COUNT(DISTINCT product_name)::int AS prod_cnt
+    FROM p
+    GROUP BY 1
+  ),
+  -- CSO별 × 월별 품목 수
   cp AS MATERIALIZED (
-    SELECT
-      cso_norm,
-      prescription_month,
+    SELECT cso_norm, prescription_month,
       COUNT(DISTINCT product_name)::int AS prod_cnt
     FROM filtered
     WHERE product_name IS NOT NULL
     GROUP BY 1, 2
+  ),
+  -- TOP 50 병원 미리 계산 (IN 서브쿼리 제거)
+  top50_hosps AS MATERIALIZED (
+    SELECT hospital_name
+    FROM h
+    GROUP BY hospital_name
+    ORDER BY SUM(pa) DESC
+    LIMIT 50
   )
   SELECT json_build_object(
     'recent_months', to_json(v_recent_months),
 
-    -- 월별 × 의원/병원: h(21k)에서 COUNT DISTINCT (85k 대비 ~4배 빠름)
+    -- 월별 × 의원/병원
     'by_month_type', (
       SELECT json_agg(row_to_json(t) ORDER BY t.prescription_month, t.is_clinic)
       FROM (
         SELECT
-          hg.prescription_month,
-          hg.is_clinic,
+          hg.prescription_month, hg.is_clinic,
           COUNT(DISTINCT hg.hospital_name)::int AS hosp_cnt,
-          ( SELECT COUNT(*)::int FROM p
-            WHERE p.prescription_month = hg.prescription_month
-              AND p.is_clinic = hg.is_clinic ) AS prod_cnt,
-          SUM(hg.pa)::bigint AS presc_amt,
-          SUM(hg.sa)::bigint AS sett_amt
+          COALESCE(pc.prod_cnt, 0)              AS prod_cnt,
+          SUM(hg.pa)::bigint                    AS presc_amt,
+          SUM(hg.sa)::bigint                    AS sett_amt
         FROM h hg
-        GROUP BY hg.prescription_month, hg.is_clinic
+        LEFT JOIN prod_cnt_type pc
+          ON pc.prescription_month = hg.prescription_month
+         AND pc.is_clinic = hg.is_clinic
+        GROUP BY hg.prescription_month, hg.is_clinic, pc.prod_cnt
       ) t
     ),
 
-    -- 월별 합계: 동일 방식
+    -- 월별 합계
     'by_month_total', (
       SELECT json_agg(row_to_json(t) ORDER BY t.prescription_month)
       FROM (
         SELECT
           hg.prescription_month,
           COUNT(DISTINCT hg.hospital_name)::int AS hosp_cnt,
-          ( SELECT COUNT(DISTINCT p.product_name)::int FROM p
-            WHERE p.prescription_month = hg.prescription_month ) AS prod_cnt,
-          SUM(hg.pa)::bigint AS presc_amt,
-          SUM(hg.sa)::bigint AS sett_amt
+          COALESCE(pc.prod_cnt, 0)              AS prod_cnt,
+          SUM(hg.pa)::bigint                    AS presc_amt,
+          SUM(hg.sa)::bigint                    AS sett_amt
         FROM h hg
-        GROUP BY hg.prescription_month
+        LEFT JOIN prod_cnt_month pc
+          ON pc.prescription_month = hg.prescription_month
+        GROUP BY hg.prescription_month, pc.prod_cnt
       ) t
     ),
 
-    -- CSO별 월별: 처방처수(DISTINCT hospital) + 처방품목수(cp) + 처방액/정산액
+    -- CSO별 월별
     'by_cso_month', (
       SELECT json_agg(row_to_json(t) ORDER BY t.cso_name, t.prescription_month)
       FROM (
         SELECT
-          hg.cso_norm AS cso_name,
+          hg.cso_norm          AS cso_name,
           hg.prescription_month,
-          COUNT(DISTINCT hg.hospital_name)::int      AS hosp_cnt,
-          COALESCE(MAX(cp.prod_cnt), 0)::int         AS prod_cnt,
-          SUM(hg.pa)::bigint                         AS presc_amt,
-          SUM(hg.sa)::bigint                         AS sett_amt
+          COUNT(DISTINCT hg.hospital_name)::int AS hosp_cnt,
+          COALESCE(MAX(cp.prod_cnt), 0)::int    AS prod_cnt,
+          SUM(hg.pa)::bigint                    AS presc_amt,
+          SUM(hg.sa)::bigint                    AS sett_amt
         FROM h hg
         LEFT JOIN cp ON cp.cso_norm = hg.cso_norm
                     AND cp.prescription_month = hg.prescription_month
@@ -137,7 +156,7 @@ BEGIN
       ) t
     ),
 
-    -- CSO별 합계: h(21k)에서 COUNT DISTINCT
+    -- CSO별 합계
     'by_cso_total', (
       SELECT json_agg(row_to_json(t) ORDER BY t.presc_amt DESC)
       FROM (
@@ -150,7 +169,7 @@ BEGIN
       ) t
     ),
 
-    -- 상위 50 병원 월별: h에서 SUM (DISTINCT 없음)
+    -- 상위 50 병원 월별 (INNER JOIN으로 대체)
     'by_hosp_month', (
       SELECT json_agg(row_to_json(t) ORDER BY t.hospital_name, t.prescription_month)
       FROM (
@@ -161,28 +180,22 @@ BEGIN
           SUM(hg.pa)::bigint AS presc_amt,
           SUM(hg.sa)::bigint AS sett_amt
         FROM h hg
-        WHERE hg.hospital_name IN (
-          SELECT hospital_name FROM h
-          GROUP BY hospital_name
-          ORDER BY SUM(pa) DESC
-          LIMIT 50
-        )
+        INNER JOIN top50_hosps ON top50_hosps.hospital_name = hg.hospital_name
         GROUP BY hg.hospital_name, hg.prescription_month
       ) t
     ),
 
-    -- 제품별 월별: p에서 SUM (DISTINCT 없음)
+    -- 제품별 월별
     'by_prod_month', (
       SELECT json_agg(row_to_json(t) ORDER BY t.product_name, t.prescription_month)
       FROM (
-        SELECT product_name, prescription_month,
-          SUM(pa)::bigint AS presc_amt
+        SELECT product_name, prescription_month, SUM(pa)::bigint AS presc_amt
         FROM p
         GROUP BY 1, 2
       ) t
     ),
 
-    -- 전체 합계: h(21k)에서 COUNT DISTINCT
+    -- 전체 합계
     'grand_totals', (
       SELECT json_build_object(
         'hosp_cnt',  COUNT(DISTINCT hospital_name)::int,
