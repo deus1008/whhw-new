@@ -46,6 +46,7 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
   const [isPending, startTransition]    = useTransition();
   const [filterStatus, setFilterStatus]   = useState('');
   const [search, setSearch]               = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [filterCompany, setFilterCompany] = useState('');
   const [sortKey, setSortKey]             = useState<string>('launch_date');
   const [sortDir, setSortDir]             = useState<'asc' | 'desc'>('asc');
@@ -116,12 +117,14 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
     }
   }
 
+  const handleSearch = () => setAppliedSearch(search);
+
   /* ── filter ─────────────────────────────────────────────────── */
   const filtered = useMemo(() => {
     const base = products.filter(p => {
       const matchStatus  = !filterStatus  || p.status === filterStatus;
       const matchCompany = !filterCompany || (p.manufacturer ?? '') === filterCompany;
-      const q = search.trim().toLowerCase();
+      const q = appliedSearch.trim().toLowerCase();
       const matchSearch  = !q
         || (p.memo          ?? '').toLowerCase().includes(q)
         || p.title.toLowerCase().includes(q)
@@ -150,7 +153,7 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
       const cmp = va.localeCompare(vb, 'ko');
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [products, filterStatus, filterCompany, search, sortKey, sortDir]);
+  }, [products, filterStatus, filterCompany, appliedSearch, sortKey, sortDir]);
 
   /* ══ RENDER ══════════════════════════════════════════════════ */
   return (
@@ -173,8 +176,13 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
           placeholder="성분명 / 제품명 / 계열 검색"
           value={search}
           onChange={e => setSearch(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
           style={{ flex: '1 1 200px', ...inputStyle }}
         />
+        <button
+          onClick={handleSearch}
+          style={{ padding: '0.5rem 1.1rem', borderRadius: '8px', background: 'rgba(79,142,247,0.18)', border: '1px solid rgba(79,142,247,0.4)', color: '#7eb3ff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+        >검색</button>
 
         {/* 회사 검색 */}
         <div style={{ position: 'relative', flex: '0 0 auto' }}>
@@ -226,9 +234,9 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
             </button>
           );
         })}
-        {(filterStatus || filterCompany || search) && (
+        {(filterStatus || filterCompany || appliedSearch) && (
           <button
-            onClick={() => { setFilterStatus(''); setFilterCompany(''); setSearch(''); }}
+            onClick={() => { setFilterStatus(''); setFilterCompany(''); setSearch(''); setAppliedSearch(''); }}
             style={{ padding: '0.2rem 0.65rem', borderRadius: '20px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             필터 초기화
           </button>
@@ -238,7 +246,7 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
       {/* ── 테이블 ─────────────────────────────────────────────── */}
       {filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '3rem', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', color: '#475569' }}>
-          {search || filterStatus || filterCompany ? '검색 결과가 없습니다.' : '등록된 품목이 없습니다.'}
+          {appliedSearch || filterStatus || filterCompany ? '검색 결과가 없습니다.' : '등록된 품목이 없습니다.'}
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>

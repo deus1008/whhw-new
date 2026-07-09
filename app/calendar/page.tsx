@@ -131,7 +131,7 @@ export default async function MarketingPage() {
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           <HomeButton />
-          <Link href="/dashboard" style={navLink}>← 대시보드</Link>
+          <Link href="/weekly" style={navLink}>← 대시보드</Link>
           {isAdmin && <Link href="/admin" style={navLink}>관리자 →</Link>}
           <LogoutButton compact />
         </div>

@@ -4,11 +4,19 @@ import { createClient as createSvc } from '@supabase/supabase-js';
 import { profileIsAdmin } from '@/lib/roles';
 import { getEffectiveCompanyId } from '@/lib/active-company';
 import * as XLSX from 'xlsx';
+import { stripCompanyAffix } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 120;
 
 type SheetRow = Record<string, string | number | boolean | null>;
+
+export type DrilldownRow = {
+  company: string;
+  ingredient: string;
+  product: string;
+  approvalDate: string;
+};
 
 export type PeriodResult = {
   id: string;
@@ -16,19 +24,17 @@ export type PeriodResult = {
   period: string; // "YYYY-MM"
   meta: {
     totalCount: number;
-    uniqueDiseases: number;
     uniqueIngredients: number;
-    csoCount: number;
-    csoCompanyCount: number;
     topIngredientName: string;
     topIngredientCompanyCount: number;
     topIngredientTotalCount: number;
     pipelineCount: number;
   };
-  diseaseBreakdown:      { name: string; count: number }[];
+  companyBreakdown:      { name: string; count: number }[];
   approvalTypeBreakdown: { name: string; count: number }[];
   topIngredients:        { name: string; count: number }[];
   cumulativeIngredients: { name: string; count: number }[];
+  drilldownRows:         DrilldownRow[];
   pipeline: { disease: string; ingredient: string; ownStatus: string; thisMonth: string }[];
   warnings: string[];
 };
@@ -36,20 +42,18 @@ export type PeriodResult = {
 export type CombinedData = {
   meta: {
     totalCount: number;
-    uniqueDiseases: number;
     uniqueIngredients: number;
-    csoCount: number;
-    csoCompanyCount: number;
     topIngredientName: string;
     topIngredientCompanyCount: number;
     topIngredientTotalCount: number;
     pipelineCount: number;
     periodCount: number;
   };
-  diseaseBreakdown:      { name: string; count: number }[];
+  companyBreakdown:      { name: string; count: number }[];
   approvalTypeBreakdown: { name: string; count: number }[];
   topIngredients:        { name: string; count: number }[];
   monthlyTrend:          { period: string; filename: string; count: number }[];
+  drilldownRows:         DrilldownRow[];
   pipeline: { disease: string; ingredient: string; ownStatus: string; thisMonth: string }[];
 };
 
@@ -65,6 +69,21 @@ function findCol(headers: string[], candidates: string[]): string | null {
 
 function str(v: string | number | boolean | null | undefined): string {
   return String(v ?? '').trim();
+}
+
+function formatDate(v: string | number | boolean | null | undefined): string {
+  if (v == null) return '';
+  if (typeof v === 'number' && v > 40000 && v < 60000) {
+    const d = new Date((v - 25569) * 86400000);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+  }
+  const s = String(v).trim();
+  if (!s) return '';
+  const m1 = s.match(/^(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+  if (m1) return `${m1[1]}-${m1[2].padStart(2,'0')}-${m1[3].padStart(2,'0')}`;
+  const m2 = s.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (m2) return `${m2[1]}-${m2[2]}-${m2[3]}`;
+  return s;
 }
 
 function extractPeriodKey(filename: string): string {
@@ -109,27 +128,22 @@ function parseFile(wb: XLSX.WorkBook): Omit<PeriodResult, 'id' | 'filename' | 'p
   if (rows.length === 0) warnings.push(`'${mainSheetName}' 시트에 데이터가 없습니다.`);
 
   const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
-  const diseaseCol      = findCol(headers, ['질환군', '질환분류', '치료질환', '질환']);
   const ingredientCol   = findCol(headers, ['성분명', '성분']);
   const approvalTypeCol = findCol(headers, ['허가유형', '허가구분', '허가종류', '유형']);
   const companyCol      = findCol(headers, ['회사명', '업체명', '제약사', '허가업체', '제조사']);
-  const csoCol          = findCol(headers, ['CSO여부', 'CSO', 'cso', 'CSO사']);
+  const productCol      = findCol(headers, ['품목명', '제품명', '품명', '의약품명', '품목']);
+  const approvalDateCol = findCol(headers, ['허가일', '허가일자', '승인일', '허가연월일', '허가연월']);
 
-  const diseaseMap         = new Map<string, number>();
   const approvalTypeMap    = new Map<string, number>();
   const ingredientCountMap = new Map<string, number>();
   const ingredientCompanyMap = new Map<string, Set<string>>();
-  const csoCompanies = new Set<string>();
-  let csoCount = 0;
+  const companyMap         = new Map<string, number>();
 
   for (const row of rows) {
-    const disease      = diseaseCol      ? str(row[diseaseCol])      || '기타' : '기타';
     const approvalType = approvalTypeCol ? str(row[approvalTypeCol]) || '기타' : '기타';
     const ingredient   = ingredientCol   ? str(row[ingredientCol]) : '';
-    const company      = companyCol      ? str(row[companyCol]) : '';
-    const csoRaw       = csoCol          ? str(row[csoCol]).toUpperCase() : '';
+    const company      = companyCol      ? stripCompanyAffix(str(row[companyCol])) : '';
 
-    diseaseMap.set(disease, (diseaseMap.get(disease) ?? 0) + 1);
     approvalTypeMap.set(approvalType, (approvalTypeMap.get(approvalType) ?? 0) + 1);
 
     if (ingredient) {
@@ -139,10 +153,7 @@ function parseFile(wb: XLSX.WorkBook): Omit<PeriodResult, 'id' | 'filename' | 'p
         ingredientCompanyMap.get(ingredient)!.add(company);
       }
     }
-    if (['Y', 'CSO', '예', 'O', '○', '1'].includes(csoRaw)) {
-      csoCount++;
-      if (company) csoCompanies.add(company);
-    }
+    if (company) companyMap.set(company, (companyMap.get(company) ?? 0) + 1);
   }
 
   const totalCount = rows.length;
@@ -163,12 +174,19 @@ function parseFile(wb: XLSX.WorkBook): Omit<PeriodResult, 'id' | 'filename' | 'p
     }
   }
 
-  const diseaseBreakdown = Array.from(diseaseMap.entries())
+  const companyBreakdown = Array.from(companyMap.entries())
     .map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
   const approvalTypeBreakdown = Array.from(approvalTypeMap.entries())
     .map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
   const topIngredients = Array.from(ingredientCountMap.entries())
-    .map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 5);
+    .map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 10);
+
+  const drilldownRows: DrilldownRow[] = rows.map(row => ({
+    company:      companyCol      ? stripCompanyAffix(str(row[companyCol])) : '',
+    ingredient:   ingredientCol   ? str(row[ingredientCol])           : '',
+    product:      productCol      ? str(row[productCol])              : '',
+    approvalDate: approvalDateCol ? formatDate(row[approvalDateCol])  : '',
+  })).filter(r => r.company || r.ingredient || r.product);
 
   // 누계 시트
   let cumulativeIngredients: { name: string; count: number }[] = [];
@@ -215,47 +233,41 @@ function parseFile(wb: XLSX.WorkBook): Omit<PeriodResult, 'id' | 'filename' | 'p
 
   return {
     meta: {
-      totalCount, uniqueDiseases: diseaseMap.size, uniqueIngredients: ingredientCountMap.size,
-      csoCount, csoCompanyCount: csoCompanies.size,
+      totalCount, uniqueIngredients: ingredientCountMap.size,
       topIngredientName, topIngredientCompanyCount, topIngredientTotalCount,
       pipelineCount: pipeline.length,
     },
-    diseaseBreakdown, approvalTypeBreakdown, topIngredients, cumulativeIngredients, pipeline, warnings,
+    companyBreakdown, approvalTypeBreakdown, topIngredients, cumulativeIngredients, drilldownRows, pipeline, warnings,
   };
 }
 
 /* ── 통합 집계 ── */
 function computeCombined(periods: PeriodResult[]): CombinedData {
-  const diseaseBreakdown      = mergeBreakdowns(periods.map(p => p.diseaseBreakdown));
+  const companyBreakdown      = mergeBreakdowns(periods.map(p => p.companyBreakdown));
   const approvalTypeBreakdown = mergeBreakdowns(periods.map(p => p.approvalTypeBreakdown));
-  const topIngredients        = mergeBreakdowns(periods.map(p => p.topIngredients)).slice(0, 5);
+  const topIngredients        = mergeBreakdowns(periods.map(p => p.topIngredients)).slice(0, 10);
   const monthlyTrend          = periods.map(p => ({ period: p.period, filename: p.filename, count: p.meta.totalCount }));
 
   // 파이프라인: 가장 최근 달 기준
   const withPipeline = [...periods].reverse().find(p => p.pipeline.length > 0);
   const pipeline = withPipeline?.pipeline ?? [];
 
-  const totalCount       = periods.reduce((s, p) => s + p.meta.totalCount, 0);
-  const csoCount         = periods.reduce((s, p) => s + p.meta.csoCount, 0);
-  const csoCompanySet    = new Set(periods.flatMap(p =>
-    p.pipeline.map(r => r.ownStatus).filter(Boolean)));
-  const allIngredients   = mergeBreakdowns(periods.map(p => p.topIngredients));
-  const topIng           = allIngredients[0];
+  const totalCount     = periods.reduce((s, p) => s + p.meta.totalCount, 0);
+  const allIngredients = mergeBreakdowns(periods.map(p => p.topIngredients));
+  const topIng         = allIngredients[0];
 
   return {
     meta: {
       totalCount,
-      uniqueDiseases: diseaseBreakdown.length,
       uniqueIngredients: allIngredients.length,
-      csoCount,
-      csoCompanyCount: csoCompanySet.size,
       topIngredientName: topIng?.name ?? '',
       topIngredientCompanyCount: 0,
       topIngredientTotalCount: topIng?.count ?? 0,
       pipelineCount: pipeline.length,
       periodCount: periods.length,
     },
-    diseaseBreakdown, approvalTypeBreakdown, topIngredients, monthlyTrend, pipeline,
+    drilldownRows: periods.flatMap(p => p.drilldownRows),
+    companyBreakdown, approvalTypeBreakdown, topIngredients, monthlyTrend, pipeline,
   };
 }
 

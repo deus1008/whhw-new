@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
+import { stripCompanyAffix } from '@/lib/format';
 import { getEffectiveCompanyId } from '@/lib/active-company';
 import XLSX from 'xlsx';
 
@@ -51,8 +52,8 @@ function parseRows(buf: Buffer): CustomerRow[] {
       no:           Number(r[0]),
       code:         String(r[1] ?? ''),
       level,
-      name:         String(r[nameIdx] ?? '').trim(),
-      root:         String(r[2] ?? '').trim(),
+      name:         stripCompanyAffix(String(r[nameIdx] ?? '').trim()),
+      root:         stripCompanyAffix(String(r[2] ?? '').trim()),
       bizType:      String(r[12] ?? '').trim(),
       start:        String(r[13] ?? ''),
       end:          String(r[14] ?? ''),

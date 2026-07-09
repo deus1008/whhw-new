@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
 import { profileIsAdmin } from '@/lib/roles';
 import { getEffectiveCompanyId } from '@/lib/active-company';
+import { stripCompanyAffix } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,7 +100,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: dbError }, { status: 503 });
   }
 
-  const str = (v: string | null) => v ?? '미상';
+  const str = (v: string | null) => v ? stripCompanyAffix(v) : '미상';
   const cat = (v: string | null) => v ?? '미분류';
 
   return NextResponse.json({

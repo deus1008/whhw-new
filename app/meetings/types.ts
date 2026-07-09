@@ -1,5 +1,14 @@
 export type Todo = { id: string; text: string; done: boolean; due_date?: string };
 
+export type Attachment = {
+  id:   string;
+  name: string;
+  url:  string;
+  type: 'image' | 'file';
+  size: number;
+  mime: string;
+};
+
 export type TaskStatus   = '대기' | '진행중' | '완료';
 export type TaskPriority = '중요' | '긴급' | '보통' | '낮음';
 export type TaskSecurity = '공개' | '내부' | '기밀';
@@ -17,11 +26,12 @@ export type MeetingRow = {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  attachments?: Attachment[];
   /** 서버에서 주입 — 현재 사용자의 열람 가능 여부 */
   accessible?: boolean;
 };
 
-export const CATEGORIES = ['마케팅관련', '영업관련', '정책관련', '공급관련', '기타'] as const;
+export const CATEGORIES = ['기타'] as const;
 export const STATUSES:         readonly TaskStatus[]   = ['대기', '진행중', '완료'];
 export const PRIORITIES:       readonly TaskPriority[] = ['중요', '긴급', '보통', '낮음'];
 export const SECURITY_LEVELS:  readonly TaskSecurity[] = ['공개', '내부', '기밀'];

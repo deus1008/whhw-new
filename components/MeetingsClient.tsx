@@ -6,6 +6,7 @@ import { createMeeting, deleteMeeting, updateMeeting, clearCategory, renameCateg
 import { CATEGORIES, STATUSES, PRIORITIES, SECURITY_LEVELS, SECURITY_META, type MeetingRow, type TaskStatus, type TaskPriority, type TaskSecurity } from '@/app/meetings/types';
 
 const DEFAULT_CATS: string[] = [...CATEGORIES];
+const DEPRECATED_CATS = ['마케팅관련', '영업관련', '정책관련', '공급관련'];
 
 /* ── 상태 스타일 ─────────────────────────────────────────────────── */
 const STATUS_META: Record<TaskStatus, { color: string; bg: string }> = {
@@ -219,7 +220,10 @@ export default function MeetingsClient({ meetings: initial, isAdmin = false }: {
     if (typeof window === 'undefined') return [...DEFAULT_CATS];
     try {
       const saved = localStorage.getItem('whhw_task_cats');
-      if (saved) return JSON.parse(saved) as string[];
+      if (saved) {
+        const parsed = (JSON.parse(saved) as string[]).filter(c => !DEPRECATED_CATS.includes(c));
+        if (parsed.length > 0) return parsed;
+      }
     } catch {}
     return [...DEFAULT_CATS];
   });
@@ -494,6 +498,11 @@ export default function MeetingsClient({ meetings: initial, isAdmin = false }: {
                 </div>
               </>
             )}
+
+            <label style={LABEL}>작성일</label>
+            <div style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'rgba(255,255,255,0.35)', fontSize: '0.88rem', marginBottom: '1rem' }}>
+              {todayStr()}
+            </div>
 
             <label style={LABEL}>마감일 (선택)</label>
             <input type="date" value={form.meeting_date} onChange={e => setForm(f => ({ ...f, meeting_date: e.target.value }))} style={INPUT} />

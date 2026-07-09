@@ -382,12 +382,15 @@ export default function InventoryClient({
   const [actionError, setActionError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [query, setQuery] = useState('');
+  const [appliedQuery, setAppliedQuery] = useState('');
+
+  const handleSearch = () => setAppliedQuery(query);
 
   // DB items take priority; Excel items without a matching product_code show as read-only
   const dbCodes = new Set(dbItems.map(i => i.product_code).filter(Boolean));
   const excelOnly = items.filter(i => !i.product_code || !dbCodes.has(i.product_code));
 
-  const needle = query.trim().toLowerCase();
+  const needle = appliedQuery.trim().toLowerCase();
   function matchesQuery(i: DisplayItem): boolean {
     if (!needle) return true;
     return [i.product_name, i.product_code, i.manufacturer, i.cause, i.memo ?? '']
@@ -488,42 +491,49 @@ export default function InventoryClient({
       </div>
 
       {/* 검색창 */}
-      <div style={{ position: 'relative', marginBottom: '1.25rem' }}>
-        <span style={{
-          position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)',
-          fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none',
-        }}>🔍</span>
-        <input
-          type="text"
-          placeholder="제품명, 제품코드, 제조처, 원인, 메모 검색…"
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          style={{
-            width: '100%', boxSizing: 'border-box',
-            padding: '0.55rem 2.4rem 0.55rem 2.2rem',
-            borderRadius: '10px', fontSize: '0.85rem',
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            color: '#fff', outline: 'none',
-          }}
-        />
-        {query && (
-          <button
-            onClick={() => setQuery('')}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <span style={{
+            position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)',
+            fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none',
+          }}>🔍</span>
+          <input
+            type="text"
+            placeholder="제품명, 제품코드, 제조처, 원인, 메모 검색…"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
             style={{
-              position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)',
-              background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)',
-              cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1, padding: 0,
+              width: '100%', boxSizing: 'border-box',
+              padding: '0.55rem 2.4rem 0.55rem 2.2rem',
+              borderRadius: '10px', fontSize: '0.85rem',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              color: '#fff', outline: 'none',
             }}
-          >✕</button>
-        )}
+          />
+          {query && (
+            <button
+              onClick={() => { setQuery(''); setAppliedQuery(''); }}
+              style={{
+                position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)',
+                background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)',
+                cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1, padding: 0,
+              }}
+            >✕</button>
+          )}
+        </div>
+        <button
+          onClick={handleSearch}
+          style={{ padding: '0.53rem 1.1rem', borderRadius: '10px', background: 'rgba(79,142,247,0.18)', border: '1px solid rgba(79,142,247,0.4)', color: '#7eb3ff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+        >검색</button>
       </div>
 
       {/* 데이터 없음 */}
       {totalCount === 0 && !error && (
         <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.28)', fontSize: '0.83rem' }}>
           {needle
-            ? `"${query}"에 해당하는 항목이 없습니다.`
+            ? `"${appliedQuery}"에 해당하는 항목이 없습니다.`
             : '문서관리 > 품절예측 폴더에 파일을 업로드하거나 항목을 직접 추가하세요.'}
         </div>
       )}

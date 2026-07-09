@@ -20,6 +20,7 @@ export default function NoticesClient({
 }) {
   const [notices, setNotices] = useState<Notice[]>(initial);
   const [query, setQuery] = useState('');
+  const [appliedQuery, setAppliedQuery] = useState('');
   const [modal, setModal] = useState<{ mode: 'create' | 'edit'; notice?: Notice } | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [err, setErr] = useState('');
@@ -84,11 +85,13 @@ export default function NoticesClient({
     });
   }
 
-  const q        = query.trim().toLowerCase();
-  const filtered = q
+  const handleSearch = () => setAppliedQuery(query);
+
+  const aq       = appliedQuery.trim().toLowerCase();
+  const filtered = aq
     ? notices.filter(n =>
-        n.title.toLowerCase().includes(q) ||
-        n.content.toLowerCase().includes(q)
+        n.title.toLowerCase().includes(aq) ||
+        n.content.toLowerCase().includes(aq)
       )
     : notices;
 
@@ -108,6 +111,7 @@ export default function NoticesClient({
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
             placeholder="제목 또는 내용 검색"
             style={{
               width: '100%', boxSizing: 'border-box',
@@ -120,7 +124,7 @@ export default function NoticesClient({
           />
           {query && (
             <button
-              onClick={() => setQuery('')}
+              onClick={() => { setQuery(''); setAppliedQuery(''); }}
               style={{
                 position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)',
                 background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)',
@@ -129,15 +133,16 @@ export default function NoticesClient({
             >✕</button>
           )}
         </div>
+        <button onClick={handleSearch} style={{ ...BTN_PRIMARY, flexShrink: 0 }}>검색</button>
         {isAdmin && (
           <button onClick={openCreate} style={{ ...BTN_PRIMARY, flexShrink: 0 }}>+ 공지 작성</button>
         )}
       </div>
 
       {/* 검색 결과 카운트 */}
-      {q && (
+      {aq && (
         <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginBottom: '0.5rem' }}>
-          &quot;{query}&quot; 검색 결과 {filtered.length}건 / 전체 {total}건
+          &quot;{appliedQuery}&quot; 검색 결과 {filtered.length}건 / 전체 {total}건
         </div>
       )}
 
@@ -148,7 +153,7 @@ export default function NoticesClient({
             등록된 공지사항이 없습니다.
           </div>
         )}
-        {q && filtered.length === 0 && notices.length > 0 && (
+        {aq && filtered.length === 0 && notices.length > 0 && (
           <div style={{ padding: '2.5rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.88rem' }}>
             검색 결과가 없습니다.
           </div>

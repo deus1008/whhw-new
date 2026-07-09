@@ -28,7 +28,7 @@ export default async function PendingPage() {
   const status = profile?.status ?? 'pending';
 
   if (status === 'approved') {
-    redirect('/dashboard');
+    redirect('/weekly');
   }
 
   const isRejected = status === 'rejected';

@@ -314,7 +314,8 @@ function AccordionTable5({
   colorPresc = '#a8c4ff', colorSett = '#4ade80', colorRate = '#fbbf24',
   l1Label,
 }: AccordionTable5Props) {
-  const [search, setSearch]   = useState('');
+  const [search, setSearch]               = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [showAll, setShowAll] = useState(false);
   const [openL1, setOpenL1]   = useState<string | null>(null);
   const [openL2, setOpenL2]   = useState<string | null>(null);
@@ -326,25 +327,31 @@ function AccordionTable5({
   function toggleL3(k: string) { const v = openL3===k ? null : k; setOpenL3(v); setOpenL4(null); }
   function toggleL4(k: string) { setOpenL4(openL4===k ? null : k); }
 
-  const allFiltered = search.trim() ? tree.filter(l1 => l1.name.includes(search.trim())) : tree;
+  const handleSearch = () => { setAppliedSearch(search); setOpenL1(null); setOpenL2(null); setOpenL3(null); setOpenL4(null); };
+  const allFiltered = appliedSearch.trim() ? tree.filter(l1 => l1.name.includes(appliedSearch.trim())) : tree;
   const filtered    = showAll ? allFiltered : allFiltered.slice(0, SHOW_LIMIT);
   const hidden      = allFiltered.length - filtered.length;
 
   return (
     <div style={CARD}>
       <SectionTitle>{title}</SectionTitle>
-      <div style={{ marginBottom: '0.6rem' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.6rem', alignItems: 'center' }}>
         <input
           type="text"
           placeholder={`${l1Label} 검색…`}
           value={search}
-          onChange={e => { setSearch(e.target.value); setOpenL1(null); setOpenL2(null); setOpenL3(null); setOpenL4(null); }}
+          onChange={e => setSearch(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
           style={{
-            width: '100%', padding: '0.45rem 0.8rem', fontSize: '0.8rem',
+            flex: 1, padding: '0.45rem 0.8rem', fontSize: '0.8rem',
             background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
             borderRadius: '8px', color: '#e2e8f0', outline: 'none', fontFamily: 'inherit',
           }}
         />
+        <button
+          onClick={handleSearch}
+          style={{ padding: '0.43rem 0.9rem', borderRadius: '8px', background: 'rgba(79,142,247,0.18)', border: '1px solid rgba(79,142,247,0.4)', color: '#7eb3ff', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+        >검색</button>
       </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>

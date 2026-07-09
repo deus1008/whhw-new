@@ -4,7 +4,7 @@ import { createClient as createSvc } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeRole } from '@/lib/roles';
 import { getEffectiveCompanyId } from '@/lib/active-company';
-import type { Todo, MeetingRow, TaskSecurity } from './types';
+import type { Todo, MeetingRow, TaskSecurity, Attachment } from './types';
 
 function svc() {
   return createSvc(
@@ -83,7 +83,7 @@ export async function createMeeting(form: {
 
 export async function updateMeeting(
   id: string,
-  updates: Partial<{ title: string; category: string; content: string; todos: Todo[]; meeting_date: string; status: string; priority: string; security_level: string }>,
+  updates: Partial<{ title: string; category: string; content: string; todos: Todo[]; meeting_date: string; status: string; priority: string; security_level: string; attachments: Attachment[] }>,
 ): Promise<{ error?: string }> {
   const user = await getUser();
   if (!user) return { error: '인증이 필요합니다.' };

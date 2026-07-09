@@ -84,7 +84,7 @@ export default async function SettlementPage() {
         </p>
         <div className="page-nav">
           <HomeButton />
-          <Link href="/dashboard" style={nl('#93c5fd', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.28)')}>대시보드</Link>
+          <Link href="/weekly" style={nl('#93c5fd', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.28)')}>대시보드</Link>
           {isAdmin && (
             <Link href="/documents" style={nl('#fde68a', 'rgba(251,191,36,0.12)', 'rgba(251,191,36,0.28)')}>문서관리</Link>
           )}

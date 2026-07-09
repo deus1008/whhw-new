@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { PeriodResult, CombinedData } from '@/app/api/approval-data/route';
+import type { PeriodResult, CombinedData, DrilldownRow } from '@/app/api/approval-data/route';
+import { fmtNum } from '@/lib/format';
 
 type AllData = {
   periods:     PeriodResult[];
@@ -29,7 +30,7 @@ const TD: React.CSSProperties = {
   color: 'var(--text-primary)',
 };
 
-/* ── 서브 컴포넌트 ── */
+/* ── 기본 서브 컴포넌트 ── */
 function Skel({ w = '100%', h = '0.85rem' }: { w?: string; h?: string }) {
   return (
     <div style={{
@@ -69,39 +70,55 @@ function SummaryCard({ label, value, unit, sub, color }: {
   );
 }
 
-function BreakdownTable({
-  title, rows, countLabel = '품목수',
-}: { title: string; rows: { name: string; count: number }[]; countLabel?: string }) {
+/* ── 드릴다운 공통 ── */
+function useToggle() {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (key: string) => setExpanded(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+  return { expanded, toggle };
+}
+
+function Chevron({ open }: { open: boolean }) {
   return (
-    <div style={CARD}>
-      <SectionTitle>{title}</SectionTitle>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={TH}>구분</th>
-              <th style={{ ...TH, textAlign: 'right' }}>{countLabel}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length > 0 ? rows.map((row, i) => (
-              <tr key={row.name}>
-                <td style={TD}>{row.name}</td>
-                <td style={{ ...TD, textAlign: 'right', color: i === 0 ? '#f87171' : '#7eb3ff', fontWeight: i === 0 ? 700 : 400 }}>
-                  {row.count}
-                </td>
-              </tr>
-            )) : (
-              <tr><td colSpan={2} style={{ ...TD, textAlign: 'center', color: 'var(--text-muted)' }}>데이터 없음</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <span style={{
+      display: 'inline-block', width: '1rem', fontSize: '0.6rem',
+      color: 'rgba(126,179,255,0.55)', userSelect: 'none', flexShrink: 0,
+    }}>
+      {open ? '▼' : '▶'}
+    </span>
   );
 }
 
-function IngredientsTable({ rows, title }: { rows: { name: string; count: number }[]; title: string }) {
+/* ── 회사별 허가현황 드릴다운 테이블 ──
+   Level 1: 회사명  →  Level 2: 성분명  →  Level 3: 품목명 + Level 4: 허가일
+*/
+function DrilldownCompanyTable({ rows, drilldownRows, title }: {
+  rows: { name: string; count: number }[];
+  drilldownRows: DrilldownRow[];
+  title: string;
+}) {
+  const lvl1 = useToggle(); // company expand
+  const lvl2 = useToggle(); // ingredient expand within company
+
+  // tree: company → ingredient → [ {product, approvalDate} ]
+  const tree = useMemo(() => {
+    const map = new Map<string, Map<string, { product: string; approvalDate: string }[]>>();
+    for (const r of drilldownRows) {
+      if (!r.company) continue;
+      if (!map.has(r.company)) map.set(r.company, new Map());
+      const ing = r.ingredient || '(성분명 없음)';
+      const ingMap = map.get(r.company)!;
+      if (!ingMap.has(ing)) ingMap.set(ing, []);
+      ingMap.get(ing)!.push({ product: r.product || '(품목명 없음)', approvalDate: r.approvalDate });
+    }
+    return map;
+  }, [drilldownRows]);
+
+  const maxCount = Math.max(...rows.map(r => r.count), 1);
+
   return (
     <div style={CARD}>
       <SectionTitle>{title}</SectionTitle>
@@ -110,22 +127,269 @@ function IngredientsTable({ rows, title }: { rows: { name: string; count: number
           <thead>
             <tr>
               <th style={{ ...TH, width: '2.2rem', textAlign: 'center' }}>순위</th>
-              <th style={TH}>성분명</th>
-              <th style={{ ...TH, textAlign: 'right' }}>허가 건수</th>
+              <th style={TH}>회사명 / 성분 / 품목</th>
+              <th style={{ ...TH, width: '28%' }}>비율</th>
+              <th style={{ ...TH, textAlign: 'right', minWidth: '90px' }}>허가일 / 수량</th>
             </tr>
           </thead>
           <tbody>
-            {rows.length > 0 ? rows.map((row, i) => (
+            {rows.length > 0 ? rows.map((row, i) => {
+              const isOpen = lvl1.expanded.has(row.name);
+              const ingMap = tree.get(row.name);
+              const hasDetail = !!ingMap && ingMap.size > 0;
+              const ingList = ingMap
+                ? Array.from(ingMap.entries()).sort((a, b) => b[1].length - a[1].length)
+                : [];
+
+              return (
+                <React.Fragment key={row.name}>
+                  {/* ── Level 1: 회사 ── */}
+                  <tr
+                    onClick={() => hasDetail && lvl1.toggle(row.name)}
+                    style={{
+                      background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : undefined,
+                      cursor: hasDetail ? 'pointer' : 'default',
+                    }}
+                  >
+                    <td style={{ ...TD, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.72rem' }}>{i + 1}</td>
+                    <td style={{ ...TD, fontWeight: i < 3 ? 600 : 400 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0' }}>
+                        {hasDetail && <Chevron open={isOpen} />}
+                        {!hasDetail && <span style={{ display: 'inline-block', width: '1rem' }} />}
+                        {row.name}
+                      </span>
+                    </td>
+                    <td style={{ ...TD, paddingRight: '1rem' }}>
+                      <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '3px', height: '6px', overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${(row.count / maxCount) * 100}%`, height: '100%',
+                          background: i === 0 ? 'linear-gradient(90deg,#f87171,#fb923c)'
+                            : i < 3 ? 'linear-gradient(90deg,#60a5fa,#818cf8)'
+                            : 'rgba(126,179,255,0.4)',
+                          borderRadius: '3px',
+                        }} />
+                      </div>
+                    </td>
+                    <td style={{ ...TD, textAlign: 'right', color: i === 0 ? '#f87171' : i < 3 ? '#7eb3ff' : 'var(--text-primary)', fontWeight: i < 3 ? 600 : 400 }}>
+                      {fmtNum(row.count)}품목
+                    </td>
+                  </tr>
+
+                  {/* ── Level 2: 성분 ── */}
+                  {isOpen && ingList.map(([ingName, products]) => {
+                    const ingKey = `${row.name}::${ingName}`;
+                    const isIngOpen = lvl2.expanded.has(ingKey);
+                    const sorted = [...products].sort((a, b) => (b.approvalDate || '').localeCompare(a.approvalDate || ''));
+
+                    return (
+                      <React.Fragment key={ingKey}>
+                        <tr
+                          onClick={() => lvl2.toggle(ingKey)}
+                          style={{ background: 'rgba(79,142,247,0.05)', cursor: 'pointer' }}
+                        >
+                          <td style={{ ...TD, borderBottom: '1px solid rgba(79,142,247,0.07)' }} />
+                          <td style={{ ...TD, paddingLeft: '2rem', fontSize: '0.76rem', color: 'rgba(255,255,255,0.6)', borderBottom: '1px solid rgba(79,142,247,0.07)' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                              <Chevron open={isIngOpen} />
+                              {ingName}
+                            </span>
+                          </td>
+                          <td style={{ ...TD, borderBottom: '1px solid rgba(79,142,247,0.07)' }} />
+                          <td style={{ ...TD, textAlign: 'right', fontSize: '0.74rem', color: 'rgba(126,179,255,0.55)', borderBottom: '1px solid rgba(79,142,247,0.07)' }}>
+                            {products.length}건
+                          </td>
+                        </tr>
+
+                        {/* ── Level 3: 품목  +  Level 4: 허가일 ── */}
+                        {isIngOpen && sorted.map((p, pi) => (
+                          <tr key={pi} style={{ background: 'rgba(124,58,237,0.04)' }}>
+                            <td style={{ ...TD, borderBottom: '1px solid rgba(124,58,237,0.05)' }} />
+                            <td style={{ ...TD, paddingLeft: '3.5rem', fontSize: '0.73rem', color: 'rgba(255,255,255,0.48)', borderBottom: '1px solid rgba(124,58,237,0.05)' }}>
+                              <span style={{ marginRight: '0.3rem', color: 'rgba(255,255,255,0.18)' }}>•</span>
+                              {p.product}
+                            </td>
+                            <td style={{ ...TD, borderBottom: '1px solid rgba(124,58,237,0.05)' }} />
+                            <td style={{ ...TD, textAlign: 'right', fontSize: '0.71rem', color: 'rgba(255,255,255,0.32)', borderBottom: '1px solid rgba(124,58,237,0.05)', whiteSpace: 'nowrap' }}>
+                              {p.approvalDate || '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            }) : (
+              <tr><td colSpan={4} style={{ ...TD, textAlign: 'center', color: 'var(--text-muted)' }}>회사명 컬럼이 탐지되지 않았습니다.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ── 성분별 허가현황 드릴다운 테이블 ──
+   Level 1: 성분명  →  Level 2: 회사명  →  Level 3: 품목명 + Level 4: 허가일
+*/
+function DrilldownIngredientTable({ rows, drilldownRows, title }: {
+  rows: { name: string; count: number }[];
+  drilldownRows: DrilldownRow[];
+  title: string;
+}) {
+  const lvl1 = useToggle(); // ingredient expand
+  const lvl2 = useToggle(); // company expand within ingredient
+
+  // tree: ingredient → company → [ {product, approvalDate} ]
+  const tree = useMemo(() => {
+    const map = new Map<string, Map<string, { product: string; approvalDate: string }[]>>();
+    for (const r of drilldownRows) {
+      if (!r.ingredient) continue;
+      if (!map.has(r.ingredient)) map.set(r.ingredient, new Map());
+      const co = r.company || '(회사명 없음)';
+      const coMap = map.get(r.ingredient)!;
+      if (!coMap.has(co)) coMap.set(co, []);
+      coMap.get(co)!.push({ product: r.product || '(품목명 없음)', approvalDate: r.approvalDate });
+    }
+    return map;
+  }, [drilldownRows]);
+
+  const maxCount = Math.max(...rows.map(r => r.count), 1);
+
+  return (
+    <div style={CARD}>
+      <SectionTitle>{title}</SectionTitle>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ ...TH, width: '2.2rem', textAlign: 'center' }}>순위</th>
+              <th style={TH}>성분명 / 회사 / 품목</th>
+              <th style={{ ...TH, width: '28%' }}>비율</th>
+              <th style={{ ...TH, textAlign: 'right', minWidth: '90px' }}>허가일 / 수량</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length > 0 ? rows.map((row, i) => {
+              const isOpen = lvl1.expanded.has(row.name);
+              const coMap = tree.get(row.name);
+              const hasDetail = !!coMap && coMap.size > 0;
+              const coList = coMap
+                ? Array.from(coMap.entries()).sort((a, b) => b[1].length - a[1].length)
+                : [];
+
+              return (
+                <React.Fragment key={row.name}>
+                  {/* ── Level 1: 성분 ── */}
+                  <tr
+                    onClick={() => hasDetail && lvl1.toggle(row.name)}
+                    style={{
+                      background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : undefined,
+                      cursor: hasDetail ? 'pointer' : 'default',
+                    }}
+                  >
+                    <td style={{ ...TD, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.72rem' }}>{i + 1}</td>
+                    <td style={{ ...TD, fontWeight: i < 3 ? 600 : 400 }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                        {hasDetail && <Chevron open={isOpen} />}
+                        {!hasDetail && <span style={{ display: 'inline-block', width: '1rem' }} />}
+                        {row.name}
+                      </span>
+                    </td>
+                    <td style={{ ...TD, paddingRight: '1rem' }}>
+                      <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '3px', height: '6px', overflow: 'hidden' }}>
+                        <div style={{
+                          width: `${(row.count / maxCount) * 100}%`, height: '100%',
+                          background: i === 0 ? 'linear-gradient(90deg,#a78bfa,#818cf8)'
+                            : i < 3 ? 'linear-gradient(90deg,#60a5fa,#7c3aed)'
+                            : 'rgba(126,179,255,0.4)',
+                          borderRadius: '3px',
+                        }} />
+                      </div>
+                    </td>
+                    <td style={{ ...TD, textAlign: 'right', color: i === 0 ? '#a78bfa' : i < 3 ? '#7eb3ff' : 'var(--text-primary)', fontWeight: i < 3 ? 600 : 400 }}>
+                      {fmtNum(row.count)}건
+                    </td>
+                  </tr>
+
+                  {/* ── Level 2: 회사 ── */}
+                  {isOpen && coList.map(([coName, products]) => {
+                    const coKey = `${row.name}::${coName}`;
+                    const isCoOpen = lvl2.expanded.has(coKey);
+                    const sorted = [...products].sort((a, b) => (b.approvalDate || '').localeCompare(a.approvalDate || ''));
+
+                    return (
+                      <React.Fragment key={coKey}>
+                        <tr
+                          onClick={() => lvl2.toggle(coKey)}
+                          style={{ background: 'rgba(124,58,237,0.05)', cursor: 'pointer' }}
+                        >
+                          <td style={{ ...TD, borderBottom: '1px solid rgba(124,58,237,0.07)' }} />
+                          <td style={{ ...TD, paddingLeft: '2rem', fontSize: '0.76rem', color: 'rgba(255,255,255,0.6)', borderBottom: '1px solid rgba(124,58,237,0.07)' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                              <Chevron open={isCoOpen} />
+                              {coName}
+                            </span>
+                          </td>
+                          <td style={{ ...TD, borderBottom: '1px solid rgba(124,58,237,0.07)' }} />
+                          <td style={{ ...TD, textAlign: 'right', fontSize: '0.74rem', color: 'rgba(167,139,250,0.55)', borderBottom: '1px solid rgba(124,58,237,0.07)' }}>
+                            {products.length}건
+                          </td>
+                        </tr>
+
+                        {/* ── Level 3: 품목  +  Level 4: 허가일 ── */}
+                        {isCoOpen && sorted.map((p, pi) => (
+                          <tr key={pi} style={{ background: 'rgba(79,142,247,0.04)' }}>
+                            <td style={{ ...TD, borderBottom: '1px solid rgba(79,142,247,0.05)' }} />
+                            <td style={{ ...TD, paddingLeft: '3.5rem', fontSize: '0.73rem', color: 'rgba(255,255,255,0.48)', borderBottom: '1px solid rgba(79,142,247,0.05)' }}>
+                              <span style={{ marginRight: '0.3rem', color: 'rgba(255,255,255,0.18)' }}>•</span>
+                              {p.product}
+                            </td>
+                            <td style={{ ...TD, borderBottom: '1px solid rgba(79,142,247,0.05)' }} />
+                            <td style={{ ...TD, textAlign: 'right', fontSize: '0.71rem', color: 'rgba(255,255,255,0.32)', borderBottom: '1px solid rgba(79,142,247,0.05)', whiteSpace: 'nowrap' }}>
+                              {p.approvalDate || '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            }) : (
+              <tr><td colSpan={4} style={{ ...TD, textAlign: 'center', color: 'var(--text-muted)' }}>성분명 컬럼이 탐지되지 않았습니다.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ── 허가유형별 분포 ── */
+function ApprovalTypeTable({ rows, title }: { rows: { name: string; count: number }[]; title: string }) {
+  if (rows.length === 0) return null;
+  if (rows.length === 1 && rows[0].name === '기타') return null;
+  return (
+    <div style={CARD}>
+      <SectionTitle>{title}</SectionTitle>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr>
+              <th style={TH}>허가유형</th>
+              <th style={{ ...TH, textAlign: 'right' }}>품목수</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
               <tr key={row.name}>
-                <td style={{ ...TD, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.72rem' }}>{i + 1}</td>
                 <td style={TD}>{row.name}</td>
                 <td style={{ ...TD, textAlign: 'right', color: i === 0 ? '#f87171' : '#7eb3ff', fontWeight: i === 0 ? 700 : 400 }}>
-                  {row.count}
+                  {fmtNum(row.count)}
                 </td>
               </tr>
-            )) : (
-              <tr><td colSpan={3} style={{ ...TD, textAlign: 'center', color: 'var(--text-muted)' }}>데이터 없음</td></tr>
-            )}
+            ))}
           </tbody>
         </table>
       </div>
@@ -174,7 +438,7 @@ function PipelineTable({ rows, periodLabel }: {
   );
 }
 
-/* ── 월별 추이 바차트 ── */
+/* ── 월별 추이 ── */
 function MonthlyTrend({ trend }: { trend: CombinedData['monthlyTrend'] }) {
   if (trend.length === 0) return null;
   const maxCount = Math.max(...trend.map(t => t.count), 1);
@@ -197,12 +461,11 @@ function MonthlyTrend({ trend }: { trend: CombinedData['monthlyTrend'] }) {
                 <div style={{
                   width: `${pct}%`, height: '100%',
                   background: 'linear-gradient(90deg,#4f8ef7,#7c3aed)',
-                  borderRadius: '4px',
-                  transition: 'width 0.5s ease',
+                  borderRadius: '4px', transition: 'width 0.5s ease',
                 }} />
               </div>
               <span style={{ fontSize: '0.75rem', color: '#7eb3ff', minWidth: '52px', textAlign: 'right', flexShrink: 0 }}>
-                {item.count}품목
+                {fmtNum(item.count)}품목
               </span>
             </div>
           );
@@ -224,50 +487,34 @@ function getPeriodRange(key: string): string {
   if (!m) return '';
   const year = parseInt(m[1]), month = parseInt(m[2]);
   const lastDay = new Date(year, month, 0).getDate();
-  const mm = m[2];
-  return `${year}-${mm}-01 ~ ${mm}-${lastDay}`;
+  return `${year}-${m[2]}-01 ~ ${m[2]}-${lastDay}`;
 }
 
 /* ── 메인 컴포넌트 ── */
 export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
   const files = allFiles ?? [];
-  const [allData,     setAllData]     = useState<AllData | null>(null);
-  const [loading,     setLoading]     = useState(files.length > 0);
-  const [fetchError,  setFetchError]  = useState(false);
+  const [allData,        setAllData]        = useState<AllData | null>(null);
+  const [loading,        setLoading]        = useState(files.length > 0);
+  const [fetchError,     setFetchError]     = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<string>('전체');
 
   const ids = useMemo(() => files.map(f => f.id).join(','), [files]);
 
   async function loadAll() {
     if (!ids) return;
-    setAllData(null);
-    setFetchError(false);
-    setLoading(true);
+    setAllData(null); setFetchError(false); setLoading(true);
     try {
       const res = await fetch(`/api/approval-data?ids=${encodeURIComponent(ids)}`);
-      if (res.ok) {
-        const data = await res.json() as AllData;
-        setAllData(data);
-        setSelectedPeriod('전체');
-      } else {
-        setFetchError(true);
-      }
-    } catch {
-      setFetchError(true);
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) { setAllData(await res.json() as AllData); setSelectedPeriod('전체'); }
+      else setFetchError(true);
+    } catch { setFetchError(true); }
+    finally { setLoading(false); }
   }
 
-  useEffect(() => {
-    if (files.length > 0) loadAll();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { if (files.length > 0) loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* 현재 표시할 데이터 */
   const displayData = useMemo(() => {
-    if (!allData) return null;
-    if (selectedPeriod === '전체') return null; // combined 별도 처리
+    if (!allData || selectedPeriod === '전체') return null;
     return allData.periods.find(p => p.period === selectedPeriod) ?? null;
   }, [allData, selectedPeriod]);
 
@@ -286,13 +533,10 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
   return (
     <>
       <style>{`
-        @keyframes skel-pulse {
-          0%, 100% { opacity: 0.3; }
-          50%       { opacity: 0.65; }
-        }
+        @keyframes skel-pulse { 0%,100%{opacity:.3} 50%{opacity:.65} }
       `}</style>
 
-      {/* ── 기간 선택 탭 ── */}
+      {/* 기간 탭 */}
       {(loading || allData) && (
         <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
           {loading ? (
@@ -303,19 +547,13 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
             ))
           ) : (
             ['전체', ...(allData?.periods.map(p => p.period) ?? [])].map(p => (
-              <button
-                key={p}
-                onClick={() => setSelectedPeriod(p)}
-                style={{
-                  padding: '0.4rem 0.9rem', borderRadius: '100px', cursor: 'pointer',
-                  border: '1px solid',
-                  borderColor: selectedPeriod === p ? 'rgba(79,142,247,0.5)' : 'rgba(255,255,255,0.1)',
-                  background: selectedPeriod === p ? 'rgba(79,142,247,0.15)' : 'transparent',
-                  color: selectedPeriod === p ? '#7eb3ff' : 'var(--text-muted)',
-                  fontSize: '0.8rem', fontWeight: selectedPeriod === p ? 600 : 400,
-                  transition: 'all 0.15s',
-                }}
-              >
+              <button key={p} onClick={() => setSelectedPeriod(p)} style={{
+                padding: '0.4rem 0.9rem', borderRadius: '100px', cursor: 'pointer', border: '1px solid',
+                borderColor: selectedPeriod === p ? 'rgba(79,142,247,0.5)' : 'rgba(255,255,255,0.1)',
+                background: selectedPeriod === p ? 'rgba(79,142,247,0.15)' : 'transparent',
+                color: selectedPeriod === p ? '#7eb3ff' : 'var(--text-muted)',
+                fontSize: '0.8rem', fontWeight: selectedPeriod === p ? 600 : 400, transition: 'all 0.15s',
+              }}>
                 {p === '전체' ? `전체 (${allData?.periods.length ?? 0}개월)` : formatPeriod(p)}
               </button>
             ))
@@ -323,30 +561,28 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
         </div>
       )}
 
-      {/* ── 기간 헤더 ── */}
+      {/* 기간 헤더 */}
       {!loading && allData && (
         <div style={{ marginBottom: '1rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
           {isCombined ? (
             <>
-              <span style={{ fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>
-                {allData.periods.length}개월 통합
-              </span>
+              <span style={{ fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{allData.periods.length}개월 통합</span>
               {allData.periods.length > 0 && (
                 <span> · {formatPeriod(allData.periods[0].period)} ~ {formatPeriod(allData.periods[allData.periods.length - 1].period)}</span>
               )}
-              <span style={{ color: '#7eb3ff', fontWeight: 600 }}> · 총 {combined?.meta.totalCount ?? 0}품목</span>
+              <span style={{ color: '#7eb3ff', fontWeight: 600 }}> · 총 {fmtNum(combined?.meta.totalCount ?? 0)}품목</span>
             </>
           ) : displayData ? (
             <>
               <span style={{ fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{formatPeriod(displayData.period)}</span>
               {displayData.period && <span> · 집계기간 {getPeriodRange(displayData.period)}</span>}
-              <span style={{ color: '#7eb3ff', fontWeight: 600 }}> · 총 {displayData.meta.totalCount}품목</span>
+              <span style={{ color: '#7eb3ff', fontWeight: 600 }}> · 총 {fmtNum(displayData.meta.totalCount)}품목</span>
             </>
           ) : null}
         </div>
       )}
 
-      {/* ── 오류 ── */}
+      {/* 오류 */}
       {fetchError && !loading && (
         <div style={{ ...CARD, textAlign: 'center', padding: '2rem' }}>
           <div style={{ fontSize: '1.4rem', marginBottom: '0.6rem', opacity: 0.6 }}>⚠️</div>
@@ -358,17 +594,15 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
             padding: '0.45rem 1.2rem', borderRadius: '8px', cursor: 'pointer',
             background: 'rgba(79,142,247,0.15)', border: '1px solid rgba(79,142,247,0.35)',
             color: '#7eb3ff', fontSize: '0.82rem',
-          }}>
-            다시 시도
-          </button>
+          }}>다시 시도</button>
         </div>
       )}
 
-      {/* ── 스켈레톤 ── */}
+      {/* 스켈레톤 */}
       {loading && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
-            {[...Array(4)].map((_, i) => (
+            {[...Array(3)].map((_, i) => (
               <div key={i} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '0.9rem 1rem' }}>
                 <Skel w="55%" h="0.65rem" />
                 <div style={{ marginTop: '0.5rem' }}><Skel w="70%" h="1.5rem" /></div>
@@ -376,21 +610,20 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
               </div>
             ))}
           </div>
-          {[...Array(3)].map((_, i) => (
+          {[...Array(2)].map((_, i) => (
             <div key={i} style={CARD}>
               <Skel w="130px" h="0.85rem" />
               <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                {[...Array(5)].map((_, j) => <Skel key={j} />)}
+                {[...Array(6)].map((_, j) => <Skel key={j} />)}
               </div>
             </div>
           ))}
         </>
       )}
 
-      {/* ── 데이터 표시 ── */}
+      {/* 데이터 표시 */}
       {!loading && !fetchError && allData && (
         <>
-          {/* 파일 파싱 실패 경고 */}
           {allData.failedCount > 0 && (
             <div style={{ fontSize: '0.72rem', color: '#fbbf24', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(251,191,36,0.08)', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.2)' }}>
               ⚠ {allData.failedCount}개 파일을 불러오지 못했습니다.
@@ -400,54 +633,44 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
           {/* ═══ 전체 통합 뷰 ═══ */}
           {isCombined && combined && (
             <>
-              {/* 요약 카드 */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                 <SummaryCard
-                  label="총 허가 품목 (합산)"
-                  value={String(combined.meta.totalCount)}
-                  unit="품목"
-                  sub={`${combined.meta.uniqueDiseases}개 질환군 · ${combined.meta.uniqueIngredients}개 성분`}
+                  label="총 허가 품목 (합산)" value={fmtNum(combined.meta.totalCount)} unit="품목"
+                  sub={`${fmtNum(combined.meta.uniqueIngredients)}개 성분 · ${fmtNum(combined.companyBreakdown.length)}개사`}
                   color="#7eb3ff"
                 />
                 <SummaryCard
                   label="최다 집중 성분"
-                  value={String(combined.meta.topIngredientTotalCount || '-')}
+                  value={combined.meta.topIngredientTotalCount ? fmtNum(combined.meta.topIngredientTotalCount) : '-'}
                   unit={combined.meta.topIngredientTotalCount ? '건' : undefined}
                   sub={combined.meta.topIngredientName || '성분명 컬럼 미탐지'}
                   color="#a78bfa"
                 />
                 <SummaryCard
-                  label="CSO사 품목 (합산)"
-                  value={String(combined.meta.csoCount)}
-                  unit="품목"
-                  sub={`전체 ${combined.meta.totalCount > 0 ? Math.round(combined.meta.csoCount / combined.meta.totalCount * 100) : 0}%`}
+                  label="최다 허가 회사"
+                  value={combined.companyBreakdown[0] ? fmtNum(combined.companyBreakdown[0].count) : '-'}
+                  unit={combined.companyBreakdown[0] ? '품목' : undefined}
+                  sub={combined.companyBreakdown[0]?.name ?? '회사명 컬럼 미탐지'}
                   color="#34d399"
                 />
-                <SummaryCard
-                  label="파이프라인 현황"
-                  value={String(combined.meta.pipelineCount)}
-                  unit="건"
-                  sub={`최신 월 기준`}
-                  color="#fb923c"
-                />
               </div>
 
-              {/* 월별 추이 */}
               <MonthlyTrend trend={combined.monthlyTrend} />
 
-              {/* 질환군별 + 허가유형별 */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: '0.75rem', marginBottom: '0' }}>
-                <BreakdownTable title="질환군별 허가 품목 (누적)" rows={combined.diseaseBreakdown} />
-                <BreakdownTable title="허가유형별 분포 (누적)" rows={combined.approvalTypeBreakdown} />
-              </div>
-
-              {/* 성분 누계 TOP 5 */}
-              <IngredientsTable
-                title={`성분별 허가 누계 TOP 5 (${allData.periods.length}개월 합산)`}
-                rows={combined.topIngredients}
+              <DrilldownCompanyTable
+                title={`회사별 허가현황 (${allData.periods.length}개월 합산)`}
+                rows={combined.companyBreakdown}
+                drilldownRows={combined.drilldownRows}
               />
 
-              {/* 파이프라인 (최신 월) */}
+              <DrilldownIngredientTable
+                title={`성분별 허가현황 TOP 10 (${allData.periods.length}개월 합산)`}
+                rows={combined.topIngredients}
+                drilldownRows={combined.drilldownRows}
+              />
+
+              <ApprovalTypeTable title="허가유형별 분포 (누적)" rows={combined.approvalTypeBreakdown} />
+
               {combined.pipeline.length > 0 && (
                 <PipelineTable
                   rows={combined.pipeline}
@@ -464,60 +687,50 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
           {/* ═══ 개별 월 뷰 ═══ */}
           {!isCombined && displayData && (
             <>
-              {/* 파싱 경고 */}
               {displayData.warnings.length > 0 && (
                 <div style={{ fontSize: '0.72rem', color: '#fbbf24', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(251,191,36,0.08)', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.2)' }}>
                   ⚠ {displayData.warnings.join(' · ')}
                 </div>
               )}
 
-              {/* 요약 카드 */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                 <SummaryCard
-                  label="총 허가 품목"
-                  value={String(displayData.meta.totalCount)}
-                  unit="품목"
-                  sub={`${displayData.meta.uniqueDiseases}개 질환군 · ${displayData.meta.uniqueIngredients}개 성분`}
+                  label="총 허가 품목" value={fmtNum(displayData.meta.totalCount)} unit="품목"
+                  sub={`${fmtNum(displayData.meta.uniqueIngredients)}개 성분 · ${fmtNum(displayData.companyBreakdown.length)}개사`}
                   color="#7eb3ff"
                 />
                 <SummaryCard
                   label="최다 집중 성분"
-                  value={String(displayData.meta.topIngredientTotalCount || '-')}
+                  value={displayData.meta.topIngredientTotalCount ? fmtNum(displayData.meta.topIngredientTotalCount) : '-'}
                   unit={displayData.meta.topIngredientTotalCount ? '품목' : undefined}
                   sub={displayData.meta.topIngredientName
-                    ? `${displayData.meta.topIngredientName}${displayData.meta.topIngredientCompanyCount > 0 ? ` (${displayData.meta.topIngredientCompanyCount}개사)` : ''}`
+                    ? `${displayData.meta.topIngredientName}${displayData.meta.topIngredientCompanyCount > 0 ? ` (${fmtNum(displayData.meta.topIngredientCompanyCount)}개사)` : ''}`
                     : '성분명 컬럼 미탐지'}
                   color="#a78bfa"
                 />
                 <SummaryCard
-                  label="CSO사 품목"
-                  value={String(displayData.meta.csoCount)}
-                  unit="품목"
-                  sub={`${displayData.meta.csoCompanyCount}개사 · 전체 ${displayData.meta.totalCount > 0 ? Math.round(displayData.meta.csoCount / displayData.meta.totalCount * 100) : 0}%`}
+                  label="최다 허가 회사"
+                  value={displayData.companyBreakdown[0] ? fmtNum(displayData.companyBreakdown[0].count) : '-'}
+                  unit={displayData.companyBreakdown[0] ? '품목' : undefined}
+                  sub={displayData.companyBreakdown[0]?.name ?? '회사명 컬럼 미탐지'}
                   color="#34d399"
                 />
-                <SummaryCard
-                  label="파이프라인 현황"
-                  value={String(displayData.meta.pipelineCount)}
-                  unit="건"
-                  sub={displayData.meta.pipelineCount > 0 ? '아래 테이블 참조' : '파이프라인 시트 없음'}
-                  color="#fb923c"
-                />
               </div>
 
-              {/* 질환군별 + 허가유형별 */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: '0.75rem', marginBottom: '0' }}>
-                <BreakdownTable title="질환군별 허가 품목 (품목수 순)" rows={displayData.diseaseBreakdown} />
-                <BreakdownTable title="허가유형별 분포" rows={displayData.approvalTypeBreakdown} />
-              </div>
-
-              {/* 성분 누계 */}
-              <IngredientsTable
-                title={`허가 성분 누계 TOP 5${displayData.cumulativeIngredients !== displayData.topIngredients ? '' : ' (이달 기준)'}`}
-                rows={displayData.cumulativeIngredients}
+              <DrilldownCompanyTable
+                title="회사별 허가현황"
+                rows={displayData.companyBreakdown}
+                drilldownRows={displayData.drilldownRows}
               />
 
-              {/* 파이프라인 */}
+              <DrilldownIngredientTable
+                title="성분별 허가현황 TOP 10"
+                rows={displayData.cumulativeIngredients.length > 0 ? displayData.cumulativeIngredients : displayData.topIngredients}
+                drilldownRows={displayData.drilldownRows}
+              />
+
+              <ApprovalTypeTable title="허가유형별 분포" rows={displayData.approvalTypeBreakdown} />
+
               <PipelineTable rows={displayData.pipeline} periodLabel={formatPeriod(displayData.period)} />
 
               {displayData.meta.totalCount === 0 && displayData.pipeline.length === 0 && (

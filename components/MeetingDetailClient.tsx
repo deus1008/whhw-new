@@ -126,12 +126,13 @@ function RichEditor({ initialValue, onChange, onImageUpload }: {
   }, [onChange]);
 
   function exec(cmd: string, arg?: string) {
-    document.execCommand(cmd, false, arg);
     editorRef.current?.focus();
+    document.execCommand(cmd, false, arg);
     sync();
   }
 
   function applyFontSize(size: string) {
+    editorRef.current?.focus();
     document.execCommand('fontSize', false, '7');
     editorRef.current?.querySelectorAll('font[size="7"]').forEach(el => {
       const span = document.createElement('span');
@@ -139,24 +140,9 @@ function RichEditor({ initialValue, onChange, onImageUpload }: {
       while (el.firstChild) span.appendChild(el.firstChild);
       el.parentNode?.replaceChild(span, el);
     });
-    editorRef.current?.focus();
     sync();
   }
 
-  function insertLink() {
-    const url = window.prompt('링크 URL을 입력하세요 (예: https://example.com)');
-    if (!url?.trim()) return;
-    const href = /^https?:\/\//i.test(url.trim()) ? url.trim() : `https://${url.trim()}`;
-    document.execCommand('createLink', false, href);
-    editorRef.current?.querySelectorAll(`a[href="${href}"]`).forEach(a => {
-      if (!a.getAttribute('target')) {
-        a.setAttribute('target', '_blank');
-        a.setAttribute('rel', 'noreferrer');
-      }
-    });
-    editorRef.current?.focus();
-    sync();
-  }
 
   async function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
     const imageItem = Array.from(e.clipboardData.items).find(i => i.type.startsWith('image/'));
@@ -222,8 +208,7 @@ function RichEditor({ initialValue, onChange, onImageUpload }: {
         <span style={SEP} />
         <button onMouseDown={e => { e.preventDefault(); exec('insertUnorderedList'); }} style={TB} title="글머리 목록">• 목록</button>
         <button onMouseDown={e => { e.preventDefault(); exec('insertOrderedList'); }} style={TB} title="번호 목록">① 목록</button>
-        <span style={SEP} />
-        <button onMouseDown={e => { e.preventDefault(); insertLink(); }} style={TB} title="링크 삽입">🔗 링크</button>
+
         {uploading && (
           <span style={{ fontSize: '0.72rem', color: '#a5b4fc', marginLeft: '0.2rem' }}>이미지 업로드 중…</span>
         )}
@@ -242,7 +227,7 @@ function RichEditor({ initialValue, onChange, onImageUpload }: {
         lang="ko"
         spellCheck={false}
         style={{
-          minHeight: '280px', maxHeight: '600px', overflowY: 'auto',
+          minHeight: '1680px', maxHeight: '3600px', overflowY: 'auto',
           padding: '0.75rem 0.85rem',
           background: 'rgba(255,255,255,0.05)',
           border: '1px solid rgba(255,255,255,0.12)',

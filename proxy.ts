@@ -12,6 +12,13 @@ export async function proxy(request: NextRequest) {
     }
   } catch {}
 
+  // /dashboard → /weekly 영구 리다이렉트
+  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+    const url = request.nextUrl.clone();
+    url.pathname = request.nextUrl.pathname.replace('/dashboard', '/weekly');
+    return NextResponse.redirect(url, { status: 308 });
+  }
+
   const { supabaseResponse, user, supabase } = await updateSession(request);
   const { pathname } = request.nextUrl;
 
@@ -34,7 +41,9 @@ export async function proxy(request: NextRequest) {
 
   // 인증 필요 경로
   const isProtected =
+    pathname.startsWith('/weekly') ||
     pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/code-delete') ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/documents') ||
     pathname.startsWith('/meetings') ||
@@ -48,6 +57,7 @@ export async function proxy(request: NextRequest) {
 
   // 승인 여부 확인이 필요한 경로 (role 체크는 서버 컴포넌트에 위임)
   const needsApproval =
+    pathname.startsWith('/weekly') ||
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/documents');

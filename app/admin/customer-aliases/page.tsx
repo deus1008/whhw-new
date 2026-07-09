@@ -17,7 +17,7 @@ export default async function CustomerAliasesPage() {
   const { data: p } = await supabase
     .from('profiles').select('role, status').eq('id', user.id).single();
   if (!p || p.status !== 'approved') redirect('/pending');
-  if (normalizeRole(p.role) !== '관리자') redirect('/dashboard');
+  if (normalizeRole(p.role) !== '관리자') redirect('/weekly');
 
   const [unmapped, aliases, customers] = await Promise.all([
     getUnmappedNames(),

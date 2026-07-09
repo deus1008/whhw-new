@@ -18,7 +18,7 @@ export default async function ErrorsPage() {
     .single();
 
   if (!profile || profile.status !== 'approved') redirect('/pending');
-  if (normalizeRole(profile.role) !== '관리자') redirect('/dashboard');
+  if (normalizeRole(profile.role) !== '관리자') redirect('/weekly');
 
   const reports = await getErrorReports();
 

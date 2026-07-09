@@ -14,6 +14,7 @@ import {
   updateMboActual,
   reorderMboTargets,
   copyMboTargets,
+  importEtcTargetsFromDoc,
 } from '@/app/mbo/actions';
 import type { MonthlyActual } from '@/app/mbo/actions';
 
@@ -97,10 +98,12 @@ export default function MBOClient({
   const [targets,     setTargets]    = useState<MboTarget[]>([]);
   const [monthlyMap,  setMonthlyMap] = useState<Record<string, MonthlyActual[]>>({});
   const [statusColor, setStatusColor] = useState<string | null>(null);
-  const [loading,     setLoading]    = useState(false);
-  const [toast,       setToast]      = useState('');
-  const [, startReorder]             = useTransition();
-  const [, startStatus]              = useTransition();
+  const [loading,       setLoading]      = useState(false);
+  const [toast,         setToast]        = useState('');
+  const [importResult,  setImportResult] = useState<{ messages: string[]; updated: number } | null>(null);
+  const [importing,     setImporting]    = useState(false);
+  const [, startReorder]                 = useTransition();
+  const [, startStatus]                  = useTransition();
 
   // 항상 연간 뷰 (calMonth = null)
   const calYear          = fyYear;
@@ -135,6 +138,26 @@ export default function MBOClient({
   function showToast(msg: string) {
     setToast(msg);
     setTimeout(() => setToast(''), 2500);
+  }
+
+  /* ── 담당자별 목표 파일에서 ETC목표 가져오기 ── */
+  async function handleImportEtc() {
+    if (!confirm(`문서관리 > '담당자별 목표' 폴더의 최신 파일로\nFY${fyYear} ETC처방액 목표를 업데이트합니다.\n\n계속하시겠습니까?`)) return;
+    setImporting(true);
+    try {
+      const res = await importEtcTargetsFromDoc(fyYear, companyId);
+      if (res.error && !res.messages?.length) {
+        showToast('⚠ ' + res.error);
+      } else {
+        setImportResult({ messages: res.messages ?? [], updated: res.updated ?? 0 });
+        reload();
+      }
+    } catch (e) {
+      showToast('⚠ 가져오기 중 오류가 발생했습니다.');
+      console.error(e);
+    } finally {
+      setImporting(false);
+    }
   }
 
   /* ── 행 순서 이동 (낙관적 업데이트) ── */
@@ -237,6 +260,22 @@ export default function MBOClient({
               onToast={showToast}
             />
           )}
+
+          {/* ETC목표 가져오기 (admin) */}
+          {isAdmin && (
+            <button
+              onClick={handleImportEtc}
+              disabled={importing}
+              style={{
+                padding: '0.38rem 0.85rem', borderRadius: 8, cursor: importing ? 'not-allowed' : 'pointer',
+                background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.30)',
+                color: importing ? 'rgba(251,191,36,0.4)' : '#fbbf24',
+                fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: 600, whiteSpace: 'nowrap',
+              }}
+            >
+              {importing ? '⏳ 가져오는 중…' : '📥 ETC목표 가져오기'}
+            </button>
+          )}
         </div>
 
         {/* 선택된 멤버 표시 */}
@@ -323,6 +362,41 @@ export default function MBOClient({
           boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
         }}>
           {toast}
+        </div>
+      )}
+
+      {/* ── ETC목표 가져오기 결과 모달 ── */}
+      {importResult && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9998,
+          background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }} onClick={() => setImportResult(null)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: '#0f172a', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 14, padding: '1.4rem 1.6rem', maxWidth: 480, width: '90vw',
+            maxHeight: '70vh', overflowY: 'auto',
+          }}>
+            <h3 style={{ margin: '0 0 0.8rem', fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              📥 ETC목표 가져오기 결과
+            </h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.8rem' }}>
+              총 {importResult.updated}명 업데이트 완료
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+              {importResult.messages.map((msg, i) => (
+                <p key={i} style={{
+                  margin: 0, fontSize: '0.78rem', padding: '0.3rem 0.5rem', borderRadius: 6,
+                  background: msg.startsWith('✅') ? 'rgba(74,222,128,0.07)' : 'rgba(251,191,36,0.07)',
+                  color: msg.startsWith('✅') ? '#4ade80' : '#fbbf24',
+                }}>{msg}</p>
+              ))}
+            </div>
+            <button onClick={() => setImportResult(null)} style={{
+              marginTop: '1rem', width: '100%', padding: '0.5rem', borderRadius: 8,
+              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+              color: 'var(--text-muted)', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit',
+            }}>닫기</button>
+          </div>
         </div>
       )}
     </div>

@@ -4,6 +4,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { getRoles } from '@/lib/roles';
+import * as XLSX from 'xlsx';
 
 export type MboTarget = {
   id:           string;
@@ -440,6 +441,184 @@ export async function setMboStatus(
 
   revalidatePath('/mbo');
   return {};
+}
+
+/* ── 담당자별 목표 파일에서 ETC처방액 목표 가져오기 (admin) ── */
+export async function importEtcTargetsFromDoc(
+  fyYear: number,
+  companyId: string | null,
+): Promise<{ error?: string; updated?: number; messages?: string[] }> {
+  const auth = await getRole();
+  if (!auth?.isAdmin) return { error: '관리자만 실행할 수 있습니다.' };
+
+  const sb = serviceClient();
+
+  // 1. '담당자별 목표' 카테고리의 최신 파일 조회
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let docQ: any = sb.from('documents')
+    .select('id, filename, storage_path, created_at')
+    .ilike('category', '%담당자별 목표%')
+    .order('created_at', { ascending: false })
+    .limit(1);
+  if (companyId) docQ = docQ.eq('company_id', companyId);
+  else docQ = docQ.is('company_id', null);
+
+  const { data: docs, error: docErr } = await docQ;
+  if (docErr) return { error: docErr.message };
+  if (!docs || docs.length === 0) return { error: "'담당자별 목표' 폴더에 파일이 없습니다." };
+
+  const doc = docs[0] as { id: string; filename: string; storage_path: string };
+
+  // 2. Storage 다운로드
+  const { data: fileData, error: dlErr } = await sb.storage
+    .from('documents')
+    .download(doc.storage_path);
+  if (dlErr || !fileData) return { error: `파일 다운로드 실패: ${dlErr?.message}` };
+
+  // 3. Excel 파싱
+  const buffer = await fileData.arrayBuffer();
+  const wb = XLSX.read(Buffer.from(buffer), { type: 'buffer' });
+
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws) return { error: 'Excel 시트를 읽을 수 없습니다.' };
+
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: null });
+  if (rows.length === 0) return { error: '파일에 데이터가 없습니다.' };
+
+  const headers = Object.keys(rows[0]);
+
+  // 담당자명 컬럼 감지
+  const nameCol = headers.find(h =>
+    h.includes('담당자') || h.includes('성명') || h.includes('이름') || /^name$/i.test(h)
+  );
+  if (!nameCol) return { error: `담당자 컬럼을 찾을 수 없습니다. 헤더: ${headers.join(', ')}` };
+
+  // ETC처방액 연간 합계 컬럼 감지 (합계, 연간, 계, total, sum 포함하는 것 우선)
+  const etcHeaders = headers.filter(h => {
+    const u = h.toUpperCase();
+    return (u.includes('ETC') || u.includes('처방액')) && h !== nameCol;
+  });
+  const totalEtcCol = etcHeaders.find(h => {
+    const u = h.toUpperCase();
+    return u.includes('합계') || u.includes('연간') || u.includes('계') || u.includes('TOTAL') || u.includes('SUM');
+  }) ?? etcHeaders[0] ?? null;
+
+  // 월별 컬럼 감지 (FY 월 순서 기준: FY1=4월, FY2=5월 … FY12=3월)
+  const MONTH_MAP: Array<{ fyMonth: number; patterns: RegExp[] }> = [
+    { fyMonth:  1, patterns: [/^4월/, /\b4\b.*월/, /apr/i, /M1$/i] },
+    { fyMonth:  2, patterns: [/^5월/, /\b5\b.*월/, /may/i, /M2$/i] },
+    { fyMonth:  3, patterns: [/^6월/, /\b6\b.*월/, /jun/i, /M3$/i] },
+    { fyMonth:  4, patterns: [/^7월/, /\b7\b.*월/, /jul/i, /M4$/i] },
+    { fyMonth:  5, patterns: [/^8월/, /\b8\b.*월/, /aug/i, /M5$/i] },
+    { fyMonth:  6, patterns: [/^9월/, /\b9\b.*월/, /sep/i, /M6$/i] },
+    { fyMonth:  7, patterns: [/^10월/, /\b10\b.*월/, /oct/i, /M7$/i] },
+    { fyMonth:  8, patterns: [/^11월/, /\b11\b.*월/, /nov/i, /M8$/i] },
+    { fyMonth:  9, patterns: [/^12월/, /\b12\b.*월/, /dec/i, /M9$/i] },
+    { fyMonth: 10, patterns: [/^1월/,  /\b1\b.*월/,  /jan/i, /M10$/i] },
+    { fyMonth: 11, patterns: [/^2월/,  /\b2\b.*월/,  /feb/i, /M11$/i] },
+    { fyMonth: 12, patterns: [/^3월/,  /\b3\b.*월/,  /mar/i, /M12$/i] },
+  ];
+
+  // ETC 관련 컬럼 중 월별인 것 찾기
+  const monthColMap: Array<{ fyMonth: number; col: string }> = [];
+  for (const { fyMonth, patterns } of MONTH_MAP) {
+    const matched = etcHeaders.find(h => patterns.some(p => p.test(h)));
+    if (matched) monthColMap.push({ fyMonth, col: matched });
+  }
+
+  // 4. profiles name → user_id 매핑
+  const { data: profiles } = await sb
+    .from('profiles')
+    .select('id, full_name')
+    .is('company_id', null)
+    .eq('status', 'approved');
+
+  const nameToId = new Map<string, string>();
+  for (const p of (profiles ?? []) as { id: string; full_name: string | null }[]) {
+    if (p.full_name) nameToId.set(p.full_name.trim(), p.id);
+  }
+
+  const messages: string[] = [];
+  let updated = 0;
+
+  for (const row of rows) {
+    const personName = String(row[nameCol] ?? '').trim();
+    if (!personName) continue;
+
+    const userId = nameToId.get(personName);
+    if (!userId) {
+      messages.push(`⚠ "${personName}" → 사용자를 찾을 수 없습니다 (건너뜀)`);
+      continue;
+    }
+
+    // 해당 사용자의 ETC처방액 연간 목표 행 찾기
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let tQ: any = sb.from('mbo_targets')
+      .select('id, item_name, unit')
+      .eq('user_id', userId)
+      .eq('year', fyYear)
+      .is('month', null);
+    tQ = companyId ? tQ.eq('company_id', companyId) : tQ.is('company_id', null);
+    const { data: existingTargets } = await tQ;
+
+    const etcTarget = ((existingTargets ?? []) as { id: string; item_name: string; unit: string }[])
+      .find(t => t.item_name.toUpperCase().includes('ETC') || t.item_name.includes('처방액'));
+
+    if (!etcTarget) {
+      messages.push(`⚠ "${personName}" → ETC처방액 목표 항목이 없습니다 (건너뜀)`);
+      continue;
+    }
+
+    const now = new Date().toISOString();
+
+    // 월별 데이터 처리
+    if (monthColMap.length > 0) {
+      const upsertData = monthColMap
+        .map(({ fyMonth, col }) => {
+          const raw = row[col];
+          const val = raw === null || raw === '' ? '' : String(Number(raw) || 0);
+          return { target_id: etcTarget.id, month: fyMonth, target_value: val, actual_value: '', updated_by: auth.userId, updated_at: now };
+        });
+
+      const { error: mErr } = await sb.from('mbo_monthly_actuals')
+        .upsert(upsertData, { onConflict: 'target_id,month' });
+      if (mErr) {
+        messages.push(`⚠ "${personName}" → 월별 저장 실패: ${mErr.message}`);
+        continue;
+      }
+
+      // 연간 합산
+      const total = upsertData.reduce((s, e) => s + (Number(e.target_value) || 0), 0);
+      await sb.from('mbo_targets')
+        .update({ target_value: String(total), updated_at: now })
+        .eq('id', etcTarget.id);
+
+      messages.push(`✅ "${personName}" → 월별 ${monthColMap.length}개월, 연간 합계 ${total.toLocaleString()}`);
+    } else {
+      // 연간 합계 컬럼만 사용
+      const rawVal = totalEtcCol ? row[totalEtcCol] : null;
+      const numVal = rawVal === null || rawVal === '' ? null : Number(rawVal);
+      if (numVal === null || isNaN(numVal)) {
+        messages.push(`⚠ "${personName}" → 숫자 값을 읽을 수 없습니다 (건너뜀)`);
+        continue;
+      }
+
+      const { error: updErr } = await sb.from('mbo_targets')
+        .update({ target_value: String(numVal), updated_at: now })
+        .eq('id', etcTarget.id);
+      if (updErr) {
+        messages.push(`⚠ "${personName}" → 업데이트 실패: ${updErr.message}`);
+        continue;
+      }
+
+      messages.push(`✅ "${personName}" → ${numVal.toLocaleString()}`);
+    }
+
+    updated++;
+  }
+
+  revalidatePath('/mbo');
+  return { updated, messages, error: updated === 0 ? '업데이트된 항목이 없습니다.' : undefined };
 }
 
 /* ── 실적 업데이트 (admin + 본인) ── */

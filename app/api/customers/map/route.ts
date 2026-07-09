@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { stripCompanyAffix } from '@/lib/format';
 
 export const revalidate = 300;
 
@@ -26,5 +27,9 @@ export async function GET() {
     .select('manager, region, customer_name, address')
     .not('manager', 'is', null);
 
-  return NextResponse.json(data ?? []);
+  const cleaned = (data ?? []).map((r: Record<string, unknown>) => ({
+    ...r,
+    customer_name: stripCompanyAffix(String(r.customer_name ?? '')),
+  }));
+  return NextResponse.json(cleaned);
 }

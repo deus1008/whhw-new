@@ -356,7 +356,7 @@ export default async function AdminPage() {
   const isAdminUser = normalizeRole(myProfile.role as string) === '관리자';
 
   if (!isAdminUser) {
-    redirect('/dashboard');
+    redirect('/weekly');
   }
 
   // 전체 프로필 조회 — roles 배열 컬럼도 시도 (마이그레이션 후 존재)
