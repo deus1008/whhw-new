@@ -66,14 +66,6 @@ export type TopPrescriber = {
   months:        { month: string; prescAmt: number }[];
 };
 
-export type TrendEntry = { prescAmt: number; settAmt: number; rate: number } | null;
-
-export type SettlementTrend = {
-  month:    string;
-  clinic:   TrendEntry;
-  hospital: TrendEntry;
-  total:    { prescAmt: number; settAmt: number; rate: number };
-};
 
 export type CustomerMonthStat = { month: string; count: number };
 
@@ -170,8 +162,6 @@ export type DashboardData = {
   // 섹션3: 처방처현황 (병원/의원)
   prescriptionMonthly:  PrescMonthStat[];
   top10Prescribers:     TopPrescriber[];
-  // 섹션5: 수수료정산현황
-  settlementTrend:      SettlementTrend[];
   // 섹션9: 현장활동
   schedules:            ScheduleItem[];
   visitSummary:         VisitPersonStat[];
@@ -262,7 +252,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     csoStats, totalCsoCount, csoAllTotals, csoMonthlyTotals,
     settlementByCategory, top10Customers, customerMonthly,
     prescriptionMonthly,
-    settlementTrend,
     schedules, visitSummary, visitMonths, visitDetails,
     settPrescMonthly,
     ediMonthly, ediMonths,
@@ -519,18 +508,18 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          섹션 1: 처방실적 현황 (수수료정산 파일 기반)
+          섹션 1: 처방실적 현황 (EDI 파일 기반)
       ══════════════════════════════════════════════════════════ */}
       <Section title="📈 처방실적 현황" id="s1">
-        {noSett ? (
-          <Empty msg="수수료 정산 파일을 업로드하면 자동 집계됩니다." />
+        {noEdi ? (
+          <Empty msg="EDI 파일을 업로드하면 자동 집계됩니다." />
         ) : (
           <>
-            <SubTitle>▸ 의원·병원별 처방정산자료 집계 ({recentMonths.length > 0 ? `${fmtPeriod(recentMonths[0])} ~ ${fmtPeriod(recentMonths[recentMonths.length - 1])}` : '최근 3개월'})</SubTitle>
+            <SubTitle>▸ 의원·병원별 처방실적 집계 ({ediMonths.length > 0 ? `${fmtPeriod(ediMonths[0])} ~ ${fmtPeriod(ediMonths[ediMonths.length - 1])}` : '최근 3개월'})</SubTitle>
             {(() => {
-              type SPM = (typeof settPrescMonthly)[0];
-              const cur = settPrescMonthly[settPrescMonthly.length - 1];
-              const prv = settPrescMonthly[settPrescMonthly.length - 2];
+              type SPM = (typeof ediMonthly)[0];
+              const cur = ediMonthly[ediMonthly.length - 1];
+              const prv = ediMonthly[ediMonthly.length - 2];
               const cats = [
                 {
                   label: '의원', isTotal: false,
@@ -567,7 +556,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       <tr>
                         <th className="center" style={{ width: '52px' }}>구분</th>
                         <th style={{ width: '76px' }}>항목</th>
-                        {settPrescMonthly.map(r => (
+                        {ediMonthly.map(r => (
                           <th key={r.month} className="center">{fmtPeriod(r.month)}</th>
                         ))}
                         <th className="center">전월대비</th>
@@ -587,7 +576,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                                 </td>
                               )}
                               <td className="muted" style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{metric.label}</td>
-                              {settPrescMonthly.map(r => (
+                              {ediMonthly.map(r => (
                                 <td key={r.month} className="center bold">
                                   {metric.isAmt ? fmtWon(metric.get(r)) : metric.get(r).toLocaleString()}
                                 </td>
@@ -619,107 +608,16 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </Section>
 
       {/* ══════════════════════════════════════════════════════════
-          섹션 5: 수수료정산현황
-      ══════════════════════════════════════════════════════════ */}
-      <Section title="💰 수수료정산현황" id="s5">
-        {noSett ? (
-          <Empty msg="수수료정산 파일을 업로드하면 자동 집계됩니다." />
-        ) : (
-          <>
-            <SubTitle>▸ 3개월 처방액·정산액·수수료율 추이</SubTitle>
-            {(() => {
-              type ST = (typeof settlementTrend)[0];
-              type Entry = { prescAmt: number; settAmt: number; rate: number };
-              const cur = settlementTrend[settlementTrend.length - 1];
-              const prv = settlementTrend[settlementTrend.length - 2];
-              const cats = [
-                { label: '의원', get: (r: ST): Entry | null => r.clinic,   isTotal: false },
-                { label: '병원', get: (r: ST): Entry | null => r.hospital, isTotal: false },
-                { label: '전체', get: (r: ST): Entry | null => r.total,    isTotal: true  },
-              ];
-              const metrics: Array<{ label: string; get: (e: Entry) => number; isRate: boolean }> = [
-                { label: '처방액',   get: e => e.prescAmt, isRate: false },
-                { label: '정산액',   get: e => e.settAmt,  isRate: false },
-                { label: '수수료율', get: e => e.rate,      isRate: true  },
-              ];
-              return (
-                <div style={{ overflowX: 'auto' }}>
-                  <table className="dash-table">
-                    <thead>
-                      <tr>
-                        <th className="center" style={{ width: '52px' }}>구분</th>
-                        <th style={{ width: '64px' }}>항목</th>
-                        {settlementTrend.map(r => (
-                          <th key={r.month} className="right">{fmtPeriod(r.month)}</th>
-                        ))}
-                        <th className="right">전월대비</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {cats.flatMap((cat, ci) =>
-                        metrics.map((metric, mi) => {
-                          const curEntry = cur ? cat.get(cur) : null;
-                          const prvEntry = prv ? cat.get(prv) : null;
-                          const curVal   = curEntry ? metric.get(curEntry) : 0;
-                          const prvVal   = prvEntry ? metric.get(prvEntry) : undefined;
-                          const delta    = prvVal !== undefined ? curVal - prvVal : null;
-                          return (
-                            <tr key={`${ci}-${mi}`} className={cat.isTotal ? 'total-row' : ''}>
-                              {mi === 0 && (
-                                <td rowSpan={3} className="center"
-                                    style={{ verticalAlign: 'middle', fontWeight: 600, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
-                                  {cat.label}
-                                </td>
-                              )}
-                              <td className="muted" style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{metric.label}</td>
-                              {settlementTrend.map(r => {
-                                const entry = cat.get(r);
-                                const val   = entry ? metric.get(entry) : null;
-                                return (
-                                  <td key={r.month} className="right bold">
-                                    {val === null
-                                      ? <span className="muted">-</span>
-                                      : metric.isRate ? fmtRate(val) : fmtWon(val)}
-                                  </td>
-                                );
-                              })}
-                              <td className="right">
-                                {delta === null ? (
-                                  <span className="muted">-</span>
-                                ) : delta === 0 ? (
-                                  <span className="muted">±0</span>
-                                ) : metric.isRate ? (
-                                  <span className={delta > 0 ? 'up' : 'dn'} style={{ fontSize: '0.78rem' }}>
-                                    {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(1)}%
-                                  </span>
-                                ) : (
-                                  <DeltaAmt cur={curVal} prev={prvVal!} />
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              );
-            })()}
-          </>
-        )}
-      </Section>
-
-      {/* ══════════════════════════════════════════════════════════
           섹션 4: 품목현황
       ══════════════════════════════════════════════════════════ */}
       <Section title="💊 품목현황" id="s4">
         {top10Products.length === 0 ? (
-          <Empty msg="수수료정산 파일을 업로드하면 자동 집계됩니다." />
+          <Empty msg="EDI 파일을 업로드하면 자동 집계됩니다." />
         ) : (
           <>
             {([
-              { label: '▸ 상위 10 품목 (최신월 처방정산자료 기준)', items: top10Products,    isTop: true,  accentColor: '#4ade80' },
-              { label: '▸ 하위 10 품목 (최신월 처방정산자료 기준)', items: bottom10Products, isTop: false, accentColor: '#f87171' },
+              { label: '▸ 상위 10 품목 (최신월 EDI 기준)', items: top10Products,    isTop: true,  accentColor: '#4ade80' },
+              { label: '▸ 하위 10 품목 (최신월 EDI 기준)', items: bottom10Products, isTop: false, accentColor: '#f87171' },
             ] as { label: string; items: ProductRankItem[]; isTop: boolean; accentColor: string }[]).map(({ label, items, isTop, accentColor }) => (
               items.length > 0 && (
                 <div key={label} style={{ marginBottom: '0.5rem' }}>
@@ -730,7 +628,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         <tr>
                           <th className="center">순위</th>
                           <th>품목명</th>
-                          {recentMonths.map(m => <th key={m} className="right">{fmtPeriod(m)}</th>)}
+                          {ediMonths.map(m => <th key={m} className="right">{fmtPeriod(m)}</th>)}
                           <th className="right">전월대비</th>
                         </tr>
                       </thead>
@@ -858,13 +756,13 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           섹션 2: 거래처현황 (CSO)
       ══════════════════════════════════════════════════════════ */}
       <Section title="🏢 거래처현황" id="s2">
-        {noSett ? (
-          <Empty msg="수수료정산 파일을 업로드하면 자동 집계됩니다." />
+        {noEdi ? (
+          <Empty msg="EDI 파일을 업로드하면 자동 집계됩니다." />
         ) : csoStats.length === 0 ? (
-          <Empty msg="CSO 담당자 정보가 있는 파일을 업로드하면 집계됩니다." />
+          <Empty msg="EDI 파일에 CSO 담당자 정보가 있으면 집계됩니다." />
         ) : (
           <>
-            <SubTitle>▸ CSO별 집계 · 상위 {csoStats.length}개 / 전체 {totalCsoCount}개 ({recentMonths.length > 0 ? `${fmtPeriod(recentMonths[0])} ~ ${fmtPeriod(recentMonths[recentMonths.length - 1])}` : '최근 3개월'})</SubTitle>
+            <SubTitle>▸ CSO별 집계 · 상위 {csoStats.length}개 / 전체 {totalCsoCount}개 ({ediMonths.length > 0 ? `${fmtPeriod(ediMonths[0])} ~ ${fmtPeriod(ediMonths[ediMonths.length - 1])}` : '최근 3개월'})</SubTitle>
             <div style={{ overflowX: 'auto' }}>
               {(() => {
                 type CsoMonth = CsoStat['months'][0];
@@ -875,9 +773,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   { label: '처방액합계',    get: m => m.prescAmt,   isAmt: true  },
                   { label: '처별 처방액평균', get: m => m.hospCount > 0 ? Math.round(m.prescAmt / m.hospCount) : 0, isAmt: true },
                 ];
-                const overallRate = csoAllTotals.prescAmt > 0
-                  ? fmtRate(Math.round(csoAllTotals.settAmt / csoAllTotals.prescAmt * 1000) / 10)
-                  : '-';
                 return (
                   <table className="dash-table">
                     <thead>
@@ -885,16 +780,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         <th className="center" style={{ width: '2.5rem' }}>순위</th>
                         <th style={{ width: '98px' }}>CSO명</th>
                         <th style={{ width: '5rem' }}>항목</th>
-                        {recentMonths.map(m => (
+                        {ediMonths.map(m => (
                           <th key={m} className="right">{fmtPeriod(m)}</th>
                         ))}
                         <th className="right">전월대비</th>
-                        <th className="right">정산율</th>
                       </tr>
                     </thead>
                     <tbody>
                       {csoStats.map((r, i) => {
-                        const rate = r.prescAmt > 0 ? fmtRate(Math.round(r.settAmt / r.prescAmt * 1000) / 10) : '-';
                         return metrics.map((metric, mi) => {
                           const curVal = metric.get(r.months[r.months.length - 1] ?? { month: '', hospCount: 0, prodCount: 0, prescAmt: 0 });
                           const prvM   = r.months[r.months.length - 2];
@@ -926,9 +819,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                                    : <span className={delta > 0 ? 'up' : 'dn'} style={{ fontSize: '0.78rem' }}>
                                        {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toLocaleString()}
                                      </span>}
-                              </td>
-                              <td className="right" style={{ color: '#a8c4ff', fontSize: '0.82rem' }}>
-                                {mi === 3 ? rate : ''}
                               </td>
                             </tr>
                           );
@@ -973,9 +863,6 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                                  : <span className={delta > 0 ? 'up' : 'dn'} style={{ fontSize: '0.78rem' }}>
                                      {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toLocaleString()}
                                    </span>}
-                            </td>
-                            <td className="right" style={{ color: '#a8c4ff', fontSize: '0.82rem' }}>
-                              {mi === 3 ? overallRate : ''}
                             </td>
                           </tr>
                         );

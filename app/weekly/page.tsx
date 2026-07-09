@@ -112,19 +112,40 @@ export default async function DashboardPage() {
   type ProdMonthRow  = { product_name: string; prescription_month: string; presc_amt: number };
   type GrandTotals   = { hosp_cnt: number; presc_amt: number; sett_amt: number };
 
+  // ── Phase 1: 최신 EDI 처방월 확인 → 전년동월·직전월·최신월 결정 ─────────────
+  const { data: latestEdiRows } = await (() => {
+    let q = svc.from('trend_prescriptions')
+      .select('prescription_month')
+      .not('prescription_month', 'is', null)
+      .gte('created_at', since3mStr)
+      .order('prescription_month', { ascending: false })  // YYYYMM 형식 → 알파벳순 = 시간순
+      .limit(1);
+    if (companyId) q = q.eq('company_id', companyId);
+    return q;
+  })();
+  const latestEdiRaw = (latestEdiRows as { prescription_month: string }[] | null)?.[0]?.prescription_month ?? null;
+  const latestEdiNorm = latestEdiRaw ? toYYYYMM(latestEdiRaw) : null;
+  const ediTargetNorms: string[] = [];
+  if (latestEdiNorm && /^\d{4}-\d{2}$/.test(latestEdiNorm)) {
+    const [yr, mo] = latestEdiNorm.split('-').map(Number);
+    const prevNorm = mo === 1 ? `${yr - 1}-12` : `${yr}-${String(mo - 1).padStart(2, '0')}`;
+    const slyNorm  = `${yr - 1}-${String(mo).padStart(2, '0')}`;
+    ediTargetNorms.push(slyNorm, prevNorm, latestEdiNorm);  // 전년동월, 직전월, 최신월
+  }
+  // DB 저장 포맷이 다양하므로 모든 변형 포함 (YYYY-MM, YYYYMM, YYYY.MM)
+  const ediTargetVariants = ediTargetNorms.flatMap(n => [n, n.replace('-', ''), n.replace('-', '.')]);
+
   // ── A + B. 모든 쿼리를 동시에 시작 ────────────────────────────────────────
-  // RPC(~2.8s)와 나머지 쿼리(~0.5s)를 병렬로 실행해 총 대기시간 최소화
   const settRpcPromise = companyId
     ? svc.rpc('get_dashboard_settlements', { p_company_id: companyId, p_since_month: since4mStr })
     : Promise.resolve({ data: null, error: null });
 
   const ediQ = (() => {
     let q = svc.from('trend_prescriptions')
-      .select('prescription_month,hospital_name,product_name,prescription_amount,hospital_type')
+      .select('prescription_month,hospital_name,product_name,prescription_amount,hospital_type,cso_name')
       .not('prescription_month', 'is', null)
-      .gte('created_at', since3mStr)
-      .order('created_at', { ascending: false })
-      .range(0, 2999);
+      .in('prescription_month', ediTargetVariants.length > 0 ? ediTargetVariants : ['__none__'])
+      .range(0, 9999);
     if (companyId) q = q.eq('company_id', companyId);
     return q;
   })();
@@ -256,41 +277,7 @@ export default async function DashboardPage() {
     };
   }
 
-  // ── [섹션 2] 거래처현황: CSO별 집계 ──────────────────────────────────────
-  const csoTotalIdx = Object.fromEntries(byCsoTotal.map(r => [r.cso_name, r]));
-  const csoAccMap: Record<string, { name: string; prescAmt: number; settAmt: number; hospCount: number; months: { month: string; hospCount: number; prodCount: number; prescAmt: number }[] }> = {};
-  for (const r of byCsoMonth) {
-    if (!recentSet.has(r.prescription_month)) continue;
-    if (!csoAccMap[r.cso_name]) {
-      csoAccMap[r.cso_name] = {
-        name:      r.cso_name,
-        prescAmt:  0,
-        settAmt:   0,
-        hospCount: csoTotalIdx[r.cso_name]?.hosp_cnt ?? 0,
-        months:    recentMonths.map(m => ({ month: m, hospCount: 0, prodCount: 0, prescAmt: 0 })),
-      };
-    }
-    csoAccMap[r.cso_name].prescAmt += r.presc_amt;
-    csoAccMap[r.cso_name].settAmt  += r.sett_amt;
-    const mi = csoAccMap[r.cso_name].months.findIndex(m => m.month === r.prescription_month);
-    if (mi >= 0) {
-      csoAccMap[r.cso_name].months[mi].prescAmt  = r.presc_amt;
-      csoAccMap[r.cso_name].months[mi].hospCount = r.hosp_cnt;
-      csoAccMap[r.cso_name].months[mi].prodCount = r.prod_cnt;
-    }
-  }
-  const allCsoStats = Object.values(csoAccMap).sort((a, b) => b.prescAmt - a.prescAmt);
-  const totalCsoCount = allCsoStats.length;
-  const csoStats = allCsoStats.slice(0, 20);
-  const csoAllTotals = {
-    hospCount: grandTotals.hosp_cnt,
-    prescAmt:  grandTotals.presc_amt,
-    settAmt:   grandTotals.sett_amt,
-  };
-  const csoMonthlyTotals = recentMonths.map(month => {
-    const t = monthTotalIdx[month];
-    return { month, prescAmt: t?.presc_amt ?? 0, settAmt: t?.sett_amt ?? 0, hospCount: t?.hosp_cnt ?? 0, prodCount: t?.prod_cnt ?? 0 };
-  });
+  // ── [섹션 2] 거래처현황: CSO별 집계 (EDI 기반, ediMonths 정의 후 계산) ───────
 
   // ── [섹션 3] 처방처현황: 병원/의원 월별 분리 집계 ────────────────────────
   const settlementByCategory = recentMonths.map(month => {
@@ -341,27 +328,7 @@ export default async function DashboardPage() {
   }));
 
   // ── [섹션 8] 품목현황: 상위/하위 10 품목 추이 ────────────────────────────
-  const latestMonth = recentMonths[recentMonths.length - 1] ?? '';
-  const prevMonth   = recentMonths[recentMonths.length - 2] ?? '';
-  const prodTotals: Record<string, { prescAmt: number; months: Record<string, number> }> = {};
-  for (const r of byProdMonth) {
-    if (!prodTotals[r.product_name]) prodTotals[r.product_name] = { prescAmt: 0, months: {} };
-    prodTotals[r.product_name].prescAmt += r.presc_amt;
-    prodTotals[r.product_name].months[r.prescription_month] = r.presc_amt;
-  }
-  const allProdsSorted = Object.entries(prodTotals)
-    .map(([name, v]) => ({
-      name,
-      totalPrescAmt: v.prescAmt,
-      latestAmt: v.months[latestMonth] ?? 0,
-      delta: (v.months[latestMonth] ?? 0) - (v.months[prevMonth] ?? 0),
-      months: recentMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
-    }))
-    .filter(p => p.totalPrescAmt > 0)
-    .sort((a, b) => b.latestAmt - a.latestAmt);
-
-  const top10Products    = allProdsSorted.slice(0, 10);
-  const bottom10Products = allProdsSorted.slice(-10).reverse();
+  // top10Products / bottom10Products는 EDI 기반으로 G 섹션에서 계산
 
   // ── [섹션 1] 처방실적현황: 수수료정산 기반 월별 의원/병원 집계 ───────────────
   const settPrescMonthly = recentMonths.map(month => {
@@ -382,21 +349,6 @@ export default async function DashboardPage() {
     };
   });
 
-  // ── [섹션 3] 수수료정산현황: 월별 의원/병원/전체 추이 ────────────────────
-  const settlementTrend = recentMonths.map(month => {
-    const t  = monthTotalIdx[month];
-    const cl = monthTypeIdx[month]?.['true'];
-    const hs = monthTypeIdx[month]?.['false'];
-    function mkTrend(p: number, s: number) {
-      return { prescAmt: p, settAmt: s, rate: p > 0 ? Math.round(s / p * 1000) / 10 : 0 };
-    }
-    return {
-      month,
-      clinic:   cl ? mkTrend(cl.presc_amt, cl.sett_amt) : null,
-      hospital: hs ? mkTrend(hs.presc_amt, hs.sett_amt) : null,
-      total:    mkTrend(t?.presc_amt ?? 0, t?.sett_amt ?? 0),
-    };
-  });
 
   // ── D. 거래처현황 (customer_status 업로드 기준) ───────────────────────────
   const custMonthMap: Record<string, number> = {};
@@ -453,6 +405,7 @@ export default async function DashboardPage() {
     product_name: string | null;
     prescription_amount: number | null;
     hospital_type: string | null;
+    cso_name: string | null;
   };
 
   const normEdi = (ediRows as EdiRow[] ?? []).map(r => ({
@@ -461,13 +414,26 @@ export default async function DashboardPage() {
   })).filter(r => /^\d{4}-\d{2}$/.test(r.prescription_month));
 
   const ediAllMonths = [...new Set(normEdi.map(r => r.prescription_month))].sort();
-  const ediMonths    = ediAllMonths.slice(-3);
+  // 전년동월·직전월·최신월 순서를 유지하되, 실제 데이터가 있는 월만 포함
+  const ediMonthSet0 = new Set(ediAllMonths);
+  const ediMonths    = ediTargetNorms.length > 0
+    ? ediTargetNorms.filter(m => ediMonthSet0.has(m))
+    : ediAllMonths.slice(-3);
   const ediMonthSet  = new Set(ediMonths);
+
+  // 수수료정산 데이터의 병의원 분류를 EDI 집계에 적용
+  // byHospMonth.category = '의원' | '병원' (settlement 기반, 신뢰성 높음)
+  const settClinicSet = new Set(byHospMonth.filter(r => r.category === '의원').map(r => r.hospital_name));
+  const settKnownSet  = new Set(byHospMonth.map(r => r.hospital_name));
+  function isClinicBySettlement(name: string | null, fallbackType?: string | null): boolean {
+    if (name && settKnownSet.has(name)) return settClinicSet.has(name);
+    return isClinic(null, fallbackType); // settlement에 없는 병원은 EDI hospital_type으로 대체
+  }
 
   const ediMonthly = ediMonths.map(month => {
     const rows    = normEdi.filter(r => r.prescription_month === month);
-    const clRows  = rows.filter(r =>  isClinic(null, r.hospital_type));
-    const hsRows  = rows.filter(r => !isClinic(null, r.hospital_type));
+    const clRows  = rows.filter(r =>  isClinicBySettlement(r.hospital_name, r.hospital_type));
+    const hsRows  = rows.filter(r => !isClinicBySettlement(r.hospital_name, r.hospital_type));
     const allH    = new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!));
     const clH     = new Set(clRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
     const hsH     = new Set(hsRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
@@ -507,6 +473,64 @@ export default async function DashboardPage() {
       totalPrescAmt: v.prescAmt,
       months: ediMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
     }));
+
+  // 품목현황 상위/하위 10 (EDI 기반)
+  const ediLatest = ediMonths[ediMonths.length - 1] ?? '';
+  const ediPrev   = ediMonths[ediMonths.length - 2] ?? '';
+  const ediProdsSorted = Object.entries(prodMap)
+    .map(([name, v]) => ({
+      name,
+      totalPrescAmt: v.prescAmt,
+      latestAmt: v.months[ediLatest] ?? 0,
+      delta: (v.months[ediLatest] ?? 0) - (v.months[ediPrev] ?? 0),
+      months: ediMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
+    }))
+    .filter(p => p.totalPrescAmt > 0)
+    .sort((a, b) => b.latestAmt - a.latestAmt);
+  const top10Products    = ediProdsSorted.slice(0, 10);
+  const bottom10Products = ediProdsSorted.slice(-10).reverse();
+
+  // ── [섹션 2] 거래처현황: CSO별 집계 (EDI 기반) ────────────────────────────
+  const csoAccMap: Record<string, { name: string; prescAmt: number; settAmt: number; hospCount: number; months: { month: string; hospCount: number; prodCount: number; prescAmt: number }[] }> = {};
+  const csoHospSets: Record<string, Record<string, Set<string>>> = {};
+  const csoProdSets: Record<string, Record<string, Set<string>>> = {};
+  const csoAllHosps: Record<string, Set<string>> = {};
+  const ediFiltered = normEdi.filter(r => ediMonthSet.has(r.prescription_month));
+  for (const r of ediFiltered) {
+    const cn = r.cso_name?.trim() || '미지정';
+    if (!csoAccMap[cn]) {
+      csoAccMap[cn] = { name: cn, prescAmt: 0, settAmt: 0, hospCount: 0, months: ediMonths.map(m => ({ month: m, hospCount: 0, prodCount: 0, prescAmt: 0 })) };
+      csoHospSets[cn] = Object.fromEntries(ediMonths.map(m => [m, new Set<string>()]));
+      csoProdSets[cn] = Object.fromEntries(ediMonths.map(m => [m, new Set<string>()]));
+      csoAllHosps[cn] = new Set<string>();
+    }
+    const acc = csoAccMap[cn];
+    const amt = r.prescription_amount ?? 0;
+    acc.prescAmt += amt;
+    const mi = acc.months.findIndex(m => m.month === r.prescription_month);
+    if (mi >= 0) acc.months[mi].prescAmt += amt;
+    if (r.hospital_name) { csoHospSets[cn][r.prescription_month]?.add(r.hospital_name); csoAllHosps[cn].add(r.hospital_name); }
+    if (r.product_name)  csoProdSets[cn][r.prescription_month]?.add(r.product_name);
+  }
+  for (const [cn, acc] of Object.entries(csoAccMap)) {
+    acc.months.forEach((m, i) => {
+      acc.months[i].hospCount = csoHospSets[cn][m.month]?.size ?? 0;
+      acc.months[i].prodCount = csoProdSets[cn][m.month]?.size ?? 0;
+    });
+    acc.hospCount = csoAllHosps[cn].size;
+  }
+  const allCsoStats = Object.values(csoAccMap).sort((a, b) => b.prescAmt - a.prescAmt);
+  const totalCsoCount = allCsoStats.length;
+  const csoStats = allCsoStats.slice(0, 20);
+  const csoAllTotals = {
+    hospCount: new Set(ediFiltered.filter(r => r.hospital_name).map(r => r.hospital_name!)).size,
+    prescAmt:  ediFiltered.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+    settAmt:   0,
+  };
+  const csoMonthlyTotals = ediMonths.map(month => {
+    const rows = normEdi.filter(r => r.prescription_month === month);
+    return { month, settAmt: 0, prescAmt: rows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0), hospCount: new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!)).size, prodCount: new Set(rows.filter(r => r.product_name).map(r => r.product_name!)).size };
+  });
 
   // ── H. 발매예정 ───────────────────────────────────────────────────────────
   const upcomingProducts = (upcomingRows ?? []).map(p => ({
@@ -571,7 +595,6 @@ export default async function DashboardPage() {
     // 섹션3: 처방처현황
     prescriptionMonthly,
     top10Prescribers,
-    settlementTrend,
     schedules,
     visitSummary,
     visitMonths,

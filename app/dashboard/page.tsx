@@ -571,7 +571,6 @@ export default async function DashboardPage() {
     // 섹션3: 처방처현황
     prescriptionMonthly,
     top10Prescribers,
-    settlementTrend,
     schedules,
     visitSummary,
     visitMonths,
