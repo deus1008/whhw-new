@@ -125,7 +125,6 @@ export default async function DashboardPage() {
   })();
   const latestEdiRaw = (latestEdiRows as { prescription_month: string }[] | null)?.[0]?.prescription_month ?? null;
   const latestEdiNorm = latestEdiRaw ? toYYYYMM(latestEdiRaw) : null;
-  console.log('[EDI-DEBUG] companyId:', companyId, '| latestEdiRaw:', latestEdiRaw, '| latestEdiNorm:', latestEdiNorm);
   const ediTargetNorms: string[] = [];
   if (latestEdiNorm && /^\d{4}-\d{2}$/.test(latestEdiNorm)) {
     const [yr, mo] = latestEdiNorm.split('-').map(Number);
@@ -141,15 +140,22 @@ export default async function DashboardPage() {
     ? svc.rpc('get_dashboard_settlements', { p_company_id: companyId, p_since_month: since4mStr })
     : Promise.resolve({ data: null, error: null });
 
-  const ediQ = (() => {
-    let q = svc.from('trend_prescriptions')
-      .select('prescription_month,hospital_name,product_name,prescription_amount,hospital_type,cso_name')
-      .not('prescription_month', 'is', null)
-      .in('prescription_month', ediTargetVariants.length > 0 ? ediTargetVariants : ['__none__'])
-      .range(0, 9999);
-    if (companyId) q = q.eq('company_id', companyId);
-    return q;
-  })();
+  // 월별 별도 쿼리: 단일 IN + range(0,9999)는 행 수가 많은 월이 한도를 채워
+  // 이후 월 데이터가 잘리는 문제를 방지. 각 타겟월을 독립적으로 최대 10,000행 조회.
+  const ediQPromise = ediTargetNorms.length > 0
+    ? Promise.all(
+        ediTargetNorms.map(norm => {
+          const variants = [norm, norm.replace('-', ''), norm.replace('-', '.')];
+          let q = svc.from('trend_prescriptions')
+            .select('prescription_month,hospital_name,product_name,prescription_amount,hospital_type,cso_name')
+            .not('prescription_month', 'is', null)
+            .in('prescription_month', variants)
+            .range(0, 9999);
+          if (companyId) q = q.eq('company_id', companyId);
+          return q;
+        })
+      ).then(results => ({ data: results.flatMap(r => r.data ?? []) }))
+    : Promise.resolve({ data: [] as Record<string, unknown>[] });
   const upcomingQ = (() => {
     let q = svc.from('upcoming_products')
       .select('id,title,manufacturer,launch_date,status,indication,insurance_code,insurance_price,memo')
@@ -220,7 +226,7 @@ export default async function DashboardPage() {
       .lte('start_date', next2mStr)
       .order('start_date', { ascending: true })
       .limit(60),
-    ediQ,
+    ediQPromise,
     upcomingQ,
     // 문서: 최근 3개월 (위탁사 필터 적용)
     docQ,
