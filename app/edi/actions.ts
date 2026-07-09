@@ -232,16 +232,6 @@ export async function getEdiData(force = false): Promise<{
   };
 }
 
-/* ── 캐시 초기화 (관리자 전용) ──────────────────────────────── */
-/** 모든 EDI 파일을 강제 재처리하여 trend_prescriptions DB를 최신화 */
-export async function syncAllEdiToDb(): Promise<{ synced: number; errors: number; error?: string }> {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { synced: 0, errors: 0, error: '로그인이 필요합니다.' };
-
-  const result = await getEdiData(true); // 캐시 건너뜀 → Excel 재처리 → DB 동기화
-  return { synced: result.reports.length, errors: result.errors.length };
-}
 
 export async function forceRefreshEdi(): Promise<{ error?: string }> {
   const supabase = await createClient();
