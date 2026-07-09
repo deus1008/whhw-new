@@ -114,15 +114,17 @@ export default async function DashboardPage() {
 
   // ── Phase 1: 최신 EDI 처방월 확인 → 전년동월·직전월·최신월 결정 ─────────────
   // created_at 필터 제거 — 업로드 시점과 무관하게 전체 중 가장 최신 처방월을 찾음
-  const { data: latestEdiRows } = await (() => {
-    let q = svc.from('trend_prescriptions')
-      .select('prescription_month')
-      .not('prescription_month', 'is', null)
-      .order('prescription_month', { ascending: false })
-      .limit(1);
-    if (companyId) q = q.eq('company_id', companyId);
-    return q;
-  })();
+  // ⚠ 반드시 companyId 스코프로 조회 — 회사 미선택(companyId falsy) 시 전역 최신월을
+  //   잡아 헤더만 채우고 데이터 RPC는 건너뛰어 "헤더=최신월, 값=전부0" 이 되는 것을 방지.
+  //   데이터 RPC(get_edi_summary)는 company_id 일치를 요구하므로 여기서도 동일 스코프 사용.
+  const { data: latestEdiRows } = companyId
+    ? await svc.from('trend_prescriptions')
+        .select('prescription_month')
+        .eq('company_id', companyId)
+        .not('prescription_month', 'is', null)
+        .order('prescription_month', { ascending: false })
+        .limit(1)
+    : { data: null };
   const latestEdiRaw = (latestEdiRows as { prescription_month: string }[] | null)?.[0]?.prescription_month ?? null;
   const latestEdiNorm = latestEdiRaw ? toYYYYMM(latestEdiRaw) : null;
   const ediTargetNorms: string[] = [];

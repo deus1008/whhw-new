@@ -13,9 +13,11 @@ export async function getEffectiveCompanyId(
   isSystemAdmin: boolean,
 ): Promise<string | null> {
   // 관리자는 쿠키 우선 — profileCompanyId가 있어도 전환 가능해야 함
+  // 빈 문자열('') 쿠키는 미선택으로 간주 (?? 는 ''를 걸러내지 못하므로 명시 처리)
   if (isSystemAdmin) {
     const cookieStore = await cookies();
-    return cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value ?? profileCompanyId ?? null;
+    const cookieVal = cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value?.trim();
+    return cookieVal || profileCompanyId || null;
   }
 
   // 일반 사용자: 프로필 company_id 고정
@@ -23,7 +25,8 @@ export async function getEffectiveCompanyId(
 
   // 아주얼라이언스 직원 (company_id 없음): 쿠키 사용
   const cookieStore = await cookies();
-  return cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value ?? null;
+  const cookieVal = cookieStore.get(ACTIVE_COMPANY_COOKIE)?.value?.trim();
+  return cookieVal || null;
 }
 
 /** 아주얼라이언스 직원 여부 (위탁사 미배정 + 비관리자) */
