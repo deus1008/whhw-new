@@ -59,7 +59,8 @@ export async function getEdiFileList(companyId?: string | null): Promise<{
 }
 
 /* ── 단건 파일 분析 ── */
-export async function analyzeEdiFile(docId: string): Promise<{
+// force=true: 캐시가 있어도 강제 재파싱 + DB 재동기화 (전체 DB 동기화 버튼에서 사용)
+export async function analyzeEdiFile(docId: string, force = false): Promise<{
   report?: EdiReport;
   error?: string;
 }> {
@@ -72,18 +73,20 @@ export async function analyzeEdiFile(docId: string): Promise<{
 
   const d = doc as Record<string,string>;
   const cacheKey = `${CACHE_PREFIX}${d.id}.json`;
-  try {
-    const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
-    if (blob) {
-      const cached = JSON.parse(await blob.text()) as EdiReport & { cacheVersion?: number };
-      const cd = cached.data as unknown as Record<string,unknown>;
-      if ((cached as unknown as Record<string,unknown>).cacheVersion === CACHE_VERSION &&
-          Array.isArray(cd.salesPersonStats) &&
-          Array.isArray(cd.itemHospStats)) {
-        return { report: cached };
+  if (!force) {
+    try {
+      const { data: blob } = await svc.storage.from(BUCKET_CACHE).download(cacheKey);
+      if (blob) {
+        const cached = JSON.parse(await blob.text()) as EdiReport & { cacheVersion?: number };
+        const cd = cached.data as unknown as Record<string,unknown>;
+        if ((cached as unknown as Record<string,unknown>).cacheVersion === CACHE_VERSION &&
+            Array.isArray(cd.salesPersonStats) &&
+            Array.isArray(cd.itemHospStats)) {
+          return { report: cached };
+        }
       }
-    }
-  } catch { /* no cache */ }
+    } catch { /* no cache */ }
+  }
 
   const { data: fileBlob, error: dlErr } = await svc.storage.from(BUCKET_DOCS).download(d.storage_path);
   if (dlErr || !fileBlob) return { error: dlErr?.message ?? '다운로드 실패' };

@@ -99,7 +99,7 @@ export default function EdiClient({ files, isAdmin }: Props) {
     try {
       for (let i = 0; i < files.length; i++) {
         setSyncMsg(`⏳ 파일 ${i + 1}/${files.length} 처리 중…`);
-        const r = await analyzeEdiFile(files[i].id);
+        const r = await analyzeEdiFile(files[i].id, true); // force=true: 캐시 무시, DB 강제 재동기화
         if (r.error) errors++; else synced++;
       }
       setSyncMsg(`✅ DB 동기화 완료: ${synced}개 성공${errors > 0 ? `, ${errors}개 오류` : ''}`);
