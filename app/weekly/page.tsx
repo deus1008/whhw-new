@@ -140,22 +140,13 @@ export default async function DashboardPage() {
     ? svc.rpc('get_dashboard_settlements', { p_company_id: companyId, p_since_month: since4mStr })
     : Promise.resolve({ data: null, error: null });
 
-  // 월별 별도 쿼리: 단일 IN + range(0,9999)는 행 수가 많은 월이 한도를 채워
-  // 이후 월 데이터가 잘리는 문제를 방지. 각 타겟월을 독립적으로 최대 10,000행 조회.
-  const ediQPromise = ediTargetNorms.length > 0
-    ? Promise.all(
-        ediTargetNorms.map(norm => {
-          const variants = [norm, norm.replace('-', ''), norm.replace('-', '.')];
-          let q = svc.from('trend_prescriptions')
-            .select('prescription_month,hospital_name,product_name,prescription_amount,hospital_type,cso_name')
-            .not('prescription_month', 'is', null)
-            .in('prescription_month', variants)
-            .range(0, 9999);
-          if (companyId) q = q.eq('company_id', companyId);
-          return q;
-        })
-      ).then(results => ({ data: results.flatMap(r => r.data ?? []) }))
-    : Promise.resolve({ data: [] as Record<string, unknown>[] });
+  // DB 집계 RPC — raw 행 전송 없이 월별·품목별·CSO별 집계 결과만 수신
+  const ediRpcPromise = companyId && ediTargetNorms.length > 0
+    ? svc.rpc('get_edi_summary', {
+        p_company_id: companyId,
+        p_months: ediTargetNorms.map(n => n.replace('-', '')),
+      })
+    : Promise.resolve({ data: null, error: null });
   const upcomingQ = (() => {
     let q = svc.from('upcoming_products')
       .select('id,title,manufacturer,launch_date,status,indication,insurance_code,insurance_price,memo')
@@ -205,7 +196,7 @@ export default async function DashboardPage() {
     { data: visitRows },
     { data: profileRows },
     { data: scheduleRows },
-    { data: ediRows },
+    { data: ediRpcResult },
     { data: upcomingRows },
     { data: docRows },
     { data: dcRows },
@@ -226,7 +217,7 @@ export default async function DashboardPage() {
       .lte('start_date', next2mStr)
       .order('start_date', { ascending: true })
       .limit(60),
-    ediQPromise,
+    ediRpcPromise,
     upcomingQ,
     // 문서: 최근 3개월 (위탁사 필터 적용)
     docQ,
@@ -405,22 +396,21 @@ export default async function DashboardPage() {
     a.personName.localeCompare(b.personName) || a.visitedAt.localeCompare(b.visitedAt),
   );
 
-  // ── G. 처방실적(EDI/실적마감) 집계 ──────────────────────────────────────────
-  type EdiRow = {
-    prescription_month: string;
-    hospital_name: string | null;
-    product_name: string | null;
-    prescription_amount: number | null;
-    hospital_type: string | null;
-    cso_name: string | null;
-  };
+  // ── G. 처방실적(EDI) 집계 — DB 집계 RPC 기반 ──────────────────────────────
+  type EdiByMonthRow    = { prescription_month: string; hosp_cnt: number; clinic_cnt: number; hosp_type_cnt: number; prod_cnt: number; clinic_prod_cnt: number; hosp_prod_cnt: number; presc_amt: number; clinic_amt: number; hosp_amt: number };
+  type EdiByProductRow  = { product_name: string; prescription_month: string; presc_amt: number };
+  type EdiByCsoMonthRow = { cso_name: string; prescription_month: string; hosp_cnt: number; prod_cnt: number; presc_amt: number };
+  type EdiByCsoTotalRow = { cso_name: string; total_hosp_cnt: number; total_presc_amt: number };
+  type EdiTotals        = { total_hosp_cnt: number; total_presc_amt: number };
 
-  const normEdi = (ediRows as EdiRow[] ?? []).map(r => ({
-    ...r,
-    prescription_month: toYYYYMM(r.prescription_month ?? ''),
-  })).filter(r => /^\d{4}-\d{2}$/.test(r.prescription_month));
+  const ediRpc          = (ediRpcResult as Record<string, unknown> | null) ?? {};
+  const ediByMonth:    EdiByMonthRow[]    = (ediRpc.by_month     as EdiByMonthRow[]    | null) ?? [];
+  const ediByProduct:  EdiByProductRow[]  = (ediRpc.by_product   as EdiByProductRow[]  | null) ?? [];
+  const ediByCsoMonth: EdiByCsoMonthRow[] = (ediRpc.by_cso_month as EdiByCsoMonthRow[] | null) ?? [];
+  const ediByCsoTotal: EdiByCsoTotalRow[] = (ediRpc.by_cso_total as EdiByCsoTotalRow[] | null) ?? [];
+  const ediRpcTotals:  EdiTotals          = (ediRpc.totals       as EdiTotals          | null) ?? { total_hosp_cnt: 0, total_presc_amt: 0 };
 
-  const ediAllMonths = [...new Set(normEdi.map(r => r.prescription_month))].sort();
+  const ediAllMonths = ediByMonth.map(r => toYYYYMM(r.prescription_month)).sort();
   // 전년동월·직전월·최신월 순서를 유지하되, 실제 데이터가 있는 월만 포함
   const ediMonthSet0 = new Set(ediAllMonths);
   const ediMonths    = ediTargetNorms.length > 0
@@ -428,49 +418,33 @@ export default async function DashboardPage() {
     : ediAllMonths.slice(-3);
   const ediMonthSet  = new Set(ediMonths);
 
-  // 수수료정산 데이터의 병의원 분류를 EDI 집계에 적용
-  // byHospMonth.category = '의원' | '병원' (settlement 기반, 신뢰성 높음)
-  const settClinicSet = new Set(byHospMonth.filter(r => r.category === '의원').map(r => r.hospital_name));
-  const settKnownSet  = new Set(byHospMonth.map(r => r.hospital_name));
-  function isClinicBySettlement(name: string | null, fallbackType?: string | null): boolean {
-    if (name && settKnownSet.has(name)) return settClinicSet.has(name);
-    return isClinic(null, fallbackType); // settlement에 없는 병원은 EDI hospital_type으로 대체
-  }
-
+  // 월별 집계
   const ediMonthly = ediMonths.map(month => {
-    const rows    = normEdi.filter(r => r.prescription_month === month);
-    const clRows  = rows.filter(r =>  isClinicBySettlement(r.hospital_name, r.hospital_type));
-    const hsRows  = rows.filter(r => !isClinicBySettlement(r.hospital_name, r.hospital_type));
-    const allH    = new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!));
-    const clH     = new Set(clRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
-    const hsH     = new Set(hsRows.filter(r => r.hospital_name).map(r => r.hospital_name!));
-    const allP    = new Set(rows.filter(r => r.product_name).map(r => r.product_name!));
-    const clP     = new Set(clRows.filter(r => r.product_name).map(r => r.product_name!));
-    const hsP     = new Set(hsRows.filter(r => r.product_name).map(r => r.product_name!));
+    const r = ediByMonth.find(r => toYYYYMM(r.prescription_month) === month);
     return {
       month,
-      hospCount:            allH.size,
-      clinicCount:          clH.size,
-      hospitalCount:        hsH.size,
-      productCount:         allP.size,
-      clinicProductCount:   clP.size,
-      hospitalProductCount: hsP.size,
-      totalPrescAmt:        rows.reduce((s, r)   => s + (r.prescription_amount ?? 0), 0),
-      clinicPrescAmt:       clRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
-      hospitalPrescAmt:     hsRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+      hospCount:            r?.hosp_cnt       ?? 0,
+      clinicCount:          r?.clinic_cnt      ?? 0,
+      hospitalCount:        r?.hosp_type_cnt   ?? 0,
+      productCount:         r?.prod_cnt        ?? 0,
+      clinicProductCount:   r?.clinic_prod_cnt ?? 0,
+      hospitalProductCount: r?.hosp_prod_cnt   ?? 0,
+      totalPrescAmt:        r?.presc_amt       ? Number(r.presc_amt)  : 0,
+      clinicPrescAmt:       r?.clinic_amt      ? Number(r.clinic_amt) : 0,
+      hospitalPrescAmt:     r?.hosp_amt        ? Number(r.hosp_amt)   : 0,
     };
   });
 
-  // 상위 5 품목
+  // 품목별 집계
   type ProdAcc = { prescAmt: number; months: Record<string, number> };
   const prodMap: Record<string, ProdAcc> = {};
-  for (const r of normEdi.filter(r => ediMonthSet.has(r.prescription_month))) {
-    if (!r.product_name) continue;
+  for (const r of ediByProduct) {
+    const monthNorm = toYYYYMM(r.prescription_month);
+    if (!ediMonthSet.has(monthNorm)) continue;
     if (!prodMap[r.product_name]) prodMap[r.product_name] = { prescAmt: 0, months: {} };
-    const amt = r.prescription_amount ?? 0;
+    const amt = Number(r.presc_amt);
     prodMap[r.product_name].prescAmt += amt;
-    prodMap[r.product_name].months[r.prescription_month] =
-      (prodMap[r.product_name].months[r.prescription_month] ?? 0) + amt;
+    prodMap[r.product_name].months[monthNorm] = (prodMap[r.product_name].months[monthNorm] ?? 0) + amt;
   }
   const top5Products = Object.entries(prodMap)
     .sort(([, a], [, b]) => b.prescAmt - a.prescAmt)
@@ -482,15 +456,15 @@ export default async function DashboardPage() {
     }));
 
   // 품목현황 상위/하위 10 (EDI 기반)
-  const ediLatest = ediMonths[ediMonths.length - 1] ?? '';
-  const ediPrev   = ediMonths[ediMonths.length - 2] ?? '';
+  const ediLatest      = ediMonths[ediMonths.length - 1] ?? '';
+  const ediPrev        = ediMonths[ediMonths.length - 2] ?? '';
   const ediProdsSorted = Object.entries(prodMap)
     .map(([name, v]) => ({
       name,
       totalPrescAmt: v.prescAmt,
-      latestAmt: v.months[ediLatest] ?? 0,
-      delta: (v.months[ediLatest] ?? 0) - (v.months[ediPrev] ?? 0),
-      months: ediMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
+      latestAmt:     v.months[ediLatest] ?? 0,
+      delta:         (v.months[ediLatest] ?? 0) - (v.months[ediPrev] ?? 0),
+      months:        ediMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
     }))
     .filter(p => p.totalPrescAmt > 0)
     .sort((a, b) => b.latestAmt - a.latestAmt);
@@ -498,45 +472,37 @@ export default async function DashboardPage() {
   const bottom10Products = ediProdsSorted.slice(-10).reverse();
 
   // ── [섹션 2] 거래처현황: CSO별 집계 (EDI 기반) ────────────────────────────
+  const csoTotalLookup = Object.fromEntries(ediByCsoTotal.map(r => [r.cso_name, r]));
   const csoAccMap: Record<string, { name: string; prescAmt: number; settAmt: number; hospCount: number; months: { month: string; hospCount: number; prodCount: number; prescAmt: number }[] }> = {};
-  const csoHospSets: Record<string, Record<string, Set<string>>> = {};
-  const csoProdSets: Record<string, Record<string, Set<string>>> = {};
-  const csoAllHosps: Record<string, Set<string>> = {};
-  const ediFiltered = normEdi.filter(r => ediMonthSet.has(r.prescription_month));
-  for (const r of ediFiltered) {
-    const cn = r.cso_name?.trim() || '미지정';
+  for (const r of ediByCsoMonth) {
+    const monthNorm = toYYYYMM(r.prescription_month);
+    if (!ediMonthSet.has(monthNorm)) continue;
+    const cn = r.cso_name;
     if (!csoAccMap[cn]) {
       csoAccMap[cn] = { name: cn, prescAmt: 0, settAmt: 0, hospCount: 0, months: ediMonths.map(m => ({ month: m, hospCount: 0, prodCount: 0, prescAmt: 0 })) };
-      csoHospSets[cn] = Object.fromEntries(ediMonths.map(m => [m, new Set<string>()]));
-      csoProdSets[cn] = Object.fromEntries(ediMonths.map(m => [m, new Set<string>()]));
-      csoAllHosps[cn] = new Set<string>();
     }
-    const acc = csoAccMap[cn];
-    const amt = r.prescription_amount ?? 0;
-    acc.prescAmt += amt;
-    const mi = acc.months.findIndex(m => m.month === r.prescription_month);
-    if (mi >= 0) acc.months[mi].prescAmt += amt;
-    if (r.hospital_name) { csoHospSets[cn][r.prescription_month]?.add(r.hospital_name); csoAllHosps[cn].add(r.hospital_name); }
-    if (r.product_name)  csoProdSets[cn][r.prescription_month]?.add(r.product_name);
+    const mi = csoAccMap[cn].months.findIndex(m => m.month === monthNorm);
+    if (mi >= 0) {
+      csoAccMap[cn].months[mi].prescAmt  = Number(r.presc_amt);
+      csoAccMap[cn].months[mi].hospCount = r.hosp_cnt;
+      csoAccMap[cn].months[mi].prodCount = r.prod_cnt;
+    }
+    csoAccMap[cn].prescAmt += Number(r.presc_amt);
   }
   for (const [cn, acc] of Object.entries(csoAccMap)) {
-    acc.months.forEach((m, i) => {
-      acc.months[i].hospCount = csoHospSets[cn][m.month]?.size ?? 0;
-      acc.months[i].prodCount = csoProdSets[cn][m.month]?.size ?? 0;
-    });
-    acc.hospCount = csoAllHosps[cn].size;
+    acc.hospCount = csoTotalLookup[cn]?.total_hosp_cnt ?? 0;
   }
-  const allCsoStats = Object.values(csoAccMap).sort((a, b) => b.prescAmt - a.prescAmt);
+  const allCsoStats   = Object.values(csoAccMap).sort((a, b) => b.prescAmt - a.prescAmt);
   const totalCsoCount = allCsoStats.length;
-  const csoStats = allCsoStats.slice(0, 20);
-  const csoAllTotals = {
-    hospCount: new Set(ediFiltered.filter(r => r.hospital_name).map(r => r.hospital_name!)).size,
-    prescAmt:  ediFiltered.reduce((s, r) => s + (r.prescription_amount ?? 0), 0),
+  const csoStats      = allCsoStats.slice(0, 20);
+  const csoAllTotals  = {
+    hospCount: ediRpcTotals.total_hosp_cnt,
+    prescAmt:  Number(ediRpcTotals.total_presc_amt),
     settAmt:   0,
   };
   const csoMonthlyTotals = ediMonths.map(month => {
-    const rows = normEdi.filter(r => r.prescription_month === month);
-    return { month, settAmt: 0, prescAmt: rows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0), hospCount: new Set(rows.filter(r => r.hospital_name).map(r => r.hospital_name!)).size, prodCount: new Set(rows.filter(r => r.product_name).map(r => r.product_name!)).size };
+    const r = ediByMonth.find(r => toYYYYMM(r.prescription_month) === month);
+    return { month, settAmt: 0, prescAmt: r?.presc_amt ? Number(r.presc_amt) : 0, hospCount: r?.hosp_cnt ?? 0, prodCount: r?.prod_cnt ?? 0 };
   });
 
   // ── H. 발매예정 ───────────────────────────────────────────────────────────
