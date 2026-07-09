@@ -2,7 +2,7 @@
 
 import { useState, useTransition, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
-import { forceRefreshEdi, analyzeEdiFile, syncAllEdiToDb } from '@/app/edi/actions';
+import { forceRefreshEdi, analyzeEdiFile } from '@/app/edi/actions';
 import type { EdiReport } from '@/app/edi/actions';
 import type { EdiData, SalesPersonStat, CsoStat, HospitalStat, ItemStat, IHItemStat, DrugPrice } from '@/lib/edi/process';
 
@@ -95,12 +95,19 @@ export default function EdiClient({ files, isAdmin }: Props) {
 
   async function handleSyncAll() {
     setSyncing(true); setSyncMsg(''); setRefreshError('');
+    let synced = 0, errors = 0;
     try {
-      const r = await syncAllEdiToDb();
-      if (r.error) setRefreshError(r.error);
-      else setSyncMsg(`✅ DB 동기화 완료: ${r.synced}개 성공${r.errors > 0 ? `, ${r.errors}개 오류` : ''}`);
-    } catch (e) { setRefreshError(e instanceof Error ? e.message : 'DB 동기화 실패'); }
-    finally { setSyncing(false); }
+      for (let i = 0; i < files.length; i++) {
+        setSyncMsg(`⏳ 파일 ${i + 1}/${files.length} 처리 중…`);
+        const r = await analyzeEdiFile(files[i].id);
+        if (r.error) errors++; else synced++;
+      }
+      setSyncMsg(`✅ DB 동기화 완료: ${synced}개 성공${errors > 0 ? `, ${errors}개 오류` : ''}`);
+    } catch (e) {
+      setRefreshError(e instanceof Error ? e.message : 'DB 동기화 실패');
+    } finally {
+      setSyncing(false);
+    }
   }
 
   if (files.length === 0) return <EmptyState errors={[]} />;
