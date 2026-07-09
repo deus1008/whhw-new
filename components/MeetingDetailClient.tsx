@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef, useEffect, useCallback } from 'react';
 import { updateMeeting, addTodoToCalendar } from '@/app/meetings/actions';
 import {
-  CATEGORIES, STATUSES, PRIORITIES, SECURITY_LEVELS, SECURITY_META,
+  STATUSES, PRIORITIES, SECURITY_LEVELS, SECURITY_META,
   type MeetingRow, type Attachment, type Todo, type TaskStatus, type TaskPriority, type TaskSecurity,
 } from '@/app/meetings/types';
 
@@ -44,10 +44,8 @@ const PRIORITY_META: Record<TaskPriority, { color: string; bg: string }> = {
 };
 
 /* ── 콘텐츠 변환 헬퍼 ────────────────────────────────────────── */
-
 function isHtml(s: string) { return /<[a-z][\s\S]*>/i.test(s); }
 
-/** Plain text / 마크다운 → 에디터용 HTML */
 function textToHtml(text: string): string {
   if (!text) return '';
   if (isHtml(text)) return text;
@@ -59,22 +57,9 @@ function textToHtml(text: string): string {
     .replace(/\n/g, '<br>');
 }
 
-/** 뷰어용 HTML 소독 (script / inline-event 제거) */
-function sanitize(html: string): string {
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/\son\w+\s*=\s*(?:"[^"]*"|'[^']*')/gi, '');
-}
-
-function contentToViewHtml(content: string): string {
-  if (!content) return '';
-  return sanitize(isHtml(content) ? content : textToHtml(content));
-}
-
 /* ── 첨부파일 뷰 ─────────────────────────────────────────────── */
-function AttachmentView({ attachments, editMode, onRemove }: {
+function AttachmentView({ attachments, onRemove }: {
   attachments: Attachment[];
-  editMode: boolean;
   onRemove?: (id: string) => void;
 }) {
   const images = attachments.filter(a => a.type === 'image');
@@ -90,7 +75,7 @@ function AttachmentView({ attachments, editMode, onRemove }: {
                 style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', display: 'block' }}
                 onClick={() => window.open(a.url, '_blank')}
               />
-              {editMode && onRemove && (
+              {onRemove && (
                 <button onClick={() => onRemove(a.id)}
                   style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#1a1f2e', border: '1px solid rgba(248,113,113,0.5)', borderRadius: '50%', width: '18px', height: '18px', cursor: 'pointer', color: '#f87171', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, lineHeight: 1, fontFamily: 'inherit' }}>
                   ×
@@ -108,7 +93,7 @@ function AttachmentView({ attachments, editMode, onRemove }: {
             {a.name}
           </a>
           <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.2)', flexShrink: 0 }}>{fmtSize(a.size)}</span>
-          {editMode && onRemove && (
+          {onRemove && (
             <button onClick={() => onRemove(a.id)}
               style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: '1rem', padding: '0 0.1rem', lineHeight: 1, flexShrink: 0, fontFamily: 'inherit' }}>
               ×
@@ -215,9 +200,9 @@ function RichEditor({ initialValue, onChange, onImageUpload }: {
   };
 
   return (
-    <div style={{ marginBottom: '0.75rem' }}>
+    <div>
       {/* 툴바 */}
-      <div style={{
+      <div className="editor-toolbar no-print" style={{
         display: 'flex', gap: '0.22rem', flexWrap: 'wrap', alignItems: 'center',
         padding: '0.35rem 0.55rem',
         background: 'rgba(255,255,255,0.04)',
@@ -225,25 +210,20 @@ function RichEditor({ initialValue, onChange, onImageUpload }: {
         borderBottom: '1px solid rgba(255,255,255,0.06)',
         borderRadius: '8px 8px 0 0',
       }}>
-        {/* 서식 */}
         <button onMouseDown={e => { e.preventDefault(); exec('bold'); }} style={TB} title="굵게 (Ctrl+B)"><b>B</b></button>
         <button onMouseDown={e => { e.preventDefault(); exec('italic'); }} style={TB} title="기울임 (Ctrl+I)"><i>I</i></button>
         <button onMouseDown={e => { e.preventDefault(); exec('underline'); }} style={{ ...TB, textDecoration: 'underline' }} title="밑줄 (Ctrl+U)"><u>U</u></button>
         <button onMouseDown={e => { e.preventDefault(); exec('strikeThrough'); }} style={{ ...TB, textDecoration: 'line-through' }} title="취소선"><s>S</s></button>
         <span style={SEP} />
-        {/* 글자크기 */}
         <button onMouseDown={e => { e.preventDefault(); applyFontSize('0.78em'); }} style={{ ...TB, fontSize: '0.66rem' }} title="작게">소</button>
         <button onMouseDown={e => { e.preventDefault(); applyFontSize('1em'); }} style={{ ...TB, fontSize: '0.8rem' }} title="보통">중</button>
         <button onMouseDown={e => { e.preventDefault(); applyFontSize('1.22em'); }} style={{ ...TB, fontSize: '0.92rem' }} title="크게">대</button>
         <button onMouseDown={e => { e.preventDefault(); applyFontSize('1.5em'); }} style={{ ...TB, fontSize: '1.05rem' }} title="매우 크게">특대</button>
         <span style={SEP} />
-        {/* 목록 */}
         <button onMouseDown={e => { e.preventDefault(); exec('insertUnorderedList'); }} style={TB} title="글머리 목록">• 목록</button>
         <button onMouseDown={e => { e.preventDefault(); exec('insertOrderedList'); }} style={TB} title="번호 목록">① 목록</button>
         <span style={SEP} />
-        {/* 링크 */}
         <button onMouseDown={e => { e.preventDefault(); insertLink(); }} style={TB} title="링크 삽입">🔗 링크</button>
-        {/* 업로드 상태 */}
         {uploading && (
           <span style={{ fontSize: '0.72rem', color: '#a5b4fc', marginLeft: '0.2rem' }}>이미지 업로드 중…</span>
         )}
@@ -286,11 +266,12 @@ export default function MeetingDetailClient({
   isAdmin?: boolean;
   availableCategories?: string[];
 }) {
-  const [meeting, setMeeting]   = useState<MeetingRow>(initial);
-  const [editMode, setEditMode] = useState(false);
-  const [draft, setDraft]       = useState({
-    title: initial.title, category: initial.category,
-    content: initial.content, meeting_date: initial.meeting_date,
+  const [meeting, setMeeting] = useState<MeetingRow>(initial);
+  const [draft, setDraft] = useState({
+    title: initial.title,
+    category: initial.category,
+    content: initial.content,
+    meeting_date: initial.meeting_date,
   });
   const [todoInput, setTodoInput]   = useState('');
   const [dueDate, setDueDate]       = useState('');
@@ -304,21 +285,13 @@ export default function MeetingDetailClient({
   const [dragOver, setDragOver]       = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const style = cs(meeting.category);
-
   function flash() { setSaveMsg('저장됨'); setTimeout(() => setSaveMsg(''), 2000); }
-
-  function startEdit() {
-    setDraft({ title: meeting.title, category: meeting.category, content: meeting.content, meeting_date: meeting.meeting_date });
-    setEditMode(true);
-  }
 
   function handleSave() {
     startTransition(async () => {
       const res = await updateMeeting(meeting.id, draft);
       if (res.error) { alert(res.error); return; }
       setMeeting(m => ({ ...m, ...draft }));
-      setEditMode(false);
       flash();
     });
   }
@@ -368,7 +341,6 @@ export default function MeetingDetailClient({
       });
   }
 
-  /* ── 파일 업로드 헬퍼 ── */
   async function uploadFile(file: File) {
     const fd = new FormData();
     fd.append('file', file);
@@ -383,13 +355,11 @@ export default function MeetingDetailClient({
     } catch { return null; }
   }
 
-  /** RichEditor에서 이미지 붙여넣기 시 호출 → URL 반환 */
   async function uploadImageFile(file: File): Promise<string | null> {
     const result = await uploadFile(file);
     return result?.url ?? null;
   }
 
-  /* ── 첨부파일 섹션에 파일 추가 ── */
   async function handleFiles(files: File[]) {
     if (!files.length) return;
     const results = await Promise.all(files.map(uploadFile));
@@ -412,6 +382,7 @@ export default function MeetingDetailClient({
 
   const pendingCount = meeting.todos.filter(t => !t.done).length;
   const sortedTodos  = [...meeting.todos].sort((a, b) => +a.done - +b.done);
+  const catStyle = cs(draft.category);
 
   return (
     <div className="auth-card" style={{ padding: '1.75rem' }}>
@@ -425,8 +396,10 @@ export default function MeetingDetailClient({
           .print-content-box { background: #f9f9f9 !important; border: 1px solid #e5e7eb !important; }
           .print-todo-row { background: #fff !important; border: 1px solid #e5e7eb !important; }
           .print-meta-row { display: flex !important; }
+          [contenteditable="true"] { border: none !important; background: transparent !important; min-height: unset !important; max-height: unset !important; padding: 0.5rem 0 !important; }
           .rich-content a { color: #1a56db !important; }
           .rich-content img { max-width: 100% !important; }
+          input[type="text"], input[type="date"], input[list] { border: none !important; background: transparent !important; padding: 0 !important; }
         }
         @media screen {
           .print-meta-row { display: none !important; }
@@ -438,191 +411,158 @@ export default function MeetingDetailClient({
         .rich-content li { margin-bottom: 0.15rem; }
       `}</style>
 
-      {/* ── 메타 헤더 ── */}
-      {editMode ? (
-        <div style={{ marginBottom: '1.25rem' }}>
-          <input value={draft.title} onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
-            placeholder="과업명" style={{ ...INPUT, fontSize: '1.1rem', fontWeight: 700 }}
+      {/* ── 과업명 (항상 편집 가능) ── */}
+      <div style={{ marginBottom: '1.25rem' }}>
+        <input
+          value={draft.title}
+          onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
+          placeholder="과업명"
+          style={{ ...INPUT, fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.55rem' }}
+        />
+
+        {/* 분류 + 마감일 */}
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+          <input
+            list="cat-list"
+            value={draft.category}
+            onChange={e => setDraft(d => ({ ...d, category: e.target.value }))}
+            placeholder="분류 선택 또는 직접 입력"
+            style={{ ...INPUT_SM, flex: 1, marginBottom: 0 }}
           />
-          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
-            <input
-              list="cat-list"
-              value={draft.category}
-              onChange={e => setDraft(d => ({ ...d, category: e.target.value }))}
-              placeholder="분류 선택 또는 직접 입력"
-              style={{ ...INPUT_SM, flex: 1 }}
-            />
-            <datalist id="cat-list">
-              {availableCategories.map(c => <option key={c} value={c} />)}
-            </datalist>
-            <input type="date" value={draft.meeting_date} onChange={e => setDraft(d => ({ ...d, meeting_date: e.target.value }))} style={{ ...INPUT_SM, flex: 1 }} />
-          </div>
+          <datalist id="cat-list">
+            {availableCategories.map(c => <option key={c} value={c} />)}
+          </datalist>
+          <input
+            type="date"
+            value={draft.meeting_date}
+            onChange={e => setDraft(d => ({ ...d, meeting_date: e.target.value }))}
+            style={{ ...INPUT_SM, flex: 1, marginBottom: 0 }}
+          />
         </div>
-      ) : (
-        <div style={{ marginBottom: '1.25rem' }}>
-          <h1 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#f1f5f9', margin: '0 0 0.55rem' }}>
-            {meeting.title}
-          </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-            <span style={{ padding: '0.2rem 0.75rem', borderRadius: '100px', fontSize: '0.73rem', fontWeight: 700, color: style.color, background: style.bg }}>
-              {meeting.category}
-            </span>
-            {meeting.meeting_date && (
-              <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)' }}>📅 {fmtDate(meeting.meeting_date)}</span>
-            )}
-            <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.22)' }}>수정: {fmtDate(meeting.updated_at)}</span>
-          </div>
 
-          <div className="print-meta-row" style={{ gap: '1.5rem', flexWrap: 'wrap', marginBottom: '0.5rem', fontSize: '0.82rem' }}>
-            <span>상태: <strong>{meeting.status ?? '대기'}</strong></span>
-            <span>우선순위: <strong>{meeting.priority ?? '보통'}</strong></span>
-            <span>보안등급: <strong>{meeting.security_level ?? '공개'}</strong></span>
-          </div>
-
-          <div className="no-print" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
-            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginRight: '0.1rem' }}>상태</span>
-            {STATUSES.map(s => {
-              const meta = STATUS_META[s];
-              const active = (meeting.status ?? '대기') === s;
-              return (
-                <button key={s} onClick={() => handleStatusChange(s)} disabled={metaPending}
-                  style={{ padding: '0.2rem 0.7rem', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-                    background: active ? meta.bg : 'rgba(255,255,255,0.03)',
-                    border: active ? `1px solid ${meta.color}88` : '1px solid rgba(255,255,255,0.1)',
-                    color: active ? meta.color : 'rgba(255,255,255,0.32)',
-                  }}>{s}</button>
-              );
-            })}
-            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginLeft: '0.4rem', marginRight: '0.1rem' }}>우선순위</span>
-            {PRIORITIES.map(p => {
-              const meta = PRIORITY_META[p];
-              const active = (meeting.priority ?? '보통') === p;
-              return (
-                <button key={p} onClick={() => handlePriorityChange(p)} disabled={metaPending}
-                  style={{ padding: '0.2rem 0.7rem', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-                    background: active ? meta.bg : 'rgba(255,255,255,0.03)',
-                    border: active ? `1px solid ${meta.color}88` : '1px solid rgba(255,255,255,0.1)',
-                    color: active ? meta.color : 'rgba(255,255,255,0.32)',
-                  }}>{p}</button>
-              );
-            })}
-          </div>
-
-          <div className="no-print" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginRight: '0.1rem' }}>보안등급</span>
-            {isAdmin ? (
-              SECURITY_LEVELS.map(sl => {
-                const m = SECURITY_META[sl];
-                const active = (meeting.security_level ?? '공개') === sl;
-                return (
-                  <button key={sl} onClick={() => handleSecurityChange(sl)} disabled={metaPending}
-                    style={{ padding: '0.2rem 0.7rem', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-                      background: active ? m.bg : 'rgba(255,255,255,0.03)',
-                      border: active ? `1px solid ${m.border}` : '1px solid rgba(255,255,255,0.1)',
-                      color: active ? m.color : 'rgba(255,255,255,0.32)',
-                    }}>{sl}</button>
-                );
-              })
-            ) : (
-              (() => {
-                const sl = (meeting.security_level ?? '공개') as TaskSecurity;
-                const m  = SECURITY_META[sl];
-                return <span style={{ padding: '0.2rem 0.7rem', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700, background: m.bg, border: `1px solid ${m.border}`, color: m.color }}>{sl}</span>;
-              })()
-            )}
-          </div>
+        {/* 수정일 표시 */}
+        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.22)', marginBottom: '0.75rem' }}>
+          최종 저장: {fmtDate(meeting.updated_at)}
         </div>
-      )}
+
+        {/* 인쇄 전용 메타 */}
+        <div className="print-meta-row" style={{ gap: '1.5rem', flexWrap: 'wrap', marginBottom: '0.5rem', fontSize: '0.82rem' }}>
+          <span>상태: <strong>{meeting.status ?? '대기'}</strong></span>
+          <span>우선순위: <strong>{meeting.priority ?? '보통'}</strong></span>
+          <span>보안등급: <strong>{meeting.security_level ?? '공개'}</strong></span>
+        </div>
+
+        {/* 상태 + 우선순위 */}
+        <div className="no-print" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
+          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginRight: '0.1rem' }}>상태</span>
+          {STATUSES.map(s => {
+            const meta = STATUS_META[s];
+            const active = (meeting.status ?? '대기') === s;
+            return (
+              <button key={s} onClick={() => handleStatusChange(s)} disabled={metaPending}
+                style={{ padding: '0.2rem 0.7rem', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                  background: active ? meta.bg : 'rgba(255,255,255,0.03)',
+                  border: active ? `1px solid ${meta.color}88` : '1px solid rgba(255,255,255,0.1)',
+                  color: active ? meta.color : 'rgba(255,255,255,0.32)',
+                }}>{s}</button>
+            );
+          })}
+          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginLeft: '0.4rem', marginRight: '0.1rem' }}>우선순위</span>
+          {PRIORITIES.map(p => {
+            const meta = PRIORITY_META[p];
+            const active = (meeting.priority ?? '보통') === p;
+            return (
+              <button key={p} onClick={() => handlePriorityChange(p)} disabled={metaPending}
+                style={{ padding: '0.2rem 0.7rem', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                  background: active ? meta.bg : 'rgba(255,255,255,0.03)',
+                  border: active ? `1px solid ${meta.color}88` : '1px solid rgba(255,255,255,0.1)',
+                  color: active ? meta.color : 'rgba(255,255,255,0.32)',
+                }}>{p}</button>
+            );
+          })}
+        </div>
+
+        {/* 보안등급 */}
+        <div className="no-print" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginRight: '0.1rem' }}>보안등급</span>
+          {isAdmin ? (
+            SECURITY_LEVELS.map(sl => {
+              const m = SECURITY_META[sl];
+              const active = (meeting.security_level ?? '공개') === sl;
+              return (
+                <button key={sl} onClick={() => handleSecurityChange(sl)} disabled={metaPending}
+                  style={{ padding: '0.2rem 0.7rem', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                    background: active ? m.bg : 'rgba(255,255,255,0.03)',
+                    border: active ? `1px solid ${m.border}` : '1px solid rgba(255,255,255,0.1)',
+                    color: active ? m.color : 'rgba(255,255,255,0.32)',
+                  }}>{sl}</button>
+              );
+            })
+          ) : (
+            (() => {
+              const sl = (meeting.security_level ?? '공개') as TaskSecurity;
+              const m  = SECURITY_META[sl];
+              return <span style={{ padding: '0.2rem 0.7rem', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700, background: m.bg, border: `1px solid ${m.border}`, color: m.color }}>{sl}</span>;
+            })()
+          )}
+        </div>
+      </div>
 
       {/* ── 내용/메모 ── */}
       <div style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
           <span style={SEC_LABEL}>📝 내용 / 메모</span>
-          <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
-            {(saveMsg && !todosPending) && <span style={{ fontSize: '0.72rem', color: '#4ade80' }}>{saveMsg}</span>}
-            {editMode ? (
-              <>
-                <button onClick={() => setEditMode(false)} style={BTN_CANCEL} disabled={isPending} className="no-print">취소</button>
-                <button onClick={handleSave} style={BTN_SAVE} disabled={isPending} className="no-print">
-                  {isPending ? '저장 중…' : '저장'}
-                </button>
-              </>
-            ) : (
-              <>
-                <button onClick={() => window.print()} className="no-print" style={BTN_PRINT}>🖨 인쇄</button>
-                <button onClick={startEdit} style={BTN_EDIT} className="no-print">✏️ 수정</button>
-              </>
-            )}
+          <div className="no-print" style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+            {saveMsg && <span style={{ fontSize: '0.72rem', color: '#4ade80' }}>{saveMsg}</span>}
+            <button onClick={handleSave} style={BTN_SAVE} disabled={isPending}>
+              {isPending ? '저장 중…' : '저장'}
+            </button>
+            <button onClick={() => window.print()} style={BTN_PRINT}>🖨 인쇄</button>
           </div>
         </div>
 
-        {editMode ? (
-          <>
-            {/* 리치 텍스트 에디터 */}
-            <RichEditor
-              initialValue={draft.content}
-              onChange={html => setDraft(d => ({ ...d, content: html }))}
-              onImageUpload={uploadImageFile}
-            />
+        {/* 리치 텍스트 에디터 (항상 활성) */}
+        <div className="print-content-box" style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+          <RichEditor
+            initialValue={draft.content}
+            onChange={html => setDraft(d => ({ ...d, content: html }))}
+            onImageUpload={uploadImageFile}
+          />
+        </div>
 
-            {/* 첨부파일 드롭존 */}
-            <div
-              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={async e => { e.preventDefault(); setDragOver(false); await handleFiles(Array.from(e.dataTransfer.files)); }}
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                border: `1px dashed ${dragOver ? 'rgba(99,102,241,0.6)' : 'rgba(255,255,255,0.12)'}`,
-                borderRadius: '8px', padding: '0.65rem 1rem', textAlign: 'center', cursor: 'pointer',
-                color: 'rgba(255,255,255,0.3)', fontSize: '0.78rem',
-                background: dragOver ? 'rgba(99,102,241,0.06)' : 'transparent',
-                transition: 'all 0.15s', marginBottom: attachments.length ? '0.65rem' : 0,
-              }}
-            >
-              📎 파일 / 이미지 첨부 — 클릭 또는 드래그 앤 드롭 (최대 20MB)
+        {/* 첨부파일 드롭존 */}
+        <div
+          onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={async e => { e.preventDefault(); setDragOver(false); await handleFiles(Array.from(e.dataTransfer.files)); }}
+          onClick={() => fileInputRef.current?.click()}
+          className="no-print"
+          style={{
+            border: `1px dashed ${dragOver ? 'rgba(99,102,241,0.6)' : 'rgba(255,255,255,0.12)'}`,
+            borderRadius: '8px', padding: '0.65rem 1rem', textAlign: 'center', cursor: 'pointer',
+            color: 'rgba(255,255,255,0.3)', fontSize: '0.78rem',
+            background: dragOver ? 'rgba(99,102,241,0.06)' : 'transparent',
+            transition: 'all 0.15s', marginTop: '0.65rem',
+            marginBottom: attachments.length ? '0.65rem' : 0,
+          }}
+        >
+          📎 파일 / 이미지 첨부 — 클릭 또는 드래그 앤 드롭 (최대 20MB)
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          style={{ display: 'none' }}
+          onChange={e => { handleFiles(Array.from(e.target.files ?? [])); e.target.value = ''; }}
+        />
+
+        {attachments.length > 0 && (
+          <div style={{ marginTop: '0.5rem' }}>
+            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600, marginBottom: '0.4rem', letterSpacing: '0.04em' }}>
+              📎 첨부파일
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              style={{ display: 'none' }}
-              onChange={e => { handleFiles(Array.from(e.target.files ?? [])); e.target.value = ''; }}
-            />
-
-            {attachments.length > 0 && (
-              <AttachmentView attachments={attachments} editMode={true} onRemove={removeAttachment} />
-            )}
-          </>
-        ) : (
-          <>
-            {/* 뷰 모드: 리치 HTML 렌더링 */}
-            <div className="print-content-box" style={{ minHeight: '100px', padding: '1rem 1.1rem', background: 'rgba(255,255,255,0.025)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              {meeting.content ? (
-                <div
-                  className="rich-content"
-                  dangerouslySetInnerHTML={{ __html: contentToViewHtml(meeting.content) }}
-                  style={{ color: '#cbd5e1', fontSize: '0.88rem', lineHeight: 1.8 }}
-                  onClick={e => {
-                    const img = (e.target as Element).closest('img');
-                    if (img) window.open((img as HTMLImageElement).src, '_blank');
-                  }}
-                />
-              ) : (
-                <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.85rem' }}>
-                  내용이 없습니다. 수정 버튼을 눌러 작성해주세요.
-                </span>
-              )}
-            </div>
-
-            {attachments.length > 0 && (
-              <div style={{ marginTop: '0.75rem' }}>
-                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600, marginBottom: '0.4rem', letterSpacing: '0.04em' }}>
-                  📎 첨부파일
-                </div>
-                <AttachmentView attachments={attachments} editMode={false} />
-              </div>
-            )}
-          </>
+            <AttachmentView attachments={attachments} onRemove={removeAttachment} />
+          </div>
         )}
       </div>
 
@@ -699,14 +639,6 @@ const INPUT_SM: React.CSSProperties = {
 const BTN_SAVE: React.CSSProperties = {
   padding: '0.45rem 1rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
   background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc', fontFamily: 'inherit',
-};
-const BTN_CANCEL: React.CSSProperties = {
-  padding: '0.45rem 0.9rem', borderRadius: '8px', fontSize: '0.82rem', cursor: 'pointer',
-  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', fontFamily: 'inherit',
-};
-const BTN_EDIT: React.CSSProperties = {
-  padding: '0.28rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer',
-  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.5)', fontFamily: 'inherit',
 };
 const BTN_PRINT: React.CSSProperties = {
   padding: '0.28rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer',
