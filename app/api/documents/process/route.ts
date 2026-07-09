@@ -12,6 +12,7 @@ import { parseBioequivBuffer } from '@/lib/bioequiv/parse';
 import { parseDmfBuffer }             from '@/lib/dmf/parse';
 import { parseMonthlyStockBuffer }    from '@/lib/monthly-stock/parse';
 import { parseEdiBuffer, syncEdiToDb } from '@/lib/edi/parse-and-sync';
+import { invalidateDashboardCache } from '@/lib/dashboard-cache';
 import { revalidatePath } from 'next/cache';
 
 export const dynamic     = 'force-dynamic';
@@ -274,6 +275,9 @@ export async function POST(request: Request) {
       console.log(`[process:${documentId}] 수수료정산 ${inserted}/${total}건 저장 완료`);
       if (firstErr) console.warn(`[process:${documentId}] 일부 청크 오류: ${firstErr}`);
     }
+    // 대시보드 집계 캐시 무효화 + /weekly 재검증
+    await invalidateDashboardCache(supabase, docCompanyId);
+    revalidatePath('/weekly');
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     return Response.json({ ok: true, inserted: rows.length, total });
   }

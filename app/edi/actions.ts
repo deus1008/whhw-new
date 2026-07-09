@@ -252,6 +252,10 @@ export async function forceRefreshEdi(): Promise<{ error?: string }> {
     await svc.storage.from(BUCKET_CACHE).remove(keys);
   }
 
+  // /weekly 대시보드 집계 캐시도 전체 초기화
+  try { await svc.from('dashboard_rpc_cache').delete().not('cache_key', 'is', null); } catch { /* ignore */ }
+
   revalidatePath('/edi');
+  revalidatePath('/weekly');
   return {};
 }

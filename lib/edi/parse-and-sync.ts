@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { processEdi } from './process';
 import type { EdiData } from './process';
+import { invalidateDashboardCache } from '@/lib/dashboard-cache';
 
 export const CACHE_VERSION = 21;
 const MAX_ROWS = 100_000;
@@ -81,6 +82,9 @@ export async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], dat
       insertedTotal += Math.min(CHUNK, insertRows.length - i);
     }
     console.log(`[syncEdiToDb] ${filename}: ${insertedTotal}/${insertRows.length}행 저장 완료`);
+
+    // 대시보드 집계 캐시 무효화 — 다음 /weekly 로드 시 최신 데이터로 재계산
+    await invalidateDashboardCache(svc, companyId ?? null);
   } catch (e) {
     console.warn('[syncEdiToDb] 스킵:', e instanceof Error ? e.message : e);
   }

@@ -9,6 +9,7 @@ import { parseInventoryBuffer } from '@/lib/inventory/parse';
 import type { StockAlertItem } from '@/lib/inventory/parse';
 import { profileIsAdmin } from '@/lib/roles';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
+import { cachedRpc } from '@/lib/dashboard-cache';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 
 export const dynamic = 'force-dynamic';
@@ -138,17 +139,24 @@ export default async function DashboardPage() {
   const ediTargetVariants = ediTargetNorms.flatMap(n => [n, n.replace('-', ''), n.replace('-', '.')]);
 
   // ── A + B. 모든 쿼리를 동시에 시작 ────────────────────────────────────────
+  // 무거운 집계 RPC(수십만 행 스캔)는 read-through 캐시로 감쌈 — 데이터는
+  // 업로드 시에만 변경되므로 캐시 히트 시 RPC 대신 작은 JSONB 행만 읽어 즉시 응답.
+  // 캐시 키에 파라미터(월/기준월)를 포함해 데이터/기간 변경 시 자연 갱신 +
+  // 업로드 동기화(syncEdiToDb / 정산 insert)에서 명시적 무효화 + 30분 TTL 자가치유.
   const settRpcPromise = companyId
-    ? svc.rpc('get_dashboard_settlements', { p_company_id: companyId, p_since_month: since4mStr })
-    : Promise.resolve({ data: null, error: null });
+    ? cachedRpc(svc, `sett:${companyId}:${since4mStr}`, companyId, async () =>
+        (await svc.rpc('get_dashboard_settlements', { p_company_id: companyId, p_since_month: since4mStr })).data)
+    : Promise.resolve({ data: null });
 
   // DB 집계 RPC — YYYYMM 포맷으로 전달 (마이그레이션으로 DB 정규화 완료 전제)
+  const ediMonthsKey = ediTargetNorms.map(n => n.replace('-', '')).join(',');
   const ediRpcPromise = companyId && ediTargetNorms.length > 0
-    ? svc.rpc('get_edi_summary', {
-        p_company_id: companyId,
-        p_months: ediTargetNorms.map(n => n.replace('-', '')),
-      })
-    : Promise.resolve({ data: null, error: null });
+    ? cachedRpc(svc, `edi:${companyId}:${ediMonthsKey}`, companyId, async () =>
+        (await svc.rpc('get_edi_summary', {
+          p_company_id: companyId,
+          p_months: ediTargetNorms.map(n => n.replace('-', '')),
+        })).data)
+    : Promise.resolve({ data: null });
   const upcomingQ = (() => {
     let q = svc.from('upcoming_products')
       .select('id,title,manufacturer,launch_date,status,indication,insurance_code,insurance_price,memo')
@@ -193,7 +201,7 @@ export default async function DashboardPage() {
   })();
 
   const [
-    { data: settRpcRaw, error: settErr },
+    { data: settRpcRaw },
     { data: custRows },
     { data: visitRows },
     { data: profileRows },
@@ -230,7 +238,6 @@ export default async function DashboardPage() {
   ]);
 
   // ── A-2. RPC 결과 파싱 ──────────────────────────────────────────────────────
-  if (settErr) console.error('[dashboard:settlements rpc]', settErr);
   const sr = (settRpcRaw as Record<string, unknown>) ?? {};
   const byMonthType:  MonthTypeRow[]  = (sr.by_month_type  as MonthTypeRow[]  | null) ?? [];
   const byMonthTotal: MonthTotalRow[] = (sr.by_month_total as MonthTotalRow[] | null) ?? [];
