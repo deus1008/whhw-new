@@ -113,12 +113,12 @@ export default async function DashboardPage() {
   type GrandTotals   = { hosp_cnt: number; presc_amt: number; sett_amt: number };
 
   // ── Phase 1: 최신 EDI 처방월 확인 → 전년동월·직전월·최신월 결정 ─────────────
+  // created_at 필터 제거 — 업로드 시점과 무관하게 전체 중 가장 최신 처방월을 찾음
   const { data: latestEdiRows } = await (() => {
     let q = svc.from('trend_prescriptions')
       .select('prescription_month')
       .not('prescription_month', 'is', null)
-      .gte('created_at', since3mStr)
-      .order('prescription_month', { ascending: false })  // YYYYMM 형식 → 알파벳순 = 시간순
+      .order('prescription_month', { ascending: false })
       .limit(1);
     if (companyId) q = q.eq('company_id', companyId);
     return q;
