@@ -16,7 +16,7 @@ const CACHE_PREFIX = 'edi-';
 /** 한 파일에서 처리할 최대 행 수 (메모리 보호) */
 const MAX_ROWS = 100_000;
 
-const CACHE_VERSION = 20;
+const CACHE_VERSION = 21;
 
 /** trend_prescriptions 에 EDI 원본 행 동기화 (기존 데이터 삭제 후 재삽입) */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,7 +66,7 @@ async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], data: EdiD
         cso_name:             cso,
         hospital_name:        hos,
         product_name:         itm,
-        prescription_amount:  amt > 0 ? amt : null,
+        prescription_amount:  amt !== 0 ? amt : null,
         company_id:           companyId ?? null,
       });
     }
