@@ -73,6 +73,10 @@ async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], data: EdiD
 
     if (insertRows.length === 0) return;
 
+    // 진단 로그: processEdi totalAmount vs 실제 삽입 금액 비교
+    const dbInsertTotal = insertRows.reduce((s, r) => s + (r.prescription_amount ?? 0), 0);
+    console.log(`[syncEdiToDb][DIAG] ${filename}: processEdi.total=${data.totalAmount}, dbInsert.total=${dbInsertTotal}, diff=${data.totalAmount - dbInsertTotal}, rows=${insertRows.length}`);
+
     const CHUNK = 1000;
     for (let i = 0; i < insertRows.length; i += CHUNK) {
       const { error } = await svc
