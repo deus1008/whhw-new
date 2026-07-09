@@ -125,6 +125,7 @@ export default async function DashboardPage() {
   })();
   const latestEdiRaw = (latestEdiRows as { prescription_month: string }[] | null)?.[0]?.prescription_month ?? null;
   const latestEdiNorm = latestEdiRaw ? toYYYYMM(latestEdiRaw) : null;
+  console.log('[EDI-DEBUG] companyId:', companyId, '| latestEdiRaw:', latestEdiRaw, '| latestEdiNorm:', latestEdiNorm);
   const ediTargetNorms: string[] = [];
   if (latestEdiNorm && /^\d{4}-\d{2}$/.test(latestEdiNorm)) {
     const [yr, mo] = latestEdiNorm.split('-').map(Number);
