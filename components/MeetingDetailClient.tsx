@@ -392,7 +392,7 @@ export default function MeetingDetailClient({
           * { color: #111 !important; border-color: #ddd !important; }
           .orb-1, .orb-2, .orb-3 { display: none !important; }
           .no-print { display: none !important; }
-          .auth-card { background: #fff !important; border: 1px solid #e5e7eb !important; box-shadow: none !important; padding: 1.25rem !important; }
+          .auth-card { background: #fff !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
           .print-content-box { background: #f9f9f9 !important; border: 1px solid #e5e7eb !important; }
           .print-todo-row { background: #fff !important; border: 1px solid #e5e7eb !important; }
           .print-meta-row { display: flex !important; }
