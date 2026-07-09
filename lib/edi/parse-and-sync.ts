@@ -14,11 +14,22 @@ export async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], dat
 
     await svc.from('trend_prescriptions').delete().eq('source_file', filename);
     if (prescMonth) {
+      // YYYYMM 포맷 삭제 (현재 저장 포맷)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let delQ: any = svc.from('trend_prescriptions').delete().eq('prescription_month', prescMonth);
       if (companyId) delQ = delQ.eq('company_id', companyId);
       else delQ = delQ.is('company_id', null);
       await delQ;
+      // 레거시 포맷(YYYY-MM, YYYY.MM)도 함께 삭제 — 이전 동기화 잔여 데이터 방지
+      const prescMonthDash = `${prescMonth.slice(0, 4)}-${prescMonth.slice(4)}`;
+      const prescMonthDot  = `${prescMonth.slice(0, 4)}.${prescMonth.slice(4)}`;
+      for (const fmt of [prescMonthDash, prescMonthDot]) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let fmtQ: any = svc.from('trend_prescriptions').delete().eq('prescription_month', fmt);
+        if (companyId) fmtQ = fmtQ.eq('company_id', companyId);
+        else fmtQ = fmtQ.is('company_id', null);
+        await fmtQ;
+      }
     }
 
     type InsertRow = {
@@ -56,17 +67,20 @@ export async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], dat
 
     if (insertRows.length === 0) return;
 
-    const CHUNK = 1000;
+    const CHUNK = 500;
+    let insertedTotal = 0;
     for (let i = 0; i < insertRows.length; i += CHUNK) {
       const { error } = await svc
         .from('trend_prescriptions')
         .insert(insertRows.slice(i, i + CHUNK));
       if (error) {
         console.warn(`[syncEdiToDb] 삽입 오류 (chunk ${i}):`, error.message);
-        break;
+        // break 대신 continue — 한 청크 실패가 전체 중단으로 이어지지 않도록
+        continue;
       }
+      insertedTotal += Math.min(CHUNK, insertRows.length - i);
     }
-    console.log(`[syncEdiToDb] ${filename}: ${insertRows.length}행 저장 완료`);
+    console.log(`[syncEdiToDb] ${filename}: ${insertedTotal}/${insertRows.length}행 저장 완료`);
   } catch (e) {
     console.warn('[syncEdiToDb] 스킵:', e instanceof Error ? e.message : e);
   }

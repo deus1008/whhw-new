@@ -140,7 +140,7 @@ export default async function DashboardPage() {
     ? svc.rpc('get_dashboard_settlements', { p_company_id: companyId, p_since_month: since4mStr })
     : Promise.resolve({ data: null, error: null });
 
-  // DB 집계 RPC — raw 행 전송 없이 월별·품목별·CSO별 집계 결과만 수신
+  // DB 집계 RPC — YYYYMM 포맷으로 전달 (마이그레이션으로 DB 정규화 완료 전제)
   const ediRpcPromise = companyId && ediTargetNorms.length > 0
     ? svc.rpc('get_edi_summary', {
         p_company_id: companyId,
@@ -411,10 +411,10 @@ export default async function DashboardPage() {
   const ediRpcTotals:  EdiTotals          = (ediRpc.totals       as EdiTotals          | null) ?? { total_hosp_cnt: 0, total_presc_amt: 0 };
 
   const ediAllMonths = ediByMonth.map(r => toYYYYMM(r.prescription_month)).sort();
-  // 전년동월·직전월·최신월 순서를 유지하되, 실제 데이터가 있는 월만 포함
+  // 전년동월·직전월·최신월 순서를 항상 유지 (데이터 없는 월은 0으로 표시)
   const ediMonthSet0 = new Set(ediAllMonths);
   const ediMonths    = ediTargetNorms.length > 0
-    ? ediTargetNorms.filter(m => ediMonthSet0.has(m))
+    ? ediTargetNorms   // 데이터 유무와 무관하게 3개 열 모두 표시
     : ediAllMonths.slice(-3);
   const ediMonthSet  = new Set(ediMonths);
 

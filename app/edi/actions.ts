@@ -110,18 +110,30 @@ export async function getEdiData(force = false): Promise<{
 }> {
   const svc = getSvc();
 
-  const { data: docs, error: dbErr } = await svc
+  const { data: docsRaw, error: dbErr } = await svc
     .from('documents')
     .select('id, filename, file_type, storage_path, created_at, company_id')
     .eq('category', FOLDER_NAME)
-    .in('file_type', ['xlsx', 'xls', 'csv', 'txt'])
-    .order('created_at', { ascending: false });
+    .in('file_type', ['xlsx', 'xls', 'csv', 'txt']);
 
   if (dbErr) {
     console.error('[getEdiData] db:', dbErr);
     return { reports: [], errors: [{ filename: '', message: dbErr.message }] };
   }
-  if (!docs?.length) return { reports: [], errors: [] };
+  if (!docsRaw?.length) return { reports: [], errors: [] };
+
+  // 파일명에서 연월 추출 (업로드 순서가 아닌 파일명 기준 정렬)
+  const extractYM = (fn: string) => {
+    const m = fn.match(/(\d{4})[.\-_]?(\d{2})/);
+    return m ? `${m[1]}${m[2]}` : '000000';
+  };
+  // 오래된 월 → 최신 월 순서로 처리: 마지막에 처리된 파일이 DB 최종 상태가 됨
+  // 동일 연월이면 업로드 시각 오래된 것 먼저 → 최신 업로드가 마지막에 처리되어 우선
+  const docs = [...docsRaw].sort((a, b) => {
+    const ym = extractYM(a.filename as string).localeCompare(extractYM(b.filename as string));
+    if (ym !== 0) return ym;
+    return (a.created_at as string).localeCompare(b.created_at as string);
+  });
 
   const reports: EdiReport[] = [];
   const errors:  { filename: string; message: string }[] = [];
