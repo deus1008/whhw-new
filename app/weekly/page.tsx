@@ -457,13 +457,13 @@ export default async function DashboardPage() {
 
   // 품목현황 상위/하위 10 (EDI 기반)
   const ediLatest      = ediMonths[ediMonths.length - 1] ?? '';
-  const ediPrev        = ediMonths[ediMonths.length - 2] ?? '';
+  const ediYoy         = ediMonths[0] ?? '';  // 전년동월
   const ediProdsSorted = Object.entries(prodMap)
     .map(([name, v]) => ({
       name,
       totalPrescAmt: v.prescAmt,
       latestAmt:     v.months[ediLatest] ?? 0,
-      delta:         (v.months[ediLatest] ?? 0) - (v.months[ediPrev] ?? 0),
+      delta:         (v.months[ediLatest] ?? 0) - (v.months[ediYoy] ?? 0),
       months:        ediMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
     }))
     .filter(p => p.totalPrescAmt > 0)

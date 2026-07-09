@@ -519,7 +519,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             {(() => {
               type SPM = (typeof ediMonthly)[0];
               const cur = ediMonthly[ediMonthly.length - 1];
-              const prv = ediMonthly[ediMonthly.length - 2];
+              const prv = ediMonthly[0];  // 전년동월
               const cats = [
                 {
                   label: '의원', isTotal: false,
@@ -559,7 +559,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         {ediMonthly.map(r => (
                           <th key={r.month} className="center">{fmtPeriod(r.month)}</th>
                         ))}
-                        <th className="center">전월대비</th>
+                        <th className="center">전년동월대비</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -629,7 +629,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                           <th className="center">순위</th>
                           <th>품목명</th>
                           {ediMonths.map(m => <th key={m} className="right">{fmtPeriod(m)}</th>)}
-                          <th className="right">전월대비</th>
+                          <th className="right">전년동월대비</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -790,7 +790,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       {csoStats.map((r, i) => {
                         return metrics.map((metric, mi) => {
                           const curVal = metric.get(r.months[r.months.length - 1] ?? { month: '', hospCount: 0, prodCount: 0, prescAmt: 0 });
-                          const prvM   = r.months[r.months.length - 2];
+                          const prvM   = r.months[0];  // 전년동월
                           const prvVal = prvM ? metric.get(prvM) : undefined;
                           const delta  = prvVal !== undefined ? curVal - prvVal : null;
                           return (
@@ -827,7 +827,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       {/* 전체 합산 */}
                       {metrics.map((metric, mi) => {
                         const lastMt = csoMonthlyTotals[csoMonthlyTotals.length - 1];
-                        const prevMt = csoMonthlyTotals[csoMonthlyTotals.length - 2];
+                        const prevMt = csoMonthlyTotals[0];  // 전년동월
                         const curVal = mi === 0 ? (lastMt?.hospCount ?? 0)
                           : mi === 1 ? (lastMt?.prodCount ?? 0)
                           : mi === 2 ? (lastMt?.prescAmt ?? 0)
