@@ -1,5 +1,9 @@
 {
   "functions": {
+    "app/edi/page": {
+      "memory": 2048,
+      "maxDuration": 300
+    },
     "app/api/documents/process/route.ts": {
       "memory": 2048,
       "maxDuration": 300
