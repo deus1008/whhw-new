@@ -456,5 +456,5 @@ select.auth-input { background-color: #1e293b; }
 @media print {
   .no-print { display: none !important; }
   .orb { display: none !important; }
-  body { background: #fff !important; color: #000 !important; }
+  body { background: #fff !important; color: #000 !important; display: block !important; }
 }
