@@ -259,15 +259,6 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(74,222,128,0.10)',
     bd:   'rgba(74,222,128,0.22)',
   },
-  // ⑯-4 월간 회의자료
-  {
-    href: '/monthly-report',
-    icon: '📊',
-    label: '월간회의',
-    color: '#93c5fd',
-    bg:   'rgba(59,130,246,0.10)',
-    bd:   'rgba(59,130,246,0.22)',
-  },
   // ⑯-3 수수료율
   {
     href: '/commission-rate',
