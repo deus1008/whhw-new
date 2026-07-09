@@ -2,92 +2,15 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
-
 import { createClient as createServiceClient } from '@supabase/supabase-js';
-import * as XLSX from 'xlsx';
-import { processEdi } from '@/lib/edi/process';
 import type { EdiData } from '@/lib/edi/process';
+import { parseEdiBuffer, syncEdiToDb, CACHE_VERSION } from '@/lib/edi/parse-and-sync';
 
 const BUCKET_DOCS  = 'documents';
 const BUCKET_CACHE = 'performance-data';
 const FOLDER_NAME  = 'EDI';
 const CACHE_PREFIX = 'edi-';
 
-/** 한 파일에서 처리할 최대 행 수 (메모리 보호) */
-const MAX_ROWS = 100_000;
-
-const CACHE_VERSION = 21;
-
-/** trend_prescriptions 에 EDI 원본 행 동기화 (기존 데이터 삭제 후 재삽입) */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], data: EdiData, filename: string, companyId?: string | null): Promise<void> {
-  try {
-    const { detectedCols, period } = data;
-    // period "YYYY.MM" 또는 "YYYY-MM" → "YYYYMM"
-    const prescMonth = period ? period.replace(/[.\-]/, '') : null;
-
-    // 기존 행 삭제: 같은 source_file 또는 같은 처방월+company의 모든 행 삭제
-    // (다른 파일명으로 업로드된 중복 데이터가 합산되는 것을 방지)
-    await svc.from('trend_prescriptions').delete().eq('source_file', filename);
-    if (prescMonth) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let delQ: any = svc.from('trend_prescriptions').delete().eq('prescription_month', prescMonth);
-      if (companyId) delQ = delQ.eq('company_id', companyId);
-      else delQ = delQ.is('company_id', null);
-      await delQ;
-    }
-
-    type InsertRow = {
-      source_file: string;
-      prescription_month: string | null;
-      sales_rep: string | null;
-      cso_name: string | null;
-      hospital_name: string | null;
-      product_name: string | null;
-      prescription_amount: number | null;
-      company_id: string | null;
-    };
-
-    const insertRows: InsertRow[] = [];
-    for (const r of rows) {
-      const sp  = detectedCols.salesperson ? String(r[detectedCols.salesperson] ?? '').trim() || null : null;
-      const cso = detectedCols.cso         ? String(r[detectedCols.cso]         ?? '').trim() || null : null;
-      const hos = detectedCols.hospital    ? String(r[detectedCols.hospital]    ?? '').trim() || null : null;
-      const itm = detectedCols.item        ? String(r[detectedCols.item]        ?? '').trim() || null : null;
-      const amt = detectedCols.amount ? (Number(r[detectedCols.amount]) || 0) : 0;
-
-      // 의미 있는 데이터가 있는 행만 저장
-      if (!hos && !itm && amt === 0) continue;
-
-      insertRows.push({
-        source_file:          filename,
-        prescription_month:   prescMonth,
-        sales_rep:            sp,
-        cso_name:             cso,
-        hospital_name:        hos,
-        product_name:         itm,
-        prescription_amount:  amt !== 0 ? amt : null,
-        company_id:           companyId ?? null,
-      });
-    }
-
-    if (insertRows.length === 0) return;
-
-    const CHUNK = 1000;
-    for (let i = 0; i < insertRows.length; i += CHUNK) {
-      const { error } = await svc
-        .from('trend_prescriptions')
-        .insert(insertRows.slice(i, i + CHUNK));
-      if (error) {
-        console.warn(`[syncEdiToDb] 삽입 오류 (chunk ${i}):`, error.message);
-        break;
-      }
-    }
-    console.log(`[syncEdiToDb] ${filename}: ${insertRows.length}행 저장 완료`);
-  } catch (e) {
-    console.warn('[syncEdiToDb] 스킵:', e instanceof Error ? e.message : e);
-  }
-}
 
 export interface EdiReport {
   period:     string;
@@ -105,45 +28,6 @@ function getSvc() {
 }
 
 /* ── EDI 폴더 파일 → 분석 결과 반환 ────────────────────────── */
-
-/* ── 헤더 행 자동 탐색 (BOM·개행 정규화, 다중 전략) ── */
-function detectHeaderRow(rawArrays: unknown[][]): number {
-  // 실제 파일 컬럼명 (스크린샷 기준 확정)
-  const EXACT_COLS = new Set([
-    '내부담당','내부담당자','담당자',        // salesperson
-    '담당cso','cso명','cso',               // CSO
-    '처방처명','처방처',                    // hospital
-    '품목명','약품명',                      // item
-    '처방금액','처방액',                    // amount
-    '종별구분','종별',                      // type
-    '실적월','처방월','청구월',             // date
-  ]);
-  const KW = ['담당자','담당','cso','거래처','처방처','품목','금액','처방','청구','기간','년월','사원','법인','성명'];
-
-  let bestScore = -1;
-  let bestRow   = 0;
-
-  for (let ri = 0; ri < Math.min(rawArrays.length, 20); ri++) {
-    const cells    = (rawArrays[ri] as unknown[]).map(c => String(c??'').replace(/^﻿/,'').replace(/[\r\n\s]+/g,' ').trim());
-    const nonEmpty = cells.filter(Boolean);
-    if (nonEmpty.length < 3) continue;
-
-    const lower = nonEmpty.map(c => c.toLowerCase().replace(/\s/g,''));
-
-    // 전략1: 정확한 컬럼명이 3개 이상 → 즉시 반환 (가장 신뢰도 높음)
-    const exactHits = lower.filter(c => EXACT_COLS.has(c)).length;
-    if (exactHits >= 3) return ri;
-
-    // 전략2: 점수 기반
-    const rowStr   = lower.join('|');
-    const kwHits   = KW.filter(kw => rowStr.includes(kw)).length;
-    const korCells = nonEmpty.filter(c => /[가-힣]/.test(c)).length;
-    const score    = nonEmpty.length + exactHits * 5 + kwHits * 2 + korCells;
-    if (score > bestScore) { bestScore = score; bestRow = ri; }
-  }
-
-  return bestRow;
-}
 
 /* ── EDI 폴더 파일 목록만 반환 ── */
 export async function getEdiFileList(companyId?: string | null): Promise<{
@@ -207,60 +91,17 @@ export async function analyzeEdiFile(docId: string): Promise<{
   if (buffer.length / 1024 / 1024 > 150)
     return { error: `파일 크기(${Math.round(buffer.length/1024/1024)}MB) 초과 — 150MB 이하 파일만 지원합니다` };
 
+  const parseResult = parseEdiBuffer(buffer, d.filename, d.file_type);
+  if ('error' in parseResult) return { error: parseResult.error };
+  const { rows, data } = parseResult;
+  const report = { period: data.period || d.filename, filename: d.filename, data, updated_at: d.created_at, doc_id: d.id, cacheVersion: CACHE_VERSION } as EdiReport & { cacheVersion: number };
   try {
-    let wb: XLSX.WorkBook;
-    const xlsxOpts = { cellFormula: false, cellHTML: false, sheetRows: MAX_ROWS + 1 };
-    if (d.file_type === 'csv' || d.file_type === 'txt') {
-      let text: string;
-      try { text = new TextDecoder('euc-kr').decode(buffer); } catch { text = buffer.toString('utf-8'); }
-      wb = XLSX.read(text, { type: 'string', ...xlsxOpts });
-    } else {
-      wb = XLSX.read(buffer, { type: 'buffer', ...xlsxOpts });
-    }
-    let bestSheet = wb.SheetNames[0], bestRows = 0;
-    for (const name of wb.SheetNames) {
-      const ref = wb.Sheets[name]['!ref'];
-      if (!ref) continue;
-      const range = XLSX.utils.decode_range(ref);
-      if (range.e.r - range.s.r > bestRows) { bestRows = range.e.r - range.s.r; bestSheet = name; }
-    }
-    // 행 0-9를 순서대로 헤더로 시도 → processEdi 성공 시 사용
-    let data: ReturnType<typeof processEdi> | null = null;
-    let usedHeaderRow = 0;
-    for (let hri = 0; hri <= 9; hri++) {
-      try {
-        let tryRows = XLSX.utils.sheet_to_json<Record<string,unknown>>(
-          wb.Sheets[bestSheet], { defval: '', range: hri },
-        );
-        if (tryRows.length === 0) continue;
-        if (tryRows.length > MAX_ROWS) tryRows = tryRows.slice(0, MAX_ROWS);
-        const tryData = processEdi(tryRows, d.filename);
-        // salesperson 또는 hospital 데이터가 있으면 성공
-        if (tryData.salesPersonStats.length > 0 || tryData.hospitalRanking.length > 0) {
-          data = tryData;
-          usedHeaderRow = hri;
-          console.log(`[EDI] ${d.filename}: 헤더행=${hri} 성공 (담당자 ${tryData.salesPersonStats.length}명)`);
-          break;
-        }
-      } catch { /* 이 행은 헤더가 아님, 다음 시도 */ }
-    }
-    if (!data) throw new Error('유효한 헤더 행을 찾을 수 없습니다 (행 0-9 시도 실패)');
-    const report = { period: data!.period || d.filename, filename: d.filename, data, updated_at: d.created_at, doc_id: d.id, cacheVersion: CACHE_VERSION } as EdiReport & { cacheVersion: number };
-    try {
-      const cBlob = new Blob([JSON.stringify(report)], { type: 'application/json' });
-      await svc.storage.from(BUCKET_CACHE).upload(cacheKey, cBlob, { upsert: true });
-    } catch { /* ignore */ }
-    // DB 저장 (행 단위 구조화)
-    const ediCompanyId = (d as Record<string, unknown>).company_id as string | null ?? null;
-    if (data) {
-      // 성공한 headerRow의 rows를 다시 파싱
-      const savedRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-        wb.Sheets[bestSheet], { defval: '', range: usedHeaderRow },
-      ).slice(0, MAX_ROWS);
-      await syncEdiToDb(svc, savedRows, data, d.filename, ediCompanyId);
-    }
-    return { report };
-  } catch (e) { return { error: e instanceof Error ? e.message : '분析 오류' }; }
+    const cBlob = new Blob([JSON.stringify(report)], { type: 'application/json' });
+    await svc.storage.from(BUCKET_CACHE).upload(cacheKey, cBlob, { upsert: true });
+  } catch { /* ignore */ }
+  const ediCompanyId = (d as Record<string, unknown>).company_id as string | null ?? null;
+  await syncEdiToDb(svc, rows, data, d.filename, ediCompanyId);
+  return { report };
 }
 
 export async function getEdiData(force = false): Promise<{
@@ -332,56 +173,12 @@ export async function getEdiData(force = false): Promise<{
         continue;
       }
 
-      let wb: XLSX.WorkBook;
-      const xlsxOpts = { cellFormula: false, cellHTML: false, sheetRows: MAX_ROWS + 1 };
-
-      if (doc.file_type === 'csv' || doc.file_type === 'txt') {
-        let text: string;
-        try {
-          text = new TextDecoder('euc-kr').decode(buffer);
-        } catch {
-          text = buffer.toString('utf-8');
-        }
-        wb = XLSX.read(text, { type: 'string', ...xlsxOpts });
-      } else {
-        wb = XLSX.read(buffer, { type: 'buffer', ...xlsxOpts });
-      }
-
-      // 가장 많은 행을 가진 시트 선택
-      let bestSheet = wb.SheetNames[0];
-      let bestRows  = 0;
-      for (const name of wb.SheetNames) {
-        const ref = wb.Sheets[name]['!ref'];
-        if (!ref) continue;
-        const range = XLSX.utils.decode_range(ref);
-        const rowCount = range.e.r - range.s.r;
-        if (rowCount > bestRows) { bestRows = rowCount; bestSheet = name; }
-      }
-
-      // 행 0-9를 순서대로 헤더로 시도 (analyzeEdiFile과 동일한 방식)
-      let data: ReturnType<typeof processEdi> | null = null;
-      let savedRows: Record<string, unknown>[] = [];
-      for (let hri = 0; hri <= 9; hri++) {
-        try {
-          let tryRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-            wb.Sheets[bestSheet], { defval: '', range: hri },
-          );
-          if (!tryRows.length) continue;
-          if (tryRows.length > MAX_ROWS) tryRows = tryRows.slice(0, MAX_ROWS);
-          const tryData = processEdi(tryRows, doc.filename);
-          if (tryData.salesPersonStats.length > 0 || tryData.hospitalRanking.length > 0) {
-            data = tryData;
-            savedRows = tryRows;
-            console.log(`[getEdiData] ${doc.filename}: 헤더행=${hri} 성공`);
-            break;
-          }
-        } catch { /* 이 행은 헤더가 아님, 다음 시도 */ }
-      }
-
-      if (!data) {
-        errors.push({ filename: doc.filename, message: '유효한 헤더 행을 찾을 수 없습니다.' });
+      const parseResult = parseEdiBuffer(buffer, doc.filename, doc.file_type);
+      if ('error' in parseResult) {
+        errors.push({ filename: doc.filename, message: parseResult.error });
         continue;
       }
+      const { rows: savedRows, data } = parseResult;
 
       const report: EdiReport & { cacheVersion: number } = {
         period:       data.period || doc.filename,

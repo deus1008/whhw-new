@@ -2,7 +2,7 @@
 
 import { useState, useTransition, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
-import { forceRefreshEdi, analyzeEdiFile } from '@/app/edi/actions';
+import { forceRefreshEdi, analyzeEdiFile, syncAllEdiToDb } from '@/app/edi/actions';
 import type { EdiReport } from '@/app/edi/actions';
 import type { EdiData, SalesPersonStat, CsoStat, HospitalStat, ItemStat, IHItemStat, DrugPrice } from '@/lib/edi/process';
 
@@ -58,6 +58,8 @@ export default function EdiClient({ files, isAdmin }: Props) {
   const [analyzeErr,   setAnalyzeErr]   = useState('');
   const [isPending,    startTransition] = useTransition();
   const [refreshError, setRefreshError] = useState('');
+  const [syncMsg,      setSyncMsg]      = useState('');
+  const [syncing,      setSyncing]      = useState(false);
   const router = useRouter();
 
   function toggleFile(id: string) {
@@ -91,6 +93,16 @@ export default function EdiClient({ files, isAdmin }: Props) {
     });
   }
 
+  async function handleSyncAll() {
+    setSyncing(true); setSyncMsg(''); setRefreshError('');
+    try {
+      const r = await syncAllEdiToDb();
+      if (r.error) setRefreshError(r.error);
+      else setSyncMsg(`✅ DB 동기화 완료: ${r.synced}개 성공${r.errors > 0 ? `, ${r.errors}개 오류` : ''}`);
+    } catch (e) { setRefreshError(e instanceof Error ? e.message : 'DB 동기화 실패'); }
+    finally { setSyncing(false); }
+  }
+
   if (files.length === 0) return <EmptyState errors={[]} />;
 
   return (
@@ -105,10 +117,16 @@ export default function EdiClient({ files, isAdmin }: Props) {
             <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>파일을 선택하고 분석 버튼을 눌러주세요</p>
           </div>
           {isAdmin && (
-            <button onClick={handleRefresh} disabled={isPending}
-              style={{ padding: '0.38rem 0.9rem', borderRadius: 8, cursor: isPending ? 'not-allowed' : 'pointer', background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.28)', color: isPending ? 'rgba(251,191,36,0.4)' : '#fbbf24', fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: 600 }}>
-              {isPending ? '처리 중…' : '🔄 캐시 초기화'}
-            </button>
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <button onClick={handleSyncAll} disabled={syncing}
+                style={{ padding: '0.38rem 0.9rem', borderRadius: 8, cursor: syncing ? 'not-allowed' : 'pointer', background: 'rgba(74,222,128,0.10)', border: '1px solid rgba(74,222,128,0.28)', color: syncing ? 'rgba(74,222,128,0.4)' : '#4ade80', fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: 600 }}>
+                {syncing ? '동기화 중…' : '🗄 전체 DB 동기화'}
+              </button>
+              <button onClick={handleRefresh} disabled={isPending}
+                style={{ padding: '0.38rem 0.9rem', borderRadius: 8, cursor: isPending ? 'not-allowed' : 'pointer', background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.28)', color: isPending ? 'rgba(251,191,36,0.4)' : '#fbbf24', fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: 600 }}>
+                {isPending ? '처리 중…' : '🔄 캐시 초기화'}
+              </button>
+            </div>
           )}
         </div>
 
@@ -161,6 +179,7 @@ export default function EdiClient({ files, isAdmin }: Props) {
 
         {analyzeErr && <ErrorMsg msg={'⚠ ' + analyzeErr} />}
         {refreshError && <ErrorMsg msg={refreshError} />}
+        {syncMsg && <p style={{ fontSize: '0.78rem', color: '#4ade80', margin: '0.2rem 0 0' }}>{syncMsg}</p>}
       </div>
 
       {reports.length > 0

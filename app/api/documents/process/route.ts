@@ -11,6 +11,8 @@ import { parseUbistBuffer } from '@/lib/ubist/parse';
 import { parseBioequivBuffer } from '@/lib/bioequiv/parse';
 import { parseDmfBuffer }             from '@/lib/dmf/parse';
 import { parseMonthlyStockBuffer }    from '@/lib/monthly-stock/parse';
+import { parseEdiBuffer, syncEdiToDb } from '@/lib/edi/parse-and-sync';
+import { revalidatePath } from 'next/cache';
 
 export const dynamic     = 'force-dynamic';
 export const maxDuration = 300;
@@ -415,6 +417,19 @@ export async function POST(request: Request) {
     }
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     return Response.json({ ok: true, inserted: rows.length });
+  }
+
+  // ── L. EDI 폴더 → trend_prescriptions 자동 동기화 ────────────────────
+  if (category === 'EDI') {
+    console.log(`[process:${documentId}] EDI 폴더 → 처방 데이터 파싱 및 DB 동기화`);
+    const parseResult = parseEdiBuffer(buffer, doc.filename, doc.file_type);
+    if ('error' in parseResult) return fail(`EDI 파싱 실패: ${parseResult.error}`);
+    await syncEdiToDb(supabase, parseResult.rows, parseResult.data, doc.filename, docCompanyId);
+    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    revalidatePath('/edi');
+    revalidatePath('/weekly');
+    console.log(`[process:${documentId}] EDI ${parseResult.rows.length}행 저장 완료`);
+    return Response.json({ ok: true, inserted: parseResult.rows.length });
   }
 
   // ── G. 그 외 폴더 — 즉시 완료 ─────────────────────────────────────────
