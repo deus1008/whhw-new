@@ -421,7 +421,7 @@ export default function MeetingDetailClient({
         />
 
         {/* 분류 + 마감일 */}
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+        <div className="no-print" style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
           <input
             list="cat-list"
             value={draft.category}
@@ -441,12 +441,15 @@ export default function MeetingDetailClient({
         </div>
 
         {/* 수정일 표시 */}
-        <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.22)', marginBottom: '0.75rem' }}>
+        <div className="no-print" style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.22)', marginBottom: '0.75rem' }}>
           최종 저장: {fmtDate(meeting.updated_at)}
         </div>
 
-        {/* 인쇄 전용 메타 */}
-        <div className="print-meta-row" style={{ gap: '1.5rem', flexWrap: 'wrap', marginBottom: '0.5rem', fontSize: '0.82rem' }}>
+        {/* 인쇄 전용 메타 — 1줄 */}
+        <div className="print-meta-row" style={{ gap: '1.5rem', flexWrap: 'nowrap', marginBottom: '0.5rem', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+          <span>분류: <strong>{draft.category}</strong></span>
+          <span>마감: <strong>{draft.meeting_date}</strong></span>
+          <span>최종 저장: <strong>{fmtDate(meeting.updated_at)}</strong></span>
           <span>상태: <strong>{meeting.status ?? '대기'}</strong></span>
           <span>우선순위: <strong>{meeting.priority ?? '보통'}</strong></span>
           <span>보안등급: <strong>{meeting.security_level ?? '공개'}</strong></span>
