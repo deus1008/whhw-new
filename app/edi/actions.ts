@@ -23,8 +23,8 @@ const CACHE_VERSION = 20;
 async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], data: EdiData, filename: string, companyId?: string | null): Promise<void> {
   try {
     const { detectedCols, period } = data;
-    // period "YYYY.MM" → "YYYYMM"
-    const prescMonth = period ? period.replace('.', '') : null;
+    // period "YYYY.MM" 또는 "YYYY-MM" → "YYYYMM"
+    const prescMonth = period ? period.replace(/[.\-]/, '') : null;
 
     // 기존 행 삭제: 같은 source_file 또는 같은 처방월+company의 모든 행 삭제
     // (다른 파일명으로 업로드된 중복 데이터가 합산되는 것을 방지)

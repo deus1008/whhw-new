@@ -133,6 +133,8 @@ function findCol(headers: string[], kws: string[], skipCode = false): string | u
 function periodFromFilename(fn: string): string {
   let m = fn.match(/(\d{4})\.(\d{2})/);
   if (m) return `${m[1]}.${m[2]}`;
+  m = fn.match(/(\d{4})-(\d{2})/);         // "2026-06" 대시 형식 지원
+  if (m && +m[1] > 2000) return `${m[1]}.${m[2]}`;
   m = fn.match(/(\d{2})\.(\d{2})/);
   if (m) return `${Number(m[1]) < 50 ? '20' : '19'}${m[1]}.${m[2]}`;
   m = fn.match(/(\d{4})(\d{2})(?!\d)/);
