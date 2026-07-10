@@ -475,7 +475,8 @@ export default async function DashboardPage() {
       delta:         (v.months[ediLatest] ?? 0) - (v.months[ediYoy] ?? 0),
       months:        ediMonths.map(m => ({ month: m, prescAmt: v.months[m] ?? 0 })),
     }))
-    .filter(p => p.totalPrescAmt > 0)
+    // 최신월에 실제 처방이 있는 품목만 — 중단(최신월 0) 품목은 상/하위 순위에서 제외
+    .filter(p => p.latestAmt > 0)
     .sort((a, b) => b.latestAmt - a.latestAmt);
   const top10Products    = ediProdsSorted.slice(0, 10);
   const bottom10Products = ediProdsSorted.slice(-10).reverse();
