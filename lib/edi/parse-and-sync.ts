@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { processEdi } from './process';
 import type { EdiData } from './process';
 import { invalidateDashboardCache } from '@/lib/dashboard-cache';
+import { inferHospitalType } from '@/lib/edi/hospital-type';
 
 export const CACHE_VERSION = 21;
 const MAX_ROWS = 100_000;
@@ -33,12 +34,31 @@ export async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], dat
       }
     }
 
+    // hospital_type 맵 로드 — 정산(commission_settlements) 기반 마스터(hospital_clinic_map).
+    // 같은 hospital_name의 정산 hospital_type을 EDI 행에 채운다. 마스터에 없으면 이름 추정.
+    // 컬럼/조회 실패 시(마이그레이션 전 등) 이름 추정만으로 폴백.
+    const typeMap: Record<string, string> = {};
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let hq: any = svc.from('hospital_clinic_map').select('hospital_name, hospital_type').range(0, 99999);
+      hq = companyId ? hq.eq('company_id', companyId) : hq.is('company_id', null);
+      const { data: hcm } = await hq;
+      if (Array.isArray(hcm)) {
+        for (const r of hcm) {
+          const hn = (r as { hospital_name?: string }).hospital_name;
+          const ht = (r as { hospital_type?: string }).hospital_type;
+          if (hn && ht) typeMap[hn] = ht;
+        }
+      }
+    } catch { /* 이름 추정만 사용 */ }
+
     type InsertRow = {
       source_file: string;
       prescription_month: string | null;
       sales_rep: string | null;
       cso_name: string | null;
       hospital_name: string | null;
+      hospital_type: string | null;
       product_name: string | null;
       prescription_amount: number | null;
       company_id: string | null;
@@ -54,12 +74,16 @@ export async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], dat
 
       if (!hos && !itm && amt === 0) continue;
 
+      // 정산 마스터 우선, 없으면 이름 접미사 추정
+      const hType = hos ? (typeMap[hos] ?? inferHospitalType(hos)) : null;
+
       insertRows.push({
         source_file:         filename,
         prescription_month:  prescMonth,
         sales_rep:           sp,
         cso_name:            cso,
         hospital_name:       hos,
+        hospital_type:       hType,
         product_name:        itm,
         prescription_amount: amt !== 0 ? amt : null,
         company_id:          companyId ?? null,
