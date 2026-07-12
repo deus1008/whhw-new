@@ -66,7 +66,7 @@ export default function ProductListClient({
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="품목명, 성분명, 대표코드, 참고사항 검색..."
+            placeholder="품목명, 성분명, 보험코드, 참고사항 검색..."
             style={{
               width: '100%', padding: '0.55rem 0.75rem 0.55rem 2.2rem',
               background: 'rgba(255,255,255,0.06)',
@@ -147,7 +147,7 @@ export default function ProductListClient({
             <thead>
               <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
                 <th style={{ ...th, width: '3rem', textAlign: 'center' }}>NO</th>
-                <th style={{ ...th, minWidth: '130px' }}>대표코드</th>
+                <th style={{ ...th, minWidth: '110px' }}>보험코드</th>
                 <th style={{ ...th, minWidth: '200px' }}>품목명</th>
                 <th style={{ ...th, minWidth: '240px' }}>성분명</th>
                 <th style={{ ...th, width: '75px', textAlign: 'right' }}>수수료율</th>

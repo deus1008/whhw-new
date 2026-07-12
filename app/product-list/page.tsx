@@ -10,6 +10,7 @@ import HomeButton from '@/components/HomeButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import ProductListClient from '@/components/ProductListClient';
 import type { ProductRow } from '@/components/ProductListClient';
+import { toInsuranceCode } from '@/lib/products/insurance-code';
 import XLSX from 'xlsx';
 
 function getSvc() {
@@ -51,7 +52,8 @@ function parseProductListBuffer(buf: Buffer): ProductRow[] {
     if (!name) continue;
     rows.push({
       no:           iNo   >= 0 ? Number(row[iNo])                : r - headerIdx,
-      code:         iCode >= 0 ? String(row[iCode] ?? '')         : '',
+      // 대표코드(13자리) → 보험코드(9자리)로 추출해 저장
+      code:         iCode >= 0 ? toInsuranceCode(String(row[iCode] ?? '')) : '',
       name,
       ingredient:   iIngr >= 0 ? String(row[iIngr] ?? '').trim() : '',
       rate:         iRate >= 0 ? Number(row[iRate] ?? 0)          : 0,
