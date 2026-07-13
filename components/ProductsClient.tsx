@@ -1,14 +1,41 @@
 'use client';
 
-import { useState, useTransition, useMemo, useRef } from 'react';
+import { useState, useTransition, useMemo, useRef, useEffect } from 'react';
 import type { UpcomingProduct } from '@/app/products/page';
 import type { ProductInput } from '@/app/products/actions';
 import { createProduct, updateProduct, deleteProduct, uploadHistoryImage, getHistoryImageUrls } from '@/app/products/actions';
 
+/* ── 개발 히스토리 리치 에디터 직렬화 헬퍼 ─────────────────────
+   저장: 이미지는 data-path/data-name만 유지하고 src(서명URL·만료됨) 제거 + 위험 태그/속성 제거
+   열람: 저장된 HTML의 data-path에 서명 URL을 src로 주입 */
+function serializeHistory(html: string): { html: string; images: { path: string; name: string }[] } {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('script, iframe, style, object, embed').forEach(el => el.remove());
+  doc.querySelectorAll('*').forEach(el => {
+    [...el.attributes].forEach(a => { if (/^on/i.test(a.name)) el.removeAttribute(a.name); });
+  });
+  const images: { path: string; name: string }[] = [];
+  doc.querySelectorAll('img').forEach(img => {
+    const path = img.getAttribute('data-path');
+    if (!path) { img.remove(); return; }
+    img.setAttribute('src', '');
+    images.push({ path, name: img.getAttribute('data-name') || '' });
+  });
+  return { html: doc.body.innerHTML, images };
+}
+function hydrateHistory(html: string, urlMap: Record<string, string>): string {
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  doc.querySelectorAll('img').forEach(img => {
+    const path = img.getAttribute('data-path');
+    if (path && urlMap[path]) img.setAttribute('src', urlMap[path]);
+    img.setAttribute('style', 'max-width:100%;display:block;margin:0.4rem 0;border-radius:8px');
+  });
+  return doc.body.innerHTML;
+}
+
 /* ── 상수 ─────────────────────────────────────────────────────── */
 const STATUS_LIST = ['개발검토', '개발승인', '허가예정', '발매예정', '발매완료'];
 // 보안 단계 — 시스템 관리자만 열람/선택. 그 외 사용자는 공개 단계만.
-const SECURE_STATUS = ['개발검토', '개발승인', '허가예정'];
 const PUBLIC_STATUS = ['발매예정', '발매완료'];
 
 const STATUS_COLOR: Record<string, { bg: string; bd: string; color: string }> = {
@@ -57,9 +84,9 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
   const [sortKey, setSortKey]             = useState<string>('launch_date');
   const [sortDir, setSortDir]             = useState<'asc' | 'desc'>('asc');
   // 히스토리 이미지: 경로→서명URL 미리보기 맵 + 업로드 상태
-  const [imgUrls, setImgUrls]             = useState<Record<string, string>>({});
   const [imgUploading, setImgUploading]   = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorRef    = useRef<HTMLDivElement>(null);
 
   /* ── 회사 목록 (중복 제거) ─────────────────────────────────── */
   const companyList = useMemo(() => {
@@ -71,11 +98,10 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
 
   /* ── modal helpers ──────────────────────────────────────────── */
   function openCreate() {
-    setEditing(null); setForm(EMPTY_FORM); setFormError(''); setImgUrls({}); setModalOpen(true);
+    setEditing(null); setForm(EMPTY_FORM); setFormError(''); setModalOpen(true);
   }
   function openEdit(p: UpcomingProduct) {
     setEditing(p);
-    const images = p.history_images ?? [];
     setForm({
       title:           p.title,
       launch_date:     p.launch_date?.slice(0, 7) ?? '',
@@ -87,18 +113,51 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
       memo:            p.memo            ?? '',
       history:         p.history         ?? '',
       maker:           p.maker           ?? '',
-      history_images:  images,
+      history_images:  p.history_images ?? [],
     });
-    setImgUrls({});
     setFormError(''); setModalOpen(true);
-    // 기존 첨부 이미지 서명 URL 로드
-    if (images.length > 0) {
-      getHistoryImageUrls(images.map(i => i.path)).then(setImgUrls).catch(() => {});
-    }
   }
   function closeModal() { setModalOpen(false); setEditing(null); }
 
-  /* ── 히스토리 이미지 업로드/삭제 ────────────────────────────── */
+  /* ── 에디터 초기화: 모달 열릴 때 저장 HTML + 서명 URL 주입 ───── */
+  useEffect(() => {
+    if (!modalOpen) return;
+    const el = editorRef.current;
+    if (!el) return;
+    const html = form.history ?? '';
+    const paths = (form.history_images ?? []).map(i => i.path);
+    let cancelled = false;
+    (async () => {
+      let urls: Record<string, string> = {};
+      if (paths.length > 0) { try { urls = await getHistoryImageUrls(paths); } catch { /* skip */ } }
+      if (cancelled) return;
+      el.innerHTML = hydrateHistory(html, urls);
+    })();
+    return () => { cancelled = true; };
+    // 모달이 열리거나 편집 대상이 바뀔 때만 초기화 (입력 중 재설정 방지)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modalOpen, editing?.id]);
+
+  /* ── 본문 커서 위치에 이미지 삽입 ───────────────────────────── */
+  function insertImageAtCaret(img: { path: string; name: string; url: string }) {
+    const el = editorRef.current;
+    if (!el) return;
+    const node = document.createElement('img');
+    node.setAttribute('data-path', img.path);
+    node.setAttribute('data-name', img.name);
+    node.setAttribute('src', img.url);
+    node.setAttribute('style', 'max-width:100%;display:block;margin:0.4rem 0;border-radius:8px');
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && el.contains(sel.anchorNode)) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      range.insertNode(node);
+      range.setStartAfter(node); range.collapse(true);
+      sel.removeAllRanges(); sel.addRange(range);
+    } else {
+      el.appendChild(node);
+    }
+  }
   async function uploadImageFiles(files: File[]) {
     const imgs = files.filter(f => f.type.startsWith('image/'));
     if (imgs.length === 0) return;
@@ -108,11 +167,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
       fd.append('file', file);
       const res = await uploadHistoryImage(fd);
       if (res.error) { setFormError(res.error); continue; }
-      if (res.data) {
-        const { path, name, url } = res.data;
-        setForm(f => ({ ...f, history_images: [...f.history_images, { path, name }] }));
-        setImgUrls(m => ({ ...m, [path]: url }));
-      }
+      if (res.data) insertImageAtCaret(res.data);
     }
     setImgUploading(false);
   }
@@ -120,8 +175,8 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
     if (files) uploadImageFiles(Array.from(files));
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
-  // 스크린샷 등 클립보드 이미지 붙여넣기 → 자동 첨부
-  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+  // 스크린샷 등 클립보드 이미지를 본문에 바로 삽입
+  function handlePaste(e: React.ClipboardEvent<HTMLDivElement>) {
     const items = e.clipboardData?.items;
     if (!items) return;
     const files: File[] = [];
@@ -132,21 +187,21 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
       }
     }
     if (files.length > 0) {
-      e.preventDefault();   // 이미지는 텍스트로 붙여넣지 않음
+      e.preventDefault();   // 이미지는 텍스트가 아니라 본문에 삽입
       uploadImageFiles(files);
     }
-  }
-  function removeImage(path: string) {
-    setForm(f => ({ ...f, history_images: f.history_images.filter(i => i.path !== path) }));
   }
 
   /* ── submit ─────────────────────────────────────────────────── */
   function handleSubmit() {
     setFormError('');
+    // 에디터 본문 → 저장용 직렬화 (이미지 src 제거, data-path 유지)
+    const { html, images } = serializeHistory(editorRef.current?.innerHTML ?? form.history ?? '');
+    const payload: ProductInput = { ...form, history: html, history_images: images };
     startTransition(async () => {
       const result = editing
-        ? await updateProduct(editing.id, form)
-        : await createProduct(form);
+        ? await updateProduct(editing.id, payload)
+        : await createProduct(payload);
       if (result.error) { setFormError(result.error); return; }
       if (editing) {
         setProducts(prev => prev.map(p => p.id === editing.id ? result.data! : p));
@@ -501,48 +556,22 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
             </Field>
 
             <Field label="메모 (개발 히스토리)">
-              <textarea value={form.history} onChange={e => setForm(f => ({ ...f, history: e.target.value }))}
-                onPaste={handlePaste}
-                placeholder={"개발 진행 과정·이력을 기록하세요 (예: 26.03 개발검토 착수 / 26.05 허가신청 …)\n스크린샷을 복사해 여기에 붙여넣기(Ctrl+V)하면 이미지가 첨부됩니다."}
-                rows={16}
-                style={{ ...inputStyle, resize: 'vertical', minHeight: '22rem', lineHeight: 1.5 }} />
-
-              {/* 이미지 첨부 */}
-              <div style={{ marginTop: '0.6rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.4rem' }}>
                 <input ref={fileInputRef} type="file" accept="image/*" multiple
-                  onChange={e => handleImageSelect(e.target.files)}
-                  style={{ display: 'none' }} />
+                  onChange={e => handleImageSelect(e.target.files)} style={{ display: 'none' }} />
                 <button type="button" onClick={() => fileInputRef.current?.click()} disabled={imgUploading}
-                  style={{ padding: '0.4rem 0.9rem', borderRadius: '8px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', color: '#a5b4fc', fontSize: '0.8rem', fontWeight: 600, cursor: imgUploading ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
-                  {imgUploading ? '업로드 중…' : '🖼 이미지 첨부'}
+                  style={{ padding: '0.35rem 0.8rem', borderRadius: '8px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', color: '#a5b4fc', fontSize: '0.78rem', fontWeight: 600, cursor: imgUploading ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+                  {imgUploading ? '업로드 중…' : '🖼 이미지 삽입'}
                 </button>
-
-                {form.history_images.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', marginTop: '0.7rem' }}>
-                    {form.history_images.map(img => (
-                      <div key={img.path} style={{ position: 'relative', width: '96px' }}>
-                        {imgUrls[img.path] ? (
-                          <a href={imgUrls[img.path]} target="_blank" rel="noreferrer">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={imgUrls[img.path]} alt={img.name}
-                              style={{ width: '96px', height: '96px', objectFit: 'cover', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)' }} />
-                          </a>
-                        ) : (
-                          <div style={{ width: '96px', height: '96px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
-                            로딩…
-                          </div>
-                        )}
-                        <button type="button" onClick={() => removeImage(img.path)}
-                          title="삭제"
-                          style={{ position: 'absolute', top: '-6px', right: '-6px', width: '20px', height: '20px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff', fontSize: '0.7rem', cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          ×
-                        </button>
-                        <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)', margin: '0.2rem 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{img.name}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
+              <div
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                onPaste={handlePaste}
+                data-placeholder="개발 진행 과정·이력을 기록하세요. 스크린샷을 복사해 본문에 붙여넣기(Ctrl+V)하면 이미지가 삽입됩니다."
+                style={{ ...inputStyle, minHeight: '22rem', maxHeight: '32rem', overflowY: 'auto', lineHeight: 1.6, whiteSpace: 'pre-wrap', textAlign: 'left', cursor: 'text' }}
+              />
             </Field>
 
             {formError && (
@@ -564,6 +593,15 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
           </div>
         </div>
       )}
+      <style>{`
+        [contenteditable][data-placeholder]:empty:before {
+          content: attr(data-placeholder);
+          color: rgba(255,255,255,0.28);
+          pointer-events: none;
+        }
+        [contenteditable]:focus { border-color: rgba(99,102,241,0.5); }
+        [contenteditable] img { max-width: 100%; }
+      `}</style>
     </>
   );
 }
