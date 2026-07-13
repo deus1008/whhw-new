@@ -17,6 +17,7 @@ export type ProductInput = {
   status:          string;
   memo:            string;
   history:         string;
+  maker:           string;
 };
 
 type Result<T = void> = { data?: T; error?: string };
@@ -68,13 +69,15 @@ function clean(input: ProductInput) {
     status:          input.status                 || null,
     memo:            input.memo.trim()            || null,
     history:         input.history.trim()         || null,
+    maker:           input.maker.trim()           || null,
   };
 }
 
-// history 컬럼 미존재(마이그레이션 전) 판별 — 그 경우 history 없이 재시도
+// 선택 컬럼(history·maker) 미존재(마이그레이션 전) 판별 — 그 경우 해당 컬럼 없이 재시도
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function isMissingHistory(err: any): boolean {
-  return !!err && (err.code === '42703' || String(err.message ?? '').includes('history'));
+function isMissingOptionalCol(err: any): boolean {
+  const m = String(err?.message ?? '');
+  return !!err && (err.code === '42703' || m.includes('history') || m.includes('maker'));
 }
 
 /* ── 생성 (승인된 멤버) ───────────────────────────────────────── */
@@ -88,8 +91,8 @@ export async function createProduct(input: ProductInput): Promise<Result<Upcomin
 
   const payload = { ...clean(input), company_id: auth.company_id };
   let { data, error } = await sb().from('upcoming_products').insert(payload).select().single();
-  if (isMissingHistory(error)) {
-    const { history: _omit, ...rest } = payload;
+  if (isMissingOptionalCol(error)) {
+    const { history: _h, maker: _m, ...rest } = payload;
     ({ data, error } = await sb().from('upcoming_products').insert(rest).select().single());
   }
 
@@ -116,8 +119,8 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Re
 
   const patch = clean(input);
   let { data, error } = await sb().from('upcoming_products').update(patch).eq('id', id).select().single();
-  if (isMissingHistory(error)) {
-    const { history: _omit, ...rest } = patch;
+  if (isMissingOptionalCol(error)) {
+    const { history: _h, maker: _m, ...rest } = patch;
     ({ data, error } = await sb().from('upcoming_products').update(rest).eq('id', id).select().single());
   }
 

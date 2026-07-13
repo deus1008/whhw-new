@@ -22,7 +22,7 @@ const STATUS_COLOR: Record<string, { bg: string; bd: string; color: string }> = 
 const EMPTY_FORM: ProductInput = {
   title: '', launch_date: '', manufacturer: '',
   indication: '', insurance_price: '', insurance_code: '',
-  status: '', memo: '', history: '',
+  status: '', memo: '', history: '', maker: '',
 };
 
 /* ── 날짜 포맷 ─────────────────────────────────────────────────── */
@@ -81,6 +81,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
       status:          p.status          ?? '',
       memo:            p.memo            ?? '',
       history:         p.history         ?? '',
+      maker:           p.maker           ?? '',
     });
     setFormError(''); setModalOpen(true);
   }
@@ -402,6 +403,12 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
               <input value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))}
                 placeholder="예) 판매제약사명"
                 list="company-list"
+                style={inputStyle} />
+            </Field>
+
+            <Field label="제조사">
+              <input value={form.maker} onChange={e => setForm(f => ({ ...f, maker: e.target.value }))}
+                placeholder="예) 제조제약사명"
                 style={inputStyle} />
             </Field>
 

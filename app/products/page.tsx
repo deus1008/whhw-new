@@ -12,7 +12,8 @@ export type UpcomingProduct = {
   id:              string;
   title:           string;           // 제품명
   launch_date:     string | null;    // 발매(예정)일 YYYY-MM-DD
-  manufacturer:    string | null;    // 제조사/위탁사
+  manufacturer:    string | null;    // 판매사
+  maker:           string | null;    // 제조사
   indication:      string | null;    // 계열/적응증
   insurance_price: string | null;    // 보험가
   insurance_code:  string | null;    // 보험코드
