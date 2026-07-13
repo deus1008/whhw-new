@@ -3,6 +3,7 @@ import { processEdi } from './process';
 import type { EdiData } from './process';
 import { invalidateDashboardCache } from '@/lib/dashboard-cache';
 import { inferHospitalType } from '@/lib/edi/hospital-type';
+import { toInsuranceCode } from '@/lib/products/insurance-code';
 
 export const CACHE_VERSION = 21;
 const MAX_ROWS = 100_000;
@@ -61,6 +62,7 @@ export async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], dat
       hospital_type: string | null;
       product_name: string | null;
       prescription_amount: number | null;
+      insurance_code: string | null;
       company_id: string | null;
     };
 
@@ -77,6 +79,17 @@ export async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], dat
       // 정산 마스터 우선, 없으면 이름 접미사 추정
       const hType = hos ? (typeMap[hos] ?? inferHospitalType(hos)) : null;
 
+      // 보험코드(9자리): 원본 '보험코드' 직접 사용, 없으면 '대표코드'에서 변환
+      let insCode: string | null = null;
+      if (detectedCols.insuranceCode) {
+        const raw = String(r[detectedCols.insuranceCode] ?? '').replace(/\D/g, '');
+        insCode = raw ? (raw.length === 9 ? raw : toInsuranceCode(raw)) : null;
+      }
+      if (!insCode && detectedCols.repCode) {
+        const raw = String(r[detectedCols.repCode] ?? '').trim();
+        insCode = raw ? toInsuranceCode(raw) : null;
+      }
+
       insertRows.push({
         source_file:         filename,
         prescription_month:  prescMonth,
@@ -86,21 +99,34 @@ export async function syncEdiToDb(svc: any, rows: Record<string, unknown>[], dat
         hospital_type:       hType,
         product_name:        itm,
         prescription_amount: amt !== 0 ? amt : null,
+        insurance_code:      insCode,
         company_id:          companyId ?? null,
       });
     }
 
     if (insertRows.length === 0) return;
 
+    // insurance_code 컬럼 미존재(마이그레이션 전) 시 제외하고 재시도하도록 준비
+    let stripInsCode = false;
+    const rowFor = (row: InsertRow) => {
+      if (!stripInsCode) return row;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { insurance_code: _omit, ...rest } = row;
+      return rest;
+    };
+
     const CHUNK = 500;
     let insertedTotal = 0;
     for (let i = 0; i < insertRows.length; i += CHUNK) {
-      const { error } = await svc
-        .from('trend_prescriptions')
-        .insert(insertRows.slice(i, i + CHUNK));
+      const slice = insertRows.slice(i, i + CHUNK);
+      let { error } = await svc.from('trend_prescriptions').insert(slice.map(rowFor));
+      if (error && !stripInsCode && (error.code === '42703' || String(error.message).includes('insurance_code'))) {
+        // 컬럼 없음 → 이후 전부 insurance_code 제외
+        stripInsCode = true;
+        ({ error } = await svc.from('trend_prescriptions').insert(slice.map(rowFor)));
+      }
       if (error) {
         console.warn(`[syncEdiToDb] 삽입 오류 (chunk ${i}):`, error.message);
-        // break 대신 continue — 한 청크 실패가 전체 중단으로 이어지지 않도록
         continue;
       }
       insertedTotal += Math.min(CHUNK, insertRows.length - i);

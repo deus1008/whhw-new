@@ -8,6 +8,7 @@
  * 미전달 시 아래 DEFAULT_COL_CONFIG 를 사용(초기화·테스트 등 폴백용).
  */
 import * as XLSX from 'xlsx';
+import { toInsuranceCode } from '@/lib/products/insurance-code';
 
 export type SettlementRow = {
   source_file:         string;
@@ -17,6 +18,7 @@ export type SettlementRow = {
   cso_name:            string | null;
   hospital_name:       string | null;
   product_name:        string | null;
+  insurance_code:      string | null;   // 대표코드→9자리 보험코드
   approved_qty:        number | null;
   unit_price:          number | null;
   prescription_amount: number | null;
@@ -72,6 +74,7 @@ const PRESC_KW  = ['처방금액','처방액','처방총액'];
 const TYPE_KW   = ['종별구분','종별','병원구분','종류구분'];
 const RATE_KW   = ['합산수수료','수수료율','수수료','합산요율','요율','commission','rate'];
 const SETT_KW   = ['정산액','정산금액','지급액','지급금액','정산'];
+const CODE_KW   = ['보험코드','청구코드','대표코드','표준코드'];
 
 function norm(s: string): string {
   return String(s ?? '').replace(/[\s\r\n_\-\.:% ]/g, '').toLowerCase();
@@ -254,6 +257,7 @@ export function parseSettlementBuffer(
   const monthIdx = findColIdx(headerRow, MONTH_KW);
   const qtyIdx   = findColIdx(headerRow, QTY_KW);
   const unitIdx  = findColIdx(headerRow, UNIT_KW);
+  const codeIdx  = findColIdx(headerRow, CODE_KW);   // 대표코드/보험코드
 
   // ── DB 설정값(cfg) 우선 사용, 헤더가 짧으면 키워드 탐색으로 폴백 ───────────
   // 내부담당자: G열(cfg.mgr_col=6)
@@ -322,6 +326,7 @@ export function parseSettlementBuffer(
       cso_name:            str(csoIdx   >= 0 ? row[csoIdx]   : null),
       hospital_name:       str(hospIdx  >= 0 ? row[hospIdx]  : null),
       product_name:        str(prodIdx  >= 0 ? row[prodIdx]  : null),
+      insurance_code:      codeIdx >= 0 ? (toInsuranceCode(str(row[codeIdx]) ?? '') || null) : null,
       approved_qty:        toInt(qtyIdx  >= 0 ? row[qtyIdx]  : null),
       unit_price:          toNum(unitIdx >= 0 ? row[unitIdx] : null),
       prescription_amount: presc,

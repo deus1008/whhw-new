@@ -8,6 +8,14 @@
  *          → "2025년 3월" 컬럼이 처방금액 컬럼이고 기간 정보도 포함
  */
 import * as XLSX from 'xlsx';
+import { toInsuranceCode } from '@/lib/products/insurance-code';
+
+/** 약품코드/보험코드 셀 → 9자리 보험코드 (숫자만 추출) */
+function toInsCode(v: unknown): string | null {
+  const raw = String(v ?? '').replace(/\D/g, '');
+  if (!raw) return null;
+  return raw.length === 9 ? raw : toInsuranceCode(raw);
+}
 
 export type UbistRow = {
   source_file:         string;
@@ -22,6 +30,7 @@ export type UbistRow = {
   prescription_count:  number | null;
   atc_code:            string | null;       // ATC 코드 (Ubist D1 포맷에서 추출)
   is_original:         boolean | null;      // Generic 컬럼: "Original"→true, "Generic"→false
+  insurance_code:      string | null;       // 약품코드(9자리 보험코드)
 };
 
 export type ParseUbistResult = {
@@ -41,6 +50,7 @@ const AMOUNT_KW     = ['처방금액','처방조제액','금액','처방액','am
 const COUNT_KW      = ['처방건수','건수','처방수','count','rx건수','건'];
 const ATC_KW        = ['atc','atc코드','atccode','약효분류코드'];
 const GENERIC_KW    = ['generic','오리지널여부','구분'];
+const DRUGCODE_KW   = ['약품코드','보험코드','청구코드','제품코드','품목코드'];
 
 function norm(s: unknown): string {
   return String(s ?? '').replace(/[\s\r\n_\-\.\:%()\[\] ]/g, '').toLowerCase();
@@ -153,7 +163,7 @@ export function parseUbistBuffer(
 
     // 컬럼 인덱스 매핑
     let periodCol = -1, ingrCol = -1, prodCol = -1, mfrCol = -1;
-    let hospCol = -1, regionCol = -1, amountCol = -1, countCol = -1, atcCol = -1, genericCol = -1;
+    let hospCol = -1, regionCol = -1, amountCol = -1, countCol = -1, atcCol = -1, genericCol = -1, codeCol = -1;
 
     headers.forEach((h, i) => {
       // 헤더 자체가 기간 값(예: "2025년 3월")이면 wide-format 금액 컬럼 — period 컬럼으로 잡지 않음
@@ -167,6 +177,7 @@ export function parseUbistBuffer(
       if (countCol   === -1 && matchKw(h, COUNT_KW))   countCol   = i;
       if (atcCol     === -1 && matchKw(h, ATC_KW))     atcCol     = i;
       if (genericCol === -1 && matchKw(h, GENERIC_KW)) genericCol = i;
+      if (codeCol    === -1 && matchKw(h, DRUGCODE_KW)) codeCol   = i;
     });
 
     // ── Wide-format 감지: 금액 컬럼명이 기간인 경우 ──────────────────────
@@ -206,6 +217,7 @@ export function parseUbistBuffer(
         if (gv === 'original' || gv === '오리지널' || gv === 'o') isOriginal = true;
         else if (gv === 'generic' || gv === '제네릭' || gv === 'g') isOriginal = false;
       }
+      const insCode = codeCol >= 0 ? toInsCode(row[codeCol]) : null;
 
       if (wideAmountCols.length > 0) {
         // Wide format: 기간 컬럼별로 행 생성
@@ -225,6 +237,7 @@ export function parseUbistBuffer(
             prescription_count:  countCol >= 0 ? toNum(row[countCol]) : null,
             atc_code:            atcCode,
             is_original:         isOriginal,
+            insurance_code:      insCode,
           });
         }
       } else {
@@ -247,6 +260,7 @@ export function parseUbistBuffer(
           prescription_count:  count,
           atc_code:            atcCode,
           is_original:         isOriginal,
+          insurance_code:      insCode,
         });
       }
     }

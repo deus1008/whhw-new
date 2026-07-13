@@ -26,6 +26,15 @@ function createServiceClient() {
   return createSupabaseClient(url, key);
 }
 
+// insurance_code 컬럼 미존재(Phase 2 마이그레이션 전) 판별/제외 — 무중단용
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isMissingInsCode(err: any): boolean {
+  return !!err && (err.code === '42703' || String(err?.message ?? '').includes('insurance_code'));
+}
+function stripInsCode(rows: Record<string, unknown>[]): Record<string, unknown>[] {
+  return rows.map(r => { const c = { ...r }; delete c.insurance_code; return c; });
+}
+
 export async function POST(request: Request) {
   // ── 1. 인증 ────────────────────────────────────────────────────────────
   const authClient = await createServerClient();
@@ -259,9 +268,15 @@ export async function POST(request: Request) {
       const CHUNK = 500;
       let inserted = 0;
       let firstErr: string | null = null;
+      let stripSett = false;
       for (let i = 0; i < rows.length; i += CHUNK) {
-        const chunk = (rows.slice(i, i + CHUNK) as Record<string, unknown>[]).map(r => ({ ...r, company_id: docCompanyId }));
-        const { error: insErr } = await supabase.from('commission_settlements').insert(chunk);
+        let chunk = (rows.slice(i, i + CHUNK) as Record<string, unknown>[]).map(r => ({ ...r, company_id: docCompanyId }));
+        if (stripSett) chunk = stripInsCode(chunk) as typeof chunk;
+        let { error: insErr } = await supabase.from('commission_settlements').insert(chunk);
+        if (insErr && !stripSett && isMissingInsCode(insErr)) {
+          stripSett = true;
+          ({ error: insErr } = await supabase.from('commission_settlements').insert(stripInsCode(chunk)));
+        }
         if (insErr) {
           console.error(`[process:${documentId}] 정산 삽입 오류(chunk ${i}):`, insErr.message);
           if (!firstErr) firstErr = insErr.message;
@@ -301,10 +316,16 @@ export async function POST(request: Request) {
 
     const CHUNK = 500;
     let inserted = 0;
+    let stripUb = false;
     for (let i = 0; i < rows.length; i += CHUNK) {
-      const { error: insErr } = await supabase.from('ubist_data').insert(rows.slice(i, i + CHUNK));
+      const slice = rows.slice(i, i + CHUNK) as unknown as Record<string, unknown>[];
+      let { error: insErr } = await supabase.from('ubist_data').insert(stripUb ? stripInsCode(slice) : slice);
+      if (insErr && !stripUb && isMissingInsCode(insErr)) {
+        stripUb = true;
+        ({ error: insErr } = await supabase.from('ubist_data').insert(stripInsCode(slice)));
+      }
       if (insErr) console.warn(`[process:${documentId}] Ubist 삽입 오류(chunk ${i}):`, insErr.message);
-      else inserted += rows.slice(i, i + CHUNK).length;
+      else inserted += slice.length;
     }
     console.log(`[process:${documentId}] Ubist ${inserted}/${total}건 저장 완료`);
 
