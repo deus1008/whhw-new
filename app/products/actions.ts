@@ -16,6 +16,7 @@ export type ProductInput = {
   insurance_code:  string;
   status:          string;
   memo:            string;
+  history:         string;
 };
 
 type Result<T = void> = { data?: T; error?: string };
@@ -66,7 +67,14 @@ function clean(input: ProductInput) {
     insurance_code:  input.insurance_code.trim()  || null,
     status:          input.status                 || null,
     memo:            input.memo.trim()            || null,
+    history:         input.history.trim()         || null,
   };
+}
+
+// history 컬럼 미존재(마이그레이션 전) 판별 — 그 경우 history 없이 재시도
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isMissingHistory(err: any): boolean {
+  return !!err && (err.code === '42703' || String(err.message ?? '').includes('history'));
 }
 
 /* ── 생성 (승인된 멤버) ───────────────────────────────────────── */
@@ -78,11 +86,12 @@ export async function createProduct(input: ProductInput): Promise<Result<Upcomin
   if (SECURE_STATUS.includes(input.status) && auth.role !== '관리자')
     return { error: '해당 단계는 관리자만 등록할 수 있습니다.' };
 
-  const { data, error } = await sb()
-    .from('upcoming_products')
-    .insert({ ...clean(input), company_id: auth.company_id })
-    .select()
-    .single();
+  const payload = { ...clean(input), company_id: auth.company_id };
+  let { data, error } = await sb().from('upcoming_products').insert(payload).select().single();
+  if (isMissingHistory(error)) {
+    const { history: _omit, ...rest } = payload;
+    ({ data, error } = await sb().from('upcoming_products').insert(rest).select().single());
+  }
 
   if (error) return { error: `저장 실패: ${error.message}` };
   revalidatePath('/products');
@@ -105,12 +114,12 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Re
       return { error: '관리자 전용 단계 제품은 수정할 수 없습니다.' };
   }
 
-  const { data, error } = await sb()
-    .from('upcoming_products')
-    .update(clean(input))
-    .eq('id', id)
-    .select()
-    .single();
+  const patch = clean(input);
+  let { data, error } = await sb().from('upcoming_products').update(patch).eq('id', id).select().single();
+  if (isMissingHistory(error)) {
+    const { history: _omit, ...rest } = patch;
+    ({ data, error } = await sb().from('upcoming_products').update(rest).eq('id', id).select().single());
+  }
 
   if (error) return { error: `수정 실패: ${error.message}` };
   revalidatePath('/products');

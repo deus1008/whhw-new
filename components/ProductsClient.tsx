@@ -22,7 +22,7 @@ const STATUS_COLOR: Record<string, { bg: string; bd: string; color: string }> = 
 const EMPTY_FORM: ProductInput = {
   title: '', launch_date: '', manufacturer: '',
   indication: '', insurance_price: '', insurance_code: '',
-  status: '', memo: '',
+  status: '', memo: '', history: '',
 };
 
 /* ── 날짜 포맷 ─────────────────────────────────────────────────── */
@@ -80,6 +80,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
       insurance_code:  p.insurance_code  ?? '',
       status:          p.status          ?? '',
       memo:            p.memo            ?? '',
+      history:         p.history         ?? '',
     });
     setFormError(''); setModalOpen(true);
   }
@@ -194,7 +195,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
         <div style={{ position: 'relative', flex: '0 0 auto' }}>
           <input
             type="text"
-            placeholder="🏢 회사 검색"
+            placeholder="🏢 판매사 검색"
             value={filterCompany}
             onChange={e => setFilterCompany(e.target.value)}
             list="company-list"
@@ -264,7 +265,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
                   { label: '제품명',      key: 'title'        },
                   { label: '발매(예정)일', key: 'launch_date'  },
                   { label: '계열',        key: 'indication'   },
-                  { label: '회사',        key: 'manufacturer' },
+                  { label: '판매사',      key: 'manufacturer' },
                   { label: '보험코드',    key: null           },
                   { label: '보험가',      key: null           },
                   { label: '진행상태',    key: 'status'       },
@@ -397,9 +398,9 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
                 placeholder="예) 제품명 20mg" style={inputStyle} />
             </Field>
 
-            <Field label="회사">
+            <Field label="판매사">
               <input value={form.manufacturer} onChange={e => setForm(f => ({ ...f, manufacturer: e.target.value }))}
-                placeholder="예) 위탁제약사명"
+                placeholder="예) 판매제약사명"
                 list="company-list"
                 style={inputStyle} />
             </Field>
@@ -437,6 +438,13 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
                   );
                 })}
               </div>
+            </Field>
+
+            <Field label="메모 (개발 히스토리)">
+              <textarea value={form.history} onChange={e => setForm(f => ({ ...f, history: e.target.value }))}
+                placeholder="개발 진행 과정·이력을 기록하세요 (예: 26.03 개발검토 착수 / 26.05 허가신청 …)"
+                rows={4}
+                style={{ ...inputStyle, resize: 'vertical', minHeight: '5.5rem', lineHeight: 1.5 }} />
             </Field>
 
             {formError && (

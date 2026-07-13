@@ -18,6 +18,7 @@ export type UpcomingProduct = {
   insurance_code:  string | null;    // 보험코드
   status:          string | null;    // 진행상태
   memo:            string | null;    // 비고 (성분명 등)
+  history:         string | null;    // 개발 히스토리 메모
   created_at:      string;
   updated_at:      string;
 };
