@@ -67,7 +67,7 @@ export default async function ProductListPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let prodQ: any = svc
     .from('products')
-    .select('no, insurance_code, product_name, ingredient_name, commission_rate, distribution, note')
+    .select('no, insurance_code, product_name, ingredient_name, commission_rate, distribution, note, atc_code')
     .order('no', { ascending: true });
   prodQ = companyId ? prodQ.eq('company_id', companyId) : prodQ.is('company_id', null);
   const { data: masterRows } = await prodQ;
@@ -81,6 +81,7 @@ export default async function ProductListPage() {
       rate:         (r.commission_rate as number) ?? 0,
       distribution: (r.distribution as string) ?? '',
       note:         (r.note as string) ?? '',
+      atc:          (r.atc_code as string) ?? '',
     }));
   }
 
@@ -97,7 +98,7 @@ export default async function ProductListPage() {
       productRows = parseProductListBuffer(buf).map(p => ({
         no: p.no, code: p.insurance_code, name: p.product_name,
         ingredient: p.ingredient_name, rate: p.commission_rate,
-        distribution: p.distribution, note: p.note,
+        distribution: p.distribution, note: p.note, atc: '',
       }));
     }
     updatedAt = new Date(latestDoc.created_at as string).toLocaleDateString('ko-KR', {

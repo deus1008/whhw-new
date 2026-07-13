@@ -13,6 +13,7 @@ import { parseDmfBuffer }             from '@/lib/dmf/parse';
 import { parseMonthlyStockBuffer }    from '@/lib/monthly-stock/parse';
 import { parseEdiBuffer, syncEdiToDb } from '@/lib/edi/parse-and-sync';
 import { parseProductListBuffer } from '@/lib/products/parse-list';
+import { enrichProductsFromMfds } from '@/lib/products/enrich-mfds';
 import { invalidateDashboardCache } from '@/lib/dashboard-cache';
 import { revalidatePath } from 'next/cache';
 
@@ -469,6 +470,15 @@ export async function POST(request: Request) {
     }
     if (parsed.length > 0) {
       const now = new Date().toISOString();
+      // 재업로드 시 기존 식약처 보강값(item_seq·atc)을 보험코드 기준으로 이월
+      let exQ = supabase.from('products').select('insurance_code, item_seq, atc_code');
+      exQ = docCompanyId ? exQ.eq('company_id', docCompanyId) : exQ.is('company_id', null);
+      const { data: existing } = await exQ;
+      const carry: Record<string, { item_seq: string | null; atc_code: string | null }> = {};
+      for (const e of (existing ?? []) as { insurance_code: string; item_seq: string | null; atc_code: string | null }[]) {
+        if (e.insurance_code && (e.item_seq || e.atc_code)) carry[e.insurance_code] = { item_seq: e.item_seq, atc_code: e.atc_code };
+      }
+
       const rows = parsed.map(p => ({
         company_id:          docCompanyId,
         insurance_code:      p.insurance_code,
@@ -479,6 +489,8 @@ export async function POST(request: Request) {
         distribution:        p.distribution || null,
         note:                p.note || null,
         no:                  Number.isFinite(p.no) ? p.no : null,
+        item_seq:            carry[p.insurance_code]?.item_seq ?? null,
+        atc_code:            carry[p.insurance_code]?.atc_code ?? null,
         source_document_id:  documentId,
         updated_at:          now,
       }));
@@ -500,6 +512,12 @@ export async function POST(request: Request) {
         return fail(`products 저장 실패: ${firstErr} — 20260710_products_master.sql 을 실행하세요`);
       }
       console.log(`[process:${documentId}] products ${inserted}/${parsed.length}건 저장 완료`);
+
+      // 신규(이월 안 된) 제품만 식약처 보강 — best-effort
+      try {
+        const n = await enrichProductsFromMfds(supabase, docCompanyId);
+        if (n > 0) console.log(`[process:${documentId}] 식약처 보강 ${n}건`);
+      } catch (e) { console.warn(`[process:${documentId}] 식약처 보강 스킵:`, e instanceof Error ? e.message : e); }
     }
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     revalidatePath('/product-list');

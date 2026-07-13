@@ -10,6 +10,7 @@ export type ProductRow = {
   rate:         number;
   distribution: string;  // 유통중 | 유통중단 | 유통예정
   note:         string;  // 참고사항
+  atc?:         string;  // ATC 코드 (식약처 보강)
 };
 
 const DIST_STYLE: Record<string, { color: string; bg: string }> = {
@@ -48,6 +49,7 @@ export default function ProductListClient({
         r.name.toLowerCase().includes(q) ||
         r.ingredient.toLowerCase().includes(q) ||
         r.code.includes(q) ||
+        (r.atc ?? '').toLowerCase().includes(q) ||
         r.note.toLowerCase().includes(q)
       );
     });
@@ -150,6 +152,7 @@ export default function ProductListClient({
                 <th style={{ ...th, minWidth: '110px' }}>보험코드</th>
                 <th style={{ ...th, minWidth: '200px' }}>품목명</th>
                 <th style={{ ...th, minWidth: '240px' }}>성분명</th>
+                <th style={{ ...th, width: '80px' }}>ATC</th>
                 <th style={{ ...th, width: '75px', textAlign: 'right' }}>수수료율</th>
                 <th style={{ ...th, width: '80px', textAlign: 'center' }}>유통여부</th>
                 <th style={{ ...th, minWidth: '120px' }}>참고사항</th>
@@ -164,6 +167,7 @@ export default function ProductListClient({
                     <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.78rem', color: 'rgba(255,255,255,0.55)' }}>{row.code}</td>
                     <td style={{ ...td, fontWeight: 600 }}>{row.name}</td>
                     <td style={{ ...td, fontSize: '0.78rem', color: 'rgba(255,255,255,0.65)' }}>{row.ingredient}</td>
+                    <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{row.atc || '—'}</td>
                     <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: '#a5b4fc' }}>
                       {row.rate > 0 ? `${(row.rate * 100).toFixed(1)}%` : '—'}
                     </td>
