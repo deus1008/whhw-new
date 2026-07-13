@@ -20,6 +20,7 @@ export type UpcomingProduct = {
   status:          string | null;    // 진행상태
   memo:            string | null;    // 비고 (성분명 등)
   history:         string | null;    // 개발 히스토리 메모
+  history_images:  { path: string; name: string }[] | null;  // 히스토리 첨부 이미지
   created_at:      string;
   updated_at:      string;
 };

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, useRef } from 'react';
 import type { UpcomingProduct } from '@/app/products/page';
 import type { ProductInput } from '@/app/products/actions';
-import { createProduct, updateProduct, deleteProduct } from '@/app/products/actions';
+import { createProduct, updateProduct, deleteProduct, uploadHistoryImage, getHistoryImageUrls } from '@/app/products/actions';
 
 /* ── 상수 ─────────────────────────────────────────────────────── */
 const STATUS_LIST = ['개발검토', '개발승인', '허가예정', '발매예정', '발매완료'];
@@ -22,7 +22,7 @@ const STATUS_COLOR: Record<string, { bg: string; bd: string; color: string }> = 
 const EMPTY_FORM: ProductInput = {
   title: '', launch_date: '', manufacturer: '',
   indication: '', insurance_price: '', insurance_code: '',
-  status: '', memo: '', history: '', maker: '',
+  status: '', memo: '', history: '', maker: '', history_images: [],
 };
 
 /* ── 날짜 포맷 ─────────────────────────────────────────────────── */
@@ -56,6 +56,10 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
   const [filterCompany, setFilterCompany] = useState('');
   const [sortKey, setSortKey]             = useState<string>('launch_date');
   const [sortDir, setSortDir]             = useState<'asc' | 'desc'>('asc');
+  // 히스토리 이미지: 경로→서명URL 미리보기 맵 + 업로드 상태
+  const [imgUrls, setImgUrls]             = useState<Record<string, string>>({});
+  const [imgUploading, setImgUploading]   = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* ── 회사 목록 (중복 제거) ─────────────────────────────────── */
   const companyList = useMemo(() => {
@@ -67,10 +71,11 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
 
   /* ── modal helpers ──────────────────────────────────────────── */
   function openCreate() {
-    setEditing(null); setForm(EMPTY_FORM); setFormError(''); setModalOpen(true);
+    setEditing(null); setForm(EMPTY_FORM); setFormError(''); setImgUrls({}); setModalOpen(true);
   }
   function openEdit(p: UpcomingProduct) {
     setEditing(p);
+    const images = p.history_images ?? [];
     setForm({
       title:           p.title,
       launch_date:     p.launch_date?.slice(0, 7) ?? '',
@@ -82,10 +87,38 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
       memo:            p.memo            ?? '',
       history:         p.history         ?? '',
       maker:           p.maker           ?? '',
+      history_images:  images,
     });
+    setImgUrls({});
     setFormError(''); setModalOpen(true);
+    // 기존 첨부 이미지 서명 URL 로드
+    if (images.length > 0) {
+      getHistoryImageUrls(images.map(i => i.path)).then(setImgUrls).catch(() => {});
+    }
   }
   function closeModal() { setModalOpen(false); setEditing(null); }
+
+  /* ── 히스토리 이미지 업로드/삭제 ────────────────────────────── */
+  async function handleImageSelect(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setImgUploading(true); setFormError('');
+    for (const file of Array.from(files)) {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await uploadHistoryImage(fd);
+      if (res.error) { setFormError(res.error); continue; }
+      if (res.data) {
+        const { path, name, url } = res.data;
+        setForm(f => ({ ...f, history_images: [...f.history_images, { path, name }] }));
+        setImgUrls(m => ({ ...m, [path]: url }));
+      }
+    }
+    setImgUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+  function removeImage(path: string) {
+    setForm(f => ({ ...f, history_images: f.history_images.filter(i => i.path !== path) }));
+  }
 
   /* ── submit ─────────────────────────────────────────────────── */
   function handleSubmit() {
@@ -452,6 +485,43 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
                 placeholder="개발 진행 과정·이력을 기록하세요 (예: 26.03 개발검토 착수 / 26.05 허가신청 …)"
                 rows={16}
                 style={{ ...inputStyle, resize: 'vertical', minHeight: '22rem', lineHeight: 1.5 }} />
+
+              {/* 이미지 첨부 */}
+              <div style={{ marginTop: '0.6rem' }}>
+                <input ref={fileInputRef} type="file" accept="image/*" multiple
+                  onChange={e => handleImageSelect(e.target.files)}
+                  style={{ display: 'none' }} />
+                <button type="button" onClick={() => fileInputRef.current?.click()} disabled={imgUploading}
+                  style={{ padding: '0.4rem 0.9rem', borderRadius: '8px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', color: '#a5b4fc', fontSize: '0.8rem', fontWeight: 600, cursor: imgUploading ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+                  {imgUploading ? '업로드 중…' : '🖼 이미지 첨부'}
+                </button>
+
+                {form.history_images.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', marginTop: '0.7rem' }}>
+                    {form.history_images.map(img => (
+                      <div key={img.path} style={{ position: 'relative', width: '96px' }}>
+                        {imgUrls[img.path] ? (
+                          <a href={imgUrls[img.path]} target="_blank" rel="noreferrer">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={imgUrls[img.path]} alt={img.name}
+                              style={{ width: '96px', height: '96px', objectFit: 'cover', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)' }} />
+                          </a>
+                        ) : (
+                          <div style={{ width: '96px', height: '96px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>
+                            로딩…
+                          </div>
+                        )}
+                        <button type="button" onClick={() => removeImage(img.path)}
+                          title="삭제"
+                          style={{ position: 'absolute', top: '-6px', right: '-6px', width: '20px', height: '20px', borderRadius: '50%', background: '#ef4444', border: 'none', color: '#fff', fontSize: '0.7rem', cursor: 'pointer', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          ×
+                        </button>
+                        <p style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)', margin: '0.2rem 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{img.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Field>
 
             {formError && (

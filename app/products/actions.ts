@@ -7,6 +7,8 @@ import { createClient as createServiceClient } from '@supabase/supabase-js';
 import { getEffectiveCompanyId } from '@/lib/active-company';
 import type { UpcomingProduct } from './page';
 
+export type HistoryImage = { path: string; name: string };
+
 export type ProductInput = {
   title:           string;
   launch_date:     string;   // YYYY-MM-DD or YYYY-MM
@@ -18,6 +20,7 @@ export type ProductInput = {
   memo:            string;
   history:         string;
   maker:           string;
+  history_images:  HistoryImage[];   // 개발 히스토리 첨부 이미지 (storage 경로)
 };
 
 type Result<T = void> = { data?: T; error?: string };
@@ -70,6 +73,7 @@ function clean(input: ProductInput) {
     memo:            input.memo.trim()            || null,
     history:         input.history.trim()         || null,
     maker:           input.maker.trim()           || null,
+    history_images:  Array.isArray(input.history_images) ? input.history_images : [],
   };
 }
 
@@ -77,7 +81,43 @@ function clean(input: ProductInput) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isMissingOptionalCol(err: any): boolean {
   const m = String(err?.message ?? '');
-  return !!err && (err.code === '42703' || m.includes('history') || m.includes('maker'));
+  return !!err && (err.code === '42703' || m.includes('history') || m.includes('maker') || m.includes('history_images'));
+}
+
+const BUCKET = 'documents';
+const IMG_PREFIX = 'product-history';
+
+/* ── 히스토리 이미지 업로드 (승인된 멤버) ─────────────────────── */
+export async function uploadHistoryImage(formData: FormData): Promise<Result<{ path: string; name: string; url: string }>> {
+  const auth = await checkApproved();
+  if ('error' in auth) return { error: auth.error };
+
+  const file = formData.get('file');
+  if (!(file instanceof File)) return { error: '파일이 없습니다.' };
+  if (!file.type.startsWith('image/')) return { error: '이미지 파일만 첨부할 수 있습니다.' };
+  if (file.size > 10 * 1024 * 1024) return { error: '이미지는 10MB 이하만 첨부할 수 있습니다.' };
+
+  const ext = (file.name.split('.').pop() || 'png').toLowerCase().replace(/[^a-z0-9]/g, '') || 'png';
+  const path = `${IMG_PREFIX}/${crypto.randomUUID()}.${ext}`;
+  const buf = Buffer.from(await file.arrayBuffer());
+  const { error: upErr } = await sb().storage.from(BUCKET).upload(path, buf, { contentType: file.type, upsert: false });
+  if (upErr) return { error: `업로드 실패: ${upErr.message}` };
+
+  const { data: signed } = await sb().storage.from(BUCKET).createSignedUrl(path, 3600);
+  return { data: { path, name: file.name, url: signed?.signedUrl ?? '' } };
+}
+
+/* ── 저장된 이미지 경로 → 서명 URL 맵 (열람 시) ───────────────── */
+export async function getHistoryImageUrls(paths: string[]): Promise<Record<string, string>> {
+  const auth = await checkApproved();
+  if ('error' in auth) return {};
+  const out: Record<string, string> = {};
+  for (const p of paths) {
+    if (!p) continue;
+    const { data } = await sb().storage.from(BUCKET).createSignedUrl(p, 3600);
+    if (data?.signedUrl) out[p] = data.signedUrl;
+  }
+  return out;
 }
 
 /* ── 생성 (승인된 멤버) ───────────────────────────────────────── */
@@ -92,7 +132,7 @@ export async function createProduct(input: ProductInput): Promise<Result<Upcomin
   const payload = { ...clean(input), company_id: auth.company_id };
   let { data, error } = await sb().from('upcoming_products').insert(payload).select().single();
   if (isMissingOptionalCol(error)) {
-    const { history: _h, maker: _m, ...rest } = payload;
+    const { history: _h, maker: _m, history_images: _hi, ...rest } = payload;
     ({ data, error } = await sb().from('upcoming_products').insert(rest).select().single());
   }
 
@@ -120,7 +160,7 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Re
   const patch = clean(input);
   let { data, error } = await sb().from('upcoming_products').update(patch).eq('id', id).select().single();
   if (isMissingOptionalCol(error)) {
-    const { history: _h, maker: _m, ...rest } = patch;
+    const { history: _h, maker: _m, history_images: _hi, ...rest } = patch;
     ({ data, error } = await sb().from('upcoming_products').update(rest).eq('id', id).select().single());
   }
 
