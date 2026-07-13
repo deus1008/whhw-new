@@ -64,8 +64,13 @@ export default async function ProductsPage() {
     allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
   }
 
+  // 보안 단계(개발검토·개발승인·허가예정)는 시스템 관리자만 열람.
+  // 일반 사용자(마케팅총괄·PM 포함)는 발매예정·발매완료만 — 서버에서 차단.
+  const PUBLIC_STATUSES = ['발매예정', '발매완료'];
+
   let productsQ = sb.from('upcoming_products').select('*').order('launch_date', { ascending: true });
   if (companyId) productsQ = productsQ.eq('company_id', companyId);
+  if (!isSystemAdmin) productsQ = productsQ.in('status', PUBLIC_STATUSES);
   const { data, error: fetchError } = await productsQ;
 
   if (fetchError) console.error('[products] fetch error:', fetchError.message);
@@ -94,7 +99,7 @@ export default async function ProductsPage() {
           />
         )}
 
-        <ProductsClient initialProducts={products} isAdmin={isAdmin} userId={user.id} />
+        <ProductsClient initialProducts={products} isAdmin={isAdmin} canSeeSecure={isSystemAdmin} userId={user.id} />
       </div>
     </>
   );

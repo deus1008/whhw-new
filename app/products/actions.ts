@@ -20,6 +20,9 @@ export type ProductInput = {
 
 type Result<T = void> = { data?: T; error?: string };
 
+// 보안 단계 — 시스템 관리자(role='관리자')만 열람·생성·수정 가능
+const SECURE_STATUS = ['개발검토', '개발승인', '허가예정'];
+
 /* ── 서비스 롤 클라이언트 (RLS 우회) ─────────────────────────── */
 function sb() {
   return createServiceClient(
@@ -71,6 +74,9 @@ export async function createProduct(input: ProductInput): Promise<Result<Upcomin
   const auth = await checkApproved();
   if ('error' in auth) return { error: auth.error };
   if (!input.title.trim()) return { error: '제품명을 입력하세요.' };
+  // 보안 단계 생성은 시스템 관리자만
+  if (SECURE_STATUS.includes(input.status) && auth.role !== '관리자')
+    return { error: '해당 단계는 관리자만 등록할 수 있습니다.' };
 
   const { data, error } = await sb()
     .from('upcoming_products')
@@ -88,6 +94,16 @@ export async function updateProduct(id: string, input: ProductInput): Promise<Re
   const auth = await checkApproved();
   if ('error' in auth) return { error: auth.error };
   if (!input.title.trim()) return { error: '제품명을 입력하세요.' };
+
+  // 비관리자는 보안 단계 제품을 수정하거나, 보안 단계로 변경할 수 없음
+  if (auth.role !== '관리자') {
+    if (SECURE_STATUS.includes(input.status))
+      return { error: '해당 단계는 관리자만 설정할 수 있습니다.' };
+    const { data: cur } = await sb()
+      .from('upcoming_products').select('status').eq('id', id).single();
+    if (cur && SECURE_STATUS.includes((cur.status as string) ?? ''))
+      return { error: '관리자 전용 단계 제품은 수정할 수 없습니다.' };
+  }
 
   const { data, error } = await sb()
     .from('upcoming_products')

@@ -7,6 +7,9 @@ import { createProduct, updateProduct, deleteProduct } from '@/app/products/acti
 
 /* ── 상수 ─────────────────────────────────────────────────────── */
 const STATUS_LIST = ['개발검토', '개발승인', '허가예정', '발매예정', '발매완료'];
+// 보안 단계 — 시스템 관리자만 열람/선택. 그 외 사용자는 공개 단계만.
+const SECURE_STATUS = ['개발검토', '개발승인', '허가예정'];
+const PUBLIC_STATUS = ['발매예정', '발매완료'];
 
 const STATUS_COLOR: Record<string, { bg: string; bd: string; color: string }> = {
   '개발검토': { bg: 'rgba(148,163,184,0.12)', bd: 'rgba(148,163,184,0.3)', color: '#94a3b8' },
@@ -33,11 +36,14 @@ function fmtDate(d: string | null): string {
 interface Props {
   initialProducts: UpcomingProduct[];
   isAdmin: boolean;
+  canSeeSecure: boolean;   // 시스템 관리자 — 보안 단계 열람/선택 가능
   userId: string;
 }
 
 /* ══════════════════════════════════════════════════════════════ */
-export default function ProductsClient({ initialProducts, isAdmin }: Props) {
+export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure }: Props) {
+  // 사용자에게 노출할 단계 목록 (비관리자는 공개 단계만)
+  const visibleStatusList = canSeeSecure ? STATUS_LIST : STATUS_LIST.filter(s => PUBLIC_STATUS.includes(s));
   const [products, setProducts]         = useState<UpcomingProduct[]>(initialProducts);
   const [modalOpen, setModalOpen]       = useState(false);
   const [editing, setEditing]           = useState<UpcomingProduct | null>(null);
@@ -212,7 +218,7 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
           style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', fontSize: '0.82rem', cursor: 'pointer' }}
         >
           <option value="">전체 상태</option>
-          {STATUS_LIST.map(s => <option key={s} value={s}>{s}</option>)}
+          {visibleStatusList.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
 
         {isAdmin && (
@@ -225,7 +231,7 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
 
       {/* ── 진행상태 배지 필터 ──────────────────────────────────── */}
       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1.2rem', alignItems: 'center' }}>
-        {STATUS_LIST.map(s => {
+        {visibleStatusList.map(s => {
           const c = STATUS_COLOR[s];
           return (
             <button key={s} onClick={() => setFilterStatus(filterStatus === s ? '' : s)}
@@ -420,7 +426,7 @@ export default function ProductsClient({ initialProducts, isAdmin }: Props) {
 
             <Field label="진행상태">
               <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                {STATUS_LIST.map(s => {
+                {visibleStatusList.map(s => {
                   const c = STATUS_COLOR[s];
                   const selected = form.status === s;
                   return (
