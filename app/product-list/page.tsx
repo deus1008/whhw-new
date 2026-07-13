@@ -10,58 +10,13 @@ import HomeButton from '@/components/HomeButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import ProductListClient from '@/components/ProductListClient';
 import type { ProductRow } from '@/components/ProductListClient';
-import { toInsuranceCode } from '@/lib/products/insurance-code';
-import XLSX from 'xlsx';
+import { parseProductListBuffer } from '@/lib/products/parse-list';
 
 function getSvc() {
   return createSvcClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
-}
-
-function parseProductListBuffer(buf: Buffer): ProductRow[] {
-  const wb = XLSX.read(buf, { type: 'buffer' });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  const all = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as unknown[][];
-
-  // 헤더 행 탐색: NO, 품목명이 있는 행
-  let headerIdx = -1;
-  for (let i = 0; i < Math.min(10, all.length); i++) {
-    const row = (all[i] as unknown[]).map(c => String(c).trim());
-    if (row.includes('NO') || row.includes('품목명')) {
-      headerIdx = i;
-      break;
-    }
-  }
-  if (headerIdx < 0) return [];
-
-  const hdr  = (all[headerIdx] as unknown[]).map(c => String(c).trim());
-  const iNo   = hdr.findIndex(h => h === 'NO');
-  const iCode = hdr.findIndex(h => h === '대표코드');
-  const iName = hdr.findIndex(h => h === '품목명');
-  const iIngr = hdr.findIndex(h => h === '성분명');
-  const iRate = hdr.findIndex(h => h === '수수료율');
-  const iDist = hdr.findIndex(h => h === '유통여부');
-  const iNote = hdr.findIndex(h => h === '참고사항');
-
-  const rows: ProductRow[] = [];
-  for (let r = headerIdx + 1; r < all.length; r++) {
-    const row = all[r] as unknown[];
-    const name = String(row[iName] ?? '').trim();
-    if (!name) continue;
-    rows.push({
-      no:           iNo   >= 0 ? Number(row[iNo])                : r - headerIdx,
-      // 대표코드(13자리) → 보험코드(9자리)로 추출해 저장
-      code:         iCode >= 0 ? toInsuranceCode(String(row[iCode] ?? '')) : '',
-      name,
-      ingredient:   iIngr >= 0 ? String(row[iIngr] ?? '').trim() : '',
-      rate:         iRate >= 0 ? Number(row[iRate] ?? 0)          : 0,
-      distribution: iDist >= 0 ? String(row[iDist] ?? '').trim() : '',
-      note:         iNote >= 0 ? String(row[iNote] ?? '').trim() : '',
-    });
-  }
-  return rows;
 }
 
 export default async function ProductListPage() {
@@ -108,15 +63,42 @@ export default async function ProductListPage() {
   let updatedAt = '';
   let sourceLabel = '';
 
+  // 1순위: products 마스터 테이블(보험코드) — 업로드 시 적재됨
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let prodQ: any = svc
+    .from('products')
+    .select('no, insurance_code, product_name, ingredient_name, commission_rate, distribution, note')
+    .order('no', { ascending: true });
+  prodQ = companyId ? prodQ.eq('company_id', companyId) : prodQ.is('company_id', null);
+  const { data: masterRows } = await prodQ;
+
+  if (masterRows && masterRows.length > 0) {
+    productRows = (masterRows as Record<string, unknown>[]).map((r, i) => ({
+      no:           (r.no as number) ?? i + 1,
+      code:         (r.insurance_code as string) ?? '',
+      name:         (r.product_name as string) ?? '',
+      ingredient:   (r.ingredient_name as string) ?? '',
+      rate:         (r.commission_rate as number) ?? 0,
+      distribution: (r.distribution as string) ?? '',
+      note:         (r.note as string) ?? '',
+    }));
+  }
+
+  // 문서 메타(다운로드 링크·기준일) + products 미적재 시 라이브 파싱 폴백
   if (latestDoc?.storage_path) {
-    const [{ data: urlData }, { data: blob }] = await Promise.all([
+    const needFallback = productRows.length === 0;
+    const [{ data: urlData }, blobRes] = await Promise.all([
       svc.storage.from('documents').createSignedUrl(latestDoc.storage_path as string, 3600),
-      svc.storage.from('documents').download(latestDoc.storage_path as string),
+      needFallback ? svc.storage.from('documents').download(latestDoc.storage_path as string) : Promise.resolve({ data: null }),
     ]);
     signedUrl = urlData?.signedUrl ?? null;
-    if (blob) {
-      const buf = Buffer.from(await blob.arrayBuffer());
-      productRows = parseProductListBuffer(buf);
+    if (needFallback && blobRes.data) {
+      const buf = Buffer.from(await blobRes.data.arrayBuffer());
+      productRows = parseProductListBuffer(buf).map(p => ({
+        no: p.no, code: p.insurance_code, name: p.product_name,
+        ingredient: p.ingredient_name, rate: p.commission_rate,
+        distribution: p.distribution, note: p.note,
+      }));
     }
     updatedAt = new Date(latestDoc.created_at as string).toLocaleDateString('ko-KR', {
       year: 'numeric', month: 'long', day: 'numeric',

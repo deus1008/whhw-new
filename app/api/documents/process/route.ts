@@ -12,6 +12,7 @@ import { parseBioequivBuffer } from '@/lib/bioequiv/parse';
 import { parseDmfBuffer }             from '@/lib/dmf/parse';
 import { parseMonthlyStockBuffer }    from '@/lib/monthly-stock/parse';
 import { parseEdiBuffer, syncEdiToDb } from '@/lib/edi/parse-and-sync';
+import { parseProductListBuffer } from '@/lib/products/parse-list';
 import { invalidateDashboardCache } from '@/lib/dashboard-cache';
 import { revalidatePath } from 'next/cache';
 
@@ -434,6 +435,54 @@ export async function POST(request: Request) {
     revalidatePath('/weekly');
     console.log(`[process:${documentId}] EDI ${parseResult.rows.length}행 저장 완료`);
     return Response.json({ ok: true, inserted: parseResult.rows.length });
+  }
+
+  // ── M. 위탁품목리스트 폴더 → products 마스터(보험코드) 적재 ─────────────
+  if (category === '위탁품목리스트') {
+    console.log(`[process:${documentId}] 위탁품목리스트 → products 마스터 적재`);
+    let parsed: ReturnType<typeof parseProductListBuffer>;
+    try {
+      parsed = parseProductListBuffer(buffer);
+    } catch (e) {
+      return fail(`위탁품목리스트 파싱 실패: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    if (parsed.length > 0) {
+      const now = new Date().toISOString();
+      const rows = parsed.map(p => ({
+        company_id:          docCompanyId,
+        insurance_code:      p.insurance_code,
+        representative_code: p.representative_code || null,
+        product_name:        p.product_name,
+        ingredient_name:     p.ingredient_name || null,
+        commission_rate:     Number.isFinite(p.commission_rate) ? p.commission_rate : null,
+        distribution:        p.distribution || null,
+        note:                p.note || null,
+        no:                  Number.isFinite(p.no) ? p.no : null,
+        source_document_id:  documentId,
+        updated_at:          now,
+      }));
+      // 위탁사 전체 교체 (최신 리스트가 권위) — customer_status 패턴
+      let delQ = supabase.from('products').delete();
+      delQ = docCompanyId ? delQ.eq('company_id', docCompanyId) : delQ.is('company_id', null);
+      const { error: delErr } = await delQ;
+      if (delErr) return fail(`products 초기화 실패: ${delErr.message} — 20260710_products_master.sql 을 먼저 실행하세요`);
+
+      const CHUNK = 500;
+      let inserted = 0;
+      let firstErr: string | null = null;
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const { error: insErr } = await supabase.from('products').insert(rows.slice(i, i + CHUNK));
+        if (insErr) { if (!firstErr) firstErr = insErr.message; console.warn(`[process:${documentId}] products 삽입 오류(chunk ${i}):`, insErr.message); }
+        else inserted += Math.min(CHUNK, rows.length - i);
+      }
+      if (inserted === 0 && firstErr) {
+        return fail(`products 저장 실패: ${firstErr} — 20260710_products_master.sql 을 실행하세요`);
+      }
+      console.log(`[process:${documentId}] products ${inserted}/${parsed.length}건 저장 완료`);
+    }
+    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    revalidatePath('/product-list');
+    return Response.json({ ok: true, inserted: parsed.length });
   }
 
   // ── G. 그 외 폴더 — 즉시 완료 ─────────────────────────────────────────
