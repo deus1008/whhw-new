@@ -99,10 +99,11 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
   function closeModal() { setModalOpen(false); setEditing(null); }
 
   /* ── 히스토리 이미지 업로드/삭제 ────────────────────────────── */
-  async function handleImageSelect(files: FileList | null) {
-    if (!files || files.length === 0) return;
+  async function uploadImageFiles(files: File[]) {
+    const imgs = files.filter(f => f.type.startsWith('image/'));
+    if (imgs.length === 0) return;
     setImgUploading(true); setFormError('');
-    for (const file of Array.from(files)) {
+    for (const file of imgs) {
       const fd = new FormData();
       fd.append('file', file);
       const res = await uploadHistoryImage(fd);
@@ -114,7 +115,26 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
       }
     }
     setImgUploading(false);
+  }
+  function handleImageSelect(files: FileList | null) {
+    if (files) uploadImageFiles(Array.from(files));
     if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+  // 스크린샷 등 클립보드 이미지 붙여넣기 → 자동 첨부
+  function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files: File[] = [];
+    for (const it of Array.from(items)) {
+      if (it.kind === 'file' && it.type.startsWith('image/')) {
+        const f = it.getAsFile();
+        if (f) files.push(f.name ? f : new File([f], `스크린샷_${Date.now()}.png`, { type: f.type || 'image/png' }));
+      }
+    }
+    if (files.length > 0) {
+      e.preventDefault();   // 이미지는 텍스트로 붙여넣지 않음
+      uploadImageFiles(files);
+    }
   }
   function removeImage(path: string) {
     setForm(f => ({ ...f, history_images: f.history_images.filter(i => i.path !== path) }));
@@ -482,7 +502,8 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
 
             <Field label="메모 (개발 히스토리)">
               <textarea value={form.history} onChange={e => setForm(f => ({ ...f, history: e.target.value }))}
-                placeholder="개발 진행 과정·이력을 기록하세요 (예: 26.03 개발검토 착수 / 26.05 허가신청 …)"
+                onPaste={handlePaste}
+                placeholder={"개발 진행 과정·이력을 기록하세요 (예: 26.03 개발검토 착수 / 26.05 허가신청 …)\n스크린샷을 복사해 여기에 붙여넣기(Ctrl+V)하면 이미지가 첨부됩니다."}
                 rows={16}
                 style={{ ...inputStyle, resize: 'vertical', minHeight: '22rem', lineHeight: 1.5 }} />
 
