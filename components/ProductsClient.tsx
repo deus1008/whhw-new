@@ -450,8 +450,8 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
             <Field label="메모 (개발 히스토리)">
               <textarea value={form.history} onChange={e => setForm(f => ({ ...f, history: e.target.value }))}
                 placeholder="개발 진행 과정·이력을 기록하세요 (예: 26.03 개발검토 착수 / 26.05 허가신청 …)"
-                rows={4}
-                style={{ ...inputStyle, resize: 'vertical', minHeight: '5.5rem', lineHeight: 1.5 }} />
+                rows={16}
+                style={{ ...inputStyle, resize: 'vertical', minHeight: '22rem', lineHeight: 1.5 }} />
             </Field>
 
             {formError && (
