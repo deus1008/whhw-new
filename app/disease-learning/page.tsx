@@ -45,10 +45,20 @@ export default async function DiseaseLearningPage() {
     if (s) treeMap.get(g)!.add(s);
   }
 
-  const groups = Array.from(treeMap.entries()).map(([group, subs]) => ({
-    group,
-    subs: Array.from(subs).sort(),
-  }));
+  // 질환군 표시 순서 (지정 순 → 목록에 없는 군은 뒤에 가나다순)
+  const GROUP_ORDER = [
+    '순환기계(심혈관질환)', '순환기계(기타)', '대사성질환(당뇨)', '소화기계(위장질환)',
+    '호흡기계', '근골격계 및 통증', '류마티스/자가면역질환', '안과', '피부질환',
+    '비뇨기계', '신경/정신계(뇌질환)', '갑상선질환', '감염성질환',
+  ];
+  const rank = (g: string) => {
+    const i = GROUP_ORDER.indexOf(g);
+    return i === -1 ? GROUP_ORDER.length : i;
+  };
+
+  const groups = Array.from(treeMap.entries())
+    .map(([group, subs]) => ({ group, subs: Array.from(subs).sort() }))
+    .sort((a, b) => rank(a.group) - rank(b.group) || a.group.localeCompare(b.group, 'ko'));
 
   return (
     <>
