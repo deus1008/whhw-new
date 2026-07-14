@@ -32,13 +32,12 @@ export default function DrugSearchTabs({ apiConfigured }: { apiConfigured: boole
       {tab === 'recall' && (
         <MfdsListSearch
           type="recall"
-          placeholder="제품명으로 회수·판매중지 조회 (예: 라니티딘)"
+          placeholder="제품명·업체명으로 회수·판매중지 조회 (예: 라니티딘)"
           columns={[
-            { key: 'product', label: '제품명' },
+            { key: 'product', label: '제품명', w: 220 },
             { key: 'company', label: '업체명', w: 160 },
-            { key: 'type',    label: '유형/등급', w: 110 },
             { key: 'reason',  label: '회수사유' },
-            { key: 'date',    label: '공표일자', w: 110 },
+            { key: 'date',    label: '회수명령일자', w: 120 },
           ]}
         />
       )}
