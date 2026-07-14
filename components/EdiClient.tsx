@@ -465,6 +465,7 @@ function SalesPersonAccordion({ stats, totalAmount }: {
 }) {
   const [expandedSp,   setExpandedSp]   = useState<Set<string>>(new Set());
   const [expandedCsos, setExpandedCsos] = useState<Set<string>>(new Set());
+  const displayTotal = totalAmount;  // 검색 없음 — 전체 합계
 
   function toggleSp(name: string) {
     setExpandedSp(prev => { const n = new Set(prev); n.has(name) ? n.delete(name) : n.add(name); return n; });
@@ -538,7 +539,7 @@ function SalesPersonAccordion({ stats, totalAmount }: {
             })}
             <tr style={TR_TOTAL}>
               <td colSpan={3} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
-              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(displayTotal)}</td>
             </tr>
           </tbody>
         </table>
@@ -559,6 +560,7 @@ function CsoAccordion({ stats, totalAmount }: {
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState('');
   const filtered = search ? stats.filter(s => s.name.toLowerCase().includes(search.toLowerCase())) : stats;
+  const displayTotal = search ? filtered.reduce((acc, s) => acc + s.amount, 0) : totalAmount;
   const display = showAll ? filtered : filtered.slice(0, 20);
 
   function toggleCso(name: string) {
@@ -633,7 +635,7 @@ function CsoAccordion({ stats, totalAmount }: {
             })}
             <tr style={TR_TOTAL}>
               <td colSpan={3} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
-              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(displayTotal)}</td>
             </tr>
           </tbody>
         </table>
@@ -657,6 +659,7 @@ function HospitalAccordion({ stats, totalAmount }: {
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState('');
   const filtered = search ? stats.filter(s => s.name.toLowerCase().includes(search.toLowerCase())) : stats;
+  const displayTotal = search ? filtered.reduce((acc, s) => acc + s.amount, 0) : totalAmount;
   const display = showAll ? filtered : filtered.slice(0, 20);
 
   function toggleHos(name: string) {
@@ -731,7 +734,7 @@ function HospitalAccordion({ stats, totalAmount }: {
             })}
             <tr style={TR_TOTAL}>
               <td colSpan={3} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
-              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(displayTotal)}</td>
             </tr>
           </tbody>
         </table>
@@ -792,6 +795,7 @@ function ItemCsoAccordion({ stats, search, totalAmount }: {
   const [expandedCsos,  setExpandedCsos]  = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
   const filtered = search ? stats.filter(s => s.name.toLowerCase().includes(search.toLowerCase())) : stats;
+  const displayTotal = search ? filtered.reduce((acc, s) => acc + s.amount, 0) : totalAmount;
   const display = showAll ? filtered : filtered.slice(0, 20);
 
   function toggleItem(name: string) {
@@ -866,7 +870,7 @@ function ItemCsoAccordion({ stats, search, totalAmount }: {
             })}
             <tr style={TR_TOTAL}>
               <td colSpan={3} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
-              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(displayTotal)}</td>
             </tr>
           </tbody>
         </table>
@@ -889,6 +893,7 @@ function ItemHospAccordion({ stats, search, totalAmount }: {
   const [expandedSps,   setExpandedSps]   = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
   const filtered = search ? stats.filter(s => s.name.toLowerCase().includes(search.toLowerCase())) : stats;
+  const displayTotal = search ? filtered.reduce((acc, s) => acc + s.amount, 0) : totalAmount;
   const display = showAll ? filtered : filtered.slice(0, 20);
 
   function toggle(setter: React.Dispatch<React.SetStateAction<Set<string>>>, key: string) {
@@ -974,7 +979,7 @@ function ItemHospAccordion({ stats, search, totalAmount }: {
             })}
             <tr style={TR_TOTAL}>
               <td colSpan={3} style={{ ...TD_MUTED('right'), fontWeight: 700 }}>총합계</td>
-              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(totalAmount)}</td>
+              <td style={{ ...TD('right'), fontWeight: 700 }}>{fmt(displayTotal)}</td>
             </tr>
           </tbody>
         </table>
