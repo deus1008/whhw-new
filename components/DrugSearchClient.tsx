@@ -187,11 +187,12 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
               <thead>
                 <tr>
                   <SortTh label="생동" k="isBioequiv" cur={sortKey} dir={sortDir} onClick={toggleSort} w={64} center />
-                  <SortTh label="판매회사" k="manufacturer" cur={sortKey} dir={sortDir} onClick={toggleSort} w={150} />
                   <th style={{ ...TH, width: 64, textAlign: 'center' }}>제조</th>
+                  <SortTh label="판매회사" k="manufacturer" cur={sortKey} dir={sortDir} onClick={toggleSort} w={150} />
                   <SortTh label="제품명" k="productName" cur={sortKey} dir={sortDir} onClick={toggleSort} />
                   <SortTh label="성분명" k="ingredientName" cur={sortKey} dir={sortDir} onClick={toggleSort} />
                   <SortTh label="제형" k="form" cur={sortKey} dir={sortDir} onClick={toggleSort} w={72} center />
+                  <th style={{ ...TH, minWidth: 120 }}>포장단위</th>
                   <SortTh label="구분" k="payType" cur={sortKey} dir={sortDir} onClick={toggleSort} w={64} center />
                   <SortTh label="약가" k="maxPrice" cur={sortKey} dir={sortDir} onClick={toggleSort} w={80} right />
                 </tr>
@@ -208,7 +209,6 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
                             ? <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#6ee7b7', background: 'rgba(52,211,153,0.14)', padding: '0.1rem 0.4rem', borderRadius: 4 }}>생동</span>
                             : <span style={{ color: 'rgba(255,255,255,0.25)' }}>—</span>}
                         </td>
-                        <td style={TD}>{r.manufacturer || '—'}</td>
                         <td style={{ ...TD, textAlign: 'center' }} title={r.maker || undefined}>
                           {r.isConsignment == null
                             ? <span style={{ color: 'rgba(255,255,255,0.25)' }}>—</span>
@@ -217,15 +217,17 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
                                 background: r.isConsignment ? 'rgba(251,191,36,0.14)' : 'rgba(52,211,153,0.14)' }}>
                                 {r.isConsignment ? '위탁' : '자사'}</span>}
                         </td>
+                        <td style={TD}>{r.manufacturer || '—'}</td>
                         <td style={{ ...TD, fontWeight: 600, color: 'var(--text-primary)' }}>{r.productName}</td>
                         <td style={{ ...TD, fontSize: '0.76rem', color: 'rgba(255,255,255,0.6)' }}>{r.ingredientName || '—'}</td>
                         <td style={{ ...TD, textAlign: 'center' }}>{r.form}</td>
+                        <td style={{ ...TD, fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>{r.packageUnit || '—'}</td>
                         <td style={{ ...TD, textAlign: 'center', fontSize: '0.76rem', color: 'rgba(255,255,255,0.6)' }}>{r.payType || '—'}</td>
                         <td style={{ ...TD, textAlign: 'right', fontWeight: 700 }}>{r.maxPrice != null ? r.maxPrice.toLocaleString() : '—'}</td>
                       </tr>
                       {isOpen && (
                         <tr>
-                          <td colSpan={8} style={{ padding: '0.6rem 1rem 0.9rem', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td colSpan={9} style={{ padding: '0.6rem 1rem 0.9rem', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                             <DetailPanel state={detail[k]} />
                           </td>
                         </tr>

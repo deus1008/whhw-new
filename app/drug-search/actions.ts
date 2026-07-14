@@ -14,6 +14,7 @@ export type DrugRow = {
   isCombo:        boolean;  // 복합제 여부
   maker:          string;   // 제조사(제조원)
   isConsignment:  boolean | null;  // 위탁생산 여부 (자사=false/위탁=true/미상=null)
+  packageUnit:    string;   // 포장단위
 };
 
 function svc() {
@@ -59,14 +60,16 @@ export async function searchDrugPrices(query: string): Promise<{ rows: DrugRow[]
   const prodBio: Record<string, boolean> = {};
   const prodCons: Record<string, boolean> = {};   // is_consignment (자사/위탁)
   const prodMaker: Record<string, string> = {};   // 제조사
+  const prodPkg: Record<string, string> = {};     // 포장단위
   for (let i = 0; i < codes.length; i += 200) {
-    const { data } = await s.from('products').select('insurance_code, is_bioequiv, is_consignment, maker').in('insurance_code', codes.slice(i, i + 200));
+    const { data } = await s.from('products').select('insurance_code, is_bioequiv, is_consignment, maker, package_unit').in('insurance_code', codes.slice(i, i + 200));
     for (const r of data ?? []) {
       const c = r.insurance_code ? String(r.insurance_code) : '';
       if (!c) continue;
       if (r.is_bioequiv != null) prodBio[c] = r.is_bioequiv === true;
       if (r.is_consignment != null) prodCons[c] = r.is_consignment === true;
       if (r.maker) prodMaker[c] = String(r.maker);
+      if (r.package_unit) prodPkg[c] = String(r.package_unit);
     }
   }
   const [bi, bn] = await Promise.all([
@@ -96,6 +99,7 @@ export async function searchDrugPrices(query: string): Promise<{ rows: DrugRow[]
       isCombo:        ingredientName.includes('/'),
       maker:          prodMaker[code] ?? '',
       isConsignment:  code in prodCons ? prodCons[code] : null,
+      packageUnit:    prodPkg[code] ?? '',
     };
   });
   rows.sort((a, b) => a.productName.localeCompare(b.productName, 'ko'));
