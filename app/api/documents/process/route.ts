@@ -14,6 +14,7 @@ import { parseMonthlyStockBuffer }    from '@/lib/monthly-stock/parse';
 import { parseEdiBuffer, syncEdiToDb } from '@/lib/edi/parse-and-sync';
 import { parseProductListBuffer } from '@/lib/products/parse-list';
 import { enrichProductsFromMfds } from '@/lib/products/enrich-mfds';
+import { matchBioequivDmf } from '@/lib/products/match-bioequiv-dmf';
 import { invalidateDashboardCache } from '@/lib/dashboard-cache';
 import { revalidatePath } from 'next/cache';
 
@@ -470,13 +471,15 @@ export async function POST(request: Request) {
     }
     if (parsed.length > 0) {
       const now = new Date().toISOString();
-      // 재업로드 시 기존 식약처 보강값(item_seq·atc)을 보험코드 기준으로 이월
-      let exQ = supabase.from('products').select('insurance_code, item_seq, atc_code');
+      // 재업로드 시 기존 보강값(item_seq·atc·생동·DMF)을 보험코드 기준으로 이월
+      let exQ = supabase.from('products').select('insurance_code, item_seq, atc_code, is_bioequiv, has_dmf');
       exQ = docCompanyId ? exQ.eq('company_id', docCompanyId) : exQ.is('company_id', null);
       const { data: existing } = await exQ;
-      const carry: Record<string, { item_seq: string | null; atc_code: string | null }> = {};
-      for (const e of (existing ?? []) as { insurance_code: string; item_seq: string | null; atc_code: string | null }[]) {
-        if (e.insurance_code && (e.item_seq || e.atc_code)) carry[e.insurance_code] = { item_seq: e.item_seq, atc_code: e.atc_code };
+      type Carry = { item_seq: string | null; atc_code: string | null; is_bioequiv: boolean | null; has_dmf: boolean | null };
+      const carry: Record<string, Carry> = {};
+      for (const e of (existing ?? []) as (Carry & { insurance_code: string })[]) {
+        if (e.insurance_code && (e.item_seq || e.atc_code || e.is_bioequiv != null || e.has_dmf != null))
+          carry[e.insurance_code] = { item_seq: e.item_seq, atc_code: e.atc_code, is_bioequiv: e.is_bioequiv, has_dmf: e.has_dmf };
       }
 
       const rows = parsed.map(p => ({
@@ -491,6 +494,8 @@ export async function POST(request: Request) {
         no:                  Number.isFinite(p.no) ? p.no : null,
         item_seq:            carry[p.insurance_code]?.item_seq ?? null,
         atc_code:            carry[p.insurance_code]?.atc_code ?? null,
+        is_bioequiv:         carry[p.insurance_code]?.is_bioequiv ?? null,
+        has_dmf:             carry[p.insurance_code]?.has_dmf ?? null,
         source_document_id:  documentId,
         updated_at:          now,
       }));
@@ -503,8 +508,16 @@ export async function POST(request: Request) {
       const CHUNK = 500;
       let inserted = 0;
       let firstErr: string | null = null;
+      // is_bioequiv/has_dmf 컬럼 미존재(마이그레이션 전) 시 제외 재삽입
+      let stripFlags = false;
+      const stripBioDmf = (rs: Record<string, unknown>[]) => rs.map(r => { const c = { ...r }; delete c.is_bioequiv; delete c.has_dmf; return c; });
       for (let i = 0; i < rows.length; i += CHUNK) {
-        const { error: insErr } = await supabase.from('products').insert(rows.slice(i, i + CHUNK));
+        const slice = rows.slice(i, i + CHUNK) as unknown as Record<string, unknown>[];
+        let { error: insErr } = await supabase.from('products').insert(stripFlags ? stripBioDmf(slice) : slice);
+        if (insErr && !stripFlags && (insErr.code === '42703' || /is_bioequiv|has_dmf/.test(insErr.message))) {
+          stripFlags = true;
+          ({ error: insErr } = await supabase.from('products').insert(stripBioDmf(slice)));
+        }
         if (insErr) { if (!firstErr) firstErr = insErr.message; console.warn(`[process:${documentId}] products 삽입 오류(chunk ${i}):`, insErr.message); }
         else inserted += Math.min(CHUNK, rows.length - i);
       }
@@ -513,11 +526,15 @@ export async function POST(request: Request) {
       }
       console.log(`[process:${documentId}] products ${inserted}/${parsed.length}건 저장 완료`);
 
-      // 신규(이월 안 된) 제품만 식약처 보강 — best-effort
+      // 신규(이월 안 된) 제품만 식약처 보강 + 생동/DMF 자동매칭 — best-effort
       try {
         const n = await enrichProductsFromMfds(supabase, docCompanyId);
         if (n > 0) console.log(`[process:${documentId}] 식약처 보강 ${n}건`);
       } catch (e) { console.warn(`[process:${documentId}] 식약처 보강 스킵:`, e instanceof Error ? e.message : e); }
+      try {
+        const m = await matchBioequivDmf(supabase, docCompanyId);
+        console.log(`[process:${documentId}] 생동/DMF 매칭 bio ${m.bio}, dmf ${m.dmf}`);
+      } catch (e) { console.warn(`[process:${documentId}] 생동/DMF 매칭 스킵:`, e instanceof Error ? e.message : e); }
     }
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     revalidatePath('/product-list');

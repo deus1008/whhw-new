@@ -67,13 +67,14 @@ export default async function ProductListPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let prodQ: any = svc
     .from('products')
-    .select('no, insurance_code, product_name, ingredient_name, commission_rate, distribution, note, atc_code')
+    .select('id, no, insurance_code, product_name, ingredient_name, commission_rate, distribution, note, atc_code, is_bioequiv, has_dmf')
     .order('no', { ascending: true });
   prodQ = companyId ? prodQ.eq('company_id', companyId) : prodQ.is('company_id', null);
   const { data: masterRows } = await prodQ;
 
   if (masterRows && masterRows.length > 0) {
     productRows = (masterRows as Record<string, unknown>[]).map((r, i) => ({
+      id:           (r.id as string) ?? '',
       no:           (r.no as number) ?? i + 1,
       code:         (r.insurance_code as string) ?? '',
       name:         (r.product_name as string) ?? '',
@@ -82,6 +83,8 @@ export default async function ProductListPage() {
       distribution: (r.distribution as string) ?? '',
       note:         (r.note as string) ?? '',
       atc:          (r.atc_code as string) ?? '',
+      isBioequiv:   (r.is_bioequiv as boolean | null) ?? null,
+      hasDmf:       (r.has_dmf as boolean | null) ?? null,
     }));
   }
 
@@ -169,6 +172,7 @@ export default async function ProductListPage() {
               filename={sourceLabel}
               signedUrl={signedUrl}
               updatedAt={updatedAt}
+              isAdmin={isAdmin}
             />
           </div>
         )}

@@ -1,8 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useTransition } from 'react';
+import { updateProductFlag } from '@/app/product-list/actions';
 
 export type ProductRow = {
+  id?:          string;
   no:           number;
   code:         string;
   name:         string;
@@ -11,6 +13,8 @@ export type ProductRow = {
   distribution: string;  // 유통중 | 유통중단 | 유통예정
   note:         string;  // 참고사항
   atc?:         string;  // ATC 코드 (식약처 보강)
+  isBioequiv?:  boolean | null;  // 생동여부 (null=미확인)
+  hasDmf?:      boolean | null;  // DMF원료 사용여부
 };
 
 const DIST_STYLE: Record<string, { color: string; bg: string }> = {
@@ -24,14 +28,30 @@ export default function ProductListClient({
   filename,
   signedUrl,
   updatedAt,
+  isAdmin = false,
 }: {
   rows:      ProductRow[];
   filename:  string;
   signedUrl: string | null;
   updatedAt: string;
+  isAdmin?:  boolean;
 }) {
   const [query, setQuery]   = useState('');
   const [dist,  setDist]    = useState<string | null>(null);
+  // 생동/DMF 편집 반영용 로컬 상태 (id → { isBioequiv, hasDmf })
+  const [flags, setFlags] = useState<Record<string, { isBioequiv: boolean | null; hasDmf: boolean | null }>>(
+    () => Object.fromEntries(rows.filter(r => r.id).map(r => [r.id!, { isBioequiv: r.isBioequiv ?? null, hasDmf: r.hasDmf ?? null }])),
+  );
+  const [, startTransition] = useTransition();
+
+  // 미확인(null) → 예(true) → 아니오(false) → 미확인 순으로 순환
+  function cycleFlag(id: string | undefined, field: 'is_bioequiv' | 'has_dmf', cur: boolean | null) {
+    if (!id || !isAdmin) return;
+    const next = cur === null ? true : cur === true ? false : null;
+    const key = field === 'is_bioequiv' ? 'isBioequiv' : 'hasDmf';
+    setFlags(f => ({ ...f, [id]: { ...f[id], [key]: next } }));
+    startTransition(async () => { await updateProductFlag(id, field, next); });
+  }
 
   // 유통여부 값 목록
   const distValues = useMemo(() => {
@@ -153,6 +173,8 @@ export default function ProductListClient({
                 <th style={{ ...th, minWidth: '200px' }}>품목명</th>
                 <th style={{ ...th, minWidth: '240px' }}>성분명</th>
                 <th style={{ ...th, width: '80px' }}>ATC</th>
+                <th style={{ ...th, width: '68px', textAlign: 'center' }}>생동</th>
+                <th style={{ ...th, width: '68px', textAlign: 'center' }}>DMF</th>
                 <th style={{ ...th, width: '75px', textAlign: 'right' }}>수수료율</th>
                 <th style={{ ...th, width: '80px', textAlign: 'center' }}>유통여부</th>
                 <th style={{ ...th, minWidth: '120px' }}>참고사항</th>
@@ -168,6 +190,14 @@ export default function ProductListClient({
                     <td style={{ ...td, fontWeight: 600 }}>{row.name}</td>
                     <td style={{ ...td, fontSize: '0.78rem', color: 'rgba(255,255,255,0.65)' }}>{row.ingredient}</td>
                     <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{row.atc || '—'}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      <FlagBadge value={row.id ? flags[row.id]?.isBioequiv ?? null : (row.isBioequiv ?? null)} label="생동"
+                        editable={isAdmin && !!row.id} onClick={() => cycleFlag(row.id, 'is_bioequiv', row.id ? flags[row.id]?.isBioequiv ?? null : null)} />
+                    </td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      <FlagBadge value={row.id ? flags[row.id]?.hasDmf ?? null : (row.hasDmf ?? null)} label="DMF"
+                        editable={isAdmin && !!row.id} onClick={() => cycleFlag(row.id, 'has_dmf', row.id ? flags[row.id]?.hasDmf ?? null : null)} />
+                    </td>
                     <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: '#a5b4fc' }}>
                       {row.rate > 0 ? `${(row.rate * 100).toFixed(1)}%` : '—'}
                     </td>
@@ -197,6 +227,30 @@ export default function ProductListClient({
         input:focus { border-color: rgba(99,102,241,0.5) !important; box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
       `}</style>
     </div>
+  );
+}
+
+function FlagBadge({ value, label, editable, onClick }: {
+  value: boolean | null; label: string; editable: boolean; onClick: () => void;
+}) {
+  const style = value === true
+    ? { color: '#34d399', bg: 'rgba(52,211,153,0.14)', text: label }
+    : value === false
+    ? { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', text: '아니오' }
+    : { color: 'rgba(255,255,255,0.3)', bg: 'transparent', text: '—' };
+  return (
+    <span
+      onClick={editable ? onClick : undefined}
+      title={editable ? '클릭: 미확인 → 예 → 아니오' : (value === null ? '미확인' : undefined)}
+      style={{
+        display: 'inline-block', minWidth: '2.4rem', padding: '0.15rem 0.4rem', borderRadius: '5px',
+        fontSize: '0.7rem', fontWeight: 600, background: style.bg, color: style.color,
+        border: value === true ? '1px solid rgba(52,211,153,0.3)' : '1px solid transparent',
+        cursor: editable ? 'pointer' : 'default', userSelect: 'none',
+      }}
+    >
+      {style.text}
+    </span>
   );
 }
 
