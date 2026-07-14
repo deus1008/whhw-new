@@ -31,11 +31,10 @@ type DrugItem = {
 };
 
 /* ── 유틸 ── */
-function fmtWon(n: number | null): string {
+// 처방액 표시: 천원 단위(원 → ÷1000 반올림, 콤마)
+function fmtThousand(n: number | null): string {
   if (n == null) return '-';
-  if (n >= 100_000_000) return `${(n / 100_000_000).toFixed(1)}억`;
-  if (n >= 10_000) return `${Math.round(n / 10_000).toLocaleString()}만`;
-  return n.toLocaleString() + '원';
+  return Math.round(n / 1000).toLocaleString();
 }
 function fmtPrice(n: number | null): string {
   if (n == null) return '-';
@@ -245,7 +244,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                 <Stat label="전체" value={drugs.length} color="#93c5fd" />
                 <Stat label="오리지널" value={origCount} color="#fbbf24" />
                 <Stat label="제네릭" value={genericCount} color="#6ee7b7" />
-                {ubistTotal > 0 && <Stat label={`처방액(${periods.length}M)`} value={fmtWon(ubistTotal)} color="#f9a8d4" />}
+                {ubistTotal > 0 && <Stat label={`처방액 ${periods.length}개월(천원)`} value={fmtThousand(ubistTotal)} color="#f9a8d4" />}
               </div>
             </div>
 
@@ -374,7 +373,7 @@ function IngredientGroup({ ingredient, items, periods }: { ingredient: string; i
                 ))}
                 {periodHeaders.map((h, i) => (
                   <th key={periods[i]} style={{ ...TH, textAlign: 'right', color: 'rgba(165,243,252,0.55)' }}>
-                    처방액<br /><span style={{ fontSize: '0.65rem' }}>{h}</span>
+                    처방액(천원)<br /><span style={{ fontSize: '0.65rem' }}>{h}</span>
                   </th>
                 ))}
               </tr>
@@ -476,7 +475,7 @@ function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; pe
           <td key={p} style={{ ...TD, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
             {amt != null ? (
               <span style={{ color: '#a5f3fc', fontSize: '0.78rem', fontWeight: 600 }}>
-                {fmtWon(amt)}
+                {fmtThousand(amt)}
               </span>
             ) : <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.72rem' }}>-</span>}
           </td>
