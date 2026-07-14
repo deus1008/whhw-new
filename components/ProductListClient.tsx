@@ -15,6 +15,17 @@ export type ProductRow = {
   atc?:         string;  // ATC 코드 (식약처 보강)
   isBioequiv?:  boolean | null;  // 생동여부 (null=미확인)
   hasDmf?:      boolean | null;  // DMF원료 사용여부
+  isReference?: boolean | null;  // 대조약 여부 (식약처)
+  maker?:       string;  // 제조원(위탁제조사)
+  isConsignment?: boolean | null;  // 위탁생산 여부
+  permitDate?:  string;  // 허가일자 (YYYYMMDD)
+  permitNo?:    string;  // 품목허가번호
+  packageUnit?: string;  // 포장단위
+};
+
+const fmtYmd = (s?: string) => {
+  const d = String(s || '').replace(/\D/g, '');
+  return d.length === 8 ? `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6, 8)}` : (s || '');
 };
 
 const DIST_STYLE: Record<string, { color: string; bg: string }> = {
@@ -38,17 +49,24 @@ export default function ProductListClient({
 }) {
   const [query, setQuery]   = useState('');
   const [dist,  setDist]    = useState<string | null>(null);
-  // 생동/DMF 편집 반영용 로컬 상태 (id → { isBioequiv, hasDmf })
-  const [flags, setFlags] = useState<Record<string, { isBioequiv: boolean | null; hasDmf: boolean | null }>>(
-    () => Object.fromEntries(rows.filter(r => r.id).map(r => [r.id!, { isBioequiv: r.isBioequiv ?? null, hasDmf: r.hasDmf ?? null }])),
+  // 생동/DMF/대조약 편집 반영용 로컬 상태
+  type FlagState = { isBioequiv: boolean | null; hasDmf: boolean | null; isReference: boolean | null };
+  const [flags, setFlags] = useState<Record<string, FlagState>>(
+    () => Object.fromEntries(rows.filter(r => r.id).map(r => [r.id!, {
+      isBioequiv: r.isBioequiv ?? null, hasDmf: r.hasDmf ?? null, isReference: r.isReference ?? null,
+    }])),
   );
   const [, startTransition] = useTransition();
 
+  const FIELD_KEY = {
+    is_bioequiv: 'isBioequiv', has_dmf: 'hasDmf', is_reference_drug: 'isReference',
+  } as const;
+
   // 미확인(null) → 예(true) → 아니오(false) → 미확인 순으로 순환
-  function cycleFlag(id: string | undefined, field: 'is_bioequiv' | 'has_dmf', cur: boolean | null) {
+  function cycleFlag(id: string | undefined, field: keyof typeof FIELD_KEY, cur: boolean | null) {
     if (!id || !isAdmin) return;
     const next = cur === null ? true : cur === true ? false : null;
-    const key = field === 'is_bioequiv' ? 'isBioequiv' : 'hasDmf';
+    const key = FIELD_KEY[field];
     setFlags(f => ({ ...f, [id]: { ...f[id], [key]: next } }));
     startTransition(async () => { await updateProductFlag(id, field, next); });
   }
@@ -70,6 +88,7 @@ export default function ProductListClient({
         r.ingredient.toLowerCase().includes(q) ||
         r.code.includes(q) ||
         (r.atc ?? '').toLowerCase().includes(q) ||
+        (r.maker ?? '').toLowerCase().includes(q) ||
         r.note.toLowerCase().includes(q)
       );
     });
@@ -88,7 +107,7 @@ export default function ProductListClient({
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="품목명, 성분명, 보험코드, 참고사항 검색..."
+            placeholder="품목명, 성분명, 보험코드, 제조원, 참고사항 검색..."
             style={{
               width: '100%', padding: '0.55rem 0.75rem 0.55rem 2.2rem',
               background: 'rgba(255,255,255,0.06)',
@@ -173,8 +192,13 @@ export default function ProductListClient({
                 <th style={{ ...th, minWidth: '200px' }}>품목명</th>
                 <th style={{ ...th, minWidth: '240px' }}>성분명</th>
                 <th style={{ ...th, width: '80px' }}>ATC</th>
-                <th style={{ ...th, width: '68px', textAlign: 'center' }}>생동</th>
-                <th style={{ ...th, width: '68px', textAlign: 'center' }}>DMF</th>
+                <th style={{ ...th, width: '60px', textAlign: 'center' }}>생동</th>
+                <th style={{ ...th, width: '60px', textAlign: 'center' }}>DMF</th>
+                <th style={{ ...th, width: '62px', textAlign: 'center' }}>대조약</th>
+                <th style={{ ...th, minWidth: '140px' }}>제조원</th>
+                <th style={{ ...th, width: '66px', textAlign: 'center' }}>생산</th>
+                <th style={{ ...th, width: '92px' }}>허가일자</th>
+                <th style={{ ...th, minWidth: '130px' }}>포장</th>
                 <th style={{ ...th, width: '75px', textAlign: 'right' }}>수수료율</th>
                 <th style={{ ...th, width: '80px', textAlign: 'center' }}>유통여부</th>
                 <th style={{ ...th, minWidth: '120px' }}>참고사항</th>
@@ -198,6 +222,22 @@ export default function ProductListClient({
                       <FlagBadge value={row.id ? flags[row.id]?.hasDmf ?? null : (row.hasDmf ?? null)} label="DMF"
                         editable={isAdmin && !!row.id} onClick={() => cycleFlag(row.id, 'has_dmf', row.id ? flags[row.id]?.hasDmf ?? null : null)} />
                     </td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      <FlagBadge value={row.id ? flags[row.id]?.isReference ?? null : (row.isReference ?? null)} label="대조약"
+                        editable={isAdmin && !!row.id} onClick={() => cycleFlag(row.id, 'is_reference_drug', row.id ? flags[row.id]?.isReference ?? null : null)} />
+                    </td>
+                    <td style={{ ...td, fontSize: '0.78rem', color: 'rgba(255,255,255,0.65)' }}>{row.maker || '—'}</td>
+                    <td style={{ ...td, textAlign: 'center' }}>
+                      {row.isConsignment == null ? <span style={{ color: 'rgba(255,255,255,0.3)' }}>—</span> : (
+                        <span style={{
+                          fontSize: '0.68rem', padding: '0.15rem 0.45rem', borderRadius: '4px', whiteSpace: 'nowrap',
+                          background: row.isConsignment ? 'rgba(251,191,36,0.12)' : 'rgba(52,211,153,0.12)',
+                          color: row.isConsignment ? '#fbbf24' : '#34d399',
+                        }}>{row.isConsignment ? '위탁' : '자사'}</span>
+                      )}
+                    </td>
+                    <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{fmtYmd(row.permitDate) || '—'}</td>
+                    <td style={{ ...td, fontSize: '0.75rem', color: 'rgba(255,255,255,0.55)' }}>{row.packageUnit || '—'}</td>
                     <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: '#a5b4fc' }}>
                       {row.rate > 0 ? `${(row.rate * 100).toFixed(1)}%` : '—'}
                     </td>

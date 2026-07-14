@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { fetchPermitDetail } from '@/lib/mfds/reference-api';
 
 /**
  * 의약품 상세정보 API — 약가 · 생동 · DMF 통합 조회
@@ -46,10 +47,35 @@ export interface DmfItem {
   dmfNo:       string | null;   // DMF 허가번호 (DMF_PERMIT_NO)
 }
 
+export interface ReferenceItem {
+  itemName:   string;         // 대조약 품목명
+  ingrName:   string | null;  // 성분명
+  entpName:   string | null;  // 업체명
+  dosageForm: string | null;  // 제형
+  noticeDate: string | null;  // 공고일자
+}
+
+export interface PermitItem {
+  itemName:      string;
+  entpName:      string | null;   // 허가업체(판매사)
+  permitDate:    string | null;   // 허가일자
+  permitNo:      string | null;   // 품목허가번호
+  stdCode:       string | null;   // 품목기준코드
+  ingrName:      string | null;   // 주성분
+  maker:         string | null;   // 제조원(위탁제조사)
+  isConsignment: boolean | null;  // 위탁생산 여부
+  packageUnit:   string | null;   // 포장단위
+  storageMethod: string | null;   // 저장방법
+  etcOtc:        string | null;   // 전문/일반
+  atcCode:       string | null;
+}
+
 export interface DrugInfoResponse {
-  prices: PriceItem[];
-  bioEq:  BioEqItem[];
-  dmf:    DmfItem[];
+  prices:    PriceItem[];
+  bioEq:     BioEqItem[];
+  dmf:       DmfItem[];
+  reference: ReferenceItem[];
+  permit:    PermitItem | null;
 }
 
 /* ── XML 유틸 ── */
@@ -303,6 +329,69 @@ async function fetchDmfFromDB(ingrName: string): Promise<DmfItem[]> {
   }
 }
 
+/* ── 대조약 (drug_reference 테이블) ── */
+async function fetchReferenceFromDB(itemName: string): Promise<ReferenceItem[]> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return [];
+  try {
+    const sb = createSupabaseClient(url, key);
+    const base = itemName.replace(/\s*[(\（（].*$/, '').trim().replace(/[\d.\/]+.*$/, '').trim();
+    const term = base.length >= 3 ? base : itemName;
+    const { data, error } = await sb.from('drug_reference')
+      .select('item_name, company_name, ingredient_name, dosage_form, notice_date')
+      .ilike('item_name', `%${term}%`).order('notice_date', { ascending: false }).limit(10);
+    if (error) return [];
+    return (data ?? []).map((r: Record<string, unknown>) => ({
+      itemName:   String(r.item_name ?? ''),
+      ingrName:   r.ingredient_name ? String(r.ingredient_name) : null,
+      entpName:   r.company_name ? String(r.company_name) : null,
+      dosageForm: r.dosage_form ? String(r.dosage_form) : null,
+      noticeDate: r.notice_date ? String(r.notice_date) : null,
+    }));
+  } catch { return []; }
+}
+
+/* ── 허가정보 (drug_permit 테이블, 상세 온디맨드 보강) ── */
+async function fetchPermitFromDB(itemName: string): Promise<PermitItem | null> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  try {
+    const sb = createSupabaseClient(url, key);
+    const { data } = await sb.from('drug_permit')
+      .select('item_seq, item_name, company_name, permit_date, permit_no, std_code, ingredient_name, maker, is_consignment, package_unit, storage_method, etc_otc, atc_code, cancel_name')
+      .ilike('item_name', `%${itemName}%`).order('cancel_name', { ascending: true }).limit(1);
+    const row = (data ?? [])[0] as Record<string, unknown> | undefined;
+    if (!row) return null;
+
+    // 상세 미보강 시 온디맨드 조회 + 캐시
+    let maker = row.maker as string | null, isCons = row.is_consignment as boolean | null;
+    let pack = row.package_unit as string | null, storage = row.storage_method as string | null;
+    let etc = row.etc_otc as string | null, atc = row.atc_code as string | null;
+    if (maker == null && row.item_seq) {
+      const d = await fetchPermitDetail(String(row.item_seq));
+      if (d) {
+        maker = d.maker; isCons = d.is_consignment; pack = d.package_unit;
+        storage = d.storage_method; etc = d.etc_otc; atc = d.atc_code;
+        await sb.from('drug_permit').update({
+          maker, is_consignment: isCons, package_unit: pack, storage_method: storage,
+          etc_otc: etc, valid_term: d.valid_term, atc_code: atc, cancel_name: d.cancel_name,
+          detail_fetched_at: new Date().toISOString(),
+        }).eq('item_seq', String(row.item_seq));
+      }
+    }
+    return {
+      itemName:      String(row.item_name ?? ''),
+      entpName:      row.company_name ? String(row.company_name) : null,
+      permitDate:    row.permit_date ? String(row.permit_date) : null,
+      permitNo:      row.permit_no ? String(row.permit_no) : null,
+      stdCode:       row.std_code ? String(row.std_code) : null,
+      ingrName:      row.ingredient_name ? String(row.ingredient_name) : null,
+      maker, isConsignment: isCons, packageUnit: pack, storageMethod: storage,
+      etcOtc: etc, atcCode: atc,
+    };
+  } catch { return null; }
+}
+
 /* ── 생동성인정품목 (MFDS) ── */
 async function fetchBioEq(apiKey: string, itemName: string): Promise<BioEqItem[]> {
   async function doFetch(name: string): Promise<Omit<BioEqItem, 'crossRecognized'>[]> {
@@ -396,12 +485,12 @@ export async function GET(req: NextRequest) {
   const itemName = (searchParams.get('item') ?? '').trim();
   const ingrName = (searchParams.get('ingr') ?? '').trim();
 
-  if (!itemName) return NextResponse.json({ prices: [], bioEq: [], dmf: [] });
+  if (!itemName) return NextResponse.json({ prices: [], bioEq: [], dmf: [], reference: [], permit: null });
 
   const apiKey = process.env.DRUG_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: 'DRUG_API_KEY 환경변수가 설정되지 않았습니다.', prices: [], bioEq: [], dmf: [] },
+      { error: 'DRUG_API_KEY 환경변수가 설정되지 않았습니다.', prices: [], bioEq: [], dmf: [], reference: [], permit: null },
       { status: 503 },
     );
   }
@@ -431,18 +520,22 @@ export async function GET(req: NextRequest) {
       return fetchDmf(apiKey!, effectiveIngr);
     }
 
-    const dmf = await resolveDmf();
+    const [dmf, reference, permit] = await Promise.all([
+      resolveDmf(),
+      fetchReferenceFromDB(itemName),
+      fetchPermitFromDB(itemName),
+    ]);
 
     // 약가 용량 높은 순 정렬 (ingrName에서 숫자+단위 추출 후 정규화)
     prices.sort((a, b) => extractDosageValue(b.ingrName) - extractDosageValue(a.ingrName));
 
-    console.log(`[drug-info] → prices=${prices.length} bioEq=${bioEq.length} dmf=${dmf.length}`);
-    return NextResponse.json({ prices, bioEq, dmf } satisfies DrugInfoResponse);
+    console.log(`[drug-info] → prices=${prices.length} bioEq=${bioEq.length} dmf=${dmf.length} ref=${reference.length} permit=${permit ? 1 : 0}`);
+    return NextResponse.json({ prices, bioEq, dmf, reference, permit } satisfies DrugInfoResponse);
 
   } catch (e) {
     console.error('[drug-info] error:', e);
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : '조회 중 오류가 발생했습니다.', prices: [], bioEq: [], dmf: [] },
+      { error: e instanceof Error ? e.message : '조회 중 오류가 발생했습니다.', prices: [], bioEq: [], dmf: [], reference: [], permit: null },
       { status: 502 },
     );
   }

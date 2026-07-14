@@ -231,21 +231,48 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
 }
 
 /* ── 상세 패널 (MFDS: 생동·DMF·약가) ── */
+const fmtYmd8 = (s?: string | null) => {
+  const d = String(s || '').replace(/\D/g, '');
+  return d.length === 8 ? `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6, 8)}` : (s || '');
+};
+
 function DetailPanel({ state }: { state?: DetailState }) {
-  if (!state || state.loading) return <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>⏳ MFDS 상세(생동·DMF) 조회 중…</p>;
+  if (!state || state.loading) return <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>⏳ MFDS 상세(생동·DMF·대조약·허가) 조회 중…</p>;
   if (state.error) return <p style={{ fontSize: '0.78rem', color: '#fca5a5' }}>상세 조회 실패: {state.error}</p>;
   const d = state.data;
   const dmf = d?.dmf ?? [];
   const bioEq = d?.bioEq ?? [];
+  const reference = d?.reference ?? [];
+  const permit = d?.permit ?? null;
   return (
-    <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.8)', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+    <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.8)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       <div style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
         <span>생동 등록: <b style={{ color: bioEq.length ? '#6ee7b7' : 'rgba(255,255,255,0.6)' }}>{bioEq.length ? `${bioEq.length}건` : '없음'}</b></span>
         <span>원료 DMF: <b style={{ color: dmf.length ? '#93c5fd' : 'rgba(255,255,255,0.6)' }}>{dmf.length ? `${dmf.length}건 등록` : '없음'}</b></span>
+        <span>대조약: <b style={{ color: reference.length ? '#fcd34d' : 'rgba(255,255,255,0.6)' }}>{reference.length ? `${reference.length}건` : '해당없음'}</b></span>
       </div>
       {dmf.length > 0 && (
         <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)' }}>
           {dmf.slice(0, 4).map((x, i) => <div key={i}>· {x.ingrName} — {x.entpName ?? x.country ?? ''} ({x.dmfNo ?? '-'})</div>)}
+        </div>
+      )}
+      {reference.length > 0 && (
+        <div style={{ fontSize: '0.72rem', color: 'rgba(253,211,77,0.75)' }}>
+          {reference.slice(0, 4).map((x, i) => <div key={i}>· {x.itemName} — {x.entpName ?? ''} {x.dosageForm ? `(${x.dosageForm})` : ''}</div>)}
+        </div>
+      )}
+      {permit && (
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.45rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.15rem 1rem', fontSize: '0.73rem', color: 'rgba(255,255,255,0.65)' }}>
+          <span>허가일자: <b style={{ color: 'rgba(255,255,255,0.85)' }}>{fmtYmd8(permit.permitDate) || '—'}</b></span>
+          <span>허가번호: {permit.permitNo || '—'}</span>
+          <span>구분: {permit.etcOtc || '—'}</span>
+          <span>허가업체: {permit.entpName || '—'}</span>
+          <span>제조원: <b style={{ color: 'rgba(255,255,255,0.85)' }}>{permit.maker || '—'}</b>{permit.isConsignment != null && (
+            <span style={{ marginLeft: 4, color: permit.isConsignment ? '#fbbf24' : '#34d399' }}>({permit.isConsignment ? '위탁' : '자사'})</span>
+          )}</span>
+          <span>포장: {permit.packageUnit || '—'}</span>
+          {permit.storageMethod && <span>저장: {permit.storageMethod}</span>}
+          {permit.atcCode && <span>ATC: {permit.atcCode}</span>}
         </div>
       )}
     </div>

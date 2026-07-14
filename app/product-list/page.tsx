@@ -67,7 +67,7 @@ export default async function ProductListPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let prodQ: any = svc
     .from('products')
-    .select('id, no, insurance_code, product_name, ingredient_name, commission_rate, distribution, note, atc_code, is_bioequiv, has_dmf')
+    .select('id, no, insurance_code, product_name, ingredient_name, commission_rate, distribution, note, atc_code, is_bioequiv, has_dmf, is_reference_drug, maker, is_consignment, permit_date, permit_no, package_unit')
     .order('no', { ascending: true });
   prodQ = companyId ? prodQ.eq('company_id', companyId) : prodQ.is('company_id', null);
   const { data: masterRows } = await prodQ;
@@ -85,6 +85,12 @@ export default async function ProductListPage() {
       atc:          (r.atc_code as string) ?? '',
       isBioequiv:   (r.is_bioequiv as boolean | null) ?? null,
       hasDmf:       (r.has_dmf as boolean | null) ?? null,
+      isReference:  (r.is_reference_drug as boolean | null) ?? null,
+      maker:        (r.maker as string) ?? '',
+      isConsignment:(r.is_consignment as boolean | null) ?? null,
+      permitDate:   (r.permit_date as string) ?? '',
+      permitNo:     (r.permit_no as string) ?? '',
+      packageUnit:  (r.package_unit as string) ?? '',
     }));
   }
 
@@ -118,7 +124,7 @@ export default async function ProductListPage() {
 
       <div
         className="relative z-10 w-full px-4"
-        style={{ maxWidth: '1000px', paddingTop: '2.5rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}
+        style={{ maxWidth: '1360px', paddingTop: '2.5rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           <HomeButton />
