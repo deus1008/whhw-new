@@ -16,6 +16,9 @@
     },
     "app/api/admin/import-disease-drugs/route.ts": {
       "maxDuration": 120
+    },
+    "app/api/cron/sync-mfds-reference/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
@@ -26,6 +29,26 @@
     {
       "path": "/api/cron/warm-dashboard",
       "schedule": "*/20 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-mfds-reference?dataset=bioeq",
+      "schedule": "0 16 * * 0"
+    },
+    {
+      "path": "/api/cron/sync-mfds-reference?dataset=dmf",
+      "schedule": "10 16 * * 0"
+    },
+    {
+      "path": "/api/cron/sync-mfds-reference?dataset=reference",
+      "schedule": "20 16 * * 0"
+    },
+    {
+      "path": "/api/cron/sync-mfds-reference?dataset=permit",
+      "schedule": "30 16 * * 0"
+    },
+    {
+      "path": "/api/cron/sync-mfds-reference?dataset=match",
+      "schedule": "50 16 * * 0"
     }
   ]
 }
