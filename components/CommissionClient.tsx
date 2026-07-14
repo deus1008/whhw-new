@@ -224,11 +224,11 @@ export default function CommissionClient({
   /* ── CSV 내보내기 ────────────────────────────────────────── */
   function exportCsv() {
     const { rankMap, nonZeroCount } = calcRanks(rows);
-    const header = ['제약사','제품명','규격','보험코드','약가(원)','수량','처방액(원)','수수료율(%)','정산액(원)','순위'];
+    const header = ['제약사','제품명','규격','보험코드','약가(원)','수량','처방액(천원)','수수료율(%)','정산액(원)','순위'];
     const dataRows = rows.map(r => {
       const amt = Math.floor(r.settlement_amount);
       const rank = amt > 0 ? rankMap.get(amt) : null;
-      return [r.manufacturer??'', r.item_name, r.standard??'', r.item_code??'', r.max_price??0, r.quantity, r.prescription_amount, r.commission_rate, r.settlement_amount, rank != null ? `${rank}/${nonZeroCount}` : '-'];
+      return [r.manufacturer??'', r.item_name, r.standard??'', r.item_code??'', r.max_price??0, r.quantity, Math.round(r.prescription_amount / 1000), r.commission_rate, r.settlement_amount, rank != null ? `${rank}/${nonZeroCount}` : '-'];
     });
     const csv = [header, ...dataRows].map(row => row.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
     const blob = new Blob(['﻿'+csv], { type: 'text/csv;charset=utf-8;' });
@@ -371,7 +371,7 @@ export default function CommissionClient({
                   <th style={thStyle}>규격</th>
                   <th style={{ ...thStyle, textAlign: 'right' }}>약가(원)</th>
                   <th style={{ ...thStyle, textAlign: 'right' }}>수량</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>처방액(원)</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>처방액(천원)</th>
                   <th style={{ ...thStyle, textAlign: 'center' }}>수수료율</th>
                   <th style={{ ...thStyle, textAlign: 'right' }}>정산액(원)</th>
                   <th style={{ ...thStyle, textAlign: 'center' }}>순위</th>
@@ -400,7 +400,7 @@ export default function CommissionClient({
                       {r.quantity.toLocaleString()}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'right', color: '#60a5fa', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
-                      {r.prescription_amount.toLocaleString()}
+                      {Math.round(r.prescription_amount / 1000).toLocaleString()}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>

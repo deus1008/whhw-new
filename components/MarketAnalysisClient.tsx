@@ -60,12 +60,9 @@ const disabledBtn: React.CSSProperties = {
 };
 
 /* ── 유틸 ────────────────────────────────────────────────────── */
-function fmt백만(won: number): string {
-  const mil = won / 1_000_000;
-  if (mil === 0) return '0';
-  if (mil < 1)   return mil.toFixed(2);
-  if (mil < 10)  return mil.toFixed(1);
-  return Math.round(mil).toLocaleString('ko-KR');
+function fmt천원(won: number): string {
+  if (!won) return '0';
+  return Math.round(won / 1000).toLocaleString('ko-KR');
 }
 
 function fmtCount(n: number): string {
@@ -101,7 +98,7 @@ function LineChart({ products, periods }: {
             {t > 0 && (
               <text x={PAD_L - 5} y={y + 4} textAnchor="end"
                 fontSize={9} fill="rgba(255,255,255,0.4)">
-                {fmt백만(maxVal * t)}
+                {fmt천원(maxVal * t)}
               </text>
             )}
           </g>
@@ -166,7 +163,7 @@ function LineChart({ products, periods }: {
       <text x={12} y={PAD_T + chartH / 2} textAnchor="middle"
         fontSize={9} fill="rgba(255,255,255,0.4)"
         transform={`rotate(-90,12,${PAD_T + chartH / 2})`}>
-        백만원
+        천원
       </text>
     </svg>
   );
@@ -483,7 +480,7 @@ export default function MarketAnalysisClient() {
           <div className="auth-card" style={{ marginBottom: '1rem', padding: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600, margin: 0 }}>
-                월별 처방액 추이 (백만원)
+                월별 처방액 추이 (천원)
               </p>
               {/* 기간 선택 — 세그먼트 컨트롤 */}
               <div style={{
@@ -554,7 +551,7 @@ export default function MarketAnalysisClient() {
             return (
               <div className="auth-card" style={{ padding: '1rem', overflowX: 'auto' }}>
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 600 }}>
-                  기간별 처방액 (백만원)
+                  기간별 처방액 (천원)
                 </p>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
                   <thead>
@@ -582,11 +579,11 @@ export default function MarketAnalysisClient() {
                         <td style={{ ...TD_L, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{p}</td>
                         {sortedAnalysis.map((_, i) => (
                           <td key={i} style={TD_R}>
-                            {prodMaps[i][p] != null ? fmt백만(prodMaps[i][p]) : '-'}
+                            {prodMaps[i][p] != null ? fmt천원(prodMaps[i][p]) : '-'}
                           </td>
                         ))}
                         <td style={{ ...TD_R, fontWeight: 700, color: '#fde68a' }}>
-                          {fmt백만(rowTotals[pi])}
+                          {fmt천원(rowTotals[pi])}
                         </td>
                       </tr>
                     ))}
@@ -596,11 +593,11 @@ export default function MarketAnalysisClient() {
                       <td style={{ ...TD_L, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>합계</td>
                       {colTotals.map((v, i) => (
                         <td key={i} style={{ ...TD_R, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>
-                          {fmt백만(v)}
+                          {fmt천원(v)}
                         </td>
                       ))}
                       <td style={{ ...TD_R, fontWeight: 700, color: '#fde68a' }}>
-                        {fmt백만(grandTotal)}
+                        {fmt천원(grandTotal)}
                       </td>
                     </tr>
                     <tr style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>

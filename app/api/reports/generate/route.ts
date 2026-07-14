@@ -111,11 +111,11 @@ async function gatherContext(db: ReturnType<typeof svc>, tables: Set<string>): P
       const totalPrx  = rows.reduce((s, r) => s + (Number(r.prescription_amount) || 0), 0);
       const totalSetl = rows.reduce((s, r) => s + (Number(r.settlement_amount)   || 0), 0);
       sections.push(`## 수수료정산 데이터 (${rows.length}건)\n` +
-        `- 처방금액 합계: ${totalPrx.toLocaleString()}원\n` +
+        `- 처방금액 합계: ${Math.round(totalPrx / 1000).toLocaleString()}천원\n` +
         `- 정산액 합계: ${totalSetl.toLocaleString()}원\n\n` +
-        '| 정산월 | 담당자 | CSO | 처방처 | 품목명 | 처방금액 | 수수료율 | 정산액 |\n|---|---|---|---|---|---|---|---|\n' +
+        '| 정산월 | 담당자 | CSO | 처방처 | 품목명 | 처방금액(천원) | 수수료율 | 정산액(원) |\n|---|---|---|---|---|---|---|---|\n' +
         rows.slice(0, 150).map(r =>
-          `| ${r.settlement_month ?? ''} | ${r.manager ?? ''} | ${r.cso_name ?? ''} | ${r.hospital_name ?? ''} | ${r.product_name ?? ''} | ${Number(r.prescription_amount||0).toLocaleString()} | ${r.commission_rate ?? ''}% | ${Number(r.settlement_amount||0).toLocaleString()} |`
+          `| ${r.settlement_month ?? ''} | ${r.manager ?? ''} | ${r.cso_name ?? ''} | ${r.hospital_name ?? ''} | ${r.product_name ?? ''} | ${Math.round(Number(r.prescription_amount||0) / 1000).toLocaleString()} | ${r.commission_rate ?? ''}% | ${Number(r.settlement_amount||0).toLocaleString()} |`
         ).join('\n'));
     }
   }
@@ -180,11 +180,11 @@ async function gatherContext(db: ReturnType<typeof svc>, tables: Set<string>): P
       const totalAmt = rows.reduce((s, r) => s + (Number(r.prescription_amount) || 0), 0);
       const totalCnt = rows.reduce((s, r) => s + (Number(r.prescription_count)  || 0), 0);
       sections.push(`## Ubist 처방 데이터 (${rows.length}건, 최근순)\n` +
-        `- 합산 처방액: ${totalAmt.toLocaleString()}원\n` +
+        `- 합산 처방액: ${Math.round(totalAmt / 1000).toLocaleString()}천원\n` +
         `- 합산 처방건수: ${totalCnt.toLocaleString()}건\n\n` +
-        '| 제품명 | 성분명 | 연월 | 처방금액 | 처방건수 | 제조사 | 병원구분 | 지역 |\n|---|---|---|---|---|---|---|---|\n' +
+        '| 제품명 | 성분명 | 연월 | 처방금액(천원) | 처방건수 | 제조사 | 병원구분 | 지역 |\n|---|---|---|---|---|---|---|---|\n' +
         rows.slice(0, 80).map(r =>
-          `| ${r.product_name ?? ''} | ${r.ingredient_name ?? ''} | ${r.period ?? ''} | ${Number(r.prescription_amount||0).toLocaleString()} | ${r.prescription_count ?? ''} | ${r.manufacturer ?? ''} | ${r.hospital_type ?? ''} | ${r.region ?? ''} |`
+          `| ${r.product_name ?? ''} | ${r.ingredient_name ?? ''} | ${r.period ?? ''} | ${Math.round(Number(r.prescription_amount||0) / 1000).toLocaleString()} | ${r.prescription_count ?? ''} | ${r.manufacturer ?? ''} | ${r.hospital_type ?? ''} | ${r.region ?? ''} |`
         ).join('\n'));
     }
   }
