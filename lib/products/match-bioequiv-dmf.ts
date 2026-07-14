@@ -48,9 +48,10 @@ export async function matchBioequivDmf(svc: any, companyId: string | null): Prom
     const ings = baseIngredients(p.ingredient_name);
     const hasDmf = ings.some(g => dmfIngr.has(g) || [...dmfIngr].some(d => d.includes(g) || g.includes(d)));
 
+    // 미확인(null)만 자동 채움 — 파일·수동으로 설정된 예/아니오는 덮어쓰지 않음
     const patch: Record<string, boolean> = {};
-    if (isBio && p.is_bioequiv !== true) patch.is_bioequiv = true;
-    if (hasDmf && p.has_dmf !== true) patch.has_dmf = true;
+    if (isBio && p.is_bioequiv == null) patch.is_bioequiv = true;
+    if (hasDmf && p.has_dmf == null) patch.has_dmf = true;
     if (Object.keys(patch).length) {
       await svc.from('products').update(patch).eq('id', p.id);
       if (patch.is_bioequiv) bio++;
