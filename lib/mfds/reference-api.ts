@@ -133,25 +133,58 @@ export async function fetchPermitRows() {
 }
 
 // 허가 상세 대량수집 — getDrugPrdtPrmsnDtlInq06 은 item_seq 없이 전량 페이징 가능(PACK_UNIT 포함).
-export async function fetchAllPermitDetails() {
-  const items = await fetchAllItems(PERMIT_DETAIL, {}, { pageSize: 500, maxPages: 120 });
-  return items.map((r) => {
-    const cnsgn = [...new Set((r.CNSGN_MANUF ?? '').split(',').map((s) => s.trim()).filter(Boolean))].join(', ');
-    const entp = r.ENTP_NAME ?? '';
-    return {
-      item_seq:       r.ITEM_SEQ ?? '',
-      package_unit:   r.PACK_UNIT ?? null,
-      maker:          cnsgn || entp || null,
-      is_consignment: cnsgn ? norm(cnsgn) !== norm(entp) : false,
-      storage_method: r.STORAGE_METHOD ?? null,
-      etc_otc:        r.ETC_OTC_CODE ?? null,
-      atc_code:       r.ATC_CODE ?? null,
-      valid_term:     r.VALID_TERM ?? null,
-      cancel_name:    r.CANCEL_NAME ?? null,
-      edi_code:       r.EDI_CODE ?? null,
-      permit_date:    r.ITEM_PERMIT_DATE ?? null,
-    };
-  }).filter((r) => r.item_seq);
+// 페이지가 무거워(500건≈5MB/14s) 300건 단위 + 병렬 fetch 로 수집.
+export type PermitDetailRow = {
+  item_seq: string; package_unit: string | null; maker: string | null; is_consignment: boolean;
+  storage_method: string | null; etc_otc: string | null; atc_code: string | null;
+  valid_term: string | null; cancel_name: string | null; edi_code: string | null; permit_date: string | null;
+};
+
+function mapDetail(r: Record<string, string>): PermitDetailRow {
+  const cnsgn = [...new Set((r.CNSGN_MANUF ?? '').split(',').map((s) => s.trim()).filter(Boolean))].join(', ');
+  const entp = r.ENTP_NAME ?? '';
+  return {
+    item_seq:       r.ITEM_SEQ ?? '',
+    package_unit:   r.PACK_UNIT ?? null,
+    maker:          cnsgn || entp || null,
+    is_consignment: cnsgn ? norm(cnsgn) !== norm(entp) : false,
+    storage_method: r.STORAGE_METHOD ?? null,
+    etc_otc:        r.ETC_OTC_CODE ?? null,
+    atc_code:       r.ATC_CODE ?? null,
+    valid_term:     r.VALID_TERM ?? null,
+    cancel_name:    r.CANCEL_NAME ?? null,
+    edi_code:       r.EDI_CODE ?? null,
+    permit_date:    r.ITEM_PERMIT_DATE ?? null,
+  };
+}
+
+async function fetchDetailPage(page: number, size: number): Promise<{ rows: PermitDetailRow[]; total: number }> {
+  const params = new URLSearchParams({ serviceKey: KEY(), type: 'xml', numOfRows: String(size), pageNo: String(page) });
+  try {
+    const res = await fetch(`${PERMIT_DETAIL}?${params}`);
+    const xml = await res.text();
+    return { rows: parseItems(xml).map(mapDetail).filter((r) => r.item_seq), total: totalCount(xml) };
+  } catch {
+    return { rows: [], total: 0 };
+  }
+}
+
+export async function fetchAllPermitDetails(): Promise<PermitDetailRow[]> {
+  const PAGE = 300, CONC = 8;
+  const first = await fetchDetailPage(1, PAGE);
+  const nPages = Math.max(1, Math.ceil(first.total / PAGE));
+  const all = [...first.rows];
+  let next = 2;
+  async function worker() {
+    while (true) {
+      const p = next++;
+      if (p > nPages) break;
+      const { rows } = await fetchDetailPage(p, PAGE);
+      all.push(...rows);
+    }
+  }
+  await Promise.all(Array.from({ length: CONC }, () => worker()));
+  return all;
 }
 
 // 허가 상세 — 제조원/위탁/포장/저장/유효기간/ATC. item_seq 단건.
