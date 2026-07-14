@@ -195,117 +195,88 @@ export async function GET(req: NextRequest) {
     }
     const baseDrugs = Array.from(baseDrugsMap.values());
 
-    // 성분명 기반 API 전체 품목 보강
-    // 1) HIRA 약가 API (ingrNm): 급여 등재 전 품목 (이미 승인된 서비스)
-    // 2) 식약처 DrugPrdtPrmsnInfoService07 (item_ingr_name): 허가 DB 전체
+    // ── 성분 기반 전체 품목 보강 — 약품검색(drug_prices)과 동일 소스, 급여코드(item_code) 기준 ──
+    // disease_drugs 성분명은 한글, drug_prices 성분명은 영문이므로,
+    // 큐레이션 대표 제품명을 drug_prices 에 접두 매칭해 '영문 성분 시그니처'를 구한 뒤
+    // 동일 시그니처(단일↔단일 / 복합↔복합)의 전 품목을 급여코드 단위로 보강한다.
     const uniqueIngrs = [...new Set(
       baseDrugs.map(d => (d.ingredient_name as string | null)?.trim()).filter(Boolean) as string[]
     )];
-    // 소문자 정규화: 대소문자·공백 차이로 인한 중복 방지
-    const knownNames = new Set(
-      baseDrugs.map(d => ((d.product_name as string | null) ?? '').trim().toLowerCase()).filter(Boolean)
+
+    const norm0 = (s: string) => s.replace(/[\s.\-/,·]/g, '').toLowerCase();
+    // 영문 성분 시그니처: 염·용량 제거 후 핵심 성분 토큰 집합(정렬)
+    const SALTS = /\b(calcium|sodium|potassium|magnesium|hydrochloride|hcl|sulfate|sulphate|maleate|besylate|mesylate|dihydrate|trihydrate|monohydrate|hydrate|acetate|fumarate|succinate|tartrate|bitartrate|phosphate|hemihydrate|hydrobromide|nitrate|citrate|ethyl|ester)\b/gi;
+    const engSig = (ingr: string): string => {
+      const toks = ingr.toLowerCase()
+        .replace(/\([^)]*\)/g, ' ')
+        .split(/[,/]/)
+        .map(part => part
+          .replace(/\d[\d.]*\s*(mg|mcg|g|iu|ml|㎎|㎍)?/gi, ' ')
+          .replace(SALTS, ' ')
+          .replace(/[^a-z\s]/gi, ' ')
+          .trim().split(/\s+/)[0])
+        .filter(t => t && t.length >= 3);
+      return [...new Set(toks)].sort().join('+');
+    };
+
+    // 1) 한글 성분 → 영문 시그니처 (성분별 대표 제품을 drug_prices 접두 매칭)
+    const sigByKo = new Map<string, string>();
+    const seedByKo = new Map<string, string>();
+    for (const d of baseDrugs) {
+      const ko = ((d.ingredient_name as string | null) ?? '').trim();
+      const pn = ((d.product_name as string | null) ?? '').trim();
+      if (ko && pn && !seedByKo.has(ko)) seedByKo.set(ko, pn);
+    }
+    for (const [ko, pn] of seedByKo) {
+      const seed = pn.replace(/[（(].*$/, '').trim().split(/\s/)[0];
+      if (seed.length < 2) continue;
+      const { data } = await svc().from('drug_prices')
+        .select('ingredient_name').ilike('item_name', `${seed}%`).limit(1);
+      const eng = (data?.[0]?.ingredient_name as string | undefined);
+      if (eng) { const sig = engSig(eng); if (sig) sigByKo.set(ko, sig); }
+    }
+
+    // 오리지널 판정용 접두어(큐레이션 is_original 제품명)
+    const origPrefixes = baseDrugs
+      .filter(d => d.is_original && d.product_name)
+      .map(d => norm0((d.product_name as string).replace(/[（(].*$/, '')))
+      .filter(Boolean);
+    const isOriginalName = (itemName: string): boolean => {
+      const nn = norm0(itemName.replace(/[（(].*$/, ''));
+      return !!nn && origPrefixes.some(p => nn.startsWith(p) || p.startsWith(nn));
+    };
+
+    // 2) 시그니처별 drug_prices 전 품목 보강 (급여코드=item_code 단위 중복제거)
+    const byCode = new Map<string, Record<string, unknown>>();
+    for (const [koIngr, sig] of sigByKo) {
+      for (const tok of sig.split('+')) {
+        const { data } = await svc()
+          .from('drug_prices')
+          .select('item_code, item_name, ingredient_name, manufacturer, standard, pay_type, max_price')
+          .ilike('ingredient_name', `%${tok}%`).limit(1500);
+        for (const r of data ?? []) {
+          if (engSig((r.ingredient_name as string) ?? '') !== sig) continue;
+          const code = String(r.item_code ?? '');
+          if (!code || byCode.has(code)) continue;
+          byCode.set(code, {
+            id: null, disease_group: group, sub_category: sub ?? null, treatment_class: null,
+            ingredient_name: koIngr, product_name: r.item_name,
+            manufacturer: r.manufacturer || null, distributor: null,
+            standard: r.standard || null, pay_type: r.pay_type || null,
+            is_original: isOriginalName((r.item_name as string) ?? ''),
+            mechanism: null, note: null, atc_code: null, atc_name: null,
+            item_code: code, max_price: r.max_price ?? null, reference_drug: null,
+            permit_kind: null, approval_date: null, from_price_db: true,
+          });
+        }
+      }
+    }
+
+    // 확장된 성분 = 급여코드 전 품목 / 미해석 성분 = 큐레이션 원본 유지
+    const expandedProducts = Array.from(byCode.values());
+    const unresolvedBase = baseDrugs.filter(
+      d => !sigByKo.has(((d.ingredient_name as string | null) ?? '').trim()),
     );
-
-    const HIRA_PRICE_URL = 'https://apis.data.go.kr/B551182/dgamtCrtrInfoService1.2/getDgamtList';
-    const PRMSN_URL      = 'https://apis.data.go.kr/1471000/DrugPrdtPrmsnInfoService07/getDrugPrdtPrmsnDtlInq06';
-    const drugApiKey     = process.env.DRUG_API_KEY ?? '';
-
-    // HIRA XML → items 파싱
-    function parseHiraXml(xml: string): Array<{ name: string; mfr: string; std: string; price: number | null; payType: string | null }> {
-      const out: Array<{ name: string; mfr: string; std: string; price: number | null; payType: string | null }> = [];
-      for (const block of xml.match(/<item>([\s\S]*?)<\/item>/g) ?? []) {
-        const g = (tag: string) => block.match(new RegExp(`<${tag}>([^<]*)<\/${tag}>`))?.[1]?.trim() ?? '';
-        const raw = g('itmNm');
-        if (!raw) continue;
-        // 제조사이관 표기·약가인하율 제거: "(A->B)", "(27%)", "(48%->42%)" → ""
-        const name = raw
-          .replace(/\s*[\(（][^)\）]*(?:->|→)[^)\）]*[\)）]/g, '')
-          .replace(/\s*[\(（]\d+(?:\.\d+)?%[\)）]/g, '')
-          .trim();
-        const priceRaw = Number(g('mxCprc').replace(/[^0-9]/g, ''));
-        out.push({ name, mfr: g('mnfEntpNm'), std: g('nomNm'), price: isNaN(priceRaw) || priceRaw === 0 ? null : priceRaw, payType: g('payTpNm') || null });
-      }
-      return out;
-    }
-
-    // 식약처 JSON body → items
-    function parsePrmsnJson(json: Record<string, unknown>): Array<{ name: string; mfr: string; std: string; seq: string; permitDate: string; etcOtc: string }> {
-      const body = ((json?.response as Record<string, unknown>)?.body) as Record<string, unknown> | undefined;
-      const raw: Record<string, unknown>[] = Array.isArray(body?.items)
-        ? (body!.items as Record<string, unknown>[])
-        : Array.isArray((body?.items as Record<string, unknown> | undefined)?.item)
-          ? ((body!.items as Record<string, unknown>).item as Record<string, unknown>[])
-          : (body?.items as Record<string, unknown> | undefined)?.item
-            ? [(body!.items as Record<string, unknown>).item as Record<string, unknown>]
-            : [];
-      return raw.map(it => ({
-        name:       ((it.ITEM_NAME as string | null) ?? '').trim(),
-        mfr:        ((it.ENTP_NAME as string | null) ?? '').trim(),
-        std:        ((it.CHART    as string | null) ?? '').trim(),
-        seq:        String(it.ITEM_SEQ ?? ''),
-        permitDate: ((it.ITEM_PERMIT_DATE as string | null) ?? '').trim(),
-        etcOtc:     ((it.ETC_OTC_CODE    as string | null) ?? '').trim(),
-      })).filter(x => x.name);
-    }
-
-    const extraDrugs: Record<string, unknown>[] = [];
-
-    if (drugApiKey) {
-      for (const ingrName of uniqueIngrs) {
-        const coreIngr = ingrName.replace(/[\s（((\d].*$/, '').trim();
-        if (coreIngr.length < 2) continue;
-
-        // 두 API 병렬 호출
-        const [hiraRes, prmsnRes] = await Promise.allSettled([
-          // 1) HIRA 약가 (ingrNm 파라미터 → 성분 기반 전체 급여품목)
-          fetch(
-            `${HIRA_PRICE_URL}?ServiceKey=${encodeURIComponent(drugApiKey)}&ingrNm=${encodeURIComponent(coreIngr)}&numOfRows=500&pageNo=1`,
-            { next: { revalidate: 86400 } },
-          ).then(r => r.ok ? r.text() : ''),
-
-          // 2) 식약처 DrugPrdtPrmsnInfoService07 (item_ingr_name → 허가 DB 성분 검색)
-          fetch(
-            `${PRMSN_URL}?${new URLSearchParams({ serviceKey: drugApiKey, pageNo: '1', numOfRows: '500', type: 'json', item_ingr_name: coreIngr })}`,
-            { headers: { Accept: 'application/json' }, next: { revalidate: 86400 } },
-          ).then(r => r.ok ? r.json() as Promise<Record<string, unknown>> : {}),
-        ]);
-
-        // HIRA 결과 처리
-        if (hiraRes.status === 'fulfilled' && hiraRes.value) {
-          for (const item of parseHiraXml(hiraRes.value)) {
-            const norm = item.name.trim().toLowerCase();
-            if (!norm || knownNames.has(norm)) continue;
-            knownNames.add(norm);
-            extraDrugs.push({
-              id: null, disease_group: group, sub_category: sub ?? null, treatment_class: null,
-              ingredient_name: ingrName, product_name: item.name, manufacturer: item.mfr || null,
-              distributor: null, standard: item.std || null, pay_type: item.payType,
-              is_original: false, mechanism: null, note: null, atc_code: null, atc_name: null,
-              item_code: null, max_price: item.price, reference_drug: null,
-              permit_kind: null, approval_date: null, from_price_db: true,
-            });
-          }
-        }
-
-        // 식약처 결과 처리 (HIRA에 없는 품목 추가)
-        if (prmsnRes.status === 'fulfilled' && prmsnRes.value) {
-          for (const item of parsePrmsnJson(prmsnRes.value)) {
-            const norm = item.name.trim().toLowerCase();
-            if (!norm || knownNames.has(norm)) continue;
-            knownNames.add(norm);
-            extraDrugs.push({
-              id: null, disease_group: group, sub_category: sub ?? null, treatment_class: null,
-              ingredient_name: ingrName, product_name: item.name, manufacturer: item.mfr || null,
-              distributor: null, standard: item.std || null, pay_type: null,
-              is_original: false, mechanism: null, note: null, atc_code: null, atc_name: null,
-              item_code: item.seq || null, max_price: null, reference_drug: null,
-              permit_kind: item.etcOtc || null, approval_date: item.permitDate || null,
-              from_price_db: true,
-            });
-          }
-        }
-      }
-    }
 
     // ── drug_prices에서 누락 데이터 보완 (max_price/manufacturer/pay_type null 인 baseDrug) ──
     // HIRA API 성분명이 영문인 경우 ingredient_name 검색 실패 → 제품명 prefix로 직접 조회
@@ -338,7 +309,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const allDrugs = [...baseDrugs, ...extraDrugs];
+    const allDrugs = [...expandedProducts, ...unresolvedBase];
     const productNames  = allDrugs.map(d => d.product_name as string).filter(Boolean);
 
     // 제조사 누락 제품 목록 (ubist_data에서 실시간 보완)
