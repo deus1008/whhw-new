@@ -16,7 +16,7 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
 
   // 필터
   const [form, setForm]         = useState('');            // 제형
-  const [ingrKey, setIngrKey]   = useState('');            // 단일제 함량/복합제 유형 선택(성분키)
+  const [ingrKeys, setIngrKeys] = useState<Set<string>>(new Set()); // 단일제 함량/복합제 유형 선택(복수)
   const [listQuery, setListQuery] = useState('');          // 결과 내 키워드 검색
   const [sortKey, setSortKey]   = useState<SortKey>('productName');
   const [sortDir, setSortDir]   = useState<'asc' | 'desc'>('asc');
@@ -36,7 +36,7 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
         const { rows } = await searchDrugPrices(q);
         setRows(rows);
         setSearched(q);
-        setForm(''); setIngrKey(''); setListQuery(''); setOpenRow(null);
+        setForm(''); setIngrKeys(new Set()); setListQuery(''); setOpenRow(null);
       } catch {
         setError('검색 중 오류가 발생했습니다.');
       }
@@ -68,12 +68,12 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
   /* ── 최종 필터 + 정렬 ── */
   const view = useMemo(() => {
     let list = afterForm;
-    if (ingrKey) list = list.filter(r => r.ingredientName === ingrKey);
+    if (ingrKeys.size) list = list.filter(r => ingrKeys.has(r.ingredientName));
     const lq = listQuery.trim().toLowerCase();
     if (lq) {
       const tokens = lq.split(/[\s,+]+/).filter(Boolean);
       list = list.filter(r => {
-        const hay = `${r.productName} ${r.ingredientName} ${r.manufacturer}`.toLowerCase();
+        const hay = `${r.productName} ${r.ingredientName} ${r.manufacturer} ${r.maker}`.toLowerCase();
         return tokens.some(t => hay.includes(t));
       });
     }
@@ -85,11 +85,14 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
       if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
       return String(va).localeCompare(String(vb), 'ko') * dir;
     });
-  }, [afterForm, ingrKey, listQuery, sortKey, sortDir]);
+  }, [afterForm, ingrKeys, listQuery, sortKey, sortDir]);
 
   function toggleSort(k: SortKey) {
     if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(k); setSortDir(k === 'maxPrice' || k === 'isBioequiv' ? 'desc' : 'asc'); }
+  }
+  function toggleIngr(g: string) {
+    setIngrKeys(prev => { const n = new Set(prev); if (n.has(g)) n.delete(g); else n.add(g); return n; });
   }
 
   async function loadDetail(r: DrugRow) {
@@ -143,28 +146,28 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
           {/* 제형 선택 */}
           <Panel title="제형 선택">
             <Chips>
-              <Chip active={form === ''} onClick={() => { setForm(''); setIngrKey(''); }}>전체</Chip>
+              <Chip active={form === ''} onClick={() => { setForm(''); setIngrKeys(new Set()); }}>전체</Chip>
               {formCounts.map(([f, c]) => (
-                <Chip key={f} active={form === f} onClick={() => { setForm(form === f ? '' : f); setIngrKey(''); }}>{f} <Count>{c}건</Count></Chip>
+                <Chip key={f} active={form === f} onClick={() => { setForm(form === f ? '' : f); setIngrKeys(new Set()); }}>{f} <Count>{c}건</Count></Chip>
               ))}
             </Chips>
           </Panel>
 
-          {/* 단일제 함량 / 복합제 유형 */}
+          {/* 단일제 함량 / 복합제 유형 (복수선택) */}
           {singleGroups.length > 0 && (
-            <Panel title={`단일제 함량 선택 (${singleGroups.length}종)`}>
+            <Panel title={`단일제 함량 선택 (${singleGroups.length}종)${ingrKeys.size ? ` · ${ingrKeys.size}개 선택` : ''}`} onClear={ingrKeys.size ? () => setIngrKeys(new Set()) : undefined}>
               <Chips>
                 {singleGroups.map(([g, c]) => (
-                  <Chip key={g} active={ingrKey === g} onClick={() => setIngrKey(ingrKey === g ? '' : g)}>{g} <Count>{c}건</Count></Chip>
+                  <Chip key={g} active={ingrKeys.has(g)} onClick={() => toggleIngr(g)}>{g} <Count>{c}건</Count></Chip>
                 ))}
               </Chips>
             </Panel>
           )}
           {comboGroups.length > 0 && (
-            <Panel title={`복합제 유형 선택 (${comboGroups.length}종)`}>
+            <Panel title={`복합제 유형 선택 (${comboGroups.length}종)${ingrKeys.size ? ` · ${ingrKeys.size}개 선택` : ''}`} onClear={ingrKeys.size ? () => setIngrKeys(new Set()) : undefined}>
               <Chips>
                 {comboGroups.map(([g, c]) => (
-                  <Chip key={g} active={ingrKey === g} onClick={() => setIngrKey(ingrKey === g ? '' : g)}>{g} <Count>{c}건</Count></Chip>
+                  <Chip key={g} active={ingrKeys.has(g)} onClick={() => toggleIngr(g)}>{g} <Count>{c}건</Count></Chip>
                 ))}
               </Chips>
             </Panel>
@@ -185,6 +188,7 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
                 <tr>
                   <SortTh label="생동" k="isBioequiv" cur={sortKey} dir={sortDir} onClick={toggleSort} w={64} center />
                   <SortTh label="판매회사" k="manufacturer" cur={sortKey} dir={sortDir} onClick={toggleSort} w={150} />
+                  <th style={{ ...TH, width: 64, textAlign: 'center' }}>제조</th>
                   <SortTh label="제품명" k="productName" cur={sortKey} dir={sortDir} onClick={toggleSort} />
                   <SortTh label="성분명" k="ingredientName" cur={sortKey} dir={sortDir} onClick={toggleSort} />
                   <SortTh label="제형" k="form" cur={sortKey} dir={sortDir} onClick={toggleSort} w={72} center />
@@ -205,6 +209,14 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
                             : <span style={{ color: 'rgba(255,255,255,0.25)' }}>—</span>}
                         </td>
                         <td style={TD}>{r.manufacturer || '—'}</td>
+                        <td style={{ ...TD, textAlign: 'center' }} title={r.maker || undefined}>
+                          {r.isConsignment == null
+                            ? <span style={{ color: 'rgba(255,255,255,0.25)' }}>—</span>
+                            : <span style={{ fontSize: '0.66rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 4,
+                                color: r.isConsignment ? '#fbbf24' : '#34d399',
+                                background: r.isConsignment ? 'rgba(251,191,36,0.14)' : 'rgba(52,211,153,0.14)' }}>
+                                {r.isConsignment ? '위탁' : '자사'}</span>}
+                        </td>
                         <td style={{ ...TD, fontWeight: 600, color: 'var(--text-primary)' }}>{r.productName}</td>
                         <td style={{ ...TD, fontSize: '0.76rem', color: 'rgba(255,255,255,0.6)' }}>{r.ingredientName || '—'}</td>
                         <td style={{ ...TD, textAlign: 'center' }}>{r.form}</td>
@@ -213,7 +225,7 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
                       </tr>
                       {isOpen && (
                         <tr>
-                          <td colSpan={7} style={{ padding: '0.6rem 1rem 0.9rem', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td colSpan={8} style={{ padding: '0.6rem 1rem 0.9rem', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                             <DetailPanel state={detail[k]} />
                           </td>
                         </tr>
@@ -280,10 +292,15 @@ function DetailPanel({ state }: { state?: DetailState }) {
 }
 
 /* ── UI 헬퍼 ── */
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({ title, children, onClear }: { title: string; children: React.ReactNode; onClear?: () => void }) {
   return (
     <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '0.7rem 0.9rem', marginBottom: '0.6rem' }}>
-      <p style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem' }}>{title}</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 0.5rem' }}>
+        <p style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{title}</p>
+        {onClear && (
+          <button onClick={onClear} style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.45)', background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '0.12rem 0.5rem', cursor: 'pointer', fontFamily: 'inherit' }}>✕ 선택해제</button>
+        )}
+      </div>
       {children}
     </div>
   );
@@ -320,4 +337,9 @@ function SortTh({ label, k, cur, dir, onClick, w, center, right }: {
 }
 const TD: React.CSSProperties = {
   padding: '0.45rem 0.7rem', color: 'rgba(255,255,255,0.85)', verticalAlign: 'middle',
+};
+const TH: React.CSSProperties = {
+  padding: '0.5rem 0.7rem', fontSize: '0.74rem', fontWeight: 700, color: 'rgba(255,255,255,0.55)',
+  borderBottom: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap',
+  background: 'rgba(255,255,255,0.03)',
 };

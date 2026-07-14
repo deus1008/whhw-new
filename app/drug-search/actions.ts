@@ -12,6 +12,8 @@ export type DrugRow = {
   maxPrice:       number | null;
   isBioequiv:     boolean;  // 생동 여부
   isCombo:        boolean;  // 복합제 여부
+  maker:          string;   // 제조사(제조원)
+  isConsignment:  boolean | null;  // 위탁생산 여부 (자사=false/위탁=true/미상=null)
 };
 
 function svc() {
@@ -55,9 +57,17 @@ export async function searchDrugPrices(query: string): Promise<{ rows: DrugRow[]
   //  2순위 — drug_bioequiv 품목명 정규화 매칭
   const codes = [...new Set(raw.map(r => String(r.item_code ?? '')).filter(Boolean))];
   const prodBio: Record<string, boolean> = {};
+  const prodCons: Record<string, boolean> = {};   // is_consignment (자사/위탁)
+  const prodMaker: Record<string, string> = {};   // 제조사
   for (let i = 0; i < codes.length; i += 200) {
-    const { data } = await s.from('products').select('insurance_code, is_bioequiv').in('insurance_code', codes.slice(i, i + 200)).not('is_bioequiv', 'is', null);
-    for (const r of data ?? []) if (r.insurance_code) prodBio[String(r.insurance_code)] = r.is_bioequiv === true;
+    const { data } = await s.from('products').select('insurance_code, is_bioequiv, is_consignment, maker').in('insurance_code', codes.slice(i, i + 200));
+    for (const r of data ?? []) {
+      const c = r.insurance_code ? String(r.insurance_code) : '';
+      if (!c) continue;
+      if (r.is_bioequiv != null) prodBio[c] = r.is_bioequiv === true;
+      if (r.is_consignment != null) prodCons[c] = r.is_consignment === true;
+      if (r.maker) prodMaker[c] = String(r.maker);
+    }
   }
   const [bi, bn] = await Promise.all([
     s.from('drug_bioequiv').select('item_name').ilike('ingredient_name', like).limit(2000),
@@ -84,6 +94,8 @@ export async function searchDrugPrices(query: string): Promise<{ rows: DrugRow[]
       maxPrice:       r.max_price != null ? Number(r.max_price) : null,
       isBioequiv:     isBio,
       isCombo:        ingredientName.includes('/'),
+      maker:          prodMaker[code] ?? '',
+      isConsignment:  code in prodCons ? prodCons[code] : null,
     };
   });
   rows.sort((a, b) => a.productName.localeCompare(b.productName, 'ko'));
