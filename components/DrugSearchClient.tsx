@@ -4,9 +4,6 @@ import { useState, useMemo, useTransition, useRef, Fragment } from 'react';
 import { searchDrugPrices, type DrugRow } from '@/app/drug-search/actions';
 import type { DrugInfoResponse } from '@/app/api/drug-info/route';
 
-const NEDRUG_SEARCH = (q: string) =>
-  `https://nedrug.mfds.go.kr/pbp/CCBBB01/getItemDetail?searchYearly=&opYes=&division=all&text1=${encodeURIComponent(q)}&page=1`;
-
 type SortKey = 'productName' | 'ingredientName' | 'manufacturer' | 'form' | 'payType' | 'maxPrice' | 'isBioequiv';
 type DetailState = { loading: boolean; data?: DrugInfoResponse; error?: string };
 
@@ -217,7 +214,7 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
                       {isOpen && (
                         <tr>
                           <td colSpan={7} style={{ padding: '0.6rem 1rem 0.9rem', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                            <DetailPanel state={detail[k]} productName={r.productName} />
+                            <DetailPanel state={detail[k]} />
                           </td>
                         </tr>
                       )}
@@ -234,7 +231,7 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
 }
 
 /* ── 상세 패널 (MFDS: 생동·DMF·약가) ── */
-function DetailPanel({ state, productName }: { state?: DetailState; productName: string }) {
+function DetailPanel({ state }: { state?: DetailState }) {
   if (!state || state.loading) return <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>⏳ MFDS 상세(생동·DMF) 조회 중…</p>;
   if (state.error) return <p style={{ fontSize: '0.78rem', color: '#fca5a5' }}>상세 조회 실패: {state.error}</p>;
   const d = state.data;
@@ -251,7 +248,6 @@ function DetailPanel({ state, productName }: { state?: DetailState; productName:
           {dmf.slice(0, 4).map((x, i) => <div key={i}>· {x.ingrName} — {x.entpName ?? x.country ?? ''} ({x.dmfNo ?? '-'})</div>)}
         </div>
       )}
-      <a href={NEDRUG_SEARCH(productName)} target="_blank" rel="noreferrer" style={{ color: '#93c5fd', fontSize: '0.75rem' }}>🌐 의약품안전나라에서 상세 보기 →</a>
     </div>
   );
 }
