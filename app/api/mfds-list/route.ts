@@ -7,10 +7,12 @@ export const dynamic = 'force-dynamic';
 // 승인 후 실제 응답 필드를 확인해 매핑을 확정한다(현재는 대표 후보 필드명으로 방어적 매핑).
 
 const ENDPOINTS: Record<string, { url: string; nameParam: string }> = {
+  // 의약품 회수·판매중지 목록조회 (승인 완료 · MdcinRtrvlSleStpgeInfoService04)
   recall: {
-    url: 'https://apis.data.go.kr/1471000/MdcinRtrvlSleStpgeInfoService03/getMdcinRtrvlSleStpgeInfoList',
+    url: 'https://apis.data.go.kr/1471000/MdcinRtrvlSleStpgeInfoService04/getMdcinRtrvlSleStpgelList03',
     nameParam: 'Prduct',
   },
+  // 행정처분 — 별도 API 승인 필요(미승인 시 안내)
   admin: {
     url: 'https://apis.data.go.kr/1471000/MdcinExaathHtdInfoService/getMdcinExaathHtdInfoList',
     nameParam: 'Prduct',
@@ -63,8 +65,11 @@ export async function GET(req: NextRequest) {
     const res  = await fetch(`${cfg.url}?${params}`, { next: { revalidate: 0 } });
     const text = await res.text();
     if (!text.trim().startsWith('{')) {
-      // 미승인/오류 → HTML/XML 에러 반환
-      return NextResponse.json({ items: [], notAvailable: true, message: '식약처 API 미승인 또는 응답 오류입니다. data.go.kr에서 해당 서비스 활용신청 승인 후 이용 가능합니다.' });
+      // 미승인/미활성/오류 → HTML/XML/텍스트 에러 반환
+      const msg = res.status === 403
+        ? '승인 직후에는 인증키 활성화(반영)에 시간이 걸릴 수 있습니다(최대 1~2시간). 잠시 후 다시 시도해 주세요.'
+        : '식약처 API 미승인 또는 응답 오류입니다. data.go.kr에서 해당 서비스 활용신청 승인 후 이용 가능합니다.';
+      return NextResponse.json({ items: [], notAvailable: true, message: msg });
     }
     const json = JSON.parse(text);
     let items = json?.body?.items ?? json?.response?.body?.items?.item ?? json?.body?.items?.item ?? [];
