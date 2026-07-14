@@ -47,6 +47,10 @@
       "schedule": "30 16 * * 0"
     },
     {
+      "path": "/api/cron/sync-mfds-reference?dataset=price",
+      "schedule": "40 16 * * 0"
+    },
+    {
       "path": "/api/cron/sync-mfds-reference?dataset=match",
       "schedule": "50 16 * * 0"
     }
