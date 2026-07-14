@@ -14,7 +14,7 @@ import { parseMonthlyStockBuffer }    from '@/lib/monthly-stock/parse';
 import { parseEdiBuffer, syncEdiToDb } from '@/lib/edi/parse-and-sync';
 import { parseProductListBuffer } from '@/lib/products/parse-list';
 import { enrichProductsFromMfds } from '@/lib/products/enrich-mfds';
-import { matchBioequivDmf } from '@/lib/products/match-bioequiv-dmf';
+import { matchProductsReference } from '@/lib/products/match-reference';
 import { invalidateDashboardCache } from '@/lib/dashboard-cache';
 import { revalidatePath } from 'next/cache';
 
@@ -471,16 +471,20 @@ export async function POST(request: Request) {
     }
     if (parsed.length > 0) {
       const now = new Date().toISOString();
-      // 재업로드 시 기존 보강값(item_seq·atc·생동·DMF)을 보험코드 기준으로 이월
-      let exQ = supabase.from('products').select('insurance_code, item_seq, atc_code, is_bioequiv, has_dmf');
+      // 재업로드 시 기존 보강값(item_seq·atc·생동·DMF·대조약·허가)을 보험코드 기준으로 이월
+      let exQ = supabase.from('products').select('insurance_code, item_seq, atc_code, is_bioequiv, has_dmf, is_reference_drug, maker, is_consignment, permit_date, permit_no, std_code, package_unit');
       exQ = docCompanyId ? exQ.eq('company_id', docCompanyId) : exQ.is('company_id', null);
       const { data: existing } = await exQ;
-      type Carry = { item_seq: string | null; atc_code: string | null; is_bioequiv: boolean | null; has_dmf: boolean | null };
+      type Carry = {
+        item_seq: string | null; atc_code: string | null; is_bioequiv: boolean | null; has_dmf: boolean | null;
+        is_reference_drug: boolean | null; maker: string | null; is_consignment: boolean | null;
+        permit_date: string | null; permit_no: string | null; std_code: string | null; package_unit: string | null;
+      };
       const carry: Record<string, Carry> = {};
       for (const e of (existing ?? []) as (Carry & { insurance_code: string })[]) {
-        if (e.insurance_code && (e.item_seq || e.atc_code || e.is_bioequiv != null || e.has_dmf != null))
-          carry[e.insurance_code] = { item_seq: e.item_seq, atc_code: e.atc_code, is_bioequiv: e.is_bioequiv, has_dmf: e.has_dmf };
+        if (e.insurance_code) carry[e.insurance_code] = e;
       }
+      const C = (code: string) => carry[code] ?? ({} as Partial<Carry>);
 
       const rows = parsed.map(p => ({
         company_id:          docCompanyId,
@@ -492,10 +496,17 @@ export async function POST(request: Request) {
         distribution:        p.distribution || null,
         note:                p.note || null,
         no:                  Number.isFinite(p.no) ? p.no : null,
-        item_seq:            carry[p.insurance_code]?.item_seq ?? null,
-        atc_code:            carry[p.insurance_code]?.atc_code ?? null,
-        is_bioequiv:         carry[p.insurance_code]?.is_bioequiv ?? null,
-        has_dmf:             carry[p.insurance_code]?.has_dmf ?? null,
+        item_seq:            C(p.insurance_code).item_seq ?? null,
+        atc_code:            C(p.insurance_code).atc_code ?? null,
+        is_bioequiv:         C(p.insurance_code).is_bioequiv ?? null,
+        has_dmf:             C(p.insurance_code).has_dmf ?? null,
+        is_reference_drug:   C(p.insurance_code).is_reference_drug ?? null,
+        maker:               C(p.insurance_code).maker ?? null,
+        is_consignment:      C(p.insurance_code).is_consignment ?? null,
+        permit_date:         C(p.insurance_code).permit_date ?? null,
+        permit_no:           C(p.insurance_code).permit_no ?? null,
+        std_code:            C(p.insurance_code).std_code ?? null,
+        package_unit:        C(p.insurance_code).package_unit ?? null,
         source_document_id:  documentId,
         updated_at:          now,
       }));
@@ -508,13 +519,14 @@ export async function POST(request: Request) {
       const CHUNK = 500;
       let inserted = 0;
       let firstErr: string | null = null;
-      // is_bioequiv/has_dmf 컬럼 미존재(마이그레이션 전) 시 제외 재삽입
+      // 보강 컬럼 미존재(마이그레이션 전) 시 제외 재삽입
       let stripFlags = false;
-      const stripBioDmf = (rs: Record<string, unknown>[]) => rs.map(r => { const c = { ...r }; delete c.is_bioequiv; delete c.has_dmf; return c; });
+      const EXTRA_COLS = ['is_bioequiv', 'has_dmf', 'is_reference_drug', 'maker', 'is_consignment', 'permit_date', 'permit_no', 'std_code', 'package_unit'];
+      const stripBioDmf = (rs: Record<string, unknown>[]) => rs.map(r => { const c = { ...r }; for (const k of EXTRA_COLS) delete c[k]; return c; });
       for (let i = 0; i < rows.length; i += CHUNK) {
         const slice = rows.slice(i, i + CHUNK) as unknown as Record<string, unknown>[];
         let { error: insErr } = await supabase.from('products').insert(stripFlags ? stripBioDmf(slice) : slice);
-        if (insErr && !stripFlags && (insErr.code === '42703' || /is_bioequiv|has_dmf/.test(insErr.message))) {
+        if (insErr && !stripFlags && (insErr.code === '42703' || new RegExp(EXTRA_COLS.join('|')).test(insErr.message))) {
           stripFlags = true;
           ({ error: insErr } = await supabase.from('products').insert(stripBioDmf(slice)));
         }
@@ -532,9 +544,10 @@ export async function POST(request: Request) {
         if (n > 0) console.log(`[process:${documentId}] 식약처 보강 ${n}건`);
       } catch (e) { console.warn(`[process:${documentId}] 식약처 보강 스킵:`, e instanceof Error ? e.message : e); }
       try {
-        const m = await matchBioequivDmf(supabase, docCompanyId);
-        console.log(`[process:${documentId}] 생동/DMF 매칭 bio ${m.bio}, dmf ${m.dmf}`);
-      } catch (e) { console.warn(`[process:${documentId}] 생동/DMF 매칭 스킵:`, e instanceof Error ? e.message : e); }
+        // 신규 제품만 보강(이월분은 값 보존). 허가 상세는 업로드당 150건으로 제한(나머지는 주간 cron).
+        const m = await matchProductsReference(supabase, docCompanyId, 150);
+        console.log(`[process:${documentId}] 참조매칭 bio ${m.bio}, dmf ${m.dmf}, ref ${m.ref}, permit ${m.permit}, detail ${m.detail}`);
+      } catch (e) { console.warn(`[process:${documentId}] 참조매칭 스킵:`, e instanceof Error ? e.message : e); }
     }
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     revalidatePath('/product-list');
