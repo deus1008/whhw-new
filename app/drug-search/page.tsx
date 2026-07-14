@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import LogoutButton from '@/components/LogoutButton';
 import HomeButton from '@/components/HomeButton';
-import DrugSearchClient from '@/components/DrugSearchClient';
+import DrugSearchTabs from '@/components/DrugSearchTabs';
 
 export default async function DrugSearchPage() {
   const supabase = await createClient();
@@ -28,7 +28,7 @@ export default async function DrugSearchPage() {
 
       <div
         className="relative z-10 w-full px-4"
-        style={{ maxWidth: '1000px', paddingTop: '2.5rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}
+        style={{ maxWidth: '1240px', paddingTop: '2.5rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}
       >
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>
           의약품 검색
@@ -38,7 +38,7 @@ export default async function DrugSearchPage() {
           <LogoutButton compact />
         </div>
 
-        <DrugSearchClient apiConfigured={apiConfigured} />
+        <DrugSearchTabs apiConfigured={apiConfigured} />
       </div>
     </>
   );
