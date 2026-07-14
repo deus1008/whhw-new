@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { syncDataset } from '@/lib/mfds/sync-reference';
+import { syncDataset, syncPermitDetail } from '@/lib/mfds/sync-reference';
 import { syncHiraPrices } from '@/lib/mfds/sync-hira-price';
 import { matchProductsReference } from '@/lib/products/match-reference';
 import type { RefDataset } from '@/lib/mfds/reference-api';
@@ -27,6 +27,10 @@ export async function GET(request: NextRequest) {
     // 약가(HIRA) — 별도 소스
     if (which === 'price' || which === 'all') {
       result.price = await syncHiraPrices(svc);
+    }
+    // 허가 상세 대량적재 + permit_pkg 재구축
+    if (which === 'permit-detail' || which === 'all') {
+      result['permit-detail'] = await syncPermitDetail(svc);
     }
     const toSync = which === 'all' ? DATASETS : (DATASETS.includes(which as RefDataset) ? [which as RefDataset] : []);
     for (const d of toSync) {

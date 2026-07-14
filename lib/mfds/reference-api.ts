@@ -132,6 +132,28 @@ export async function fetchPermitRows() {
   return [...bySeq.values()];
 }
 
+// 허가 상세 대량수집 — getDrugPrdtPrmsnDtlInq06 은 item_seq 없이 전량 페이징 가능(PACK_UNIT 포함).
+export async function fetchAllPermitDetails() {
+  const items = await fetchAllItems(PERMIT_DETAIL, {}, { pageSize: 500, maxPages: 120 });
+  return items.map((r) => {
+    const cnsgn = [...new Set((r.CNSGN_MANUF ?? '').split(',').map((s) => s.trim()).filter(Boolean))].join(', ');
+    const entp = r.ENTP_NAME ?? '';
+    return {
+      item_seq:       r.ITEM_SEQ ?? '',
+      package_unit:   r.PACK_UNIT ?? null,
+      maker:          cnsgn || entp || null,
+      is_consignment: cnsgn ? norm(cnsgn) !== norm(entp) : false,
+      storage_method: r.STORAGE_METHOD ?? null,
+      etc_otc:        r.ETC_OTC_CODE ?? null,
+      atc_code:       r.ATC_CODE ?? null,
+      valid_term:     r.VALID_TERM ?? null,
+      cancel_name:    r.CANCEL_NAME ?? null,
+      edi_code:       r.EDI_CODE ?? null,
+      permit_date:    r.ITEM_PERMIT_DATE ?? null,
+    };
+  }).filter((r) => r.item_seq);
+}
+
 // 허가 상세 — 제조원/위탁/포장/저장/유효기간/ATC. item_seq 단건.
 export async function fetchPermitDetail(itemSeq: string): Promise<{
   etc_otc: string | null; maker: string | null; is_consignment: boolean | null;

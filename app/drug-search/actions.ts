@@ -72,6 +72,17 @@ export async function searchDrugPrices(query: string): Promise<{ rows: DrugRow[]
       if (r.package_unit) prodPkg[c] = String(r.package_unit);
     }
   }
+
+  // 허가 상세 매핑(포장/제조원/위탁) — permit_pkg (code=item_code, API 허가데이터)
+  const pkg: Record<string, { package_unit: string; maker: string; is_consignment: boolean | null }> = {};
+  for (let i = 0; i < codes.length; i += 200) {
+    const { data, error } = await s.from('permit_pkg').select('code, package_unit, maker, is_consignment').in('code', codes.slice(i, i + 200));
+    if (error) break;  // permit_pkg 미생성 시 조용히 스킵
+    for (const r of data ?? []) {
+      const c = r.code ? String(r.code) : '';
+      if (c) pkg[c] = { package_unit: r.package_unit ? String(r.package_unit) : '', maker: r.maker ? String(r.maker) : '', is_consignment: r.is_consignment ?? null };
+    }
+  }
   const [bi, bn] = await Promise.all([
     s.from('drug_bioequiv').select('item_name').ilike('ingredient_name', like).limit(2000),
     s.from('drug_bioequiv').select('item_name').ilike('item_name', like).limit(2000),
@@ -97,9 +108,11 @@ export async function searchDrugPrices(query: string): Promise<{ rows: DrugRow[]
       maxPrice:       r.max_price != null ? Number(r.max_price) : null,
       isBioequiv:     isBio,
       isCombo:        ingredientName.includes('/'),
-      maker:          prodMaker[code] ?? '',
-      isConsignment:  code in prodCons ? prodCons[code] : null,
-      packageUnit:    prodPkg[code] ?? '',
+      // 포장단위: API 허가데이터(permit_pkg) 우선, 없으면 자사 마스터
+      packageUnit:    pkg[code]?.package_unit || prodPkg[code] || '',
+      // 제조원·자사/위탁: 자사 마스터(권위) 우선, 없으면 허가데이터로 확장
+      maker:          prodMaker[code] || pkg[code]?.maker || '',
+      isConsignment:  code in prodCons ? prodCons[code] : (pkg[code]?.is_consignment ?? null),
     };
   });
   rows.sort((a, b) => a.productName.localeCompare(b.productName, 'ko'));
