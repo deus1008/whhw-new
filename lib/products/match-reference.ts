@@ -65,7 +65,9 @@ export async function matchProductsReference(
   const refSeq = new Set(refRows.map((r) => r.item_seq).filter(Boolean).map(String));
   const bioNames = new Set(bioRows.map((r) => norm(String(r.item_name || ''))).filter(Boolean));
   const refNames = new Set(refRows.map((r) => norm(String(r.item_name || ''))).filter(Boolean));
-  const dmfIngr = new Set(dmfRows.map((r) => norm(String(r.ingredient_name || ''))).filter(Boolean));
+  // DMF 성분: 염/용량 제거한 기본성분명으로 정규화(양쪽 동일 기준) → 정확일치
+  const dmfIngr = new Set<string>();
+  for (const r of dmfRows) for (const b of baseIngredients(String(r.ingredient_name || ''))) dmfIngr.add(b);
 
   // 허가 매칭: item_seq 또는 insurance_code(EDI) 로 drug_permit 조회
   const seqs = [...new Set(products.map((p) => p.item_seq).filter(Boolean).map(String))];
@@ -95,21 +97,19 @@ export async function matchProductsReference(
     const pn = norm(p.product_name);
     const seq = p.item_seq ? String(p.item_seq) : '';
 
-    // 생동
+    // 생동 — item_seq(권위) 우선, 없으면 품목명 정확일치
     if (p.is_bioequiv == null) {
-      const hit = (seq && bioSeq.has(seq)) || (!!pn && (bioNames.has(pn) || [...bioNames].some((b) => b.includes(pn) || pn.includes(b))));
+      const hit = (seq && bioSeq.has(seq)) || (!!pn && bioNames.has(pn));
       if (hit) { patch.is_bioequiv = true; res.bio++; }
     }
-    // DMF
+    // DMF — 기본성분명 정확일치
     if (p.has_dmf == null) {
       const ings = baseIngredients(p.ingredient_name);
-      if (ings.some((g) => dmfIngr.has(g) || [...dmfIngr].some((d) => d.includes(g) || g.includes(d)))) {
-        patch.has_dmf = true; res.dmf++;
-      }
+      if (ings.some((g) => dmfIngr.has(g))) { patch.has_dmf = true; res.dmf++; }
     }
-    // 대조약
+    // 대조약 — item_seq(권위) 우선, 없으면 품목명 정확일치
     if (p.is_reference_drug == null) {
-      const hit = (seq && refSeq.has(seq)) || (!!pn && (refNames.has(pn) || [...refNames].some((b) => b.includes(pn) || pn.includes(b))));
+      const hit = (seq && refSeq.has(seq)) || (!!pn && refNames.has(pn));
       if (hit) { patch.is_reference_drug = true; res.ref++; }
     }
 

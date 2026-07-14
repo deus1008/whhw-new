@@ -145,9 +145,11 @@ export async function fetchPermitDetail(itemSeq: string): Promise<{
   const items = parseItems(await res.text());
   const r = items[0];
   if (!r) return null;
-  const cnsgn = r.CNSGN_MANUF ?? '';
+  // 위탁제조사(복수 콤마) 중복 정리
+  const cnsgn = [...new Set((r.CNSGN_MANUF ?? '').split(',').map((s) => s.trim()).filter(Boolean))].join(', ');
   const entp  = r.ENTP_NAME ?? '';
-  const isCons = cnsgn ? norm(cnsgn) !== norm(entp) : null;
+  // 위탁제조사가 있고 허가업체와 다르면 위탁생산, 없으면 자사생산(false)
+  const isCons = cnsgn ? norm(cnsgn) !== norm(entp) : false;
   return {
     etc_otc:        r.ETC_OTC_CODE ?? null,
     maker:          cnsgn || entp || null,
