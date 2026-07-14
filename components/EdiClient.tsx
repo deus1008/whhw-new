@@ -9,9 +9,9 @@ import type { EdiData, SalesPersonStat, CsoStat, HospitalStat, ItemStat, IHItemS
 /* ── 포맷 유틸 ──────────────────────────────────────────────── */
 const fmt = (v: number) => Math.round(v / 1000).toLocaleString();
 
-// 복수 키워드 검색 — 공백/쉼표로 구분, 하나라도 포함되면 매칭(OR)
+// 복수 키워드 검색 — 공백/쉼표/+ 로 구분, 하나라도 포함되면 매칭(OR)
 function matchKw(name: string, search: string): boolean {
-  const tokens = search.toLowerCase().split(/[\s,]+/).filter(Boolean);
+  const tokens = search.toLowerCase().split(/[\s,+]+/).filter(Boolean);
   if (tokens.length === 0) return true;
   const n = name.toLowerCase();
   return tokens.some(t => n.includes(t));
@@ -1071,7 +1071,7 @@ function SearchInput({ value, onChange }: { value: string; onChange: (v: string)
     <input
       type="search" value={value}
       onChange={e => onChange(e.target.value)}
-      placeholder="🔍 키워드 검색 (여러 개는 공백/쉼표로 구분)…"
+      placeholder="🔍 키워드 검색 (여러 개는 공백/쉼표/+로 구분)…"
       style={{
         width: '100%', boxSizing: 'border-box',
         padding: '0.42rem 0.75rem', borderRadius: '7px',
