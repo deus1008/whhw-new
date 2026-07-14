@@ -9,6 +9,14 @@ import type { EdiData, SalesPersonStat, CsoStat, HospitalStat, ItemStat, IHItemS
 /* ── 포맷 유틸 ──────────────────────────────────────────────── */
 const fmt = (v: number) => Math.round(v / 1000).toLocaleString();
 
+// 복수 키워드 검색 — 공백/쉼표로 구분, 하나라도 포함되면 매칭(OR)
+function matchKw(name: string, search: string): boolean {
+  const tokens = search.toLowerCase().split(/[\s,]+/).filter(Boolean);
+  if (tokens.length === 0) return true;
+  const n = name.toLowerCase();
+  return tokens.some(t => n.includes(t));
+}
+
 /* ── 테이블 셀 스타일 헬퍼 ──────────────────────────────────── */
 import type { CSSProperties } from 'react';
 
@@ -559,7 +567,7 @@ function CsoAccordion({ stats, totalAmount }: {
   const [expandedHos, setExpandedHos] = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState('');
-  const filtered = search ? stats.filter(s => s.name.toLowerCase().includes(search.toLowerCase())) : stats;
+  const filtered = search ? stats.filter(s => matchKw(s.name, search)) : stats;
   const displayTotal = search ? filtered.reduce((acc, s) => acc + s.amount, 0) : totalAmount;
   const display = showAll ? filtered : filtered.slice(0, 20);
 
@@ -658,7 +666,7 @@ function HospitalAccordion({ stats, totalAmount }: {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState('');
-  const filtered = search ? stats.filter(s => s.name.toLowerCase().includes(search.toLowerCase())) : stats;
+  const filtered = search ? stats.filter(s => matchKw(s.name, search)) : stats;
   const displayTotal = search ? filtered.reduce((acc, s) => acc + s.amount, 0) : totalAmount;
   const display = showAll ? filtered : filtered.slice(0, 20);
 
@@ -794,7 +802,7 @@ function ItemCsoAccordion({ stats, search, totalAmount }: {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [expandedCsos,  setExpandedCsos]  = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
-  const filtered = search ? stats.filter(s => s.name.toLowerCase().includes(search.toLowerCase())) : stats;
+  const filtered = search ? stats.filter(s => matchKw(s.name, search)) : stats;
   const displayTotal = search ? filtered.reduce((acc, s) => acc + s.amount, 0) : totalAmount;
   const display = showAll ? filtered : filtered.slice(0, 20);
 
@@ -892,7 +900,7 @@ function ItemHospAccordion({ stats, search, totalAmount }: {
   const [expandedHos,   setExpandedHos]   = useState<Set<string>>(new Set());
   const [expandedSps,   setExpandedSps]   = useState<Set<string>>(new Set());
   const [showAll, setShowAll] = useState(false);
-  const filtered = search ? stats.filter(s => s.name.toLowerCase().includes(search.toLowerCase())) : stats;
+  const filtered = search ? stats.filter(s => matchKw(s.name, search)) : stats;
   const displayTotal = search ? filtered.reduce((acc, s) => acc + s.amount, 0) : totalAmount;
   const display = showAll ? filtered : filtered.slice(0, 20);
 
@@ -997,7 +1005,7 @@ function ItemHospAccordion({ stats, search, totalAmount }: {
 function DrugPriceTable({ prices }: { prices: DrugPrice[] }) {
   const [showAll, setShowAll] = useState(false);
   const [search, setSearch] = useState('');
-  const filtered = search ? prices.filter(p => p.name.toLowerCase().includes(search.toLowerCase())) : prices;
+  const filtered = search ? prices.filter(p => matchKw(p.name, search)) : prices;
   const display = showAll ? filtered : filtered.slice(0, 30);
 
   return (
@@ -1063,7 +1071,7 @@ function SearchInput({ value, onChange }: { value: string; onChange: (v: string)
     <input
       type="search" value={value}
       onChange={e => onChange(e.target.value)}
-      placeholder="🔍 키워드 검색…"
+      placeholder="🔍 키워드 검색 (여러 개는 공백/쉼표로 구분)…"
       style={{
         width: '100%', boxSizing: 'border-box',
         padding: '0.42rem 0.75rem', borderRadius: '7px',
