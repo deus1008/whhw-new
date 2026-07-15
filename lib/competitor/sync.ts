@@ -41,15 +41,16 @@ export async function runCrawl(svc: Svc): Promise<{ sources: string[]; companies
   const fresh = uniq.filter((c) => !existing.has(c.url));
   if (fresh.length === 0) return { sources: crawlSources, companies: coNames.length, found: uniq.length, inserted: 0 };
 
-  // AI 유형 분류(배치)
-  const types = await classifyTrends(fresh.map((c) => ({ title: c.title, summary: c.summary })));
+  // AI 유형 분류 + 키워드 요약(배치)
+  const cls = await classifyTrends(fresh.map((c) => ({ title: c.title, summary: c.summary })));
 
   const now = new Date().toISOString();
   const rows = fresh.map((c, i) => ({
     company_name: c.company,
-    trend_type:   types[i] ?? '기타',
+    trend_type:   cls[i]?.type || '기타',
     title:        c.title,
-    summary:      c.summary || null,
+    summary:      cls[i]?.summary || c.summary || null,   // AI 키워드 요약 우선
+    content:      c.summary || null,                       // 원문 발췌는 상세(펼침)로 보존
     source_name:  c.source,
     url:          c.url,
     event_date:   c.date || null,
