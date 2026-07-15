@@ -49,7 +49,7 @@ function fmtPeriod(p: string): string {
 }
 
 /* 열 고정폭(px) — 자동폭 실측값 기준 조정 */
-const PROD_W  = 223;  // 제품명: 319 → 70%
+const PROD_W  = 190;  // 제품명: 319 → 70% → 85%
 const GUBUN_W = 85;   // 구분:    65 → 130% (제네릭 뱃지 줄바꿈 방지)
 const DOSE_W  = 60;   // 함량
 
