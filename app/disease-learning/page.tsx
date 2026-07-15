@@ -92,6 +92,9 @@ export default async function DiseaseLearningPage() {
           {isAdmin && (
             <Link href="/disease-learning/admin" style={nl('#fde68a', 'rgba(251,191,36,0.12)', 'rgba(251,191,36,0.28)')}>데이터관리</Link>
           )}
+          {isAdmin && (
+            <Link href="/disease-learning/admin/ingredients" style={nl('#c4b5fd', 'rgba(167,139,250,0.12)', 'rgba(167,139,250,0.28)')}>성분설명 검수</Link>
+          )}
           <LogoutButton compact />
         </div>
 

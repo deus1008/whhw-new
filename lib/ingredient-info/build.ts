@@ -113,6 +113,100 @@ export async function generate(
   } catch { return null; }
 }
 
+/* ── 별칭(alias) 해석 ────────────────────────────────────────────────────
+ * 질환DB 성분명과 식약처 허가 주성분은 한글 음역이 체계적으로 다르다.
+ *   아시클로비르 ↔ 아시클로버 / 나테글리나이드 ↔ 나테글리니드
+ *   플루티카손프로피온산염 ↔ 플루티카손프로피오네이트(미분화) / 카베딜롤 ↔ 카르베딜롤
+ * 접두 매칭으로는 못 넘고, 부분일치는 '니트라제팜'→'플루니트라제팜' 오매칭을 만든다.
+ * 그래서 (1) 문자 바이그램 유사도로 실제 허가 주성분 중 후보를 뽑고
+ *        (2) AI 는 그 후보 중에서 고르거나 '없음'을 답하게만 한다(자유생성 금지).
+ * 결과 별칭은 근거 수집에만 쓰고 disease_drugs 의 성분명은 건드리지 않는다
+ * (허가 표기는 염 형태라 좌측 메뉴 라벨로는 부적절).
+ */
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j);
+  for (let i = 1; i <= m; i++) {
+    const cur = [i];
+    for (let j = 1; j <= n; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+
+/**
+ * 성분 표기 유사도 — 허가 주성분은 뒤에 염·수화물이 붙어 길이가 크게 다르므로
+ * (테넬리글립틴 vs 테네리글립틴염산염수화물) 전체 문자열 비교는 쓸 수 없다.
+ * 허가 표기의 '선두 base.length 글자'만 잘라 편집거리를 본다.
+ *   테넬리글립틴 vs 테네리글립틴(선두 7) → 거리 1 → 0.86  ✔
+ *   니트라제팜   vs 플루니트라(선두 5)   → 거리 4 → 0.20  ✘ (다른 약이라 탈락)
+ */
+export function similarity(base: string, permitKey: string): number {
+  if (!base) return 0;
+  const head = permitKey.slice(0, base.length);
+  return 1 - levenshtein(base, head) / base.length;
+}
+
+/** 허가 주성분 중 표기가 비슷한 상위 후보 */
+export function aliasCandidates(part: string, idx: PermitIndex, topN = 8): string[] {
+  const base = norm(part);
+  if (base.length < 3) return [];
+  // 동점이면 단일 성분(| 없음) → 짧은 표기 순. 복합제 키가 위로 올라오는 것을 막는다.
+  const combo = (k: string) => (k.includes('|') ? 1 : 0);
+  return idx.ingrKeys
+    .map((k) => [k, similarity(base, k)] as const)
+    .filter(([, s]) => s >= 0.6)
+    .sort((a, b) => b[1] - a[1] || combo(a[0]) - combo(b[0]) || a[0].length - b[0].length)
+    .slice(0, topN)
+    .map(([k]) => k);
+}
+
+/** 후보 중 동일 성분을 고르게 한다. 확신 없으면 null. */
+export async function resolveAlias(
+  part: string, candidates: string[], apiKey: string,
+): Promise<string | null> {
+  if (!candidates.length) return null;
+  const list = candidates.map((c, i) => `[${i}] ${c}`).join('\n');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001', max_tokens: 200,
+      system:
+        '한국 의약품 성분명 표기를 대조합니다. 주어진 성분과 "완전히 같은 성분"인 항목을 후보에서 고르세요.\n' +
+        '같은 성분의 다른 표기(음역 차이, 염·수화물 형태, (미분화) 표기)는 같은 성분으로 봅니다.\n' +
+        '예: 아시클로비르 = 아시클로버, 나테글리나이드 = 나테글리니드, 카베딜롤 = 카르베딜롤.\n' +
+        '단, 이름이 비슷해도 다른 약이면 절대 고르지 마세요. 예: 니트라제팜 ≠ 플루니트라제팜.\n' +
+        '확신이 없으면 -1. JSON 으로만: {"i": 정수}',
+      messages: [{ role: 'user', content: `성분: ${part}\n\n후보:\n${list}` }],
+    }),
+  });
+  if (!res.ok) return null;
+  const j = await res.json();
+  const m = (j?.content?.[0]?.text ?? '').match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try {
+    const i = Number(JSON.parse(m[0]).i);
+    return Number.isInteger(i) && i >= 0 && i < candidates.length ? candidates[i] : null;
+  } catch { return null; }
+}
+
+/** 별칭 적용해 근거 수집 — aliasMap: 정규화 성분 조각 → 허가 주성분 정규화 키 */
+export function gatherEfficacyWithAlias(
+  ingredient: string, productNames: string[], idx: PermitIndex, aliasMap: Map<string, string>,
+): string[] {
+  const out = gatherEfficacy(ingredient, productNames, idx);
+  for (const part of splitCombo(ingredient)) {
+    const k = aliasMap.get(norm(part));
+    if (!k) continue;
+    for (const e of idx.byIngr.get(k) ?? []) if (!out.includes(e)) out.push(e);
+  }
+  return out;
+}
+
 /** 질환학습 성분 목록 + 성분별 큐레이션 제품명 */
 export async function loadIngredients(svc: SupabaseClient): Promise<Map<string, string[]>> {
   const byIng = new Map<string, string[]>();
