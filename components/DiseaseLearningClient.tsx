@@ -48,8 +48,15 @@ function fmtPeriod(p: string): string {
   return `${yr.slice(2)}.${mo}`;
 }
 
-/* 제조사 열 고정폭(px) — 기존 자동폭 140px 의 50% */
-const MFR_W = 70;
+/* 열 고정폭(px) — 자동폭 실측값 기준 조정 */
+const MFR_W   = 70;   // 제조사: 140 → 50%
+const PROD_W  = 223;  // 제품명: 319 → 70%
+const GUBUN_W = 85;   // 구분:    65 → 130% (제네릭 뱃지 줄바꿈 방지)
+
+/* 처방액 합계(정렬용) */
+function ubistSum(d: DrugItem): number {
+  return Object.values(d.ubist_monthly ?? {}).reduce((a, b) => a + b, 0);
+}
 
 /* ── 함량 비교: "10mg" → [10], "5mg/10mg" → [5,10] (숫자 오름차순) ── */
 function strengthNums(s: string | null): number[] {
@@ -222,7 +229,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   });
 
   // 성분별 그룹 (ingredient_name 기준)
-  //  정렬: 동일성분 → 동일함량(오름차순) → 오리지널 먼저 → 제네릭은 약가 높은 순
+  //  정렬: 동일성분 → 동일함량(오름차순) → 오리지널 먼저 → 약가 높은 순 → (약가 동일 시) 처방액 높은 순
   const ingredientGroups = new Map<string, DrugItem[]>();
   for (const d of displayed) {
     const key = d.ingredient_name?.trim() ?? '기타';
@@ -233,7 +240,8 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     list.sort((a, b) =>
       cmpStrength(a.strength, b.strength) ||                       // 함량 오름차순
       (Number(b.is_original) - Number(a.is_original)) ||           // 오리지널 먼저
-      ((b.max_price ?? -1) - (a.max_price ?? -1)) ||               // 제네릭: 약가 높은 순
+      ((b.max_price ?? -1) - (a.max_price ?? -1)) ||               // 약가 높은 순
+      (ubistSum(b) - ubistSum(a)) ||                               // 약가 동일 시 처방액 높은 순
       (a.product_name ?? '').localeCompare(b.product_name ?? '', 'ko'),
     );
   }
@@ -545,8 +553,9 @@ function IngredientGroup({ ingredient, items, periods }: { ingredient: string; i
 
   // w 지정 시 해당 열 고정폭(미지정은 내용에 따라 자동)
   const fixedHeaders: { label: string; w?: number }[] = [
-    { label: '제품명' }, { label: '함량' }, { label: '제조사', w: MFR_W },
-    { label: '판매사' }, { label: '구분' }, { label: '약가(상한)' }, { label: '수수료율' },
+    { label: '제품명', w: PROD_W }, { label: '함량' },
+    { label: '판매사' }, { label: '제조사', w: MFR_W },
+    { label: '구분', w: GUBUN_W }, { label: '약가(상한)' }, { label: '수수료율' },
   ];
   const periodHeaders = periods.map(fmtPeriod);
 
@@ -605,8 +614,8 @@ function IngredientGroup({ ingredient, items, periods }: { ingredient: string; i
 function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; periods: string[] }) {
   return (
     <tr style={{ background: even ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
-      <td style={TD}>
-        <div style={{ fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#fde68a' : '#e2e8f0' }}>
+      <td style={{ ...TD, width: PROD_W, maxWidth: PROD_W }}>
+        <div style={{ fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#fde68a' : '#e2e8f0', wordBreak: 'break-all' }}>
           {d.product_name ?? '-'}
         </div>
         {d.atc_code && (
@@ -618,18 +627,19 @@ function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; pe
       <td style={{ ...TD, textAlign: 'center', color: '#a5f3fc', fontSize: '0.73rem', whiteSpace: 'nowrap' }}>
         {d.strength ?? '-'}
       </td>
+      <td style={{ ...TD, color: 'rgba(255,255,255,0.55)', fontSize: '0.73rem' }}>
+        {d.distributor ?? '-'}
+      </td>
       <td style={{
-        ...TD, color: 'rgba(255,255,255,0.55)', fontSize: '0.73rem',
+        ...TD, color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem',
         width: MFR_W, maxWidth: MFR_W, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       }} title={d.manufacturer ?? undefined}>
         {d.manufacturer ?? '-'}
       </td>
-      <td style={{ ...TD, color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem' }}>
-        {d.distributor ?? '-'}
-      </td>
-      <td style={{ ...TD, textAlign: 'center' }}>
+      <td style={{ ...TD, textAlign: 'center', width: GUBUN_W }}>
         <span style={{
           fontSize: '0.68rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 600,
+          whiteSpace: 'nowrap', display: 'inline-block',
           background: d.is_original ? 'rgba(251,191,36,0.15)' : 'rgba(110,231,183,0.12)',
           color: d.is_original ? '#fbbf24' : '#6ee7b7',
           border: `1px solid ${d.is_original ? 'rgba(251,191,36,0.3)' : 'rgba(110,231,183,0.25)'}`,
