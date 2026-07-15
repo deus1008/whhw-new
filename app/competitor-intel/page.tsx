@@ -37,7 +37,7 @@ export default async function CompetitorIntelPage() {
       <div className="orb orb-3" />
       <div className="relative z-10 w-full px-4" style={{ maxWidth: '1240px', paddingTop: '2.5rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}>
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.3rem, 4vw, 1.9rem)' }}>
-          경쟁사 동향
+          업계동향
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           <HomeButton />

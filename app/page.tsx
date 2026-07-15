@@ -178,11 +178,11 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(236,72,153,0.10)',
     bd:   'rgba(236,72,153,0.22)',
   },
-  // ⑬-1 경쟁사 동향
+  // ⑬-1 업계동향
   {
     href: '/competitor-intel',
     icon: '🕵️',
-    label: '경쟁사 동향',
+    label: '업계동향',
     color: '#fca5a5',
     bg:   'rgba(248,113,113,0.10)',
     bd:   'rgba(248,113,113,0.22)',

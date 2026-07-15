@@ -78,7 +78,7 @@ export default function CompetitorIntelClient({ companies, sources, trends, isAd
     <div style={{ display: 'grid', gridTemplateColumns: '210px 1fr', gap: '1rem', alignItems: 'start' }}>
       {/* ── 사이드바 ── */}
       <div style={{ ...card, position: 'sticky', top: '1rem', padding: '0.7rem 0.55rem' }}>
-        <p style={sideHdr}>대상 경쟁사</p>
+        <p style={sideHdr}>대상 업체</p>
         <button onClick={() => setSel('ALL')} style={sideBtn(sel === 'ALL')}>
           전체 <span style={{ opacity: 0.5, fontSize: '0.72rem' }}>{trends.length}</span>
         </button>
