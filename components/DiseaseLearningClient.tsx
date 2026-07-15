@@ -12,9 +12,10 @@ type DrugItem = {
   sub_category: string | null;
   treatment_class: string | null;
   ingredient_name: string | null;
+  strength: string | null;        // 4단계: 함량 (예: 10mg, 5mg/10mg)
   product_name: string | null;
-  manufacturer: string | null;
-  distributor: string | null;
+  manufacturer: string | null;    // 제조사(제조원)
+  distributor: string | null;     // 판매사(허가업체)
   standard: string | null;
   pay_type: string | null;
   is_original: boolean;
@@ -47,6 +48,19 @@ function fmtPeriod(p: string): string {
   return `${yr.slice(2)}.${mo}`;
 }
 
+/* ── 함량 비교: "10mg" → [10], "5mg/10mg" → [5,10] (숫자 오름차순) ── */
+function strengthNums(s: string | null): number[] {
+  return (s ?? '').split('/').map(x => parseFloat(x) || 0);
+}
+function cmpStrength(a: string | null, b: string | null): number {
+  const A = strengthNums(a), B = strengthNums(b);
+  for (let i = 0; i < Math.max(A.length, B.length); i++) {
+    const d = (A[i] ?? 0) - (B[i] ?? 0);
+    if (d) return d;
+  }
+  return 0;
+}
+
 /* ── 질환군 아이콘 ── */
 const GROUP_ICONS: Record<string, string> = {
   '순환기계(심혈관질환)': '❤️',
@@ -71,7 +85,9 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   const [selectedSub, setSelectedSub] = useState<string | null>(
     groups.length > 0 && groups[0].subs.length > 0 ? groups[0].subs[0].sub : null
   );
-  const [selectedIngr, setSelectedIngr] = useState<string | null>(null);   // 3단계: 성분
+  const [selectedIngr, setSelectedIngr] = useState<string | null>(null);       // 3단계: 성분
+  const [selectedStrength, setSelectedStrength] = useState<string | null>(null); // 4단계: 함량
+  const [openIngrs, setOpenIngrs] = useState<Set<string>>(new Set());            // 4단계 펼침
   // 펼침 상태 — 선택과 분리(접어도 보고 있는 목록은 그대로 유지)
   const [openGroups, setOpenGroups] = useState<Set<string>>(
     () => new Set(groups.length > 0 ? [groups[0].group] : []),
@@ -116,47 +132,79 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     setSelectedGroup(g.group);
     setSelectedSub(g.subs[0]?.sub ?? null);
     setSelectedIngr(null);
+    setSelectedStrength(null);
     setFilter('all');
     setSearch('');
     setExpandedMech(false);
   }
   function selectSub(sub: string | null) {
     setSelectedSub(sub);
-    setSelectedIngr(null);   // 중분류 변경 시 성분 선택 해제
+    setSelectedIngr(null);       // 중분류 변경 시 성분·함량 선택 해제
+    setSelectedStrength(null);
     setFilter('all');
     setSearch('');
   }
 
-  /** 질환군 열기/닫기 — 열 때는 선택도 함께(닫아도 보고 있던 목록은 유지) */
-  function toggleGroup(g: GroupItem) {
-    const isOpen = openGroups.has(g.group);
-    setOpenGroups(prev => {
+  /** 성분 선택(3단계) — 함량 선택 해제 */
+  function selectIngr(ing: string | null) {
+    setSelectedIngr(ing);
+    setSelectedStrength(null);
+  }
+
+  /** 성분 클릭 — 다른 성분이면 '선택 + 열기(함량)', 이미 선택된 것이면 열기/접기 토글 */
+  function toggleIngr(ing: string) {
+    const willSelect = selectedIngr !== ing;
+    setOpenIngrs(prev => {
       const n = new Set(prev);
-      if (isOpen) n.delete(g.group); else n.add(g.group);
+      if (willSelect || !prev.has(ing)) n.add(ing); else n.delete(ing);
       return n;
     });
-    if (!isOpen || selectedGroup !== g.group) {
+    if (willSelect) selectIngr(ing);
+  }
+
+  // 4단계: 현재 로드된 약품에서 성분별 함량 목록(숫자 오름차순)
+  const strengthsByIngr = new Map<string, string[]>();
+  for (const d of drugs) {
+    const k = (d.ingredient_name ?? '').trim();
+    const st = (d.strength ?? '').trim();
+    if (!k || !st) continue;
+    if (!strengthsByIngr.has(k)) strengthsByIngr.set(k, []);
+    const arr = strengthsByIngr.get(k)!;
+    if (!arr.includes(st)) arr.push(st);
+  }
+  for (const arr of strengthsByIngr.values()) arr.sort(cmpStrength);
+
+  /** 질환군 열기/닫기 — 열 때는 선택도 함께(닫아도 보고 있던 목록은 유지) */
+  function toggleGroup(g: GroupItem) {
+    const willSelect = selectedGroup !== g.group;
+    setOpenGroups(prev => {
+      const n = new Set(prev);
+      if (willSelect || !prev.has(g.group)) n.add(g.group); else n.delete(g.group);
+      return n;
+    });
+    if (willSelect) {
       selectGroup(g);
       const first = g.subs[0]?.sub;
       if (first) setOpenSubs(prev => new Set(prev).add(`${g.group}|${first}`));
     }
   }
 
-  /** 중분류 열기/닫기 — 열 때는 선택도 함께 */
+  /** 중분류 클릭 — 다른 중분류면 '선택 + 열기', 이미 선택된 것이면 열기/접기 토글 */
   function toggleSub(group: string, sub: string) {
     const key = `${group}|${sub}`;
-    const isOpen = openSubs.has(key);
+    const willSelect = selectedSub !== sub;
     setOpenSubs(prev => {
       const n = new Set(prev);
-      if (isOpen) n.delete(key); else n.add(key);
+      if (willSelect || !prev.has(key)) n.add(key); else n.delete(key);
       return n;
     });
-    if (!isOpen || selectedSub !== sub) selectSub(sub);
+    if (willSelect) selectSub(sub);
   }
 
   // 성분(3단계) + 필터 + 검색
   const displayed = drugs.filter(d => {
     if (selectedIngr && (d.ingredient_name ?? '').trim() !== selectedIngr) return false;
+    if (selectedStrength && (d.strength ?? '') !== selectedStrength) return false;
     if (filter === 'original' && !d.is_original) return false;
     if (filter === 'generic'  &&  d.is_original) return false;
     if (search.trim()) {
@@ -171,11 +219,20 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   });
 
   // 성분별 그룹 (ingredient_name 기준)
+  //  정렬: 동일성분 → 동일함량(오름차순) → 오리지널 먼저 → 제네릭은 약가 높은 순
   const ingredientGroups = new Map<string, DrugItem[]>();
   for (const d of displayed) {
     const key = d.ingredient_name?.trim() ?? '기타';
     if (!ingredientGroups.has(key)) ingredientGroups.set(key, []);
     ingredientGroups.get(key)!.push(d);
+  }
+  for (const list of ingredientGroups.values()) {
+    list.sort((a, b) =>
+      cmpStrength(a.strength, b.strength) ||                       // 함량 오름차순
+      (Number(b.is_original) - Number(a.is_original)) ||           // 오리지널 먼저
+      ((b.max_price ?? -1) - (a.max_price ?? -1)) ||               // 제네릭: 약가 높은 순
+      (a.product_name ?? '').localeCompare(b.product_name ?? '', 'ko'),
+    );
   }
 
   // 통계
@@ -261,7 +318,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                               paddingLeft: '7px', marginTop: '1px', marginBottom: '3px',
                               display: 'flex', flexDirection: 'column', gap: '1px' }}>
                               <button
-                                onClick={() => setSelectedIngr(null)}
+                                onClick={() => selectIngr(null)}
                                 style={{
                                   textAlign: 'left', padding: '0.22rem 0.4rem', borderRadius: '5px',
                                   border: 'none', cursor: 'pointer', fontSize: '0.67rem', background: 'transparent',
@@ -271,24 +328,67 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                               >
                                 전체 성분 ({ingredients.length})
                               </button>
-                              {ingredients.map(ing => (
-                                <button
-                                  key={ing}
-                                  onClick={() => setSelectedIngr(ing === selectedIngr ? null : ing)}
-                                  title={ing}
-                                  style={{
-                                    textAlign: 'left', padding: '0.22rem 0.4rem', borderRadius: '5px',
-                                    border: 'none', cursor: 'pointer', fontSize: '0.67rem',
-                                    background: selectedIngr === ing ? 'rgba(34,211,238,0.14)' : 'transparent',
-                                    color: selectedIngr === ing ? '#67e8f9' : 'rgba(255,255,255,0.38)',
-                                    fontWeight: selectedIngr === ing ? 600 : 400,
-                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                    transition: 'all 0.1s',
-                                  }}
-                                >
-                                  {ing}
-                                </button>
-                              ))}
+                              {ingredients.map(ing => {
+                                const strengths = subActive ? (strengthsByIngr.get(ing) ?? []) : [];
+                                const ingOpen = openIngrs.has(ing);
+                                return (
+                                  <div key={ing}>
+                                    <button
+                                      onClick={() => toggleIngr(ing)}
+                                      title={ing}
+                                      style={{
+                                        width: '100%', textAlign: 'left', padding: '0.22rem 0.4rem', borderRadius: '5px',
+                                        border: 'none', cursor: 'pointer', fontSize: '0.67rem',
+                                        background: selectedIngr === ing ? 'rgba(34,211,238,0.14)' : 'transparent',
+                                        color: selectedIngr === ing ? '#67e8f9' : 'rgba(255,255,255,0.38)',
+                                        fontWeight: selectedIngr === ing ? 600 : 400,
+                                        display: 'flex', alignItems: 'center', gap: 3,
+                                        transition: 'all 0.1s',
+                                      }}
+                                    >
+                                      <span style={{ fontSize: '0.52rem', opacity: 0.7, flexShrink: 0 }}>
+                                        {strengths.length > 0 ? (ingOpen ? '▾' : '▸') : '·'}
+                                      </span>
+                                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ing}</span>
+                                    </button>
+
+                                    {/* 4단계: 함량 */}
+                                    {ingOpen && strengths.length > 0 && (
+                                      <div style={{ marginLeft: '9px', borderLeft: '1.5px solid rgba(34,211,238,0.15)',
+                                        paddingLeft: '6px', marginTop: '1px', marginBottom: '2px',
+                                        display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                                        <button
+                                          onClick={() => setSelectedStrength(null)}
+                                          style={{
+                                            textAlign: 'left', padding: '0.18rem 0.35rem', borderRadius: '4px',
+                                            border: 'none', cursor: 'pointer', fontSize: '0.63rem', background: 'transparent',
+                                            color: selectedStrength === null ? '#a5f3fc' : 'rgba(255,255,255,0.28)',
+                                            fontWeight: selectedStrength === null ? 600 : 400,
+                                          }}
+                                        >
+                                          전체 함량 ({strengths.length})
+                                        </button>
+                                        {strengths.map(st => (
+                                          <button
+                                            key={st}
+                                            onClick={() => setSelectedStrength(st === selectedStrength ? null : st)}
+                                            style={{
+                                              textAlign: 'left', padding: '0.18rem 0.35rem', borderRadius: '4px',
+                                              border: 'none', cursor: 'pointer', fontSize: '0.63rem',
+                                              background: selectedStrength === st ? 'rgba(167,139,250,0.16)' : 'transparent',
+                                              color: selectedStrength === st ? '#c4b5fd' : 'rgba(255,255,255,0.34)',
+                                              fontWeight: selectedStrength === st ? 600 : 400,
+                                              whiteSpace: 'nowrap',
+                                            }}
+                                          >
+                                            {st}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -329,10 +429,10 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '1.3rem' }}>{GROUP_ICONS[selectedGroup] ?? '💊'}</span>
                   <h1 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', margin: 0 }}>
-                    {selectedIngr ?? selectedSub ?? selectedGroup}
+                    {selectedStrength ? `${selectedIngr} ${selectedStrength}` : (selectedIngr ?? selectedSub ?? selectedGroup)}
                   </h1>
                   {selectedIngr && (
-                    <button onClick={() => setSelectedIngr(null)} title="성분 선택 해제"
+                    <button onClick={() => selectIngr(null)} title="성분 선택 해제"
                       style={{ fontSize: '0.66rem', color: '#67e8f9', background: 'rgba(34,211,238,0.12)',
                         border: '1px solid rgba(34,211,238,0.3)', borderRadius: '5px', padding: '1px 6px',
                         cursor: 'pointer', fontFamily: 'inherit', minHeight: 'auto' }}>
@@ -341,7 +441,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                   )}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginTop: '3px' }}>
-                  {[selectedGroup, selectedSub, selectedIngr].filter(Boolean).join(' › ')}
+                  {[selectedGroup, selectedSub, selectedIngr, selectedStrength].filter(Boolean).join(' › ')}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -440,7 +540,7 @@ function IngredientGroup({ ingredient, items, periods }: { ingredient: string; i
   const origCount    = items.filter(d =>  d.is_original).length;
   const genericCount = items.filter(d => !d.is_original).length;
 
-  const fixedHeaders = ['제품명', '제조사', '판매사', '구분', '대조약', '규격', '약가(상한)', '급여', '수수료율'];
+  const fixedHeaders = ['제품명', '함량', '제조사', '판매사', '구분', '약가(상한)', '수수료율'];
   const periodHeaders = periods.map(fmtPeriod);
 
   return (
@@ -496,23 +596,20 @@ function IngredientGroup({ ingredient, items, periods }: { ingredient: string; i
 
 /* ── 의약품 테이블 행 ── */
 function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; periods: string[] }) {
-  const isGibyo = d.pay_type?.includes('급여') && !d.pay_type?.includes('비');
   return (
     <tr style={{ background: even ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
       <td style={TD}>
-        <div style={{ fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#fde68a' : '#e2e8f0', display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <div style={{ fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#fde68a' : '#e2e8f0' }}>
           {d.product_name ?? '-'}
-          {d.from_price_db && (
-            <span style={{ fontSize: '0.58rem', color: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '4px', padding: '0 3px', flexShrink: 0 }}>
-              보험DB
-            </span>
-          )}
         </div>
         {d.atc_code && (
           <div style={{ fontSize: '0.65rem', color: 'rgba(147,197,253,0.7)', marginTop: '1px' }}>
             ATC: {d.atc_code}
           </div>
         )}
+      </td>
+      <td style={{ ...TD, textAlign: 'center', color: '#a5f3fc', fontSize: '0.73rem', whiteSpace: 'nowrap' }}>
+        {d.strength ?? '-'}
       </td>
       <td style={{ ...TD, color: 'rgba(255,255,255,0.55)', fontSize: '0.73rem' }}>
         {d.manufacturer ?? '-'}
@@ -535,35 +632,10 @@ function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; pe
           </div>
         )}
       </td>
-      <td style={{ ...TD, color: 'rgba(255,255,255,0.45)', fontSize: '0.72rem', maxWidth: '120px' }}>
-        {d.is_original ? (
-          <span style={{ fontSize: '0.65rem', color: 'rgba(251,191,36,0.5)' }}>─</span>
-        ) : (
-          <span title={d.reference_drug ?? undefined}
-            style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {d.reference_drug ?? '미확인'}
-          </span>
-        )}
-      </td>
-      <td style={{ ...TD, color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem', textAlign: 'center' }}>
-        {d.standard ?? '-'}
-      </td>
       <td style={{ ...TD, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
         <span style={{ color: d.max_price ? '#e2e8f0' : 'rgba(255,255,255,0.25)', fontSize: '0.75rem' }}>
           {fmtPrice(d.max_price)}
         </span>
-      </td>
-      <td style={{ ...TD, textAlign: 'center' }}>
-        {d.pay_type ? (
-          <span style={{
-            fontSize: '0.67rem', padding: '1px 7px', borderRadius: '10px',
-            background: isGibyo ? 'rgba(52,211,153,0.12)' : 'rgba(156,163,175,0.12)',
-            color: isGibyo ? '#6ee7b7' : 'rgba(255,255,255,0.35)',
-            border: `1px solid ${isGibyo ? 'rgba(52,211,153,0.25)' : 'rgba(255,255,255,0.1)'}`,
-          }}>
-            {d.pay_type === '-' ? '정보없음' : d.pay_type}
-          </span>
-        ) : <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.72rem' }}>-</span>}
       </td>
       <td style={{ ...TD, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
         {d.commission_rate != null ? (

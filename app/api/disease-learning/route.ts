@@ -22,15 +22,16 @@ function svc() {
   );
 }
 
-// 최근 N개월 처방액 집계: product_name → { period: amount }
-// Ubist는 시장 전체 데이터이므로 company_id 필터 없이 조회
-async function fetchUbistAmounts(
-  productNames: string[],
-  months = 3,
-): Promise<{ byProduct: Map<string, Record<string, number>>; periods: string[] }> {
-  if (!productNames.length) return { byProduct: new Map(), periods: [] };
+// 최근 N개월 처방액 집계: 보험코드(insurance_code) → { period: amount }
+//   ubist_data.insurance_code == drug_prices.item_code 로 정확 매칭
+//   (제품명은 "로수탄젯 정 10/10mg" 처럼 표기가 달라 이름 매칭은 실패)
+//   Ubist는 시장 전체 데이터이므로 company_id 필터 없이 조회. 병원구분·지역별 행을 합산.
+async function fetchUbistByCode(
+  codes: string[],
+  months = 1,
+): Promise<{ byCode: Map<string, Record<string, number>>; periods: string[] }> {
+  if (!codes.length) return { byCode: new Map(), periods: [] };
 
-  // ubist_data에 실제 존재하는 가장 최신 기간 기준으로 N개월 산출
   const { data: latestRow } = await svc()
     .from('ubist_data')
     .select('period')
@@ -38,8 +39,7 @@ async function fetchUbistAmounts(
     .order('period', { ascending: false })
     .limit(1)
     .maybeSingle();
-
-  if (!latestRow?.period) return { byProduct: new Map(), periods: [] };
+  if (!latestRow?.period) return { byCode: new Map(), periods: [] };
 
   const [latestY, latestM] = (latestRow.period as string).split('-').map(Number);
   const periods: string[] = [];
@@ -48,28 +48,31 @@ async function fetchUbistAmounts(
     periods.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   }
 
-  const { data } = await svc()
-    .from('ubist_data')
-    .select('product_name, period, prescription_amount')
-    .in('product_name', productNames)
-    .in('period', periods)
-    .not('prescription_amount', 'is', null);
-
-  const byProduct = new Map<string, Record<string, number>>();
-  for (const row of data ?? []) {
-    const k = (row.product_name ?? '').trim();
-    if (!byProduct.has(k)) byProduct.set(k, {});
-    const cur = byProduct.get(k)!;
-    cur[row.period] = (cur[row.period] ?? 0) + (row.prescription_amount ?? 0);
+  const byCode = new Map<string, Record<string, number>>();
+  for (let i = 0; i < codes.length; i += 300) {
+    const { data } = await svc()
+      .from('ubist_data')
+      .select('insurance_code, period, prescription_amount')
+      .in('insurance_code', codes.slice(i, i + 300))
+      .in('period', periods)
+      .not('prescription_amount', 'is', null);
+    for (const row of data ?? []) {
+      const k = String(row.insurance_code ?? '').trim();
+      if (!k) continue;
+      if (!byCode.has(k)) byCode.set(k, {});
+      const cur = byCode.get(k)!;
+      cur[row.period] = (cur[row.period] ?? 0) + (row.prescription_amount ?? 0);
+    }
   }
-  return { byProduct, periods };
+  return { byCode, periods };
 }
 
-// 수수료율: 수수료율(딜러) 폴더의 최신 파일 기준 조회
-// product_name 일치 우선, 없으면 company_name(제약사) 일치
+// 수수료율: 수수료율(딜러) 폴더의 최신 파일 기준.
+//   수수료율표는 '로스틴군' 처럼 **제품군** 단위라 제품명 정확일치는 실패 →
+//   '군' 제거 후 접두 매칭(긴 키 우선) + 회사명 교차확인(동명이품 오매칭 방지).
+//   반환: product_name → rate
 async function fetchCommissionRates(
-  manufacturers: string[],
-  productNames: string[],
+  drugs: { product_name: string; company: string | null }[],
 ): Promise<Map<string, number>> {
   // 최신 수수료율(딜러) 파일명 조회
   const { data: latestDoc } = await svc()
@@ -93,28 +96,44 @@ async function fetchCommissionRates(
   const { data: rows } = await q;
   if (!rows?.length) return new Map();
 
-  // JS에서 매칭: product_name 우선, 없으면 company_name
-  const mfrSet  = new Set(manufacturers.map(m => m.trim().toLowerCase()));
-  const prodSet = new Set(productNames.map(p => p.trim().toLowerCase()));
+  const norm = (s: string) => String(s ?? '').replace(/[\s.\-/,·()]/g, '').toLowerCase();
 
-  const byProduct = new Map<string, number>();
-  const byMfr     = new Map<string, number>();
+  // 제품군 규칙: '로스틴군' → 접두키 '로스틴' (긴 키부터 매칭)
+  const rules = rows
+    .filter(r => ((r.product_name as string | null) ?? '').trim())
+    .map(r => ({
+      key:     norm(String(r.product_name).replace(/군\s*$/, '')),
+      company: norm(String(r.company_name ?? '')),
+      rate:    Number(r.rate ?? 0),
+    }))
+    .filter(r => r.key.length >= 2)
+    .sort((a, b) => b.key.length - a.key.length);
 
-  for (const row of rows) {
-    const rate    = Number(row.rate ?? 0);
-    const prod    = (row.product_name as string | null)?.trim() ?? '';
-    const company = (row.company_name as string).trim();
-
-    if (prod && prodSet.has(prod.toLowerCase())) {
-      byProduct.set(prod, rate);
-    }
-    if (mfrSet.has(company.toLowerCase())) {
-      byMfr.set(company, rate);
+  // 제품 미지정(회사 단위) 수수료율
+  const companyOnly = new Map<string, number>();
+  for (const r of rows) {
+    if (!((r.product_name as string | null) ?? '').trim()) {
+      companyOnly.set(norm(String(r.company_name ?? '')), Number(r.rate ?? 0));
     }
   }
 
-  // productName → rate 우선, manufacturer → rate 보조
-  return new Map([...byMfr, ...byProduct]);
+  const out = new Map<string, number>();
+  for (const d of drugs) {
+    const pn = norm(d.product_name);
+    const cn = norm(d.company ?? '');
+    if (!pn) continue;
+    let rate: number | null = null;
+    for (const r of rules) {
+      if (!pn.startsWith(r.key)) continue;
+      // 회사 정보가 양쪽에 있으면 일치할 때만 적용
+      if (r.company && cn && !(cn.includes(r.company) || r.company.includes(cn))) continue;
+      rate = r.rate;
+      break;
+    }
+    if (rate == null && cn) rate = companyOnly.get(cn) ?? null;
+    if (rate != null) out.set(d.product_name, rate);
+  }
+  return out;
 }
 
 export async function GET(req: NextRequest) {
@@ -246,6 +265,18 @@ export async function GET(req: NextRequest) {
       return !!nn && origPrefixes.some(p => nn.startsWith(p) || p.startsWith(nn));
     };
 
+    // 함량 추출: 영문 성분에서 해당 성분의 '기준 함량'
+    //   "rosuvastatin calcium (as rosuvastatin   10mg)" → 10mg  (as 표기 우선)
+    //   "simvastatin   20mg"                            → 20mg
+    const doseOf = (eng: string, tok: string): string => {
+      const asRe    = new RegExp(`as\\s+${tok}[^)0-9]*([\\d.]+)\\s*(mg|mcg|g|iu|ml|㎍)`, 'i');
+      const plainRe = new RegExp(`${tok}[^,/;()]*?([\\d.]+)\\s*(mg|mcg|g|iu|ml|㎍)`, 'i');
+      const m = eng.match(asRe) ?? eng.match(plainRe);
+      return m ? `${Number(m[1])}${m[2].toLowerCase()}` : '';
+    };
+    const strengthOf = (eng: string, sig: string): string =>
+      sig.split('+').map(t => doseOf(eng, t)).filter(Boolean).join('/');
+
     // 2) 시그니처별 drug_prices 전 품목 보강 (급여코드=item_code 단위 중복제거)
     const byCode = new Map<string, Record<string, unknown>>();
     for (const [koIngr, sig] of sigByKo) {
@@ -255,19 +286,37 @@ export async function GET(req: NextRequest) {
           .select('item_code, item_name, ingredient_name, manufacturer, standard, pay_type, max_price')
           .ilike('ingredient_name', `%${tok}%`).limit(1500);
         for (const r of data ?? []) {
-          if (engSig((r.ingredient_name as string) ?? '') !== sig) continue;
+          const eng = (r.ingredient_name as string) ?? '';
+          if (engSig(eng) !== sig) continue;
           const code = String(r.item_code ?? '');
           if (!code || byCode.has(code)) continue;
           byCode.set(code, {
             id: null, disease_group: group, sub_category: sub ?? null, treatment_class: null,
             ingredient_name: koIngr, product_name: r.item_name,
-            manufacturer: r.manufacturer || null, distributor: null,
+            strength: strengthOf(eng, sig) || null,          // 4단계: 함량
+            // drug_prices.manufacturer 는 허가/판매사 → 판매사(distributor).
+            // 제조사(제조원)는 아래에서 permit_pkg.maker 로 보강.
+            manufacturer: r.manufacturer || null,
+            distributor:  r.manufacturer || null,
             standard: r.standard || null, pay_type: r.pay_type || null,
             is_original: isOriginalName((r.item_name as string) ?? ''),
             mechanism: null, note: null, atc_code: null, atc_name: null,
             item_code: code, max_price: r.max_price ?? null, reference_drug: null,
             permit_kind: null, approval_date: null, from_price_db: true,
           });
+        }
+      }
+    }
+
+    // 제조사(제조원) 보강: permit_pkg(급여코드 → 허가 상세 제조원)
+    {
+      const codes = [...byCode.keys()];
+      for (let i = 0; i < codes.length; i += 200) {
+        const { data } = await svc().from('permit_pkg')
+          .select('code, maker').in('code', codes.slice(i, i + 200));
+        for (const r of data ?? []) {
+          const row = byCode.get(String(r.code));
+          if (row && r.maker) row.manufacturer = String(r.maker);   // 제조사 = 실제 제조원
         }
       }
     }
@@ -310,19 +359,23 @@ export async function GET(req: NextRequest) {
     }
 
     const allDrugs = [...expandedProducts, ...unresolvedBase];
-    const productNames  = allDrugs.map(d => d.product_name as string).filter(Boolean);
 
     // 제조사 누락 제품 목록 (ubist_data에서 실시간 보완)
     const missingMfrProds = allDrugs
       .filter(d => !d.manufacturer && d.product_name)
       .map(d => d.product_name as string);
 
-    const manufacturers = [...new Set(allDrugs.map(d => d.manufacturer as string).filter(Boolean))];
+    // 처방액: 보험코드 기준 / 수수료율: 제품군 접두 매칭(판매사 기준)
+    const codes = [...new Set(allDrugs.map(d => String(d.item_code ?? '')).filter(Boolean))];
+    const rateInput = allDrugs.map(d => ({
+      product_name: (d.product_name as string) ?? '',
+      company: ((d.distributor as string | null) ?? (d.manufacturer as string | null)) ?? null,
+    }));
 
     // 병렬: Ubist 처방액 + 수수료율 + 제조사 보완
     const [ubistData, rateMap, ubistMfrRows] = await Promise.all([
-      fetchUbistAmounts(productNames, 1),
-      fetchCommissionRates(manufacturers, productNames),
+      fetchUbistByCode(codes, 1),
+      fetchCommissionRates(rateInput),
       missingMfrProds.length > 0
         ? svc()
             .from('ubist_data')
@@ -371,10 +424,8 @@ export async function GET(req: NextRequest) {
       return {
         ...d,
         reference_drug:  (d.reference_drug as string | null) ?? computedRef,
-        ubist_monthly:   ubistData.byProduct.get((d.product_name as string) ?? '') ?? null,
-        commission_rate: rateMap.get((d.product_name as string) ?? '')
-          ?? rateMap.get((d.manufacturer as string) ?? '')
-          ?? null,
+        ubist_monthly:   ubistData.byCode.get(String(d.item_code ?? '')) ?? null,
+        commission_rate: rateMap.get((d.product_name as string) ?? '') ?? null,
       };
     });
 
