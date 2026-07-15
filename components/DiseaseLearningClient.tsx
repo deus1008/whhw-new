@@ -297,7 +297,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '1rem', marginTop: '1.25rem' }}>
 
       {/* ── 사이드바: 질환군 ─────────────────────────────────────────────── */}
-      <div style={{
+      <div className="tree-menu" style={{
         background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: '14px', padding: '0.75rem 0.5rem', alignSelf: 'start',
         position: 'sticky', top: '1rem',

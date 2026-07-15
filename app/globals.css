@@ -42,6 +42,12 @@ button, a[href] {
   justify-content: center;
 }
 
+/* 트리형 사이드바: 위 공통 규칙의 가운데 정렬을 해제하고 왼쪽 정렬 유지 */
+.tree-menu button {
+  justify-content: flex-start;
+  text-align: left;
+}
+
 /* Grid overlay */
 body::before {
   content: '';
