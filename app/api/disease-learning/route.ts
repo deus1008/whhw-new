@@ -423,7 +423,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const enriched = allDrugs.map((d: Record<string, unknown>) => {
+    const enriched: Record<string, unknown>[] = allDrugs.map((d: Record<string, unknown>) => {
       const ingrKey = ((d.ingredient_name as string | null) ?? '').trim();
       const computedRef = !d.is_original ? (origByIngr.get(ingrKey) ?? null) : null;
       return {
@@ -434,7 +434,23 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    return NextResponse.json({ drugs: enriched, periods: ubistData.periods });
+    // 성분 설명(ingredient_info) — 화면에 나오는 성분만
+    const ingrNames = [...new Set(enriched
+      .map(d => ((d.ingredient_name as string | null) ?? '').trim()).filter(Boolean))];
+    const info: Record<string, { description: string; drug_class: string | null; grounded: boolean }> = {};
+    for (let i = 0; i < ingrNames.length; i += 200) {
+      const { data } = await svc().from('ingredient_info')
+        .select('ingredient_name, description, drug_class, grounded')
+        .in('ingredient_name', ingrNames.slice(i, i + 200));
+      for (const r of data ?? []) {
+        info[String(r.ingredient_name)] = {
+          description: String(r.description), drug_class: r.drug_class as string | null,
+          grounded: Boolean(r.grounded),
+        };
+      }
+    }
+
+    return NextResponse.json({ drugs: enriched, periods: ubistData.periods, info });
   }
 
   // ── mode=mechanism: 작용기전 ────────────────────────────────────────────

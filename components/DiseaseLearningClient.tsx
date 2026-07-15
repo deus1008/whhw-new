@@ -5,6 +5,9 @@ import { DRUG_FORMS, type DrugForm } from '@/lib/drug-form';
 
 type FormFilter = 'all' | DrugForm;
 
+/** 성분 설명 — 식약처 허가 효능효과 기반 요약(ingredient_info) */
+type IngredientInfo = { description: string; drug_class: string | null; grounded: boolean };
+
 const FORM_COLOR: Record<string, { border: string; bg: string; fg: string }> = {
   all:    { border: 'rgba(147,197,253,0.4)', bg: 'rgba(147,197,253,0.12)', fg: '#93c5fd' },
   정제:   { border: 'rgba(110,231,183,0.4)', bg: 'rgba(110,231,183,0.12)', fg: '#6ee7b7' },
@@ -169,7 +172,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<FormFilter>('all');
   const [search, setSearch] = useState('');
-  const [expandedMech, setExpandedMech] = useState(false);
+  const [infoMap, setInfoMap] = useState<Record<string, IngredientInfo>>({});
 
   const currentGroup = groups.find(g => g.group === selectedGroup);
 
@@ -183,6 +186,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
       const json = await res.json();
       setDrugs(json.drugs ?? []);
       setPeriods(json.periods ?? []);
+      setInfoMap(json.info ?? {});
     } catch {
       setDrugs([]);
       setPeriods([]);
@@ -202,7 +206,6 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     setSelectedStrength(null);
     setFilter('all');
     setSearch('');
-    setExpandedMech(false);
   }
   function selectSub(sub: string | null) {
     setSelectedSub(sub);
@@ -321,7 +324,6 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   const origCount    = scoped.filter(d =>  d.is_original).length;
   const genericCount = scoped.filter(d => !d.is_original).length;
   const ubistTotal   = scoped.reduce((s, d) => s + ubistSum(d), 0);
-  const mechText = drugs.find(d => d.mechanism)?.mechanism ?? null;
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '1rem', marginTop: '1.25rem' }}>
@@ -497,29 +499,6 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
               </div>
             </div>
 
-            {/* 작용기전 */}
-            {mechText && (
-              <div style={{
-                background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.15)',
-                borderRadius: '8px', padding: '0.6rem 0.9rem',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                  <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6,
-                    overflow: 'hidden', display: expandedMech ? 'block' : '-webkit-box',
-                    WebkitBoxOrient: 'vertical', WebkitLineClamp: expandedMech ? 'unset' : 2 } as React.CSSProperties}>
-                    <span style={{ color: '#fbbf24', fontWeight: 600, fontSize: '0.75rem' }}>작용기전</span>
-                    {'  '}{mechText}
-                  </div>
-                  <button
-                    onClick={() => setExpandedMech(p => !p)}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)',
-                      fontSize: '0.7rem', cursor: 'pointer', flexShrink: 0, paddingTop: '2px' }}
-                  >
-                    {expandedMech ? '접기' : '더보기'}
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )}
 
@@ -577,7 +556,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {Array.from(ingredientGroups.entries()).map(([ingr, items]) => (
-              <IngredientGroup key={ingr} ingredient={ingr} items={items} periods={periods}
+              <IngredientGroup key={ingr} ingredient={ingr} items={items} periods={periods} info={infoMap[ingr]}
                 sort={sort} onSort={toggleSort} />
             ))}
           </div>
@@ -588,9 +567,9 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
 }
 
 /* ── 성분별 그룹 카드 ── */
-function IngredientGroup({ ingredient, items, periods, sort, onSort }: {
+function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
   ingredient: string; items: DrugItem[]; periods: string[];
-  sort: SortState; onSort: (k: SortKey) => void;
+  sort: SortState; onSort: (k: SortKey) => void; info?: IngredientInfo;
 }) {
   const [open, setOpen] = useState(true);
   const origCount    = items.filter(d =>  d.is_original).length;
@@ -622,6 +601,13 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort }: {
         }}
       >
         <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#93c5fd' }}>{ingredient}</span>
+        {info?.drug_class && (
+          <span style={{
+            fontSize: '0.65rem', color: '#c4b5fd', background: 'rgba(167,139,250,0.14)',
+            border: '1px solid rgba(167,139,250,0.25)', borderRadius: '10px',
+            padding: '1px 7px', whiteSpace: 'nowrap',
+          }}>{info.drug_class}</span>
+        )}
         <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>
           오리지널 {origCount} / 제네릭 {genericCount} / 총 {items.length}
         </span>
@@ -629,6 +615,23 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort }: {
           {open ? '▲' : '▼'}
         </span>
       </button>
+
+      {/* 성분 설명 — 식약처 효능효과 기반 요약 */}
+      {info?.description && (
+        <div style={{
+          padding: '0.55rem 1rem 0.6rem', background: 'rgba(147,197,253,0.04)',
+          borderBottom: open ? '1px solid rgba(255,255,255,0.07)' : 'none',
+          fontSize: '0.75rem', lineHeight: 1.65, color: 'rgba(255,255,255,0.6)',
+        }}>
+          {info.description}
+          {!info.grounded && (
+            <span style={{ marginLeft: 6, fontSize: '0.65rem', color: 'rgba(251,191,36,0.75)' }}
+              title="식약처 허가사항에서 해당 성분을 찾지 못해 일반 약리 지식으로 작성됨 — 검수 필요">
+              ⚠ 허가사항 미연동
+            </span>
+          )}
+        </div>
+      )}
 
       {open && (
         <div style={{ overflowX: 'auto' }}>
