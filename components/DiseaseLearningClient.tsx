@@ -1,6 +1,17 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { DRUG_FORMS, type DrugForm } from '@/lib/drug-form';
+
+type FormFilter = 'all' | DrugForm;
+
+const FORM_COLOR: Record<string, { border: string; bg: string; fg: string }> = {
+  all:    { border: 'rgba(147,197,253,0.4)', bg: 'rgba(147,197,253,0.12)', fg: '#93c5fd' },
+  정제:   { border: 'rgba(110,231,183,0.4)', bg: 'rgba(110,231,183,0.12)', fg: '#6ee7b7' },
+  캡슐제: { border: 'rgba(251,191,36,0.4)',  bg: 'rgba(251,191,36,0.12)',  fg: '#fbbf24' },
+  주사제: { border: 'rgba(244,114,182,0.4)', bg: 'rgba(244,114,182,0.12)', fg: '#f472b6' },
+  기타:   { border: 'rgba(255,255,255,0.25)', bg: 'rgba(255,255,255,0.08)', fg: 'rgba(255,255,255,0.7)' },
+};
 
 /* ── 타입 ── */
 type SubItem   = { sub: string; ingredients: string[] };
@@ -29,6 +40,7 @@ type DrugItem = {
   approval_date: string | null;
   ubist_monthly: Record<string, number> | null; // period('YYYY-MM') → amount
   commission_rate: number | null;
+  form?: DrugForm;         // 제형 (정제/캡슐제/주사제/기타)
   from_price_db?: boolean; // drug_prices 테이블에서 보강된 항목
 };
 
@@ -155,7 +167,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   const [drugs, setDrugs] = useState<DrugItem[]>([]);
   const [periods, setPeriods] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'original' | 'generic'>('all');
+  const [filter, setFilter] = useState<FormFilter>('all');
   const [search, setSearch] = useState('');
   const [expandedMech, setExpandedMech] = useState(false);
 
@@ -282,10 +294,14 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     return true;
   });
 
-  // 표시 목록 = 선택영역 + 오리지널/제네릭 칩 필터
+  // 선택영역에 실제로 존재하는 제형만 칩으로 노출(0건 칩 방지) — 정제·캡슐제·주사제·기타 순
+  const formChips = ([...DRUG_FORMS, '기타'] as DrugForm[])
+    .map(form => ({ form, n: scoped.filter(d => d.form === form).length }))
+    .filter(x => x.n > 0);
+
+  // 표시 목록 = 선택영역 + 제형 칩 필터
   const displayed = scoped.filter(d => {
-    if (filter === 'original' && !d.is_original) return false;
-    if (filter === 'generic'  &&  d.is_original) return false;
+    if (filter !== 'all' && d.form !== filter) return false;
     return true;
   });
 
@@ -520,21 +536,28 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
               outline: 'none', fontFamily: 'inherit',
             }}
           />
-          {(['all', 'original', 'generic'] as const).map(f => (
-            <button
-              key={f}
-              onClick={() => setFilter(f)}
-              style={{
-                padding: '0.4rem 0.85rem', borderRadius: '8px', fontSize: '0.78rem', cursor: 'pointer',
-                fontFamily: 'inherit', border: '1px solid',
-                borderColor: filter === f ? (f === 'original' ? 'rgba(251,191,36,0.4)' : f === 'generic' ? 'rgba(110,231,183,0.4)' : 'rgba(147,197,253,0.4)') : 'rgba(255,255,255,0.12)',
-                background: filter === f ? (f === 'original' ? 'rgba(251,191,36,0.12)' : f === 'generic' ? 'rgba(110,231,183,0.12)' : 'rgba(147,197,253,0.12)') : 'rgba(255,255,255,0.03)',
-                color: filter === f ? (f === 'original' ? '#fbbf24' : f === 'generic' ? '#6ee7b7' : '#93c5fd') : 'rgba(255,255,255,0.4)',
-              }}
-            >
-              {f === 'all' ? '전체' : f === 'original' ? '오리지널' : '제네릭'}
-            </button>
-          ))}
+          {/* 제형 칩 — 선택영역에 실제로 있는 제형만, 건수와 함께 */}
+          {(['all', ...formChips.map(c => c.form)] as const).map(f => {
+            const on = filter === f;
+            const c  = FORM_COLOR[f] ?? FORM_COLOR.기타;
+            const n  = f === 'all' ? scoped.length : formChips.find(x => x.form === f)!.n;
+            return (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                style={{
+                  padding: '0.4rem 0.85rem', borderRadius: '8px', fontSize: '0.78rem', cursor: 'pointer',
+                  fontFamily: 'inherit', border: '1px solid',
+                  borderColor: on ? c.border : 'rgba(255,255,255,0.12)',
+                  background:  on ? c.bg     : 'rgba(255,255,255,0.03)',
+                  color:       on ? c.fg     : 'rgba(255,255,255,0.4)',
+                }}
+              >
+                {f === 'all' ? '전체' : f}
+                <span style={{ marginLeft: 5, opacity: 0.6, fontSize: '0.7rem' }}>{n}</span>
+              </button>
+            );
+          })}
           {(search || filter !== 'all') && (
             <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>
               {displayed.length}개

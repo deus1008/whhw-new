@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
+import { formOf } from '@/lib/drug-form';
 import { profileIsAdmin } from '@/lib/roles';
 // getEffectiveCompanyId 불필요 — Ubist는 시장 전체 데이터
 
@@ -212,7 +213,10 @@ export async function GET(req: NextRequest) {
         baseDrugsMap.set(key, d as Record<string, unknown>);
       }
     }
-    const baseDrugs = Array.from(baseDrugsMap.values());
+    // 큐레이션 행은 unit 이 없으므로 제품명으로 제형 판정
+    const baseDrugs: Record<string, unknown>[] = Array.from(baseDrugsMap.values()).map(d => ({
+      ...d, form: formOf(null, (d.product_name as string | null) ?? null),
+    }));
 
     // ── 성분 기반 전체 품목 보강 — 약품검색(drug_prices)과 동일 소스, 급여코드(item_code) 기준 ──
     // disease_drugs 성분명은 한글, drug_prices 성분명은 영문이므로,
@@ -283,7 +287,7 @@ export async function GET(req: NextRequest) {
       for (const tok of sig.split('+')) {
         const { data } = await svc()
           .from('drug_prices')
-          .select('item_code, item_name, ingredient_name, manufacturer, standard, pay_type, max_price')
+          .select('item_code, item_name, ingredient_name, manufacturer, standard, pay_type, max_price, unit')
           .ilike('ingredient_name', `%${tok}%`).limit(1500);
         for (const r of data ?? []) {
           const eng = (r.ingredient_name as string) ?? '';
@@ -303,6 +307,7 @@ export async function GET(req: NextRequest) {
             mechanism: null, note: null, atc_code: null, atc_name: null,
             item_code: code, max_price: r.max_price ?? null, reference_drug: null,
             permit_kind: null, approval_date: null, from_price_db: true,
+            form: formOf(r.unit as string | null, (r.item_name as string) ?? null),
           });
         }
       }
