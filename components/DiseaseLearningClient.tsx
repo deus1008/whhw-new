@@ -132,9 +132,8 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   const [selectedGroup, setSelectedGroup] = useState<string | null>(
     groups.length > 0 ? groups[0].group : null
   );
-  const [selectedSub, setSelectedSub] = useState<string | null>(
-    groups.length > 0 && groups[0].subs.length > 0 ? groups[0].subs[0].sub : null
-  );
+  // null = 질환군 전체(1단계 선택 상태). 중분류를 고르면 그때 좁혀진다.
+  const [selectedSub, setSelectedSub] = useState<string | null>(null);
   const [selectedIngr, setSelectedIngr] = useState<string | null>(null);       // 3단계: 성분
   const [selectedStrength, setSelectedStrength] = useState<string | null>(null); // 4단계: 함량
   const [openIngrs, setOpenIngrs] = useState<Set<string>>(new Set());            // 4단계 펼침
@@ -152,11 +151,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   const [openGroups, setOpenGroups] = useState<Set<string>>(
     () => new Set(groups.length > 0 ? [groups[0].group] : []),
   );
-  const [openSubs, setOpenSubs] = useState<Set<string>>(() => {
-    const g = groups[0];
-    const s = g?.subs[0];
-    return new Set(g && s ? [`${g.group}|${s.sub}`] : []);
-  });
+  const [openSubs, setOpenSubs] = useState<Set<string>>(new Set());
   const [drugs, setDrugs] = useState<DrugItem[]>([]);
   const [periods, setPeriods] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -190,7 +185,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
 
   function selectGroup(g: GroupItem) {
     setSelectedGroup(g.group);
-    setSelectedSub(g.subs[0]?.sub ?? null);
+    setSelectedSub(null);        // 1단계 선택 = 질환군 전체
     setSelectedIngr(null);
     setSelectedStrength(null);
     setFilter('all');
@@ -241,18 +236,22 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   for (const arr of strengthsByIngr.values()) arr.sort(cmpStrength);
 
   /** 질환군 열기/닫기 — 열 때는 선택도 함께(닫아도 보고 있던 목록은 유지) */
+  /**
+   * 질환군 클릭 — 항상 '질환군 전체'로 돌아온다(별도 전체보기 버튼 없음).
+   *  - 다른 질환군:            선택 + 펼치기
+   *  - 이미 선택 + 중분류 선택됨: 중분류 해제(= 전체), 펼침 유지
+   *  - 이미 선택 + 전체 상태:    펼치기/접기 토글
+   */
   function toggleGroup(g: GroupItem) {
-    const willSelect = selectedGroup !== g.group;
+    const isCurrent = selectedGroup === g.group;
+    const resetToAll = isCurrent && selectedSub !== null;
     setOpenGroups(prev => {
       const n = new Set(prev);
-      if (willSelect || !prev.has(g.group)) n.add(g.group); else n.delete(g.group);
+      if (!isCurrent || resetToAll || !prev.has(g.group)) n.add(g.group); else n.delete(g.group);
       return n;
     });
-    if (willSelect) {
-      selectGroup(g);
-      const first = g.subs[0]?.sub;
-      if (first) setOpenSubs(prev => new Set(prev).add(`${g.group}|${first}`));
-    }
+    if (!isCurrent) selectGroup(g);
+    else if (resetToAll) selectSub(null);
   }
 
   /** 중분류 클릭 — 다른 중분류면 '선택 + 열기', 이미 선택된 것이면 열기/접기 토글 */
@@ -436,19 +435,6 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                         </div>
                       );
                     })}
-                    {/* 중분류 전체보기 */}
-                    <button
-                      onClick={() => selectSub(null)}
-                      style={{
-                        textAlign: 'left', padding: '0.3rem 0.5rem',
-                        borderRadius: '6px', border: '1px dashed rgba(255,255,255,0.12)', cursor: 'pointer',
-                        fontSize: '0.68rem', background: 'transparent',
-                        color: selectedSub === null ? '#fde68a' : 'rgba(255,255,255,0.25)',
-                        marginTop: '2px',
-                      }}
-                    >
-                      전체보기
-                    </button>
                   </div>
                 )}
               </div>
