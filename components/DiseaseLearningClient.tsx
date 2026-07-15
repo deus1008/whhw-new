@@ -161,6 +161,12 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     setSelectedStrength(null);
   }
 
+  /** 함량 선택(4단계) — 부모 성분도 함께 선택(성분 미선택 상태로 함량만 남는 것 방지) */
+  function selectStrength(ing: string, st: string | null) {
+    setSelectedIngr(ing);
+    setSelectedStrength(st !== null && st === selectedStrength && selectedIngr === ing ? null : st);
+  }
+
   /** 성분 클릭 — 다른 성분이면 '선택 + 열기(함량)', 이미 선택된 것이면 열기/접기 토글 */
   function toggleIngr(ing: string) {
     const willSelect = selectedIngr !== ing;
@@ -372,7 +378,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                                         paddingLeft: '6px', marginTop: '1px', marginBottom: '2px',
                                         display: 'flex', flexDirection: 'column', gap: '1px' }}>
                                         <button
-                                          onClick={() => setSelectedStrength(null)}
+                                          onClick={() => selectStrength(ing, null)}
                                           style={{
                                             textAlign: 'left', padding: '0.18rem 0.35rem', borderRadius: '4px',
                                             border: 'none', cursor: 'pointer', fontSize: '0.63rem', background: 'transparent',
@@ -385,7 +391,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                                         {strengths.map(st => (
                                           <button
                                             key={st}
-                                            onClick={() => setSelectedStrength(st === selectedStrength ? null : st)}
+                                            onClick={() => selectStrength(ing, st)}
                                             style={{
                                               textAlign: 'left', padding: '0.18rem 0.35rem', borderRadius: '4px',
                                               border: 'none', cursor: 'pointer', fontSize: '0.63rem',
@@ -443,7 +449,9 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '1.3rem' }}>{GROUP_ICONS[selectedGroup] ?? '💊'}</span>
                   <h1 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', margin: 0 }}>
-                    {selectedStrength ? `${selectedIngr} ${selectedStrength}` : (selectedIngr ?? selectedSub ?? selectedGroup)}
+                    {selectedStrength
+                      ? [selectedIngr, selectedStrength].filter(Boolean).join(' ')   // 성분+함량
+                      : (selectedIngr ?? selectedSub ?? selectedGroup)}
                   </h1>
                   {selectedIngr && (
                     <button onClick={() => selectIngr(null)} title="성분 선택 해제"
