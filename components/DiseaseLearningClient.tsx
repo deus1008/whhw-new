@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 
 /* ── 타입 ── */
-type GroupItem = { group: string; subs: string[] };
+type SubItem   = { sub: string; ingredients: string[] };
+type GroupItem = { group: string; subs: SubItem[] };
 
 type DrugItem = {
   id: number | null;
@@ -68,8 +69,9 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     groups.length > 0 ? groups[0].group : null
   );
   const [selectedSub, setSelectedSub] = useState<string | null>(
-    groups.length > 0 && groups[0].subs.length > 0 ? groups[0].subs[0] : null
+    groups.length > 0 && groups[0].subs.length > 0 ? groups[0].subs[0].sub : null
   );
+  const [selectedIngr, setSelectedIngr] = useState<string | null>(null);   // 3단계: 성분
   const [drugs, setDrugs] = useState<DrugItem[]>([]);
   const [periods, setPeriods] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -103,14 +105,22 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
 
   function selectGroup(g: GroupItem) {
     setSelectedGroup(g.group);
-    setSelectedSub(g.subs[0] ?? null);
+    setSelectedSub(g.subs[0]?.sub ?? null);
+    setSelectedIngr(null);
     setFilter('all');
     setSearch('');
     setExpandedMech(false);
   }
+  function selectSub(sub: string | null) {
+    setSelectedSub(sub);
+    setSelectedIngr(null);   // 중분류 변경 시 성분 선택 해제
+    setFilter('all');
+    setSearch('');
+  }
 
-  // 필터 + 검색
+  // 성분(3단계) + 필터 + 검색
   const displayed = drugs.filter(d => {
+    if (selectedIngr && (d.ingredient_name ?? '').trim() !== selectedIngr) return false;
     if (filter === 'original' && !d.is_original) return false;
     if (filter === 'generic'  &&  d.is_original) return false;
     if (search.trim()) {
@@ -175,32 +185,76 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                   <span style={{ lineHeight: 1.3 }}>{g.group}</span>
                 </button>
 
-                {/* 중분류 (선택된 질환군만) */}
+                {/* 2단계: 중분류 (선택된 질환군만) */}
                 {isActive && g.subs.length > 0 && (
                   <div style={{ marginLeft: '12px', borderLeft: '1.5px solid rgba(251,191,36,0.2)',
                     paddingLeft: '8px', marginTop: '2px', marginBottom: '4px',
                     display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                    {g.subs.map(sub => (
-                      <button
-                        key={sub}
-                        onClick={() => { setSelectedSub(sub); setFilter('all'); setSearch(''); }}
-                        style={{
-                          textAlign: 'left', padding: '0.3rem 0.5rem',
-                          borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '0.72rem',
-                          background: selectedSub === sub ? 'rgba(251,191,36,0.12)' : 'transparent',
-                          color: selectedSub === sub ? '#fde68a' : 'rgba(255,255,255,0.4)',
-                          fontWeight: selectedSub === sub ? 600 : 400,
-                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                          transition: 'all 0.1s',
-                        }}
-                        title={sub}
-                      >
-                        {sub}
-                      </button>
-                    ))}
+                    {g.subs.map(({ sub, ingredients }) => {
+                      const subActive = selectedSub === sub;
+                      return (
+                        <div key={sub}>
+                          <button
+                            onClick={() => selectSub(subActive ? null : sub)}
+                            style={{
+                              width: '100%', textAlign: 'left', padding: '0.3rem 0.5rem',
+                              borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '0.72rem',
+                              background: subActive ? 'rgba(251,191,36,0.12)' : 'transparent',
+                              color: subActive ? '#fde68a' : 'rgba(255,255,255,0.4)',
+                              fontWeight: subActive ? 600 : 400,
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              transition: 'all 0.1s',
+                            }}
+                            title={sub}
+                          >
+                            <span style={{ fontSize: '0.6rem', opacity: 0.7, flexShrink: 0 }}>
+                              {ingredients.length > 0 ? (subActive ? '▾' : '▸') : '·'}
+                            </span>
+                            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>
+                          </button>
+
+                          {/* 3단계: 성분 (선택된 중분류만) */}
+                          {subActive && ingredients.length > 0 && (
+                            <div style={{ marginLeft: '10px', borderLeft: '1.5px solid rgba(255,255,255,0.08)',
+                              paddingLeft: '7px', marginTop: '1px', marginBottom: '3px',
+                              display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                              <button
+                                onClick={() => setSelectedIngr(null)}
+                                style={{
+                                  textAlign: 'left', padding: '0.22rem 0.4rem', borderRadius: '5px',
+                                  border: 'none', cursor: 'pointer', fontSize: '0.67rem', background: 'transparent',
+                                  color: selectedIngr === null ? '#a5f3fc' : 'rgba(255,255,255,0.3)',
+                                  fontWeight: selectedIngr === null ? 600 : 400,
+                                }}
+                              >
+                                전체 성분 ({ingredients.length})
+                              </button>
+                              {ingredients.map(ing => (
+                                <button
+                                  key={ing}
+                                  onClick={() => setSelectedIngr(ing === selectedIngr ? null : ing)}
+                                  title={ing}
+                                  style={{
+                                    textAlign: 'left', padding: '0.22rem 0.4rem', borderRadius: '5px',
+                                    border: 'none', cursor: 'pointer', fontSize: '0.67rem',
+                                    background: selectedIngr === ing ? 'rgba(34,211,238,0.14)' : 'transparent',
+                                    color: selectedIngr === ing ? '#67e8f9' : 'rgba(255,255,255,0.38)',
+                                    fontWeight: selectedIngr === ing ? 600 : 400,
+                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                                    transition: 'all 0.1s',
+                                  }}
+                                >
+                                  {ing}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                     {/* 중분류 전체보기 */}
                     <button
-                      onClick={() => { setSelectedSub(null); setFilter('all'); setSearch(''); }}
+                      onClick={() => selectSub(null)}
                       style={{
                         textAlign: 'left', padding: '0.3rem 0.5rem',
                         borderRadius: '6px', border: '1px dashed rgba(255,255,255,0.12)', cursor: 'pointer',
@@ -233,11 +287,19 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '1.3rem' }}>{GROUP_ICONS[selectedGroup] ?? '💊'}</span>
                   <h1 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', margin: 0 }}>
-                    {selectedSub ?? selectedGroup}
+                    {selectedIngr ?? selectedSub ?? selectedGroup}
                   </h1>
+                  {selectedIngr && (
+                    <button onClick={() => setSelectedIngr(null)} title="성분 선택 해제"
+                      style={{ fontSize: '0.66rem', color: '#67e8f9', background: 'rgba(34,211,238,0.12)',
+                        border: '1px solid rgba(34,211,238,0.3)', borderRadius: '5px', padding: '1px 6px',
+                        cursor: 'pointer', fontFamily: 'inherit', minHeight: 'auto' }}>
+                      성분 ✕
+                    </button>
+                  )}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginTop: '3px' }}>
-                  {selectedSub ? `${selectedGroup} › ${selectedSub}` : selectedGroup}
+                  {[selectedGroup, selectedSub, selectedIngr].filter(Boolean).join(' › ')}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>

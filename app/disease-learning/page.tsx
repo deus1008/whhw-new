@@ -29,20 +29,24 @@ export default async function DiseaseLearningPage() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
 
-  // 질환군 목록 (서버 사이드)
+  // 질환군 > 중분류 > 성분 3단 트리 (서버 사이드)
   const { data: rawGroups } = await svc
     .from('disease_drugs')
-    .select('disease_group, sub_category')
+    .select('disease_group, sub_category, ingredient_name')
     .not('disease_group', 'is', null)
     .order('disease_group')
     .order('sub_category');
 
-  const treeMap = new Map<string, Set<string>>();
+  const treeMap = new Map<string, Map<string, Set<string>>>();
   for (const r of rawGroups ?? []) {
     const g = (r.disease_group as string).trim();
     const s = (r.sub_category as string | null)?.trim() ?? '';
-    if (!treeMap.has(g)) treeMap.set(g, new Set());
-    if (s) treeMap.get(g)!.add(s);
+    const ing = (r.ingredient_name as string | null)?.trim() ?? '';
+    if (!treeMap.has(g)) treeMap.set(g, new Map());
+    if (!s) continue;
+    const subMap = treeMap.get(g)!;
+    if (!subMap.has(s)) subMap.set(s, new Set());
+    if (ing) subMap.get(s)!.add(ing);
   }
 
   // 질환군 표시 순서 (지정 순 → 목록에 없는 군은 뒤에 가나다순)
@@ -57,7 +61,15 @@ export default async function DiseaseLearningPage() {
   };
 
   const groups = Array.from(treeMap.entries())
-    .map(([group, subs]) => ({ group, subs: Array.from(subs).sort() }))
+    .map(([group, subMap]) => ({
+      group,
+      subs: Array.from(subMap.entries())
+        .map(([sub, ings]) => ({
+          sub,
+          ingredients: Array.from(ings).sort((a, b) => a.localeCompare(b, 'ko')),
+        }))
+        .sort((a, b) => a.sub.localeCompare(b.sub, 'ko')),
+    }))
     .sort((a, b) => rank(a.group) - rank(b.group) || a.group.localeCompare(b.group, 'ko'));
 
   return (
