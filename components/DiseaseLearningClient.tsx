@@ -58,6 +58,47 @@ function ubistSum(d: DrugItem): number {
   return Object.values(d.ubist_monthly ?? {}).reduce((a, b) => a + b, 0);
 }
 
+/* ── 헤더 클릭 정렬 ── */
+type SortKey = 'product' | 'strength' | 'distributor' | 'manufacturer' | 'orig' | 'price' | 'rate' | 'ubist';
+type SortState = { key: SortKey; dir: 'asc' | 'desc' } | null;   // null = 기본 정렬
+
+const SORT_OF: Record<string, SortKey> = {
+  '제품명': 'product', '함량': 'strength', '판매사': 'distributor', '제조사': 'manufacturer',
+  '구분': 'orig', '약가(상한)': 'price', '수수료율': 'rate',
+};
+const ko = (s: string | null) => (s ?? '').localeCompare('', 'ko') === 0 ? '' : (s ?? '');
+
+/** 정렬 비교기 — 지정 키 우선, 동률이면 기본 규칙(함량→오리지널→약가→처방액)으로 폴백 */
+function cmpBy(key: SortKey, dir: 'asc' | 'desc') {
+  const sign = dir === 'asc' ? 1 : -1;
+  return (a: DrugItem, b: DrugItem): number => {
+    let r = 0;
+    switch (key) {
+      case 'product':      r = ko(a.product_name).localeCompare(ko(b.product_name), 'ko'); break;
+      case 'strength':     r = cmpStrength(a.strength, b.strength); break;
+      case 'distributor':  r = ko(a.distributor).localeCompare(ko(b.distributor), 'ko'); break;
+      case 'manufacturer': r = ko(a.manufacturer).localeCompare(ko(b.manufacturer), 'ko'); break;
+      case 'orig':         r = Number(b.is_original) - Number(a.is_original); break;
+      case 'price':        r = (a.max_price ?? -1) - (b.max_price ?? -1); break;
+      case 'rate':         r = (a.commission_rate ?? -1) - (b.commission_rate ?? -1); break;
+      case 'ubist':        r = ubistSum(a) - ubistSum(b); break;
+    }
+    if (r !== 0) return r * sign;
+    return defaultCmp(a, b);
+  };
+}
+
+/** 기본 정렬: 함량 오름차순 → 오리지널 먼저 → 약가 높은순 → 처방액 높은순 → 제품명 */
+function defaultCmp(a: DrugItem, b: DrugItem): number {
+  return (
+    cmpStrength(a.strength, b.strength) ||
+    (Number(b.is_original) - Number(a.is_original)) ||
+    ((b.max_price ?? -1) - (a.max_price ?? -1)) ||
+    (ubistSum(b) - ubistSum(a)) ||
+    ko(a.product_name).localeCompare(ko(b.product_name), 'ko')
+  );
+}
+
 /* ── 함량 비교: "10mg" → [10], "5mg/10mg" → [5,10] (숫자 오름차순) ── */
 function strengthNums(s: string | null): number[] {
   return (s ?? '').split('/').map(x => parseFloat(x) || 0);
@@ -98,6 +139,16 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   const [selectedIngr, setSelectedIngr] = useState<string | null>(null);       // 3단계: 성분
   const [selectedStrength, setSelectedStrength] = useState<string | null>(null); // 4단계: 함량
   const [openIngrs, setOpenIngrs] = useState<Set<string>>(new Set());            // 4단계 펼침
+  const [sort, setSort] = useState<SortState>(null);                             // 헤더 클릭 정렬
+
+  /** 헤더 클릭: 미정렬 → asc → desc → 기본 */
+  function toggleSort(key: SortKey) {
+    setSort(prev =>
+      !prev || prev.key !== key ? { key, dir: 'asc' }
+      : prev.dir === 'asc' ? { key, dir: 'desc' }
+      : null,
+    );
+  }
   // 펼침 상태 — 선택과 분리(접어도 보고 있는 목록은 그대로 유지)
   const [openGroups, setOpenGroups] = useState<Set<string>>(
     () => new Set(groups.length > 0 ? [groups[0].group] : []),
@@ -248,15 +299,9 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     if (!ingredientGroups.has(key)) ingredientGroups.set(key, []);
     ingredientGroups.get(key)!.push(d);
   }
-  for (const list of ingredientGroups.values()) {
-    list.sort((a, b) =>
-      cmpStrength(a.strength, b.strength) ||                       // 함량 오름차순
-      (Number(b.is_original) - Number(a.is_original)) ||           // 오리지널 먼저
-      ((b.max_price ?? -1) - (a.max_price ?? -1)) ||               // 약가 높은 순
-      (ubistSum(b) - ubistSum(a)) ||                               // 약가 동일 시 처방액 높은 순
-      (a.product_name ?? '').localeCompare(b.product_name ?? '', 'ko'),
-    );
-  }
+  // 헤더 클릭 정렬이 있으면 그 기준, 없으면 기본 정렬
+  const cmp = sort ? cmpBy(sort.key, sort.dir) : defaultCmp;
+  for (const list of ingredientGroups.values()) list.sort(cmp);
 
   // 통계 — 선택영역(scoped) 기준 집계
   const origCount    = scoped.filter(d =>  d.is_original).length;
@@ -547,7 +592,8 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {Array.from(ingredientGroups.entries()).map(([ingr, items]) => (
-              <IngredientGroup key={ingr} ingredient={ingr} items={items} periods={periods} />
+              <IngredientGroup key={ingr} ingredient={ingr} items={items} periods={periods}
+                sort={sort} onSort={toggleSort} />
             ))}
           </div>
         )}
@@ -557,7 +603,10 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
 }
 
 /* ── 성분별 그룹 카드 ── */
-function IngredientGroup({ ingredient, items, periods }: { ingredient: string; items: DrugItem[]; periods: string[] }) {
+function IngredientGroup({ ingredient, items, periods, sort, onSort }: {
+  ingredient: string; items: DrugItem[]; periods: string[];
+  sort: SortState; onSort: (k: SortKey) => void;
+}) {
   const [open, setOpen] = useState(true);
   const origCount    = items.filter(d =>  d.is_original).length;
   const genericCount = items.filter(d => !d.is_original).length;
@@ -599,14 +648,32 @@ function IngredientGroup({ ingredient, items, periods }: { ingredient: string; i
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
             <thead>
               <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
-                {fixedHeaders.map(h => (
-                  <th key={h.label} style={h.w ? { ...TH, width: h.w } : TH}>{h.label}</th>
-                ))}
-                {periodHeaders.map((h, i) => (
-                  <th key={periods[i]} style={{ ...TH, textAlign: 'right', color: 'rgba(165,243,252,0.55)' }}>
-                    처방액(천원)<br /><span style={{ fontSize: '0.65rem' }}>{h}</span>
-                  </th>
-                ))}
+                {fixedHeaders.map(h => {
+                  const k = SORT_OF[h.label];
+                  const on = sort?.key === k;
+                  return (
+                    <th key={h.label} onClick={k ? () => onSort(k) : undefined}
+                      title={k ? '클릭하여 정렬' : undefined}
+                      style={{
+                        ...TH, ...(h.w ? { width: h.w } : {}),
+                        cursor: k ? 'pointer' : 'default', userSelect: 'none',
+                        color: on ? '#a5f3fc' : TH.color,
+                      }}>
+                      {h.label}{k && <span style={{ marginLeft: 3, opacity: on ? 1 : 0.3 }}>{on ? (sort!.dir === 'asc' ? '▲' : '▼') : '⇅'}</span>}
+                    </th>
+                  );
+                })}
+                {periodHeaders.map((h, i) => {
+                  const on = sort?.key === 'ubist';
+                  return (
+                    <th key={periods[i]} onClick={() => onSort('ubist')} title="클릭하여 정렬"
+                      style={{ ...TH, textAlign: 'right', cursor: 'pointer', userSelect: 'none',
+                        color: on ? '#a5f3fc' : 'rgba(165,243,252,0.55)' }}>
+                      처방액(천원)<span style={{ marginLeft: 3, opacity: on ? 1 : 0.3 }}>{on ? (sort!.dir === 'asc' ? '▲' : '▼') : '⇅'}</span>
+                      <br /><span style={{ fontSize: '0.65rem' }}>{h}</span>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
