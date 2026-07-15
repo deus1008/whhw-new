@@ -626,8 +626,10 @@ function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; pe
   return (
     <tr style={{ background: even ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
       <td style={{ ...TD, width: PROD_W, maxWidth: PROD_W }} title={d.product_name ?? undefined}>
+        {/* table-layout:auto 에서 td의 max-width 는 강제되지 않으므로 내부 div 에 고정폭을 직접 지정 */}
         <div style={{
           fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#fde68a' : '#e2e8f0',
+          width: PROD_W - 24, maxWidth: PROD_W - 24,   // td 좌우 패딩(0.75rem*2) 제외
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
           {d.product_name ?? '-'}
