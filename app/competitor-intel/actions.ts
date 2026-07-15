@@ -111,6 +111,34 @@ export async function removeCompany(id: string): Promise<{ error?: string }> {
   return {};
 }
 
+/** 대상 업체 순서 이동(위/아래) — 관리자 */
+export async function moveCompany(id: string, dir: 'up' | 'down'): Promise<{ error?: string }> {
+  const auth = await requireUser();
+  if ('error' in auth) return { error: auth.error };
+  if (!auth.isAdmin) return { error: '관리자만 순서를 변경할 수 있습니다.' };
+
+  const s = svc();
+  const { data } = await s.from('competitor_companies')
+    .select('id, display_order').eq('active', true)
+    .order('display_order', { ascending: true }).order('name', { ascending: true });
+  const list = (data ?? []) as { id: string; display_order: number | null }[];
+  const i = list.findIndex((c) => c.id === id);
+  if (i < 0) return { error: '업체를 찾을 수 없습니다.' };
+  const j = dir === 'up' ? i - 1 : i + 1;
+  if (j < 0 || j >= list.length) return {};                 // 끝 — 변화 없음
+
+  [list[i], list[j]] = [list[j], list[i]];                   // 위치 교환
+  // 순번 재정렬(중복·공백 방지) — 변경된 행만 갱신
+  for (let k = 0; k < list.length; k++) {
+    if (list[k].display_order !== k + 1) {
+      const { error } = await s.from('competitor_companies').update({ display_order: k + 1 }).eq('id', list[k].id);
+      if (error) return { error: error.message };
+    }
+  }
+  revalidatePath('/competitor-intel');
+  return {};
+}
+
 /** 삭제된 대상 업체 복원 — 관리자 */
 export async function restoreCompany(id: string): Promise<{ error?: string }> {
   const auth = await requireUser();

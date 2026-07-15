@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { saveTrend, deleteTrend, addCompany, removeCompany, restoreCompany, addSource, removeSource, crawlNow, type TrendInput } from '@/app/competitor-intel/actions';
+import { saveTrend, deleteTrend, addCompany, removeCompany, restoreCompany, moveCompany, addSource, removeSource, crawlNow, type TrendInput } from '@/app/competitor-intel/actions';
 
 export type Company = { id: string; name: string; display_order: number };
 export type Source  = { id: string; name: string; base_url: string | null; display_order: number };
@@ -83,14 +83,22 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
         <button onClick={() => setSel('ALL')} style={sideBtn(sel === 'ALL')}>
           전체 <span style={{ opacity: 0.5, fontSize: '0.72rem' }}>{trends.length}</span>
         </button>
-        {companies.map(c => (
+        {companies.map((c, i) => (
           <div key={c.id} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <button onClick={() => setSel(c.name)} style={{ ...sideBtn(sel === c.name), flex: 1 }}>
+            <button onClick={() => setSel(c.name)} style={{ ...sideBtn(sel === c.name), flex: 1, minWidth: 0 }}>
               {c.name} <span style={{ opacity: 0.5, fontSize: '0.72rem' }}>{counts[c.name] ?? 0}</span>
             </button>
             {isAdmin && (
-              <button title="삭제" onClick={() => { if (confirm(`${c.name} 삭제?`)) run(() => removeCompany(c.id)); }}
-                style={xBtn}>✕</button>
+              <>
+                <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 0.9 }}>
+                  <button title="위로" disabled={pending || i === 0} onClick={() => run(() => moveCompany(c.id, 'up'))}
+                    style={{ ...ordBtn, opacity: i === 0 ? 0.15 : 0.5 }}>▲</button>
+                  <button title="아래로" disabled={pending || i === companies.length - 1} onClick={() => run(() => moveCompany(c.id, 'down'))}
+                    style={{ ...ordBtn, opacity: i === companies.length - 1 ? 0.15 : 0.5 }}>▼</button>
+                </span>
+                <button title="삭제" onClick={() => { if (confirm(`${c.name} 삭제?\n(동향 기록은 보존되며 관리자가 복원할 수 있습니다)`)) run(() => removeCompany(c.id)); }}
+                  style={xBtn}>✕</button>
+              </>
             )}
           </div>
         ))}
@@ -312,6 +320,7 @@ const sideBtn = (active: boolean): React.CSSProperties => ({
   background: active ? 'rgba(59,130,246,0.16)' : 'transparent', color: active ? '#93c5fd' : 'rgba(255,255,255,0.6)', fontWeight: active ? 700 : 400, fontFamily: 'inherit',
 });
 const xBtn: React.CSSProperties = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: '0.7rem', padding: '0 0.2rem' };
+const ordBtn: React.CSSProperties = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '0.5rem', padding: 0, lineHeight: 1, fontFamily: 'inherit' };
 const miniBtn: React.CSSProperties = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '0.7rem', padding: '0.12rem 0.5rem', fontFamily: 'inherit' };
 const primaryBtn: React.CSSProperties = { padding: '0.42rem 1rem', borderRadius: 8, background: 'rgba(59,130,246,0.9)', border: 'none', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' };
 const ghostBtn: React.CSSProperties = { padding: '0.42rem 1rem', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' };
