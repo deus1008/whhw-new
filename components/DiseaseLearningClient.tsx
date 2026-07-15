@@ -320,10 +320,10 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   const cmp = sort ? cmpBy(sort.key, sort.dir) : defaultCmp;
   for (const list of ingredientGroups.values()) list.sort(cmp);
 
-  // 통계 — 선택영역(scoped) 기준 집계
-  const origCount    = scoped.filter(d =>  d.is_original).length;
-  const genericCount = scoped.filter(d => !d.is_original).length;
-  const ubistTotal   = scoped.reduce((s, d) => s + ubistSum(d), 0);
+  // 통계 — 실제 리스트에 나온 것(displayed = 선택영역 + 검색 + 제형 칩)만 집계
+  const origCount    = displayed.filter(d =>  d.is_original).length;
+  const genericCount = displayed.filter(d => !d.is_original).length;
+  const ubistTotal   = displayed.reduce((s, d) => s + ubistSum(d), 0);
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '1rem', marginTop: '1.25rem' }}>
@@ -492,7 +492,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                <Stat label="전체" value={scoped.length} color="#93c5fd" />
+                <Stat label="전체" value={displayed.length} color="#93c5fd" />
                 <Stat label="오리지널" value={origCount} color="#fbbf24" />
                 <Stat label="제네릭" value={genericCount} color="#6ee7b7" />
                 {ubistTotal > 0 && <Stat label={`처방액 ${periods.length}개월(천원)`} value={fmtThousand(ubistTotal)} color="#f9a8d4" />}
