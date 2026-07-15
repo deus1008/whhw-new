@@ -87,9 +87,12 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '210px 1fr', gap: '1rem', alignItems: 'start' }}>
-      {/* ── 사이드바 ── */}
-      <div style={{ ...card, position: 'sticky', top: '1rem', padding: '0.7rem 0.55rem' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '1rem', alignItems: 'start' }}>
+      {/* ── 사이드바 (본문과 독립 스크롤) ── */}
+      <div style={{
+        ...card, position: 'sticky', top: '1rem', padding: '0.7rem 0.55rem',
+        maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto', overscrollBehavior: 'contain',
+      }}>
         <p style={sideHdr}>대상 업체</p>
         <button onClick={() => setSel('ALL')} style={sideBtn(sel === 'ALL')}>
           전체 <span style={{ opacity: 0.5, fontSize: '0.72rem' }}>{trends.length}</span>
@@ -101,12 +104,10 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
             </button>
             {isAdmin && (
               <>
-                <span style={{ display: 'flex', flexDirection: 'column', lineHeight: 0.9 }}>
-                  <button title="위로" disabled={pending || i === 0} onClick={() => run(() => moveCompany(c.id, 'up'))}
-                    style={{ ...ordBtn, opacity: i === 0 ? 0.15 : 0.5 }}>▲</button>
-                  <button title="아래로" disabled={pending || i === companies.length - 1} onClick={() => run(() => moveCompany(c.id, 'down'))}
-                    style={{ ...ordBtn, opacity: i === companies.length - 1 ? 0.15 : 0.5 }}>▼</button>
-                </span>
+                <button title="위로" disabled={pending || i === 0} onClick={() => run(() => moveCompany(c.id, 'up'))}
+                  style={{ ...ordBtn, opacity: i === 0 ? 0.15 : 0.55 }}>▲</button>
+                <button title="아래로" disabled={pending || i === companies.length - 1} onClick={() => run(() => moveCompany(c.id, 'down'))}
+                  style={{ ...ordBtn, opacity: i === companies.length - 1 ? 0.15 : 0.55 }}>▼</button>
                 <button title="삭제" onClick={() => { if (confirm(`${c.name} 삭제?\n(동향 기록은 보존되며 관리자가 복원할 수 있습니다)`)) run(() => removeCompany(c.id)); }}
                   style={xBtn}>✕</button>
               </>
@@ -325,12 +326,16 @@ function Chip({ active, color, onClick, children }: { active: boolean; color?: s
 /* ── 스타일 ── */
 const card: React.CSSProperties = { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14 };
 const sideHdr: React.CSSProperties = { fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '0 0.4rem', margin: '0 0 0.4rem' };
+// globals.css 의 전역 터치타겟(button{min-height:44px; justify-content:center}) 을
+// 사이드바에서만 완화 — 목록이 세로로 과도하게 길어지고 텍스트가 가운데 정렬되는 문제 해소.
 const sideBtn = (active: boolean): React.CSSProperties => ({
-  width: '100%', textAlign: 'left', padding: '0.4rem 0.55rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.8rem', marginBottom: 2,
+  width: '100%', textAlign: 'left', padding: '0.3rem 0.5rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.8rem', marginBottom: 1,
   background: active ? 'rgba(59,130,246,0.16)' : 'transparent', color: active ? '#93c5fd' : 'rgba(255,255,255,0.6)', fontWeight: active ? 700 : 400, fontFamily: 'inherit',
+  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+  minHeight: 30, justifyContent: 'flex-start', display: 'flex', alignItems: 'center',
 });
-const xBtn: React.CSSProperties = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: '0.7rem', padding: '0 0.2rem' };
-const ordBtn: React.CSSProperties = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '0.5rem', padding: 0, lineHeight: 1, fontFamily: 'inherit' };
+const xBtn: React.CSSProperties = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: '0.7rem', padding: '0 0.2rem', minHeight: 22, flexShrink: 0 };
+const ordBtn: React.CSSProperties = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '0.6rem', padding: '0 2px', lineHeight: 1, fontFamily: 'inherit', flexShrink: 0, minHeight: 22 };
 const miniBtn: React.CSSProperties = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '0.7rem', padding: '0.12rem 0.5rem', fontFamily: 'inherit' };
 const primaryBtn: React.CSSProperties = { padding: '0.42rem 1rem', borderRadius: 8, background: 'rgba(59,130,246,0.9)', border: 'none', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' };
 const ghostBtn: React.CSSProperties = { padding: '0.42rem 1rem', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' };
