@@ -75,6 +75,17 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
     setEditing({ company_name: sel !== 'ALL' ? sel : (companies[0]?.name ?? ''), trend_type: '기타', title: '', is_field: false, event_date: new Date().toISOString().slice(0, 10) });
   }
 
+  // 폼 공용 props (상단 신규 폼 / 카드 위치 인라인 수정 폼 공유)
+  const formProps = {
+    companies, sources, pending,
+    onCancel: () => setEditing(null),
+    onSave: (v: TrendInput) => start(async () => {
+      const r = await saveTrend(v);
+      if (r.error) setNotice('⚠ ' + r.error);
+      else { setEditing(null); refresh('저장되었습니다.'); }
+    }),
+  };
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '210px 1fr', gap: '1rem', alignItems: 'start' }}>
       {/* ── 사이드바 ── */}
@@ -169,12 +180,8 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
           {TYPES.map(t => <Chip key={t} active={typeF === t} color={TYPE_STYLE[t].c} onClick={() => setTypeF(typeF === t ? null : t)}>{t}</Chip>)}
         </div>
 
-        {/* 폼 */}
-        {editing && (
-          <TrendForm value={editing} companies={companies} sources={sources} pending={pending}
-            onCancel={() => setEditing(null)}
-            onSave={(v) => start(async () => { const r = await saveTrend(v); if (r.error) setNotice('⚠ ' + r.error); else { setEditing(null); refresh('저장되었습니다.'); } })} />
-        )}
+        {/* 신규 추가 폼 — 상단 (기존 기사 수정은 해당 카드 위치에서 인라인으로 열림) */}
+        {editing && !editing.id && <TrendForm value={editing} {...formProps} />}
 
         {/* 타임라인 */}
         {groups.length === 0 ? (
@@ -188,10 +195,13 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {items.map(t => (
-                <TrendCard key={t.id} t={t} showCompany={sel === 'ALL'}
-                  canEdit={isAdmin || t.author_id === currentUserId}
-                  onEdit={() => setEditing({ id: t.id, company_name: t.company_name, trend_type: t.trend_type, title: t.title, summary: t.summary ?? '', content: t.content ?? '', source_name: t.source_name ?? '', url: t.url ?? '', event_date: t.event_date, is_field: t.is_field, supplement: t.supplement ?? '' })}
-                  onDelete={() => { if (confirm('삭제하시겠습니까?')) run(() => deleteTrend(t.id), '삭제되었습니다.'); }} />
+                editing?.id === t.id
+                  // 수정 중인 기사는 그 자리에서 폼으로 전환 (스크롤 불필요)
+                  ? <TrendForm key={t.id} value={editing} {...formProps} />
+                  : <TrendCard key={t.id} t={t} showCompany={sel === 'ALL'}
+                      canEdit={isAdmin || t.author_id === currentUserId}
+                      onEdit={() => setEditing({ id: t.id, company_name: t.company_name, trend_type: t.trend_type, title: t.title, summary: t.summary ?? '', content: t.content ?? '', source_name: t.source_name ?? '', url: t.url ?? '', event_date: t.event_date, is_field: t.is_field, supplement: t.supplement ?? '' })}
+                      onDelete={() => { if (confirm('삭제하시겠습니까?')) run(() => deleteTrend(t.id), '삭제되었습니다.'); }} />
               ))}
             </div>
           </div>
