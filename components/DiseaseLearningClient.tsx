@@ -49,7 +49,7 @@ function fmtPeriod(p: string): string {
 }
 
 /* 열 고정폭(px) — 자동폭 실측값 기준 조정 */
-const MFR_W   = 70;   // 제조사: 140 → 50%
+const MFR_W   = 70;   // 판매사·제조사 공통(동일 너비): 제조사 140 → 50% 기준
 const PROD_W  = 223;  // 제품명: 319 → 70%
 const GUBUN_W = 85;   // 구분:    65 → 130% (제네릭 뱃지 줄바꿈 방지)
 
@@ -614,7 +614,7 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort }: {
   // w 지정 시 해당 열 고정폭(미지정은 내용에 따라 자동)
   const fixedHeaders: { label: string; w?: number }[] = [
     { label: '제품명', w: PROD_W }, { label: '함량' },
-    { label: '판매사' }, { label: '제조사', w: MFR_W },
+    { label: '판매사', w: MFR_W }, { label: '제조사', w: MFR_W },
     { label: '구분', w: GUBUN_W }, { label: '약가(상한)' }, { label: '수수료율' },
   ];
   const periodHeaders = periods.map(fmtPeriod);
@@ -710,7 +710,10 @@ function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; pe
       <td style={{ ...TD, textAlign: 'center', color: '#a5f3fc', fontSize: '0.73rem', whiteSpace: 'nowrap' }}>
         {d.strength ?? '-'}
       </td>
-      <td style={{ ...TD, color: 'rgba(255,255,255,0.55)', fontSize: '0.73rem' }}>
+      <td style={{
+        ...TD, color: 'rgba(255,255,255,0.55)', fontSize: '0.73rem',
+        width: MFR_W, maxWidth: MFR_W, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }} title={d.distributor ?? undefined}>
         {d.distributor ?? '-'}
       </td>
       <td style={{
