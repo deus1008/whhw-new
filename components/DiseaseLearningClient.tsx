@@ -202,15 +202,15 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     setSelectedStrength(st !== null && st === selectedStrength && selectedIngr === ing ? null : st);
   }
 
-  /** 성분 클릭 — 다른 성분이면 '선택 + 열기(함량)', 이미 선택된 것이면 열기/접기 토글 */
+  /** 성분 클릭 — 다른 성분이면 '선택 + 함량 펼치기', 이미 선택된 성분이면 '해제 + 접기'(= 중분류 전체) */
   function toggleIngr(ing: string) {
     const willSelect = selectedIngr !== ing;
     setOpenIngrs(prev => {
       const n = new Set(prev);
-      if (willSelect || !prev.has(ing)) n.add(ing); else n.delete(ing);
+      if (willSelect) n.add(ing); else n.delete(ing);
       return n;
     });
-    if (willSelect) selectIngr(ing);
+    selectIngr(willSelect ? ing : null);
   }
 
   // 4단계: 현재 로드된 약품에서 성분별 함량 목록(숫자 오름차순)
@@ -366,17 +366,6 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                             <div style={{ marginLeft: '10px', borderLeft: '1.5px solid rgba(255,255,255,0.08)',
                               paddingLeft: '7px', marginTop: '1px', marginBottom: '3px',
                               display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                              <button
-                                onClick={() => selectIngr(null)}
-                                style={{
-                                  textAlign: 'left', padding: '0.22rem 0.4rem', borderRadius: '5px',
-                                  border: 'none', cursor: 'pointer', fontSize: '0.67rem', background: 'transparent',
-                                  color: selectedIngr === null ? '#a5f3fc' : 'rgba(255,255,255,0.3)',
-                                  fontWeight: selectedIngr === null ? 600 : 400,
-                                }}
-                              >
-                                전체 성분 ({ingredients.length})
-                              </button>
                               {ingredients.map(ing => {
                                 const strengths = subActive ? (strengthsByIngr.get(ing) ?? []) : [];
                                 const ingOpen = openIngrs.has(ing);
@@ -407,17 +396,6 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                                       <div style={{ marginLeft: '9px', borderLeft: '1.5px solid rgba(34,211,238,0.15)',
                                         paddingLeft: '6px', marginTop: '1px', marginBottom: '2px',
                                         display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                                        <button
-                                          onClick={() => selectStrength(ing, null)}
-                                          style={{
-                                            textAlign: 'left', padding: '0.18rem 0.35rem', borderRadius: '4px',
-                                            border: 'none', cursor: 'pointer', fontSize: '0.63rem', background: 'transparent',
-                                            color: selectedStrength === null ? '#a5f3fc' : 'rgba(255,255,255,0.28)',
-                                            fontWeight: selectedStrength === null ? 600 : 400,
-                                          }}
-                                        >
-                                          전체 함량 ({strengths.length})
-                                        </button>
                                         {strengths.map(st => (
                                           <button
                                             key={st}
