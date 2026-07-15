@@ -454,9 +454,10 @@ export default function MarketingClient({
       </div>
 
       {/* ── 일정 등록/수정 모달 ── */}
+      {/* 작성 중 유실 방지: 배경 클릭으로 닫지 않음 — 취소/등록 버튼으로만 닫힘 */}
       {modalOpen && (
-        <div onClick={closeModal} style={overlay}>
-          <div onClick={e => e.stopPropagation()} style={modalBox}>
+        <div style={overlay}>
+          <div style={modalBox}>
             <h2 style={{ margin:'0 0 1.4rem', fontSize:'1.05rem', fontWeight:700, color:'var(--text-primary)' }}>
               {editTarget ? '일정 수정' : '일정 등록'}
             </h2>
@@ -523,8 +524,8 @@ export default function MarketingClient({
 
       {/* ── 카테고리 관리 모달 ── */}
       {catModalOpen && (
-        <div onClick={closeCatModal} style={overlay}>
-          <div onClick={e => e.stopPropagation()} style={{ ...modalBox, maxWidth:'460px' }}>
+        <div style={overlay}>
+          <div style={{ ...modalBox, maxWidth:'460px' }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'1.2rem' }}>
               <h2 style={{ margin:0, fontSize:'1.05rem', fontWeight:700, color:'var(--text-primary)' }}>
                 일정 유형 관리
