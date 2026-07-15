@@ -523,7 +523,6 @@ function SalesPersonAccordion({ stats, totalAmount }: {
                           style={{ background: 'rgba(52,211,153,0.05)', cursor: hasHos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
                         >
                           <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#6ee7b7' }}>
-                            <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                             {hasHos && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isCsoOpen ? '▼' : '▶'}</span>}
                             {cso.name}
                           </td>
@@ -533,7 +532,6 @@ function SalesPersonAccordion({ stats, totalAmount }: {
                         {isCsoOpen && cso.hospitals.map(h => (
                           <tr key={h.name} style={{ background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                             <td colSpan={3} style={{ ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={h.name}>
-                              <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                               {h.name}
                             </td>
                             <td style={{ ...TD('right', true), fontSize: '0.76rem' }}>{fmt(h.amount)}</td>
@@ -619,7 +617,6 @@ function CsoAccordion({ stats, totalAmount }: {
                           style={{ background: 'rgba(251,146,60,0.05)', cursor: hasItems ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
                         >
                           <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#fdba74' }}>
-                            <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                             {hasItems && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isHosOpen ? '▼' : '▶'}</span>}
                             {h.name}
                           </td>
@@ -629,7 +626,6 @@ function CsoAccordion({ stats, totalAmount }: {
                         {isHosOpen && h.items.map(it => (
                           <tr key={it.name} style={{ background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                             <td colSpan={3} style={{ ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
-                              <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                               {it.name}
                             </td>
                             <td style={{ ...TD('right', true), fontSize: '0.76rem' }}>{fmt(it.amount)}</td>
@@ -718,7 +714,6 @@ function HospitalAccordion({ stats, totalAmount }: {
                           style={{ background: 'rgba(59,130,246,0.05)', cursor: hasCsos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
                         >
                           <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#93c5fd', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
-                            <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                             {hasCsos && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isItemOpen ? '▼' : '▶'}</span>}
                             {it.name}
                           </td>
@@ -728,7 +723,6 @@ function HospitalAccordion({ stats, totalAmount }: {
                         {isItemOpen && it.csos.map(c => (
                           <tr key={c.name} style={{ background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                             <td colSpan={3} style={{ ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={c.name}>
-                              <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                               {c.name}
                             </td>
                             <td style={{ ...TD('right', true), fontSize: '0.76rem' }}>{fmt(c.amount)}</td>
@@ -854,7 +848,6 @@ function ItemCsoAccordion({ stats, search, totalAmount }: {
                           style={{ background: 'rgba(52,211,153,0.05)', cursor: hasHos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
                         >
                           <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#6ee7b7' }}>
-                            <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                             {hasHos && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isCsoOpen ? '▼' : '▶'}</span>}
                             {cso.name}
                           </td>
@@ -864,7 +857,6 @@ function ItemCsoAccordion({ stats, search, totalAmount }: {
                         {isCsoOpen && cso.hospitals.map(h => (
                           <tr key={h.name} style={{ background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                             <td colSpan={3} style={{ ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={h.name}>
-                              <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                               {h.name}
                             </td>
                             <td style={{ ...TD('right', true), fontSize: '0.76rem' }}>{fmt(h.amount)}</td>
@@ -944,7 +936,6 @@ function ItemHospAccordion({ stats, search, totalAmount }: {
                         <tr onClick={() => hasSps && toggle(setExpandedHos, hosKey)}
                           style={{ background: 'rgba(251,146,60,0.05)', cursor: hasSps ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                           <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#fdba74', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={h.name}>
-                            <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                             {hasSps && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isHosOpen ? '▼' : '▶'}</span>}
                             {h.name}
                           </td>
@@ -960,7 +951,6 @@ function ItemHospAccordion({ stats, search, totalAmount }: {
                               <tr onClick={() => hasCsos && toggle(setExpandedSps, spKey)}
                                 style={{ background: 'rgba(168,85,247,0.05)', cursor: hasCsos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                                 <td colSpan={3} style={{ ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem', color: '#d8b4fe' }}>
-                                  <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                                   {hasCsos && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isSpOpen ? '▼' : '▶'}</span>}
                                   {sp.name}
                                 </td>
@@ -970,7 +960,6 @@ function ItemHospAccordion({ stats, search, totalAmount }: {
                               {isSpOpen && sp.csos.map(cso => (
                                 <tr key={cso.name} style={{ background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.025)' }}>
                                   <td colSpan={3} style={{ ...TD('left'), paddingLeft: '4.5rem', fontSize: '0.74rem', color: '#6ee7b7', maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis' }} title={cso.name}>
-                                    <span style={{ opacity: 0.4, marginRight: '0.2rem', fontSize: '0.7rem' }}>└</span>
                                     {cso.name}
                                   </td>
                                   <td style={{ ...TD('right', true), fontSize: '0.74rem' }}>{fmt(cso.amount)}</td>

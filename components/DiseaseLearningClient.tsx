@@ -354,7 +354,6 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                             }}
                             title={subOpen ? '접기' : '펼치기'}
                           >
-                            <span style={{ opacity: 0.4, fontSize: '0.65rem', flexShrink: 0 }}>└</span>
                             {ingredients.length > 0
                               ? <span style={{ fontSize: '0.58rem', opacity: 0.7, flexShrink: 0 }}>{subOpen ? '▼' : '▶'}</span>
                               : <span style={{ width: 7, flexShrink: 0 }} />}
@@ -384,7 +383,6 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                                         transition: 'all 0.1s',
                                       }}
                                     >
-                                      <span style={{ opacity: 0.4, fontSize: '0.6rem', flexShrink: 0 }}>└</span>
                                       {strengths.length > 0
                                         ? <span style={{ fontSize: '0.54rem', opacity: 0.7, flexShrink: 0 }}>{ingOpen ? '▼' : '▶'}</span>
                                         : <span style={{ width: 6, flexShrink: 0 }} />}
@@ -410,7 +408,6 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                                               display: 'flex', alignItems: 'center', gap: 3,
                                             }}
                                           >
-                                            <span style={{ opacity: 0.35, fontSize: '0.56rem', flexShrink: 0 }}>└</span>
                                             {st}
                                           </button>
                                         ))}
