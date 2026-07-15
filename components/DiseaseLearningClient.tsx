@@ -211,20 +211,26 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     if (willSelect) selectSub(sub);
   }
 
-  // 성분(3단계) + 필터 + 검색
-  const displayed = drugs.filter(d => {
+  // 선택영역 = 메뉴 선택(성분 3단계·함량 4단계) + 검색 — 상단 집계는 이 범위 기준
+  const scoped = drugs.filter(d => {
     if (selectedIngr && (d.ingredient_name ?? '').trim() !== selectedIngr) return false;
     if (selectedStrength && (d.strength ?? '') !== selectedStrength) return false;
-    if (filter === 'original' && !d.is_original) return false;
-    if (filter === 'generic'  &&  d.is_original) return false;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      return (
+      return !!(
         d.product_name?.toLowerCase().includes(q) ||
         d.ingredient_name?.toLowerCase().includes(q) ||
-        d.manufacturer?.toLowerCase().includes(q)
+        d.manufacturer?.toLowerCase().includes(q) ||
+        d.distributor?.toLowerCase().includes(q)
       );
     }
+    return true;
+  });
+
+  // 표시 목록 = 선택영역 + 오리지널/제네릭 칩 필터
+  const displayed = scoped.filter(d => {
+    if (filter === 'original' && !d.is_original) return false;
+    if (filter === 'generic'  &&  d.is_original) return false;
     return true;
   });
 
@@ -246,13 +252,10 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     );
   }
 
-  // 통계
-  const origCount    = drugs.filter(d =>  d.is_original).length;
-  const genericCount = drugs.filter(d => !d.is_original).length;
-  const ubistTotal   = drugs.reduce((s, d) => {
-    if (!d.ubist_monthly) return s;
-    return s + Object.values(d.ubist_monthly).reduce((a, b) => a + b, 0);
-  }, 0);
+  // 통계 — 선택영역(scoped) 기준 집계
+  const origCount    = scoped.filter(d =>  d.is_original).length;
+  const genericCount = scoped.filter(d => !d.is_original).length;
+  const ubistTotal   = scoped.reduce((s, d) => s + ubistSum(d), 0);
   const mechText = drugs.find(d => d.mechanism)?.mechanism ?? null;
 
   return (
@@ -456,7 +459,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                <Stat label="전체" value={drugs.length} color="#93c5fd" />
+                <Stat label="전체" value={scoped.length} color="#93c5fd" />
                 <Stat label="오리지널" value={origCount} color="#fbbf24" />
                 <Stat label="제네릭" value={genericCount} color="#6ee7b7" />
                 {ubistTotal > 0 && <Stat label={`처방액 ${periods.length}개월(천원)`} value={fmtThousand(ubistTotal)} color="#f9a8d4" />}
@@ -614,8 +617,11 @@ function IngredientGroup({ ingredient, items, periods }: { ingredient: string; i
 function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; periods: string[] }) {
   return (
     <tr style={{ background: even ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
-      <td style={{ ...TD, width: PROD_W, maxWidth: PROD_W }}>
-        <div style={{ fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#fde68a' : '#e2e8f0', wordBreak: 'break-all' }}>
+      <td style={{ ...TD, width: PROD_W, maxWidth: PROD_W }} title={d.product_name ?? undefined}>
+        <div style={{
+          fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#fde68a' : '#e2e8f0',
+          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        }}>
           {d.product_name ?? '-'}
         </div>
         {d.atc_code && (
