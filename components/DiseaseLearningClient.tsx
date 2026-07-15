@@ -48,6 +48,9 @@ function fmtPeriod(p: string): string {
   return `${yr.slice(2)}.${mo}`;
 }
 
+/* 제조사 열 고정폭(px) — 기존 자동폭 140px 의 50% */
+const MFR_W = 70;
+
 /* ── 함량 비교: "10mg" → [10], "5mg/10mg" → [5,10] (숫자 오름차순) ── */
 function strengthNums(s: string | null): number[] {
   return (s ?? '').split('/').map(x => parseFloat(x) || 0);
@@ -540,7 +543,11 @@ function IngredientGroup({ ingredient, items, periods }: { ingredient: string; i
   const origCount    = items.filter(d =>  d.is_original).length;
   const genericCount = items.filter(d => !d.is_original).length;
 
-  const fixedHeaders = ['제품명', '함량', '제조사', '판매사', '구분', '약가(상한)', '수수료율'];
+  // w 지정 시 해당 열 고정폭(미지정은 내용에 따라 자동)
+  const fixedHeaders: { label: string; w?: number }[] = [
+    { label: '제품명' }, { label: '함량' }, { label: '제조사', w: MFR_W },
+    { label: '판매사' }, { label: '구분' }, { label: '약가(상한)' }, { label: '수수료율' },
+  ];
   const periodHeaders = periods.map(fmtPeriod);
 
   return (
@@ -573,7 +580,7 @@ function IngredientGroup({ ingredient, items, periods }: { ingredient: string; i
             <thead>
               <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
                 {fixedHeaders.map(h => (
-                  <th key={h} style={TH}>{h}</th>
+                  <th key={h.label} style={h.w ? { ...TH, width: h.w } : TH}>{h.label}</th>
                 ))}
                 {periodHeaders.map((h, i) => (
                   <th key={periods[i]} style={{ ...TH, textAlign: 'right', color: 'rgba(165,243,252,0.55)' }}>
@@ -611,7 +618,10 @@ function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; pe
       <td style={{ ...TD, textAlign: 'center', color: '#a5f3fc', fontSize: '0.73rem', whiteSpace: 'nowrap' }}>
         {d.strength ?? '-'}
       </td>
-      <td style={{ ...TD, color: 'rgba(255,255,255,0.55)', fontSize: '0.73rem' }}>
+      <td style={{
+        ...TD, color: 'rgba(255,255,255,0.55)', fontSize: '0.73rem',
+        width: MFR_W, maxWidth: MFR_W, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }} title={d.manufacturer ?? undefined}>
         {d.manufacturer ?? '-'}
       </td>
       <td style={{ ...TD, color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem' }}>
