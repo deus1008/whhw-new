@@ -111,6 +111,17 @@ export async function removeCompany(id: string): Promise<{ error?: string }> {
   return {};
 }
 
+/** 삭제된 대상 업체 복원 — 관리자 */
+export async function restoreCompany(id: string): Promise<{ error?: string }> {
+  const auth = await requireUser();
+  if ('error' in auth) return { error: auth.error };
+  if (!auth.isAdmin) return { error: '관리자만 복원할 수 있습니다.' };
+  const { error } = await svc().from('competitor_companies').update({ active: true }).eq('id', id);
+  if (error) return { error: error.message };
+  revalidatePath('/competitor-intel');
+  return {};
+}
+
 /** 매체 추가 — 관리자 */
 export async function addSource(name: string, baseUrl: string): Promise<{ error?: string }> {
   const auth = await requireUser();

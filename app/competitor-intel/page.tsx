@@ -20,7 +20,7 @@ export default async function CompetitorIntelPage() {
 
   const svc = createSvc(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-  const [{ data: companies }, { data: sources }, { data: trends }] = await Promise.all([
+  const [{ data: companies }, { data: sources }, { data: trends }, { data: deleted }] = await Promise.all([
     svc.from('competitor_companies').select('id, name, display_order').eq('active', true).order('display_order'),
     svc.from('media_sources').select('id, name, base_url, display_order').eq('active', true).order('display_order'),
     svc.from('competitor_trends')
@@ -28,6 +28,10 @@ export default async function CompetitorIntelPage() {
       .order('event_date', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
       .limit(2000),
+    // 삭제(비활성)된 업체 — 관리자 복원용
+    isAdmin
+      ? svc.from('competitor_companies').select('id, name, display_order').eq('active', false).order('display_order')
+      : Promise.resolve({ data: [] }),
   ]);
 
   return (
@@ -46,6 +50,7 @@ export default async function CompetitorIntelPage() {
 
         <CompetitorIntelClient
           companies={(companies ?? []) as Company[]}
+          deletedCompanies={(deleted ?? []) as Company[]}
           sources={(sources ?? []) as Source[]}
           trends={(trends ?? []) as Trend[]}
           isAdmin={isAdmin}

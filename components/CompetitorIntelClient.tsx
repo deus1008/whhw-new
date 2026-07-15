@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { saveTrend, deleteTrend, addCompany, removeCompany, addSource, removeSource, crawlNow, type TrendInput } from '@/app/competitor-intel/actions';
+import { saveTrend, deleteTrend, addCompany, removeCompany, restoreCompany, addSource, removeSource, crawlNow, type TrendInput } from '@/app/competitor-intel/actions';
 
 export type Company = { id: string; name: string; display_order: number };
 export type Source  = { id: string; name: string; base_url: string | null; display_order: number };
@@ -23,8 +23,8 @@ const TYPE_STYLE: Record<string, { c: string; bg: string }> = {
 };
 const fmtYmd = (s?: string | null) => (s ? s.replace(/-/g, '.').slice(2) : '');
 
-export default function CompetitorIntelClient({ companies, sources, trends, isAdmin, currentUserId }: {
-  companies: Company[]; sources: Source[]; trends: Trend[]; isAdmin: boolean; currentUserId: string;
+export default function CompetitorIntelClient({ companies, deletedCompanies = [], sources, trends, isAdmin, currentUserId }: {
+  companies: Company[]; deletedCompanies?: Company[]; sources: Source[]; trends: Trend[]; isAdmin: boolean; currentUserId: string;
 }) {
   const router = useRouter();
   const [sel, setSel]       = useState<string>('ALL');
@@ -32,6 +32,7 @@ export default function CompetitorIntelClient({ companies, sources, trends, isAd
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<TrendInput | null>(null);   // null = 폼 닫힘
   const [manageMedia, setManageMedia] = useState(false);
+  const [showTrash, setShowTrash] = useState(false);
   const [pending, start] = useTransition();
   const [notice, setNotice] = useState('');
 
@@ -94,6 +95,26 @@ export default function CompetitorIntelClient({ companies, sources, trends, isAd
           </div>
         ))}
         {isAdmin && <AddInline placeholder="+ 회사 추가" onAdd={(v) => run(() => addCompany(v))} />}
+
+        {/* 삭제된 업체 복원 (관리자) */}
+        {isAdmin && deletedCompanies.length > 0 && (
+          <>
+            <button onClick={() => setShowTrash(t => !t)}
+              style={{ ...sideHdr, marginTop: '0.7rem', cursor: 'pointer', background: 'none', border: 'none', width: '100%', textAlign: 'left', padding: '0 0.4rem' }}>
+              🗑 삭제된 업체 ({deletedCompanies.length}) {showTrash ? '▾' : '▸'}
+            </button>
+            {showTrash && deletedCompanies.map(c => (
+              <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0.15rem 0.3rem' }}>
+                <span style={{ flex: 1, fontSize: '0.76rem', color: 'rgba(255,255,255,0.3)', textDecoration: 'line-through' }}>{c.name}</span>
+                <button title="복원" disabled={pending}
+                  onClick={() => run(() => restoreCompany(c.id), `${c.name} 복원되었습니다.`)}
+                  style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 6, color: '#6ee7b7', cursor: 'pointer', fontSize: '0.66rem', padding: '0.1rem 0.4rem', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  ↩ 복원
+                </button>
+              </div>
+            ))}
+          </>
+        )}
 
         {/* 매체 관리 */}
         <button onClick={() => setManageMedia(m => !m)} style={{ ...sideHdr, marginTop: '0.8rem', cursor: 'pointer', background: 'none', border: 'none', width: '100%', textAlign: 'left', padding: '0 0.4rem' }}>
