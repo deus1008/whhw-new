@@ -122,13 +122,19 @@ export type UpcomingProduct = {
   ingredient:     string | null;
 };
 
-export type CsoDoc = {
-  id:        string;
-  filename:  string;
-  category:  string;
-  fileType:  string;
-  createdAt: string;
-  summary:   string | null;
+// 업계동향(/competitor-intel) 기반 CSO 제약사 동향
+export type CsoTrendItem = {
+  id:      string;
+  title:   string;
+  summary: string | null;
+  date:    string | null;   // YYYY-MM-DD
+  type:    string;          // 신제품출시 | 정책변경 | 이슈사항 | 현장동향 | 기타
+  url:     string | null;
+};
+export type CsoTrendCompany = {
+  company: string;
+  total:   number;
+  items:   CsoTrendItem[];  // 최신순 일부
 };
 
 export type ProductRankItem = {
@@ -175,8 +181,8 @@ export type DashboardData = {
   ediMonths:            string[];
   // 섹션7: 발매예정
   upcomingProducts:     UpcomingProduct[];
-  // 섹션6: 경쟁사 동향
-  csoDocs:              CsoDoc[];
+  // 섹션6: CSO 제약사 동향 (업계동향)
+  csoTrends:            CsoTrendCompany[];
   // 섹션6b: 품절현황
   stockItems:           StockAlertItem[];
   stockFileName:        string | null;
@@ -256,7 +262,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
     settPrescMonthly,
     ediMonthly, ediMonths,
     upcomingProducts,
-    csoDocs,
+    csoTrends,
     stockItems, stockFileName,
     top10Products, bottom10Products,
     dcItems, dcStageCounts,
@@ -882,50 +888,55 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       ══════════════════════════════════════════════════════════ */}
       <Section title="📄 CSO 제약사 동향" id="s6">
         {(() => {
-          const COMPETITOR_ORDER = [
-            '대웅바이오', '셀트리온제약', '안국약품', '동구바이오제약',
-            '마더스제약', '경동제약', '휴온스', '테라젠이텍스',
-          ];
-
-          const competitorRows = COMPETITOR_ORDER.map((company, idx) => {
-            const matches = csoDocs
-              .filter(d => d.filename.includes(company))
-              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            return { rank: idx + 1, company, doc: matches[0] ?? null };
-          });
-
-          // 8개사에 매칭되지 않는 기타 문서
-          const otherDocs = csoDocs.filter(d =>
-            !COMPETITOR_ORDER.some(c => d.filename.includes(c))
-          );
-
-          const hasAnyData = competitorRows.some(r => r.doc !== null);
+          const TYPE_C: Record<string, string> = {
+            '신제품출시': '#6ee7b7', '정책변경': '#93c5fd', '이슈사항': '#fca5a5',
+            '현장동향': '#fcd34d', '기타': '#cbd5e1',
+          };
+          const hasAny = csoTrends.some(c => c.items.length > 0);
 
           return (
             <>
-              <SubTitle>▸ CSO제약사 8개사 동향 · 처방액 규모 기준</SubTitle>
+              <SubTitle>▸ CSO제약사 {csoTrends.length}개사 최근 동향 · 업계동향 수집 기사</SubTitle>
               <div style={{ overflowX: 'auto' }}>
                 <table className="dash-table">
                   <thead>
                     <tr>
                       <th className="center" style={{ width: '2.5rem' }}>순위</th>
-                      <th style={{ width: '8rem' }}>경쟁사</th>
-                      <th>최근 동향 요약</th>
+                      <th style={{ width: '8rem' }}>업체</th>
+                      <th>최근 기사</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {competitorRows.map(({ rank, company, doc }) => {
-                      const displayText = doc
-                        ? (doc.summary ?? doc.filename.replace(/\.[^/.]+$/, ''))
-                        : null;
+                    {csoTrends.map((c, idx) => {
+                      const on = c.items.length > 0;
                       return (
-                        <tr key={company} style={{ opacity: doc ? 1 : 0.45 }}>
-                          <td className="center muted">{rank}</td>
-                          <td style={{ fontWeight: 700, color: doc ? '#e9d5ff' : 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
-                            {company}
+                        <tr key={c.company} style={{ opacity: on ? 1 : 0.45 }}>
+                          <td className="center muted">{idx + 1}</td>
+                          <td style={{ fontWeight: 700, color: on ? '#e9d5ff' : 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
+                            {c.company}
+                            {c.total > 0 && <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}> {c.total}건</span>}
                           </td>
-                          <td style={{ fontSize: '0.83rem', color: doc ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.3)', whiteSpace: 'pre-line', lineHeight: 1.65 }}>
-                            {displayText ?? '자료 없음'}
+                          <td style={{ fontSize: '0.83rem', lineHeight: 1.6 }}>
+                            {!on ? <span style={{ color: 'rgba(255,255,255,0.3)' }}>수집된 기사 없음</span> : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                {c.items.map(it => (
+                                  <div key={it.id} style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem' }}>
+                                    <span style={{ fontSize: '0.7rem', fontFamily: 'monospace', color: 'rgba(255,255,255,0.35)', minWidth: '3.1rem', flexShrink: 0 }}>
+                                      {it.date ? it.date.slice(2).replace(/-/g, '.') : '—'}
+                                    </span>
+                                    <span style={{ fontSize: '0.63rem', fontWeight: 700, color: TYPE_C[it.type] ?? '#cbd5e1', flexShrink: 0, minWidth: '3.6rem' }}>
+                                      {it.type}
+                                    </span>
+                                    <span style={{ flex: 1, color: 'rgba(255,255,255,0.85)' }}>
+                                      {it.url
+                                        ? <a href={it.url} target="_blank" rel="noreferrer" style={{ color: 'rgba(255,255,255,0.85)', textDecoration: 'none' }}>{it.title}</a>
+                                        : it.title}
+                                      {it.summary && <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.76rem' }}> — {it.summary}</span>}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </td>
                         </tr>
                       );
@@ -934,41 +945,12 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </table>
               </div>
 
-              {/* 기타 경쟁사 문서 */}
-              {otherDocs.length > 0 && (
-                <>
-                  <div style={{ marginTop: '1rem' }}><SubTitle>▸ 기타 경쟁사 자료</SubTitle></div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    {otherDocs.map(d => {
-                      const daysAgo = Math.floor((Date.now() - new Date(d.createdAt).getTime()) / 86400000);
-                      const freshColor = daysAgo <= 7 ? '#4ade80' : daysAgo <= 30 ? '#fbbf24' : 'rgba(255,255,255,0.35)';
-                      const title = d.summary ?? d.filename.replace(/\.[^/.]+$/, '');
-                      return (
-                        <div key={d.id} style={{
-                          display: 'flex', alignItems: 'center', gap: '0.6rem',
-                          padding: '0.45rem 0.7rem', borderRadius: '7px',
-                          background: 'rgba(255,255,255,0.025)',
-                          border: '1px solid rgba(255,255,255,0.06)',
-                        }}>
-                          <span style={{ fontSize: '0.75rem', color: freshColor, minWidth: '44px', textAlign: 'right', fontWeight: 600 }}>
-                            {daysAgo === 0 ? '오늘' : `${daysAgo}일전`}
-                          </span>
-                          <span style={{ flex: 1, fontSize: '0.82rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {title}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-
-              {!hasAnyData && otherDocs.length === 0 && (
-                <Empty msg="문서관리 > '경쟁사동향' 폴더에 파일을 업로드하면 자동 표시됩니다. 파일명에 회사명을 포함하면 해당 행에 연결됩니다." />
+              {!hasAny && (
+                <Empty msg="업계동향 페이지에서 뉴스를 수집하거나 동향을 직접 입력하면 자동 표시됩니다." />
               )}
 
               <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.7rem', textAlign: 'right' }}>
-                파일명에 회사명 포함 시 자동 연결 · <a href="/documents" style={{ color: '#a5b4fc' }}>문서관리</a>
+                업체별 전체 동향·현장청취 보기 · <a href="/competitor-intel" style={{ color: '#a5b4fc' }}>업계동향</a>
               </p>
             </>
           );

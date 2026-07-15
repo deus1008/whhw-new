@@ -11,6 +11,7 @@ import { profileIsAdmin } from '@/lib/roles';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import { cachedRpc } from '@/lib/dashboard-cache';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
+import { fetchCsoTrends } from '@/lib/competitor/weekly-trends';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,12 +29,6 @@ function toYYYYMM(s: string): string {
   return s;
 }
 
-const COMP_KEYWORDS = ['경쟁사', '경쟁동향', '시장동향', 'CSO동향', '경쟁현황'];
-
-function isCompCategory(cat: string | null): boolean {
-  if (!cat) return false;
-  return COMP_KEYWORDS.some(k => cat.includes(k));
-}
 
 /** 의원 여부: hospital_category 우선, fallback hospital_type */
 function isClinic(cat: string | null, typ?: string | null): boolean {
@@ -182,15 +177,6 @@ export default async function DashboardPage() {
     if (companyId) q = q.eq('company_id', companyId);
     return q;
   })();
-  const docQ = (() => {
-    let q = svc.from('documents')
-      .select('id,filename,category,file_type,created_at,status,summary')
-      .gte('created_at', since3mStr)
-      .order('created_at', { ascending: false })
-      .limit(60);
-    if (companyId) q = q.eq('company_id', companyId);
-    return q;
-  })();
   const invDocQ = (() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let q: any = svc.from('documents')
@@ -208,7 +194,6 @@ export default async function DashboardPage() {
     { data: scheduleRows },
     { data: ediRpcResult },
     { data: upcomingRows },
-    { data: docRows },
     { data: dcRows },
     { data: invDoc },
   ] = await Promise.all([
@@ -229,8 +214,6 @@ export default async function DashboardPage() {
       .limit(60),
     ediRpcPromise,
     upcomingQ,
-    // 문서: 최근 3개월 (위탁사 필터 적용)
-    docQ,
     // DC현황: 전체 목록 (sort_order 순, 위탁사 필터 적용)
     dcQ,
     // 품절예측: 최신 파일 메타 (위탁사 필터 적용)
@@ -527,18 +510,8 @@ export default async function DashboardPage() {
     ingredient:     p.memo           as string | null,
   }));
 
-  // ── I. 경쟁사 동향 (경쟁사 관련 문서) ────────────────────────────────────
-  const csoDocs = (docRows ?? [])
-    .filter(d => isCompCategory(d.category as string | null))
-    .slice(0, 30)
-    .map(d => ({
-      id:        d.id        as string,
-      filename:  d.filename  as string,
-      category:  (d.category ?? '기타') as string,
-      fileType:  d.file_type as string,
-      createdAt: d.created_at as string,
-      summary:   (d.summary ?? null) as string | null,
-    }));
+  // ── I. CSO 제약사 동향 (업계동향 /competitor-intel 기반) ──────────────────
+  const csoTrends = await fetchCsoTrends(svc);
 
   // ── J. DC현황 ─────────────────────────────────────────────────────────────
   const DC_STAGES = ['준비중', '접수', '코드인', '탈락'] as const;
@@ -589,7 +562,7 @@ export default async function DashboardPage() {
     top5Products,
     ediMonths,
     upcomingProducts,
-    csoDocs,
+    csoTrends,
     stockItems,
     stockFileName,
     top10Products,
