@@ -49,9 +49,24 @@ function fmtPeriod(p: string): string {
 }
 
 /* 열 고정폭(px) — 자동폭 실측값 기준 조정 */
-const MFR_W   = 70;   // 판매사·제조사 공통(동일 너비): 제조사 140 → 50% 기준
 const PROD_W  = 223;  // 제품명: 319 → 70%
 const GUBUN_W = 85;   // 구분:    65 → 130% (제네릭 뱃지 줄바꿈 방지)
+const DOSE_W  = 60;   // 함량
+
+/* 숫자 열 — 데이터 실폭에 맞춘 고정폭. 헤더 그룹화 + 좁은 좌우 패딩 기준 */
+const PRICE_W = 74;   // 약가(상한): 최대 "12,345원"
+const RATE_W  = 68;   // 수수료율:   최대 "100.0%"
+const UBIST_W = 58;   // 처방액 월별: 최대 6자리 + 콤마
+
+/**
+ * table-layout:fixed 에서 폭을 지정하지 않은 열은 남는 폭을 균등하게 나눠 갖는다.
+ * 판매사·제조사만 폭을 비워 두어, 숫자 열에서 줄인 만큼을 두 열이 정확히 반씩 흡수한다.
+ * (좁은 화면에서는 아래 minWidth 까지만 줄고 그 아래로는 가로 스크롤)
+ */
+const MFR_MIN = 90;
+function tableMinWidth(monthCount: number): number {
+  return PROD_W + DOSE_W + GUBUN_W + PRICE_W + RATE_W + monthCount * UBIST_W + MFR_MIN * 2;
+}
 
 /* 처방액 합계(정렬용) */
 function ubistSum(d: DrugItem): number {
@@ -572,13 +587,15 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort }: {
   const origCount    = items.filter(d =>  d.is_original).length;
   const genericCount = items.filter(d => !d.is_original).length;
 
-  // w 지정 시 해당 열 고정폭(미지정은 내용에 따라 자동)
-  const fixedHeaders: { label: string; w?: number }[] = [
-    { label: '제품명', w: PROD_W }, { label: '함량' },
-    { label: '판매사', w: MFR_W }, { label: '제조사', w: MFR_W },
-    { label: '구분', w: GUBUN_W }, { label: '약가(상한)' }, { label: '수수료율' },
+  // w 미지정(판매사·제조사) = 남는 폭을 균등 분배받는 열
+  const fixedHeaders: { label: string; w?: number; num?: boolean }[] = [
+    { label: '제품명', w: PROD_W }, { label: '함량', w: DOSE_W },
+    { label: '판매사' }, { label: '제조사' },
+    { label: '구분', w: GUBUN_W },
+    { label: '약가(상한)', w: PRICE_W, num: true }, { label: '수수료율', w: RATE_W, num: true },
   ];
   const periodHeaders = periods.map(fmtPeriod);
+  const ubistOn = sort?.key === 'ubist';
 
   return (
     <div style={{
@@ -606,17 +623,26 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort }: {
 
       {open && (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+          <table style={{
+            width: '100%', minWidth: tableMinWidth(periods.length), tableLayout: 'fixed',
+            borderCollapse: 'collapse', fontSize: '0.78rem',
+          }}>
+            <colgroup>
+              {fixedHeaders.map(h => <col key={h.label} style={h.w ? { width: h.w } : undefined} />)}
+              {periods.map(p => <col key={p} style={{ width: UBIST_W }} />)}
+            </colgroup>
             <thead>
+              {/* 1행: 고정 열(2행 병합) + 처방액 그룹 라벨 / 2행: 월 */}
               <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
                 {fixedHeaders.map(h => {
                   const k = SORT_OF[h.label];
                   const on = sort?.key === k;
                   return (
-                    <th key={h.label} onClick={k ? () => onSort(k) : undefined}
+                    <th key={h.label} rowSpan={2}
+                      onClick={k ? () => onSort(k) : undefined}
                       title={k ? '클릭하여 정렬' : undefined}
                       style={{
-                        ...TH, ...(h.w ? { width: h.w } : {}),
+                        ...(h.num ? TH_NUM : TH),
                         cursor: k ? 'pointer' : 'default', userSelect: 'none',
                         color: on ? '#a5f3fc' : TH.color,
                       }}>
@@ -624,17 +650,27 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort }: {
                     </th>
                   );
                 })}
-                {periodHeaders.map((h, i) => {
-                  const on = sort?.key === 'ubist';
-                  return (
-                    <th key={periods[i]} onClick={() => onSort('ubist')} title="클릭하여 정렬"
-                      style={{ ...TH, textAlign: 'right', cursor: 'pointer', userSelect: 'none',
-                        color: on ? '#a5f3fc' : 'rgba(165,243,252,0.55)' }}>
-                      처방액(천원)<span style={{ marginLeft: 3, opacity: on ? 1 : 0.3 }}>{on ? (sort!.dir === 'asc' ? '▲' : '▼') : '⇅'}</span>
-                      <br /><span style={{ fontSize: '0.65rem' }}>{h}</span>
-                    </th>
-                  );
-                })}
+                {periods.length > 0 && (
+                  <th colSpan={periods.length} onClick={() => onSort('ubist')} title="클릭하여 정렬"
+                    style={{ ...TH_NUM, textAlign: 'center', cursor: 'pointer', userSelect: 'none',
+                      paddingBottom: '0.15rem', borderBottom: 'none',
+                      color: ubistOn ? '#a5f3fc' : 'rgba(165,243,252,0.55)' }}>
+                    처방액(천원)
+                    <span style={{ marginLeft: 3, opacity: ubistOn ? 1 : 0.3 }}>
+                      {ubistOn ? (sort!.dir === 'asc' ? '▲' : '▼') : '⇅'}
+                    </span>
+                  </th>
+                )}
+              </tr>
+              <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
+                {periodHeaders.map((h, i) => (
+                  <th key={periods[i]} onClick={() => onSort('ubist')} title="클릭하여 정렬"
+                    style={{ ...TH_NUM, textAlign: 'right', paddingTop: 0,
+                      fontSize: '0.65rem', cursor: 'pointer', userSelect: 'none',
+                      color: ubistOn ? '#a5f3fc' : 'rgba(165,243,252,0.55)' }}>
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -650,14 +686,14 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort }: {
 }
 
 /* ── 의약품 테이블 행 ── */
-function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; periods: string[] }) {
+function DrugRow({ drug: d, even, periods }: {
+  drug: DrugItem; even: boolean; periods: string[];
+}) {
   return (
     <tr style={{ background: even ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
-      <td style={{ ...TD, width: PROD_W, maxWidth: PROD_W }} title={d.product_name ?? undefined}>
-        {/* table-layout:auto 에서 td의 max-width 는 강제되지 않으므로 내부 div 에 고정폭을 직접 지정 */}
+      <td style={TD} title={d.product_name ?? undefined}>
         <div style={{
           fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#fde68a' : '#e2e8f0',
-          width: PROD_W - 24, maxWidth: PROD_W - 24,   // td 좌우 패딩(0.75rem*2) 제외
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
           {d.product_name ?? '-'}
@@ -673,17 +709,17 @@ function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; pe
       </td>
       <td style={{
         ...TD, color: 'rgba(255,255,255,0.55)', fontSize: '0.73rem',
-        width: MFR_W, maxWidth: MFR_W, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       }} title={d.distributor ?? undefined}>
         {d.distributor ?? '-'}
       </td>
       <td style={{
         ...TD, color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem',
-        width: MFR_W, maxWidth: MFR_W, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       }} title={d.manufacturer ?? undefined}>
         {d.manufacturer ?? '-'}
       </td>
-      <td style={{ ...TD, textAlign: 'center', width: GUBUN_W }}>
+      <td style={{ ...TD, textAlign: 'center' }}>
         <span style={{
           fontSize: '0.68rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 600,
           whiteSpace: 'nowrap', display: 'inline-block',
@@ -699,12 +735,12 @@ function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; pe
           </div>
         )}
       </td>
-      <td style={{ ...TD, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+      <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
         <span style={{ color: d.max_price ? '#e2e8f0' : 'rgba(255,255,255,0.25)', fontSize: '0.75rem' }}>
           {fmtPrice(d.max_price)}
         </span>
       </td>
-      <td style={{ ...TD, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+      <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
         {d.commission_rate != null ? (
           <span style={{ color: '#f9a8d4', fontSize: '0.78rem', fontWeight: 600 }}>
             {d.commission_rate.toFixed(1)}%
@@ -715,7 +751,7 @@ function DrugRow({ drug: d, even, periods }: { drug: DrugItem; even: boolean; pe
       {periods.map(p => {
         const amt = d.ubist_monthly?.[p] ?? null;
         return (
-          <td key={p} style={{ ...TD, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+          <td key={p} style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
             {amt != null ? (
               <span style={{ color: '#a5f3fc', fontSize: '0.78rem', fontWeight: 600 }}>
                 {fmtThousand(amt)}
@@ -749,3 +785,7 @@ const TD: React.CSSProperties = {
   padding: '0.5rem 0.75rem', borderBottom: '1px solid rgba(255,255,255,0.04)',
   verticalAlign: 'middle',
 };
+
+/* 숫자 열 — 좌우 패딩을 줄여 데이터 실폭에 맞춤 */
+const TH_NUM: React.CSSProperties = { ...TH, padding: '0.4rem 0.4rem' };
+const TD_NUM: React.CSSProperties = { ...TD, padding: '0.5rem 0.4rem' };
