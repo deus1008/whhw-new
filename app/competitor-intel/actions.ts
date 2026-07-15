@@ -135,3 +135,18 @@ export async function removeSource(id: string): Promise<{ error?: string }> {
   revalidatePath('/competitor-intel');
   return {};
 }
+
+/** 지금 뉴스 수집 (자동수집 수동 트리거) — 관리자 */
+export async function crawlNow(): Promise<{ error?: string; message?: string }> {
+  const auth = await requireUser();
+  if ('error' in auth) return { error: auth.error };
+  if (!auth.isAdmin) return { error: '관리자만 수집을 실행할 수 있습니다.' };
+  const { runCrawl } = await import('@/lib/competitor/sync');
+  try {
+    const r = await runCrawl(svc());
+    revalidatePath('/competitor-intel');
+    return { message: `수집 완료 — ${r.sources.join('·')} × ${r.companies}개사, 신규 ${r.inserted}건(총 ${r.found}건 확인)` };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}

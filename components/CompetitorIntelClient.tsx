@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { saveTrend, deleteTrend, addCompany, removeCompany, addSource, removeSource, type TrendInput } from '@/app/competitor-intel/actions';
+import { saveTrend, deleteTrend, addCompany, removeCompany, addSource, removeSource, crawlNow, type TrendInput } from '@/app/competitor-intel/actions';
 
 export type Company = { id: string; name: string; display_order: number };
 export type Source  = { id: string; name: string; base_url: string | null; display_order: number };
@@ -127,6 +127,10 @@ export default function CompetitorIntelClient({ companies, sources, trends, isAd
           <div style={{ flex: 1 }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 검색"
             style={{ minWidth: 160, padding: '0.4rem 0.7rem', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }} />
+          {isAdmin && (
+            <button disabled={pending} onClick={() => start(async () => { setNotice('뉴스 수집 중…(최대 1~2분)'); const r = await crawlNow(); setNotice((r.error ? '⚠ ' + r.error : r.message) ?? ''); router.refresh(); })}
+              style={ghostBtn} title="자동수집 매체에서 최신 기사 수집">🔄 뉴스 수집</button>
+          )}
           <button onClick={openNew} style={primaryBtn}>+ 동향 추가</button>
         </div>
 

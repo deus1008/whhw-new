@@ -19,6 +19,9 @@
     },
     "app/api/cron/sync-mfds-reference/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/crawl-competitor-news/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
@@ -57,6 +60,10 @@
     {
       "path": "/api/cron/sync-mfds-reference?dataset=match",
       "schedule": "50 16 * * 0"
+    },
+    {
+      "path": "/api/cron/crawl-competitor-news",
+      "schedule": "0 22 * * *"
     }
   ]
 }
