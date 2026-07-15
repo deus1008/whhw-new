@@ -72,6 +72,15 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     groups.length > 0 && groups[0].subs.length > 0 ? groups[0].subs[0].sub : null
   );
   const [selectedIngr, setSelectedIngr] = useState<string | null>(null);   // 3단계: 성분
+  // 펼침 상태 — 선택과 분리(접어도 보고 있는 목록은 그대로 유지)
+  const [openGroups, setOpenGroups] = useState<Set<string>>(
+    () => new Set(groups.length > 0 ? [groups[0].group] : []),
+  );
+  const [openSubs, setOpenSubs] = useState<Set<string>>(() => {
+    const g = groups[0];
+    const s = g?.subs[0];
+    return new Set(g && s ? [`${g.group}|${s.sub}`] : []);
+  });
   const [drugs, setDrugs] = useState<DrugItem[]>([]);
   const [periods, setPeriods] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -116,6 +125,33 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     setSelectedIngr(null);   // 중분류 변경 시 성분 선택 해제
     setFilter('all');
     setSearch('');
+  }
+
+  /** 질환군 열기/닫기 — 열 때는 선택도 함께(닫아도 보고 있던 목록은 유지) */
+  function toggleGroup(g: GroupItem) {
+    const isOpen = openGroups.has(g.group);
+    setOpenGroups(prev => {
+      const n = new Set(prev);
+      if (isOpen) n.delete(g.group); else n.add(g.group);
+      return n;
+    });
+    if (!isOpen || selectedGroup !== g.group) {
+      selectGroup(g);
+      const first = g.subs[0]?.sub;
+      if (first) setOpenSubs(prev => new Set(prev).add(`${g.group}|${first}`));
+    }
+  }
+
+  /** 중분류 열기/닫기 — 열 때는 선택도 함께 */
+  function toggleSub(group: string, sub: string) {
+    const key = `${group}|${sub}`;
+    const isOpen = openSubs.has(key);
+    setOpenSubs(prev => {
+      const n = new Set(prev);
+      if (isOpen) n.delete(key); else n.add(key);
+      return n;
+    });
+    if (!isOpen || selectedSub !== sub) selectSub(sub);
   }
 
   // 성분(3단계) + 필터 + 검색
@@ -166,11 +202,13 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
           {groups.map(g => {
-            const isActive = g.group === selectedGroup;
+            const isActive  = g.group === selectedGroup;
+            const groupOpen = openGroups.has(g.group);
             return (
               <div key={g.group}>
                 <button
-                  onClick={() => selectGroup(g)}
+                  onClick={() => toggleGroup(g)}
+                  title={groupOpen ? '접기' : '펼치기'}
                   style={{
                     width: '100%', textAlign: 'left', padding: '0.45rem 0.6rem',
                     borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.78rem',
@@ -182,20 +220,24 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                   }}
                 >
                   <span style={{ fontSize: '0.9rem' }}>{GROUP_ICONS[g.group] ?? '💊'}</span>
-                  <span style={{ lineHeight: 1.3 }}>{g.group}</span>
+                  <span style={{ flex: 1, lineHeight: 1.3 }}>{g.group}</span>
+                  {g.subs.length > 0 && (
+                    <span style={{ fontSize: '0.6rem', opacity: 0.6, flexShrink: 0 }}>{groupOpen ? '▾' : '▸'}</span>
+                  )}
                 </button>
 
-                {/* 2단계: 중분류 (선택된 질환군만) */}
-                {isActive && g.subs.length > 0 && (
+                {/* 2단계: 중분류 (펼친 질환군만) */}
+                {groupOpen && g.subs.length > 0 && (
                   <div style={{ marginLeft: '12px', borderLeft: '1.5px solid rgba(251,191,36,0.2)',
                     paddingLeft: '8px', marginTop: '2px', marginBottom: '4px',
                     display: 'flex', flexDirection: 'column', gap: '1px' }}>
                     {g.subs.map(({ sub, ingredients }) => {
                       const subActive = selectedSub === sub;
+                      const subOpen   = openSubs.has(`${g.group}|${sub}`);
                       return (
                         <div key={sub}>
                           <button
-                            onClick={() => selectSub(subActive ? null : sub)}
+                            onClick={() => toggleSub(g.group, sub)}
                             style={{
                               width: '100%', textAlign: 'left', padding: '0.3rem 0.5rem',
                               borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '0.72rem',
@@ -205,16 +247,16 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                               display: 'flex', alignItems: 'center', gap: 4,
                               transition: 'all 0.1s',
                             }}
-                            title={sub}
+                            title={subOpen ? '접기' : '펼치기'}
                           >
                             <span style={{ fontSize: '0.6rem', opacity: 0.7, flexShrink: 0 }}>
-                              {ingredients.length > 0 ? (subActive ? '▾' : '▸') : '·'}
+                              {ingredients.length > 0 ? (subOpen ? '▾' : '▸') : '·'}
                             </span>
                             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>
                           </button>
 
-                          {/* 3단계: 성분 (선택된 중분류만) */}
-                          {subActive && ingredients.length > 0 && (
+                          {/* 3단계: 성분 (펼친 중분류만) */}
+                          {subOpen && ingredients.length > 0 && (
                             <div style={{ marginLeft: '10px', borderLeft: '1.5px solid rgba(255,255,255,0.08)',
                               paddingLeft: '7px', marginTop: '1px', marginBottom: '3px',
                               display: 'flex', flexDirection: 'column', gap: '1px' }}>
