@@ -112,22 +112,6 @@ function cmpStrength(a: string | null, b: string | null): number {
   return 0;
 }
 
-/* ── 질환군 아이콘 ── */
-const GROUP_ICONS: Record<string, string> = {
-  '순환기계(심혈관질환)': '❤️',
-  '소화기계(위장질환)': '🫁',
-  '대사성질환(당뇨)': '💉',
-  '근골격계 및 통증': '🦴',
-  '신경/정신계(뇌질환)': '🧠',
-  '비뇨기계': '🔵',
-  '감염성질환': '🦠',
-  '호흡기계': '🫀',
-  '안과': '👁️',
-  '순환기계(기타)': '🩸',
-  '피부질환': '🩹',
-  '갑상선질환': '⚡',
-  '류마티스/자가면역질환': '🛡️',
-};
 
 export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] }) {
   const [selectedGroup, setSelectedGroup] = useState<string | null>(
@@ -341,11 +325,10 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                     transition: 'all 0.12s',
                   }}
                 >
-                  <span style={{ fontSize: '0.9rem' }}>{GROUP_ICONS[g.group] ?? '💊'}</span>
-                  <span style={{ flex: 1, lineHeight: 1.3 }}>{g.group}</span>
                   {g.subs.length > 0 && (
-                    <span style={{ fontSize: '0.6rem', opacity: 0.6, flexShrink: 0 }}>{groupOpen ? '▾' : '▸'}</span>
+                    <span style={{ fontSize: '0.65rem', opacity: 0.7, flexShrink: 0 }}>{groupOpen ? '▼' : '▶'}</span>
                   )}
+                  <span style={{ flex: 1, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{g.group}</span>
                 </button>
 
                 {/* 2단계: 중분류 (펼친 질환군만) */}
@@ -371,9 +354,10 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                             }}
                             title={subOpen ? '접기' : '펼치기'}
                           >
-                            <span style={{ fontSize: '0.6rem', opacity: 0.7, flexShrink: 0 }}>
-                              {ingredients.length > 0 ? (subOpen ? '▾' : '▸') : '·'}
-                            </span>
+                            <span style={{ opacity: 0.4, fontSize: '0.65rem', flexShrink: 0 }}>└</span>
+                            {ingredients.length > 0
+                              ? <span style={{ fontSize: '0.58rem', opacity: 0.7, flexShrink: 0 }}>{subOpen ? '▼' : '▶'}</span>
+                              : <span style={{ width: 7, flexShrink: 0 }} />}
                             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>
                           </button>
 
@@ -411,9 +395,10 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                                         transition: 'all 0.1s',
                                       }}
                                     >
-                                      <span style={{ fontSize: '0.52rem', opacity: 0.7, flexShrink: 0 }}>
-                                        {strengths.length > 0 ? (ingOpen ? '▾' : '▸') : '·'}
-                                      </span>
+                                      <span style={{ opacity: 0.4, fontSize: '0.6rem', flexShrink: 0 }}>└</span>
+                                      {strengths.length > 0
+                                        ? <span style={{ fontSize: '0.54rem', opacity: 0.7, flexShrink: 0 }}>{ingOpen ? '▼' : '▶'}</span>
+                                        : <span style={{ width: 6, flexShrink: 0 }} />}
                                       <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ing}</span>
                                     </button>
 
@@ -444,8 +429,10 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                                               color: selectedStrength === st ? '#c4b5fd' : 'rgba(255,255,255,0.34)',
                                               fontWeight: selectedStrength === st ? 600 : 400,
                                               whiteSpace: 'nowrap',
+                                              display: 'flex', alignItems: 'center', gap: 3,
                                             }}
                                           >
+                                            <span style={{ opacity: 0.35, fontSize: '0.56rem', flexShrink: 0 }}>└</span>
                                             {st}
                                           </button>
                                         ))}
@@ -492,7 +479,6 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '1.3rem' }}>{GROUP_ICONS[selectedGroup] ?? '💊'}</span>
                   <h1 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', margin: 0 }}>
                     {selectedStrength
                       ? [selectedIngr, selectedStrength].filter(Boolean).join(' ')   // 성분+함량
