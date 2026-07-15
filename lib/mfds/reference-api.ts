@@ -141,11 +141,27 @@ export type PermitDetailRow = {
   efficacy: string | null; main_ingr_kor: string | null;
 };
 
-/** EE_DOC_DATA(효능효과 XML) → 평문. 태그 제거 후 엔티티 복원·공백 정리 */
+/**
+ * EE_DOC_DATA(효능효과 XML) → 평문.
+ *
+ * 본문이 두 가지 형태로 나뉜다(실측 100건 기준 38 : 62).
+ *   ① title 속성:  <ARTICLE title="1. 고칼륨혈증, 순환허탈, 저혈당시의 에너지 보급" />
+ *   ② CDATA 문단:  <PARAGRAPH tagName="p"><![CDATA[수분 및 전해질 결핍시의 보급]]></PARAGRAPH>
+ * 그래서 태그만 지우면 전부 빈 문자열이 된다.
+ * 특히 <![CDATA[...]]> 는 <[^>]+> 에 통째로 먹히므로(첫 '>'가 닫는 ']]>')
+ * 반드시 태그 제거보다 먼저 풀어야 한다.
+ */
+const DOC_LABELS = new Set(['효능효과', '용법용량', '사용상의주의사항', '']);
+
 export function docToText(xml: string | null | undefined): string | null {
   if (!xml) return null;
   const t = xml
-    .replace(/<[^>]+>/g, '\n')
+    // ② CDATA 를 본문으로 (태그 제거보다 먼저!)
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_, c: string) => `\n${c}\n`)
+    // ① title="..." 속성을 본문으로 (문서 제목 라벨은 제외)
+    .replace(/<[^>]*?\btitle\s*=\s*"([^"]*)"[^>]*>/g, (_, v: string) =>
+      DOC_LABELS.has(v.trim()) ? '\n' : `\n${v}\n`)
+    .replace(/<[^>]+>/g, '\n')       // 남은 태그 제거(엘리먼트 텍스트는 보존)
     .replace(/&nbsp;|&#xffee;|&#160;/gi, ' ')
     .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
     .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
