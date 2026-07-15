@@ -138,7 +138,29 @@ export type PermitDetailRow = {
   item_seq: string; package_unit: string | null; maker: string | null; is_consignment: boolean;
   storage_method: string | null; etc_otc: string | null; atc_code: string | null;
   valid_term: string | null; cancel_name: string | null; edi_code: string | null; permit_date: string | null;
+  efficacy: string | null; main_ingr_kor: string | null;
 };
+
+/** EE_DOC_DATA(효능효과 XML) → 평문. 태그 제거 후 엔티티 복원·공백 정리 */
+export function docToText(xml: string | null | undefined): string | null {
+  if (!xml) return null;
+  const t = xml
+    .replace(/<[^>]+>/g, '\n')
+    .replace(/&nbsp;|&#xffee;|&#160;/gi, ' ')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
+    .replace(/&amp;/g, '&')          // amp 는 마지막에(이중 이스케이프 대비)
+    .split('\n').map((s) => s.trim()).filter(Boolean).join(' ')
+    .replace(/\s{2,}/g, ' ').trim();
+  return t || null;
+}
+
+/** MAIN_ITEM_INGR "[M215219]아토르바스타틴칼슘삼수화물" → "아토르바스타틴칼슘삼수화물" */
+export function stripIngrCode(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const t = v.split(/[,/]/).map((s) => s.replace(/\[[^\]]*\]/g, '').trim()).filter(Boolean).join(', ');
+  return t || null;
+}
 
 function mapDetail(r: Record<string, string>): PermitDetailRow {
   const cnsgn = [...new Set((r.CNSGN_MANUF ?? '').split(',').map((s) => s.trim()).filter(Boolean))].join(', ');
@@ -155,6 +177,8 @@ function mapDetail(r: Record<string, string>): PermitDetailRow {
     cancel_name:    r.CANCEL_NAME ?? null,
     edi_code:       r.EDI_CODE ?? null,
     permit_date:    r.ITEM_PERMIT_DATE ?? null,
+    efficacy:       docToText(r.EE_DOC_DATA),
+    main_ingr_kor:  stripIngrCode(r.MAIN_ITEM_INGR),
   };
 }
 

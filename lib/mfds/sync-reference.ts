@@ -25,7 +25,7 @@ export async function syncPermitDetail(svc: Svc): Promise<{ permit_detail: numbe
   const detail = rows.map((r) => ({
     item_seq: r.item_seq, package_unit: r.package_unit, maker: r.maker, is_consignment: r.is_consignment,
     storage_method: r.storage_method, etc_otc: r.etc_otc, atc_code: r.atc_code, valid_term: r.valid_term,
-    cancel_name: r.cancel_name, detail_fetched_at: now,
+    cancel_name: r.cancel_name, efficacy: r.efficacy, main_ingr_kor: r.main_ingr_kor, detail_fetched_at: now,
   }));
   for (const c of chunk(detail, 500)) {
     const { error } = await svc.from('drug_permit').upsert(c, { onConflict: 'item_seq' });
