@@ -79,8 +79,18 @@ const UBIST_W = 58;   // 처방액 월별: 최대 6자리 + 콤마
  * (좁은 화면에서는 아래 minWidth 까지만 줄고 그 아래로는 가로 스크롤)
  */
 const MFR_MIN = 90;
+
+/**
+ * 처방액 열의 실제 폭.
+ * 월이 1개뿐이면 그 열 하나가 '처방액(천원)' 그룹 헤더(≈82px)를 담아야 하므로
+ * UBIST_W(58) 로는 헤더가 24px 넘쳐 가로 스크롤이 생긴다. 단일 월일 때만 넓힌다
+ * (월이 2개 이상이면 그룹 헤더가 여러 열에 걸쳐 충분히 들어간다).
+ */
+function ubistColWidth(monthCount: number): number {
+  return monthCount <= 1 ? 86 : UBIST_W;
+}
 function tableMinWidth(monthCount: number): number {
-  return PROD_W + DOSE_W + GUBUN_W + PRICE_W + RATE_W + monthCount * UBIST_W + MFR_MIN * 2;
+  return PROD_W + DOSE_W + GUBUN_W + PRICE_W + RATE_W + monthCount * ubistColWidth(monthCount) + MFR_MIN * 2;
 }
 
 /* 처방액 합계(정렬용) */
@@ -641,7 +651,7 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
           }}>
             <colgroup>
               {fixedHeaders.map(h => <col key={h.label} style={h.w ? { width: h.w } : undefined} />)}
-              {periods.map(p => <col key={p} style={{ width: UBIST_W }} />)}
+              {periods.map(p => <col key={p} style={{ width: ubistColWidth(periods.length) }} />)}
             </colgroup>
             <thead>
               {/* 1행: 고정 열(2행 병합) + 처방액 그룹 라벨 / 2행: 월 */}
