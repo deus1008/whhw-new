@@ -6,7 +6,7 @@ import type { CommissionDoc, CommissionFolderGroup } from '@/app/commission-rate
 
 /* ── 검색 대상 컬럼 ── */
 const SEARCH_COLS = ['구분', '계열', '제품군별', '품목명', '성분명(한글)', '성분명(영문)', '위탁여부'];
-const HIDDEN_COLS = ['보험코드', '대표코드', '비고', '효능', '★', '분류', '유통이슈'];
+const HIDDEN_COLS = ['보험코드', '대표코드', '비고', '효능', '★', '분류', '유통이슈', '대조의약품'];
 
 function normalizeHeader(s: string): string {
   return s.replace(/\s/g, '').replace(/（/g, '(').replace(/）/g, ')').toLowerCase();
