@@ -6,13 +6,16 @@ import type { CommissionDoc, CommissionFolderGroup } from '@/app/commission-rate
 
 /* ── 검색 대상 컬럼 ── */
 const SEARCH_COLS = ['구분', '계열', '제품군별', '품목명', '성분명(한글)', '성분명(영문)', '위탁여부'];
-const HIDDEN_COLS = ['보험코드', '대표코드', '비고', '효능'];
+const HIDDEN_COLS = ['보험코드', '대표코드', '비고', '효능', '★', '분류'];
 
 function normalizeHeader(s: string): string {
   return s.replace(/\s/g, '').replace(/（/g, '(').replace(/）/g, ')').toLowerCase();
 }
 
 const NORM_SEARCH = SEARCH_COLS.map(normalizeHeader);
+// 숨김 컬럼도 공백·전각 차이에 견고하게 정규화 비교(★·분류 등)
+const NORM_HIDDEN = HIDDEN_COLS.map(normalizeHeader);
+const isHiddenHeader = (h: string) => NORM_HIDDEN.includes(normalizeHeader(h));
 
 type Row = Record<string, string>;
 
@@ -143,7 +146,7 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
 
   const displayHeaders = useMemo(() => {
     if (!headers.length) return [];
-    const visible = headers.filter(h => !HIDDEN_COLS.includes(h));
+    const visible = headers.filter(h => !isHiddenHeader(h));
     const n = (h: string) => normalizeHeader(h);
     const isRateH = (h: string) => { const v = n(h); return v.includes('수수료율') || v.includes('수수료(%)') || v.endsWith('율(%)'); };
     const findOne = (pred: (h: string) => boolean) => visible.find(pred);
