@@ -246,12 +246,17 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
             <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: '2.5rem 0', fontSize: '0.88rem' }}>검색 결과가 없습니다.</div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+              <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                {/* No. 열만 고정, 나머지 데이터 열은 균등 분배 */}
+                <colgroup>
+                  <col style={{ width: '3rem' }} />
+                  {displayHeaders.map(h => <col key={h} />)}
+                </colgroup>
                 <thead>
                   <tr>
-                    <th style={{ ...TH, width: '3rem', textAlign: 'center' }}>No.</th>
+                    <th style={{ ...TH, textAlign: 'center' }}>No.</th>
                     {displayHeaders.map(h => (
-                      <th key={h} style={{ ...TH, color: SEARCH_COLS.includes(h) ? '#93c5fd' : 'rgba(255,255,255,0.4)', borderBottom: SEARCH_COLS.includes(h) ? '2px solid rgba(96,165,250,0.4)' : '1px solid rgba(255,255,255,0.08)' }}>{h}</th>
+                      <th key={h} style={{ ...TH, overflow: 'hidden', textOverflow: 'ellipsis', color: SEARCH_COLS.includes(h) ? '#93c5fd' : 'rgba(255,255,255,0.4)', borderBottom: SEARCH_COLS.includes(h) ? '2px solid rgba(96,165,250,0.4)' : '1px solid rgba(255,255,255,0.08)' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -265,23 +270,9 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
                         const isNumeric = /^[\d,]+$/.test(val);
                         const isPct = /^[\d,]+%$/.test(val);
                         const align = isPct ? 'center' : isNumeric ? 'right' : 'left';
-                        const isIngredient = h === '성분명(한글)' || h === '성분명(영문)';
-                        const isCategory = h === '구분';
-                        const isProductGroup = h === '제품군별';
-                        const isManufacturer = h === '제약사명';
                         const hl = appliedQuery ? highlight(val, appliedQuery) : null;
-                        const colMax =
-                          isCategory         ? '100px' :
-                          isIngredient || isProductGroup ? '132px' :
-                          isManufacturer     ? '110px' :
-                          h === '유통이슈'   ? '66px'  :
-                          h === '효능명'     ? '88px'  :
-                          h === '자체생산여부' ? '44px' :
-                          h === '생동'       ? '44px'  :
-                          h === '대조의약품' ? '154px' :
-                          '220px';
                         return (
-                          <td key={h} style={{ ...TD, maxWidth: colMax, overflow: 'hidden', textOverflow: 'ellipsis', textAlign: align }}>
+                          <td key={h} style={{ ...TD, overflow: 'hidden', textOverflow: 'ellipsis', textAlign: align }}>
                             {hl ? <span dangerouslySetInnerHTML={{ __html: hl }} /> : <span style={{ color: isSearch ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.45)' }}>{val}</span>}
                           </td>
                         );
