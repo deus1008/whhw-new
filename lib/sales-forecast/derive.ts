@@ -51,27 +51,29 @@ export function growthChain(y1amount: number, growths: (number | null)[]): numbe
 }
 
 /**
- * 기존 품목 처방트렌드 자동산출 — 과거 연도별 처방금액에서 다음 horizon년을 추정한다.
- * 성장률은 과거 CAGR을 기준으로 하되, 성숙에 따라 매년 둔화(taper 0.85)한다.
- *   1Y = 최신 실적연도 × (1+g), 2Y = 1Y × (1+g·0.85), …
- * 성장률이 없으면(단일 연도 등) 최근 YoY, 그것도 없으면 보합(0).
+ * 기존 품목 처방트렌드 자동산출 — 과거 연도별 처방금액에서 다음 horizon년을 추정.
+ *
+ * 최근 모멘텀 지배: 1년차 성장률은 **최근 YoY(가속/감속)** 를 우선한다.
+ *   과거 CAGR은 신제품 초기 급성장(launch ramp)을 포함해 성숙 품목의 미래를 과대추정하므로
+ *   보조로만 쓰고, 최근 추세가 있으면 그것을 1년차 성장률로 삼는다(둘 다 있으면 최근 0.7:CAGR 0.3).
+ * 이후 연차는 성숙에 따라 성장률을 매년 둔화(×0.6)시켜 보합(0)으로 수렴한다.
+ * 최근 추세가 없으면 CAGR, 그것도 없으면 보합(0).
  */
 export function trendForecast(
-  amountByYear: Record<string, number>, years: string[], cagr: number | null, horizon = 5,
+  amountByYear: Record<string, number>, years: string[],
+  cagr: number | null, recentGrowth: number | null = null, horizon = 5,
 ): ForecastYear[] {
   const latest = years[years.length - 1];
   const base = amountByYear[latest] ?? 0;
-  // 성장률 기준: CAGR 우선, 없으면 최근 2개년 YoY
-  let g0 = cagr;
-  if (g0 == null && years.length >= 2) {
-    const p = amountByYear[years[years.length - 2]] ?? 0;
-    g0 = p > 0 ? (base - p) / p : 0;
-  }
-  g0 = g0 ?? 0;
+
+  // 1년차 성장률: 최근 YoY(가속/감속)를 그대로 반영. CAGR은 최근값이 없을 때만 폴백
+  //   (성숙 품목의 launch-ramp CAGR 과대추정 방지 — 최근 추세가 현재 국면을 대변).
+  const g0 = recentGrowth ?? cagr ?? 0;
+
   const out: ForecastYear[] = [];
   let prev = base;
   for (let i = 1; i <= horizon; i++) {
-    const g = g0 * Math.pow(0.85, i - 1);
+    const g = g0 * Math.pow(0.6, i - 1);                       // 성숙 → 보합으로 둔화
     const amount = Math.max(0, Math.round(prev * (1 + g)));
     out.push({ y: i, amount, growth: i === 1 ? null : g });
     prev = amount;

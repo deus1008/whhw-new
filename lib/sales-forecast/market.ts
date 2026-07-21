@@ -19,11 +19,13 @@ const yearOf = (period: string) => period.slice(0, 4);
 const isMonthly = (period: string) => /^\d{4}-\d{2}$/.test(period);
 
 /**
- * 브랜드 stem — 제형·함량 접미어를 제거해 연간('유로리드 정 5mg')과
- * 월별('유로리드') 표기를 같은 키로 묶는다. + 정규화 제조사.
+ * 브랜드 stem — 괄호 성분표기·제형·함량 접미어를 제거해
+ *   '유로리드 정 5mg'(월별) · '유로리드 정 5mg'(연간) · '유로리드정 5mg (피나스테리드)'(요율표)
+ * 를 같은 키로 묶는다.
  */
 function brandStem(name: string | null | undefined): string {
   return norm(String(name ?? '')
+    .replace(/\([^()]*\)/g, '')          // (피나스테리드) 등 괄호 그룹 제거
     .replace(/\d+\.?\d*\s*(mg|밀리그램|㎎|g|mcg|㎍|iu|단위|밀리리터|ml|㎖|%)/gi, '')
     .replace(/(서방정|장용정|연질캡슐|경질캡슐|정|캡슐|주사액|주사|주|점안액|시럽|건조시럽|과립|산)/g, ''));
 }
@@ -54,50 +56,54 @@ export async function listIngredients(svc: SupabaseClient, query: string): Promi
   return [...set].sort((a, b) => a.localeCompare(b, 'ko')).slice(0, 100);
 }
 
-/** 수수료율 제품군 접두매칭(route.ts:75-138 이식, 읽기전용) → product_name→rate(0~1) */
+/**
+ * 경쟁사 수수료율 맵 → product_name→rate(0~1).
+ *  · 소스: commission_rates 의 '제약사별'(경쟁사) 최신 파일. rate 는 퍼센트(0~80) → /100.
+ *  · 매칭: 브랜드 stem(괄호·제형·함량 제거) 동일 + 회사명 교차확인.
+ *    요율표 제품명('유로리드정 5mg (피나스테리드)')이 시장명('유로리드 정 5mg')보다 길어
+ *    단순 접두매칭은 실패 → stem 동일 비교.
+ */
 async function commissionMap(
   svc: SupabaseClient,
   drugs: { product_name: string; company: string | null }[],
 ): Promise<Map<string, number>> {
-  const { data: latestDoc } = await svc
-    .from('documents').select('filename')
-    .eq('category', '수수료율(딜러)').eq('status', 'ready')
-    .order('created_at', { ascending: false }).limit(1).maybeSingle();
+  const { data: srcRows } = await svc
+    .from('commission_rates').select('source_file, created_at')
+    .ilike('source_file', '%제약사별%')
+    .order('created_at', { ascending: false }).limit(1);
+  const src = srcRows?.[0]?.source_file as string | undefined;
 
   let q = svc.from('commission_rates').select('company_name, product_name, rate');
-  if (latestDoc?.filename) q = q.eq('source_file', latestDoc.filename as string);
+  if (src) q = q.eq('source_file', src);
   const { data: rows } = await q;
   if (!rows?.length) return new Map();
 
-  const rules = rows
-    .filter(r => ((r.product_name as string | null) ?? '').trim())
-    .map(r => ({
-      key: norm(String(r.product_name).replace(/군\s*$/, '')),
-      company: norm(String(r.company_name ?? '')),
-      rate: Number(r.rate ?? 0),
-    }))
-    .filter(r => r.key.length >= 2)
-    .sort((a, b) => b.key.length - a.key.length);
-
-  const companyOnly = new Map<string, number>();
+  const byStem = new Map<string, { company: string; rate: number }[]>();
+  const byCompany = new Map<string, number>();
   for (const r of rows) {
-    if (!((r.product_name as string | null) ?? '').trim()) {
-      companyOnly.set(norm(String(r.company_name ?? '')), Number(r.rate ?? 0));
+    const rate = Number(r.rate) / 100;                 // 퍼센트 → 0~1
+    if (!Number.isFinite(rate) || rate <= 0) continue;
+    const pn = String(r.product_name ?? '').trim();
+    const cn = norm(r.company_name);
+    if (pn) {
+      const s = brandStem(pn);
+      if (s.length >= 2) (byStem.get(s) ?? byStem.set(s, []).get(s)!).push({ company: cn, rate });
+    } else if (cn) {
+      byCompany.set(cn, rate);
     }
   }
 
   const out = new Map<string, number>();
   for (const d of drugs) {
-    const pn = norm(d.product_name);
+    const s = brandStem(d.product_name);
     const cn = norm(d.company ?? '');
-    if (!pn) continue;
     let rate: number | null = null;
-    for (const r of rules) {
-      if (!pn.startsWith(r.key)) continue;
-      if (r.company && cn && !(cn.includes(r.company) || r.company.includes(cn))) continue;
-      rate = r.rate; break;
+    const cands = s.length >= 2 ? byStem.get(s) : undefined;
+    if (cands?.length) {
+      const same = cands.find(c => c.company && cn && (c.company.includes(cn) || cn.includes(c.company)));
+      rate = (same ?? cands[0]).rate;
     }
-    if (rate == null && cn) rate = companyOnly.get(cn) ?? null;
+    if (rate == null && cn) rate = byCompany.get(cn) ?? null;
     if (rate != null) out.set(d.product_name, rate);
   }
   return out;
@@ -233,6 +239,12 @@ export async function buildMarket(svc: SupabaseClient, ingredientKey: string): P
       const span = Number(s1) - Number(s0);
       if (sv > 0 && ev > 0 && span > 0) cagr = Math.pow(ev / sv, 1 / span) - 1;
     }
+    // 최근 YoY(가속/감속 모멘텀): 최신년(연환산) / 직전년 - 1
+    let recentGrowth: number | null = null;
+    if (years.length >= 2) {
+      const pv = a.amountByYear[years[years.length - 2]] ?? 0, cv = a.amountByYear[latestYear] ?? 0;
+      if (pv > 0 && cv > 0) recentGrowth = cv / pv - 1;
+    }
     return {
       product_name: a.product_name,
       manufacturer: a.manufacturer,
@@ -244,6 +256,7 @@ export async function buildMarket(svc: SupabaseClient, ingredientKey: string): P
       total,
       share: null, // 아래에서 채움
       cagr,
+      recentGrowth,
     };
   });
 

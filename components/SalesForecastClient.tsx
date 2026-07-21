@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { proposeForecast, saveForecast, deleteForecast, getActuals } from '@/app/sales-forecast/actions';
+import { proposeForecast, saveForecast, deleteForecast, getActuals, refineForecast } from '@/app/sales-forecast/actions';
 import { deriveYears, paybackPeriod, trendForecast } from '@/lib/sales-forecast/derive';
 import type { MarketData, ForecastPlan, ForecastYear } from '@/lib/sales-forecast/types';
 
@@ -253,14 +253,27 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
     setYears([]); setRationale('');
   }
 
-  // 기존품목: 처방트렌드 자동산출
+  // 기존품목: 처방트렌드 자동산출 (모멘텀 반영)
   function onTrend() {
     const p = market?.products[selProdIdx];
     if (!market || !p) { setMsg('대상 제품을 선택하세요'); return; }
-    setYears(trendForecast(p.amountByYear, market.years, p.cagr));
-    const g = p.cagr;
-    setRationale(`${p.product_name}의 과거 처방트렌드(${market.years[0]}~${market.years[market.years.length - 1]}, `
-      + `${g == null ? '성장률 산정불가' : `CAGR ${(g * 100).toFixed(0)}%`})를 기준으로 향후 5년을 추정. 성장률은 성숙에 따라 매년 둔화 적용.`);
+    setYears(trendForecast(p.amountByYear, market.years, p.cagr, p.recentGrowth));
+    const c = p.cagr, r = p.recentGrowth;
+    setRationale(`${p.product_name}의 과거 처방트렌드(${market.years[0]}~${market.years[market.years.length - 1]})를 기준으로 향후 5년 추정. `
+      + `${c == null ? '장기추세 산정불가' : `CAGR ${(c * 100).toFixed(0)}%`}`
+      + `${r == null ? '' : ` · 최근 YoY ${(r * 100).toFixed(0)}%(${r >= (c ?? 0) ? '가속' : '감속'})`}`
+      + ` 반영, 이후 연차는 장기추세로 평균회귀.`);
+  }
+
+  // 기존품목: AI 보정
+  async function onRefine() {
+    if (!ingredientKey || !years.length) { setMsg('먼저 트렌드를 산출하세요'); return; }
+    setProposing(true); setMsg(null);
+    const r = await refineForecast(ingredientKey, productName || '해당 품목', years);
+    setProposing(false);
+    if (!r.ok || !r.years) { setMsg(r.error ?? 'AI 보정 실패'); return; }
+    setYears(r.years);
+    setRationale(prev => `${prev}\n[AI 보정] ${r.rationale ?? ''}`);
   }
 
   function editAmount(y: number, v: number) {
@@ -362,6 +375,10 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
               style={{ padding: '0.55rem 1.2rem', borderRadius: '9px', border: '1px solid rgba(110,231,183,0.45)', background: 'rgba(110,231,183,0.16)', color: '#6ee7b7', fontSize: '0.85rem', cursor: selProdIdx < 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 600, opacity: selProdIdx < 0 ? 0.5 : 1 }}>
               📈 처방트렌드 자동산출
             </button>
+            <button onClick={onRefine} disabled={!years.length || proposing}
+              style={{ padding: '0.55rem 1.2rem', borderRadius: '9px', border: '1px solid rgba(167,139,250,0.45)', background: 'rgba(167,139,250,0.16)', color: '#c4b5fd', fontSize: '0.85rem', cursor: !years.length ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 600, opacity: !years.length ? 0.5 : 1 }}>
+              {proposing ? 'AI 보정 중…' : '🤖 AI 보정'}
+            </button>
             {selProdIdx >= 0 && market?.products[selProdIdx] && (
               <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>
                 최근 실적: {market.years.map(y => `${y} ${eok(market.products[selProdIdx].amountByYear[y] ?? 0)}억`).join(' · ')}
@@ -374,8 +391,8 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
       {msg && <div style={{ color: '#fca5a5', fontSize: '0.8rem' }}>{msg}</div>}
 
       {rationale && (
-        <div style={{ fontSize: '0.78rem', lineHeight: 1.7, color: 'rgba(255,255,255,0.65)', background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: '10px', padding: '0.7rem 0.95rem' }}>
-          <b style={{ color: '#c4b5fd' }}>AI 근거</b><br />{rationale}
+        <div style={{ fontSize: '0.78rem', lineHeight: 1.7, color: 'rgba(255,255,255,0.65)', background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: '10px', padding: '0.7rem 0.95rem', whiteSpace: 'pre-wrap' }}>
+          <b style={{ color: '#c4b5fd' }}>산출 근거</b><br />{rationale}
         </div>
       )}
 

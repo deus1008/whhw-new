@@ -5,8 +5,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
 import { profileCanUpload } from '@/lib/roles';
 import { buildMarket } from '@/lib/sales-forecast/market';
-import { proposeForecast as aiPropose } from '@/lib/sales-forecast/ai';
-import type { ForecastPlan, MarketData, ForecastProposal } from '@/lib/sales-forecast/types';
+import { proposeForecast as aiPropose, refineForecast as aiRefine } from '@/lib/sales-forecast/ai';
+import type { ForecastPlan, MarketData, ForecastProposal, ForecastYear } from '@/lib/sales-forecast/types';
 
 function svc() {
   return createSvc(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -44,6 +44,24 @@ export async function proposeForecast(
     const proposal = await aiPropose(market, plan, key);
     if (!proposal) return { ok: false, market, error: 'AI 제안 생성 실패 — 시장 데이터를 확인하세요' };
     return { ok: true, proposal, market };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/** 기존 품목 트렌드 예측 AI 보정 */
+export async function refineForecast(
+  ingredientKey: string, productName: string, base: ForecastYear[],
+): Promise<{ ok: boolean; years?: ForecastYear[]; rationale?: string; error?: string }> {
+  try {
+    await assertApproved();
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) return { ok: false, error: 'ANTHROPIC_API_KEY 미설정' };
+    if (!base?.length) return { ok: false, error: '보정할 예측이 없습니다' };
+    const market = await buildMarket(svc(), ingredientKey);
+    const r = await aiRefine(market, productName, base, key);
+    if (!r) return { ok: false, error: 'AI 보정 실패' };
+    return { ok: true, years: r.years, rationale: r.rationale };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }

@@ -5,7 +5,7 @@
  *
  * Anthropic fetch 패턴은 lib/competitor/classify.ts, lib/ingredient-info/build.ts 와 동일.
  */
-import type { MarketData, ForecastPlan, ForecastProposal } from './types';
+import type { MarketData, ForecastPlan, ForecastProposal, ForecastYear } from './types';
 
 const 억 = (n: number) => (n / 1e8).toFixed(1);
 
@@ -89,5 +89,54 @@ export async function proposeForecast(
         priceBandAvgRate: o.price_band_avg_rate != null ? Number(o.price_band_avg_rate) : null,
       },
     };
+  } catch { return null; }
+}
+
+/**
+ * 기존 품목 트렌드 예측 AI 보정 — 처방트렌드로 산출된 1~5년 금액을,
+ * 시장 포화·경쟁 심화·대조약 점유 등 정성 요인으로 조정하고 근거를 낸다.
+ * 결정론적 트렌드값(base)을 기준으로 상하 조정만 하며 과도한 변경은 지양.
+ */
+export async function refineForecast(
+  market: MarketData, productName: string, base: ForecastYear[], apiKey: string,
+): Promise<{ years: ForecastYear[]; rationale: string } | null> {
+  const { years: yrs, marketTotalByYear, products } = market;
+  const latest = yrs[yrs.length - 1];
+  const totalLine = yrs.map(y => `${y}:${억(marketTotalByYear[y] ?? 0)}억`).join(' / ');
+  const top = products.slice(0, 6).map((p, i) =>
+    `${i + 1}. ${p.product_name} ${latest}년 ${억(p.amountByYear[latest] ?? 0)}억`
+    + `${p.share != null ? ` Share ${(p.share * 100).toFixed(1)}%` : ''}${p.is_reference ? ' [대조약]' : ''}`).join('\n');
+  const baseLine = base.map(b => `${b.y}Y ${억(b.amount)}억`).join(' / ');
+
+  const sys =
+    '당신은 국내 제약 판매대행사의 제품전략 담당자입니다. 기존 품목의 처방트렌드 기반 예측을 ' +
+    '시장 상황(포화·경쟁 심화·대조약 점유·성장 둔화)으로 보정합니다. 트렌드 예측값을 기준으로 ' +
+    '과하지 않게(대체로 ±20% 이내) 상하 조정하고, 근거를 2~3문장으로 답하세요. 데이터에 없는 사실은 지어내지 않습니다.';
+  const user =
+    `대상 품목: ${productName}\n[시장 총 처방금액] ${totalLine}\n[상위 경쟁품목]\n${top}\n\n` +
+    `[트렌드 기반 예측(보정 전)] ${baseLine}\n\n` +
+    '위 시장 맥락으로 각 연차 금액을 보정하세요. ' +
+    'JSON 으로만: {"amounts":[정수(원)×5], "rationale":"근거"}';
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: 'claude-sonnet-5', max_tokens: 900, system: sys, messages: [{ role: 'user', content: user }] }),
+  });
+  if (!res.ok) return null;
+  const j = await res.json();
+  const text = j?.content?.find((b: { type: string }) => b.type === 'text')?.text ?? j?.content?.[0]?.text ?? '';
+  const m = text.match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try {
+    const o = JSON.parse(m[0]);
+    const amounts: number[] = Array.isArray(o.amounts) ? o.amounts.map((x: unknown) => Math.round(Number(x))) : [];
+    if (amounts.length < base.length || amounts.some(a => !Number.isFinite(a) || a < 0)) return null;
+    const out: ForecastYear[] = base.map((b, i) => {
+      const prev = i > 0 ? amounts[i - 1] : null;
+      const growth = prev && prev > 0 ? amounts[i] / prev - 1 : null;
+      return { y: b.y, amount: amounts[i], growth };
+    });
+    return { years: out, rationale: String(o.rationale ?? '').trim() };
   } catch { return null; }
 }

@@ -11,7 +11,8 @@ export type MarketProduct = {
   amountByYear: Record<string, number>; // { '2025': 123.4(억원? → 원 그대로), ... }
   total: number;                  // 전체 기간 합(정렬용)
   share: number | null;          // 최신년 기준 점유율 0~1
-  cagr: number | null;           // 가용연수 CAGR
+  cagr: number | null;           // 완전연도 CAGR
+  recentGrowth: number | null;   // 최근 YoY(최신년/직전년-1) — 가속/감속 모멘텀
 };
 
 export type MarketData = {
