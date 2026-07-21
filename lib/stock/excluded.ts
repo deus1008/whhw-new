@@ -135,6 +135,8 @@ const EXCLUDED_NAMES = [
   '에페론서방정75MG 500T (병)(넥스팜)',
   '에페신SR정75MG 30T (병)(명문제약)',
   '엠다파정10MG 30T (병)(맥널티제약)',
+  // 4차 추가분
+  '스테지움PR정 30T (병) (러시아)',
 ];
 
 const norm = (s: string) => s.replace(/\s+/g, '').toLowerCase();
