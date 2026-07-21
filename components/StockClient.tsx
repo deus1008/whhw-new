@@ -104,9 +104,9 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
   return (
     <div style={{ marginTop: '1rem' }}>
 
-      {/* 기간 탭 */}
+      {/* 기간 탭 — 한 줄 가로 스크롤(최신월이 좌측, 진입 시 기본 선택). 과거월은 스크롤로 */}
       {periods.length > 1 && (
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', flexWrap: 'nowrap', marginBottom: '1rem', paddingBottom: '0.35rem' }}>
           {periods.map((p, i) => (
             <button
               key={`${p.year}-${p.period}`}
@@ -114,6 +114,7 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
               style={{
                 padding: '0.4rem 0.9rem', borderRadius: '8px', border: 'none',
                 cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit',
+                flexShrink: 0, whiteSpace: 'nowrap',
                 background: i === selIdx ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.06)',
                 color: i === selIdx ? '#c4b5fd' : 'var(--text-muted)',
                 fontWeight: i === selIdx ? 700 : 400,
