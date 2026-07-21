@@ -7,6 +7,7 @@ import LogoutButton      from '@/components/LogoutButton';
 import HomeButton        from '@/components/HomeButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import StockClient, { type StockPeriod } from '@/components/StockClient';
+import { isExcludedStock } from '@/lib/stock/excluded';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,9 +56,11 @@ export default async function StockPage() {
   if (companyId) stockQ = stockQ.eq('company_id', companyId);
   const { data: raw } = await stockQ;
 
-  // 기간별로 그루핑 (파일명이 달라도 같은 연도+기간이면 하나로)
+  // 기간별로 그루핑 (파일명이 달라도 같은 연도+기간이면 하나로).
+  // 수탁품목은 항상 제외(신규 업로드에도 자동 적용).
   const periodMap = new Map<string, StockPeriod>();
   for (const r of raw ?? []) {
+    if (isExcludedStock(r.material_name)) continue;
     const key = `${r.year}|${r.period}`;
     if (!periodMap.has(key)) {
       periodMap.set(key, { year: r.year, period: r.period, source_file: r.source_file, rows: [] });
