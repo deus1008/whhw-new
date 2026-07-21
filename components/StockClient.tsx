@@ -40,39 +40,31 @@ function fmt(n: number): string {
   return n === 0 ? '-' : n.toLocaleString();
 }
 
-/* ── 3개월 재고 추이 분류 ──
- * 재고 감소 → 도매 주문↑ → 처방 증가 추정 / 급감 → 품절·대체조제 위험
- * 재고 증가 → 도매 주문↓ → 처방 감소 추정 / 급증 → 부진재고·폐기 위험
+/* ── 재고 모니터링 분류 ──
+ * 기준점 = 년간평균 재고수량(신규출시·품절후재생산 등 3개월추이 왜곡을 완화).
+ *   · 현재고 ≥ 기준 × 120% → 재고 과다
+ *   · 현재고 ≤ 기준 × 30%  → 재고 급감
+ *   · 그 외 → 정상
+ * 3개월 추이(최근 3개월 값)는 함께 표시해 같이 판단.
  */
-const SHARP = 0.5;   // 급변 기준 ±50%
-const MILD  = 0.15;  // 완만 기준 ±15%
+const HIGH = 1.20;   // 기준 대비 120% 초과 = 과다
+const LOW  = 0.30;   // 기준 대비 30% 이하  = 급감
 
-type TrendCat = 'shortage' | 'excess' | 'down' | 'up' | 'flat';
-type TrendMeta = { cat: TrendCat; label: string; desc: string; color: string; rank: number };
+type TrendCat = 'shortage' | 'excess' | 'normal';
+type TrendMeta = { cat: TrendCat; label: string; color: string; rank: number };
 
 const CAT_META: Record<TrendCat, TrendMeta> = {
-  shortage: { cat: 'shortage', label: '🔴 재고 급감', desc: '', color: '#f87171', rank: 0 },
-  excess:   { cat: 'excess',   label: '🟠 폐기 위험', desc: '재고 급증 — 계획 대비 처방 부진, 부진재고 폐기 위험',  color: '#fb923c', rank: 1 },
-  down:     { cat: 'down',     label: '🟢 감소',       desc: '재고 감소 — 처방 증가 추정',                         color: '#4ade80', rank: 2 },
-  up:       { cat: 'up',       label: '🔵 증가',       desc: '재고 증가 — 처방 감소 추정',                         color: '#60a5fa', rank: 3 },
-  flat:     { cat: 'flat',     label: '⚪ 보합',       desc: '재고 변동 미미',                                     color: '#94a3b8', rank: 4 },
+  shortage: { cat: 'shortage', label: '🔴 재고 급감', color: '#f87171', rank: 0 },
+  excess:   { cat: 'excess',   label: '🟠 재고 과다', color: '#fb923c', rank: 1 },
+  normal:   { cat: 'normal',   label: '⚪ 정상',      color: '#94a3b8', rank: 2 },
 };
 
-/** 최고(oldest)→최신 재고 시계열 → 변화율·분류. v0=0 은 신규유입으로 보아 극단분류 제외 */
-function classifyTrend(series: number[]): { pct: number | null; meta: TrendMeta } {
-  const v0 = series[0], vN = series[series.length - 1];
-  if (v0 === 0) {
-    const meta = vN > 0 ? CAT_META.up : CAT_META.flat;   // 0→유입 = 증가(신규), 0→0 = 보합
-    return { pct: v0 === 0 && vN > 0 ? null : 0, meta };
-  }
-  const pct = (vN - v0) / v0;
-  let cat: TrendCat;
-  if (pct <= -SHARP) cat = 'shortage';
-  else if (pct >= SHARP) cat = 'excess';
-  else if (pct <= -MILD) cat = 'down';
-  else if (pct >= MILD) cat = 'up';
-  else cat = 'flat';
-  return { pct, meta: CAT_META[cat] };
+/** 현재고 vs 년간평균 비율로 분류 (기준 대비 120%↑ 과다 / 30%↓ 급감) */
+function classifyStock(current: number, annualAvg: number): { ratio: number | null; meta: TrendMeta } {
+  if (annualAvg <= 0) return { ratio: null, meta: CAT_META.normal };   // 기준 없음(신규 등)
+  const ratio = current / annualAvg;
+  const cat: TrendCat = ratio <= LOW ? 'shortage' : ratio >= HIGH ? 'excess' : 'normal';
+  return { ratio, meta: CAT_META[cat] };
 }
 
 function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
@@ -98,14 +90,16 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
 
   const period = periods[selIdx];
 
-  // ── 3개월 추이 분석: 최신 3개 기간(총재고 기준) ──
+  // ── 재고 모니터링: 3개월 추이 + 년간평균(기준점) ──
   const trend = useMemo(() => {
-    const last = periods.slice(0, 3);              // 최신순
-    if (last.length < 2) return null;
-    const ordered = [...last].reverse();           // 오래된→최신
+    if (periods.length < 2) return null;
+    const last3   = [...periods.slice(0, 3)].reverse();   // 3개월 추이(오래된→최신)
+    const window12 = periods.slice(0, 12);                // 년간평균용(최근 12개월)
+
     const nameByCode = new Map<string, string>();
     const unitByCode = new Map<string, string | null>();
-    const qtyMaps = ordered.map(p => {
+    // 각 기간별 코드→총재고
+    const mapOf = (ps: StockPeriod[]) => ps.map(p => {
       const m = new Map<string, number>();
       for (const r of p.rows) {
         m.set(r.material_code, r.total_qty);
@@ -113,17 +107,23 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
       }
       return m;
     });
+    const maps3  = mapOf(last3);
+    const maps12 = mapOf(window12);
+
     const codes = new Set<string>(nameByCode.keys());
     const items = [...codes].map(code => {
-      const series = qtyMaps.map(m => m.get(code) ?? 0);
-      const { pct, meta } = classifyTrend(series);
-      return { code, name: nameByCode.get(code)!, unit: unitByCode.get(code)!, series, pct, meta };
+      const series = maps3.map(m => m.get(code) ?? 0);                    // 최근 3개월
+      const present = maps12.map(m => m.get(code)).filter((v): v is number => v != null); // 있는 달만
+      const annualAvg = present.length ? present.reduce((s, v) => s + v, 0) / present.length : 0;
+      const current = series[series.length - 1];                         // 최신월 재고
+      const { ratio, meta } = classifyStock(current, annualAvg);
+      return { code, name: nameByCode.get(code)!, unit: unitByCode.get(code)!, series, annualAvg, current, ratio, meta };
     });
-    // 위험(품절·폐기) 우선, 그 다음 변화율 큰 순
-    items.sort((a, b) => a.meta.rank - b.meta.rank || Math.abs(b.pct ?? 0) - Math.abs(a.pct ?? 0));
-    const counts = { shortage: 0, excess: 0, down: 0, up: 0, flat: 0 } as Record<TrendCat, number>;
+    // 위험(급감·과다) 우선, 그 다음 기준편차 큰 순
+    items.sort((a, b) => a.meta.rank - b.meta.rank || Math.abs((b.ratio ?? 1) - 1) - Math.abs((a.ratio ?? 1) - 1));
+    const counts = { shortage: 0, excess: 0, normal: 0 } as Record<TrendCat, number>;
     for (const it of items) counts[it.meta.cat]++;
-    return { ordered, items, counts };
+    return { ordered: last3, months12: window12.length, items, counts };
   }, [periods]);
 
   const trendRows = useMemo(() => {
@@ -325,10 +325,10 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
   );
 }
 
-/* ── 3개월 추이 모니터링 뷰 ── */
-type TrendItem = { code: string; name: string; unit: string | null; series: number[]; pct: number | null; meta: TrendMeta };
+/* ── 3개월추이 + 년간평균 모니터링 뷰 ── */
+type TrendItem = { code: string; name: string; unit: string | null; series: number[]; annualAvg: number; current: number; ratio: number | null; meta: TrendMeta };
 function TrendView({ trend, rows, filter, setFilter, search, setSearch }: {
-  trend: { ordered: StockPeriod[]; items: TrendItem[]; counts: Record<TrendCat, number> } | null;
+  trend: { ordered: StockPeriod[]; months12: number; items: TrendItem[]; counts: Record<TrendCat, number> } | null;
   rows: TrendItem[];
   filter: TrendCat | 'all'; setFilter: (c: TrendCat | 'all') => void;
   search: string; setSearch: (s: string) => void;
@@ -336,7 +336,7 @@ function TrendView({ trend, rows, filter, setFilter, search, setSearch }: {
   if (!trend) {
     return (
       <div style={{ ...CARD, textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-        3개월 추이 분석에는 최소 2개월 이상의 재고 데이터가 필요합니다. 매월 재고현황 파일을 업로드하면 자동 분석됩니다.
+        추이 분석에는 최소 2개월 이상의 재고 데이터가 필요합니다. 매월 재고현황 파일을 업로드하면 자동 분석됩니다.
       </div>
     );
   }
@@ -355,8 +355,10 @@ function TrendView({ trend, rows, filter, setFilter, search, setSearch }: {
 
   return (
     <div>
-      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
-        분석 기간(총재고 기준): {monthLabels.join(' → ')} · 매월 1일자 · 재고 급감=품절/대체조제 위험, 급증=부진재고/폐기 위험
+      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.6rem', lineHeight: 1.6 }}>
+        총재고 기준 · 매월 1일자 · 3개월 추이({monthLabels.join('→')})와 <b style={{ color: '#c4b5fd' }}>년간평균</b>(최근 {trend.months12}개월)을 함께 표시.
+        기준점 = 년간평균, <b style={{ color: CAT_META.excess.color }}>과다</b>=기준 120% 초과 · <b style={{ color: CAT_META.shortage.color }}>급감</b>=기준 30% 이하.
+        (신규출시·재생산 왜곡을 완화하기 위해 년간평균을 기준으로 판정)
       </div>
 
       {/* 분류 칩 */}
@@ -364,9 +366,7 @@ function TrendView({ trend, rows, filter, setFilter, search, setSearch }: {
         {chip('all', '전체', trend.items.length, '#c4b5fd')}
         {chip('shortage', CAT_META.shortage.label, trend.counts.shortage, CAT_META.shortage.color)}
         {chip('excess',   CAT_META.excess.label,   trend.counts.excess,   CAT_META.excess.color)}
-        {chip('down',     CAT_META.down.label,     trend.counts.down,     CAT_META.down.color)}
-        {chip('up',       CAT_META.up.label,       trend.counts.up,       CAT_META.up.color)}
-        {chip('flat',     CAT_META.flat.label,     trend.counts.flat,     CAT_META.flat.color)}
+        {chip('normal',   CAT_META.normal.label,   trend.counts.normal,   CAT_META.normal.color)}
       </div>
 
       <div style={{ marginBottom: '0.6rem' }}>
@@ -381,8 +381,9 @@ function TrendView({ trend, rows, filter, setFilter, search, setSearch }: {
               <tr>
                 <th style={TH_L}>자재내역</th>
                 {monthLabels.map(m => <th key={m} style={TH}>{m}</th>)}
-                <th style={TH}>3개월 변화</th>
-                <th style={TH_L}>판정 / 해석</th>
+                <th style={{ ...TH, color: '#c4b5fd' }}>년간평균</th>
+                <th style={TH}>기준대비</th>
+                <th style={TH_L}>판정</th>
               </tr>
             </thead>
             <tbody>
@@ -392,16 +393,15 @@ function TrendView({ trend, rows, filter, setFilter, search, setSearch }: {
                   {it.series.map((v, j) => (
                     <td key={j} style={{ ...TD, color: v > 0 ? '#fbbf24' : 'rgba(255,255,255,0.2)', fontWeight: j === it.series.length - 1 ? 700 : 400 }}>{fmt(v)}</td>
                   ))}
+                  <td style={{ ...TD, color: '#c4b5fd' }}>{it.annualAvg > 0 ? Math.round(it.annualAvg).toLocaleString() : '-'}</td>
                   <td style={{ ...TD, color: it.meta.color, fontWeight: 700 }}>
-                    {it.pct == null ? '신규' : `${it.pct >= 0 ? '+' : ''}${(it.pct * 100).toFixed(0)}%`}
+                    {it.ratio == null ? '-' : `${Math.round(it.ratio * 100)}%`}
                   </td>
-                  <td style={{ ...TD_L, color: it.meta.color, fontSize: '0.74rem' }}>
-                    {it.meta.label}<span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>{it.meta.desc}</span>
-                  </td>
+                  <td style={{ ...TD_L, color: it.meta.color, fontSize: '0.76rem', fontWeight: 600 }}>{it.meta.label}</td>
                 </tr>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan={monthLabels.length + 3} style={{ ...TD, textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>해당 품목이 없습니다.</td></tr>
+                <tr><td colSpan={monthLabels.length + 4} style={{ ...TD, textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>해당 품목이 없습니다.</td></tr>
               )}
             </tbody>
           </table>
