@@ -32,20 +32,22 @@ const stemKey = (name: string | null | undefined, mfr: string | null | undefined
 
 /**
  * 성분키 검색 — distinct ingredient_name (경쟁 landscape 정의 단위).
- * ingredient_name 은 항상 영문 성분으로 시작하므로 **접두 검색**을 쓴다.
- * SF 전용 ubist_market(종합 다년 데이터)을 소스로 한다.
+ *  · 영문 성분명: 접두 검색(ingredient_name 은 항상 영문 성분으로 시작).
+ *  · 한글 제품명: 부분일치(product_name). 사용자가 브랜드명(크레스토 등)으로도 찾을 수 있게.
+ * 둘을 병렬 조회해 매칭된 ingredient_name 을 합친다. product_name 부분일치는
+ * pg_trgm 인덱스(20260718)로 가속. SF 전용 ubist_market 을 소스로 한다.
  */
 export async function listIngredients(svc: SupabaseClient, query: string): Promise<string[]> {
   const q = query.trim();
   if (q.length < 2) return [];
-  const { data } = await svc
-    .from('ubist_market')
-    .select('ingredient_name')
-    .ilike('ingredient_name', `${q}%`)
-    .not('ingredient_name', 'is', null)
-    .limit(4000);
+  const [byIng, byProd] = await Promise.all([
+    svc.from('ubist_market').select('ingredient_name')
+      .ilike('ingredient_name', `${q}%`).not('ingredient_name', 'is', null).limit(4000),
+    svc.from('ubist_market').select('ingredient_name')
+      .ilike('product_name', `%${q}%`).not('ingredient_name', 'is', null).limit(4000),
+  ]);
   const set = new Set<string>();
-  for (const r of data ?? []) {
+  for (const r of [...(byIng.data ?? []), ...(byProd.data ?? [])]) {
     const v = String(r.ingredient_name ?? '').trim();
     if (v) set.add(v);
   }
