@@ -51,7 +51,7 @@ type TrendCat = 'shortage' | 'excess' | 'down' | 'up' | 'flat';
 type TrendMeta = { cat: TrendCat; label: string; desc: string; color: string; rank: number };
 
 const CAT_META: Record<TrendCat, TrendMeta> = {
-  shortage: { cat: 'shortage', label: '🔴 품절 위험', desc: '재고 급감 — 처방 증가 추정이나 품절 시 대체조제 위험', color: '#f87171', rank: 0 },
+  shortage: { cat: 'shortage', label: '🔴 재고 급감', desc: '', color: '#f87171', rank: 0 },
   excess:   { cat: 'excess',   label: '🟠 폐기 위험', desc: '재고 급증 — 계획 대비 처방 부진, 부진재고 폐기 위험',  color: '#fb923c', rank: 1 },
   down:     { cat: 'down',     label: '🟢 감소',       desc: '재고 감소 — 처방 증가 추정',                         color: '#4ade80', rank: 2 },
   up:       { cat: 'up',       label: '🔵 증가',       desc: '재고 증가 — 처방 감소 추정',                         color: '#60a5fa', rank: 3 },
