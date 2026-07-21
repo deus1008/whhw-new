@@ -40,6 +40,41 @@ function fmt(n: number): string {
   return n === 0 ? '-' : n.toLocaleString();
 }
 
+/* ── 3개월 재고 추이 분류 ──
+ * 재고 감소 → 도매 주문↑ → 처방 증가 추정 / 급감 → 품절·대체조제 위험
+ * 재고 증가 → 도매 주문↓ → 처방 감소 추정 / 급증 → 부진재고·폐기 위험
+ */
+const SHARP = 0.5;   // 급변 기준 ±50%
+const MILD  = 0.15;  // 완만 기준 ±15%
+
+type TrendCat = 'shortage' | 'excess' | 'down' | 'up' | 'flat';
+type TrendMeta = { cat: TrendCat; label: string; desc: string; color: string; rank: number };
+
+const CAT_META: Record<TrendCat, TrendMeta> = {
+  shortage: { cat: 'shortage', label: '🔴 품절 위험', desc: '재고 급감 — 처방 증가 추정이나 품절 시 대체조제 위험', color: '#f87171', rank: 0 },
+  excess:   { cat: 'excess',   label: '🟠 폐기 위험', desc: '재고 급증 — 계획 대비 처방 부진, 부진재고 폐기 위험',  color: '#fb923c', rank: 1 },
+  down:     { cat: 'down',     label: '🟢 감소',       desc: '재고 감소 — 처방 증가 추정',                         color: '#4ade80', rank: 2 },
+  up:       { cat: 'up',       label: '🔵 증가',       desc: '재고 증가 — 처방 감소 추정',                         color: '#60a5fa', rank: 3 },
+  flat:     { cat: 'flat',     label: '⚪ 보합',       desc: '재고 변동 미미',                                     color: '#94a3b8', rank: 4 },
+};
+
+/** 최고(oldest)→최신 재고 시계열 → 변화율·분류. v0=0 은 신규유입으로 보아 극단분류 제외 */
+function classifyTrend(series: number[]): { pct: number | null; meta: TrendMeta } {
+  const v0 = series[0], vN = series[series.length - 1];
+  if (v0 === 0) {
+    const meta = vN > 0 ? CAT_META.up : CAT_META.flat;   // 0→유입 = 증가(신규), 0→0 = 보합
+    return { pct: v0 === 0 && vN > 0 ? null : 0, meta };
+  }
+  const pct = (vN - v0) / v0;
+  let cat: TrendCat;
+  if (pct <= -SHARP) cat = 'shortage';
+  else if (pct >= SHARP) cat = 'excess';
+  else if (pct <= -MILD) cat = 'down';
+  else if (pct >= MILD) cat = 'up';
+  else cat = 'flat';
+  return { pct, meta: CAT_META[cat] };
+}
+
 function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div style={{
@@ -53,12 +88,52 @@ function StatCard({ label, value, color }: { label: string; value: string; color
 }
 
 export default function StockClient({ periods }: { periods: StockPeriod[] }) {
+  const [view,    setView]    = useState<'month' | 'trend'>('month');
   const [selIdx,  setSelIdx]  = useState(0);
   const [search,  setSearch]  = useState('');
   const [sortKey, setSortKey] = useState<'name' | 'avail' | 'transit' | 'total'>('name');
   const [sortAsc, setSortAsc] = useState(true);
+  const [trendFilter, setTrendFilter] = useState<TrendCat | 'all'>('all');
+  const [trendSearch, setTrendSearch] = useState('');
 
   const period = periods[selIdx];
+
+  // ── 3개월 추이 분석: 최신 3개 기간(총재고 기준) ──
+  const trend = useMemo(() => {
+    const last = periods.slice(0, 3);              // 최신순
+    if (last.length < 2) return null;
+    const ordered = [...last].reverse();           // 오래된→최신
+    const nameByCode = new Map<string, string>();
+    const unitByCode = new Map<string, string | null>();
+    const qtyMaps = ordered.map(p => {
+      const m = new Map<string, number>();
+      for (const r of p.rows) {
+        m.set(r.material_code, r.total_qty);
+        if (!nameByCode.has(r.material_code)) { nameByCode.set(r.material_code, r.material_name); unitByCode.set(r.material_code, r.unit); }
+      }
+      return m;
+    });
+    const codes = new Set<string>(nameByCode.keys());
+    const items = [...codes].map(code => {
+      const series = qtyMaps.map(m => m.get(code) ?? 0);
+      const { pct, meta } = classifyTrend(series);
+      return { code, name: nameByCode.get(code)!, unit: unitByCode.get(code)!, series, pct, meta };
+    });
+    // 위험(품절·폐기) 우선, 그 다음 변화율 큰 순
+    items.sort((a, b) => a.meta.rank - b.meta.rank || Math.abs(b.pct ?? 0) - Math.abs(a.pct ?? 0));
+    const counts = { shortage: 0, excess: 0, down: 0, up: 0, flat: 0 } as Record<TrendCat, number>;
+    for (const it of items) counts[it.meta.cat]++;
+    return { ordered, items, counts };
+  }, [periods]);
+
+  const trendRows = useMemo(() => {
+    if (!trend) return [];
+    let list = trend.items;
+    if (trendFilter !== 'all') list = list.filter(it => it.meta.cat === trendFilter);
+    const q = trendSearch.trim().toLowerCase();
+    if (q) list = list.filter(it => it.name.toLowerCase().includes(q) || it.code.toLowerCase().includes(q));
+    return list;
+  }, [trend, trendFilter, trendSearch]);
 
   const rows = useMemo(() => {
     let list = period?.rows ?? [];
@@ -104,6 +179,26 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
   return (
     <div style={{ marginTop: '1rem' }}>
 
+      {/* 뷰 전환 */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        {([['month', '월별 현황'], ['trend', '3개월 추이 모니터링']] as [typeof view, string][]).map(([k, label]) => (
+          <button key={k} onClick={() => setView(k)}
+            style={{
+              padding: '0.5rem 1.1rem', borderRadius: '9px', border: '1px solid',
+              cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'inherit', fontWeight: view === k ? 700 : 500,
+              borderColor: view === k ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.12)',
+              background: view === k ? 'rgba(99,102,241,0.22)' : 'rgba(255,255,255,0.04)',
+              color: view === k ? '#c4b5fd' : 'var(--text-muted)',
+            }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'trend' ? (
+        <TrendView trend={trend} rows={trendRows} filter={trendFilter} setFilter={setTrendFilter} search={trendSearch} setSearch={setTrendSearch} />
+      ) : (
+      <>
       {/* 기간 선택 — 드롭다운(진입 시 최신월 기본). 과거월은 목록에서 선택 */}
       {periods.length > 1 && (
         <div style={{ marginBottom: '1rem' }}>
@@ -221,6 +316,94 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
                 </tr>
               </tfoot>
             )}
+          </table>
+        </div>
+      </div>
+      </>
+      )}
+    </div>
+  );
+}
+
+/* ── 3개월 추이 모니터링 뷰 ── */
+type TrendItem = { code: string; name: string; unit: string | null; series: number[]; pct: number | null; meta: TrendMeta };
+function TrendView({ trend, rows, filter, setFilter, search, setSearch }: {
+  trend: { ordered: StockPeriod[]; items: TrendItem[]; counts: Record<TrendCat, number> } | null;
+  rows: TrendItem[];
+  filter: TrendCat | 'all'; setFilter: (c: TrendCat | 'all') => void;
+  search: string; setSearch: (s: string) => void;
+}) {
+  if (!trend) {
+    return (
+      <div style={{ ...CARD, textAlign: 'center', padding: '2.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+        3개월 추이 분석에는 최소 2개월 이상의 재고 데이터가 필요합니다. 매월 재고현황 파일을 업로드하면 자동 분석됩니다.
+      </div>
+    );
+  }
+  const monthLabels = trend.ordered.map(p => `${p.year}.${String(p.period).padStart(2, '0')}`);
+  const chip = (key: TrendCat | 'all', label: string, n: number, color: string) => (
+    <button key={key} onClick={() => setFilter(key)}
+      style={{
+        padding: '0.4rem 0.8rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'inherit',
+        border: '1px solid', borderColor: filter === key ? color : 'rgba(255,255,255,0.12)',
+        background: filter === key ? `${color}22` : 'rgba(255,255,255,0.04)',
+        color: filter === key ? color : 'var(--text-muted)', fontWeight: filter === key ? 700 : 500,
+      }}>
+      {label} <b style={{ marginLeft: 3 }}>{n}</b>
+    </button>
+  );
+
+  return (
+    <div>
+      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.6rem' }}>
+        분석 기간(총재고 기준): {monthLabels.join(' → ')} · 매월 1일자 · 재고 급감=품절/대체조제 위험, 급증=부진재고/폐기 위험
+      </div>
+
+      {/* 분류 칩 */}
+      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
+        {chip('all', '전체', trend.items.length, '#c4b5fd')}
+        {chip('shortage', CAT_META.shortage.label, trend.counts.shortage, CAT_META.shortage.color)}
+        {chip('excess',   CAT_META.excess.label,   trend.counts.excess,   CAT_META.excess.color)}
+        {chip('down',     CAT_META.down.label,     trend.counts.down,     CAT_META.down.color)}
+        {chip('up',       CAT_META.up.label,       trend.counts.up,       CAT_META.up.color)}
+        {chip('flat',     CAT_META.flat.label,     trend.counts.flat,     CAT_META.flat.color)}
+      </div>
+
+      <div style={{ marginBottom: '0.6rem' }}>
+        <input type="text" placeholder="품목명 / 자재코드 검색…" value={search} onChange={e => setSearch(e.target.value)}
+          style={{ width: '100%', padding: '0.5rem 0.9rem', fontSize: '0.82rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '9px', color: '#e2e8f0', outline: 'none', fontFamily: 'inherit' }} />
+      </div>
+
+      <div style={CARD}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr>
+                <th style={TH_L}>자재내역</th>
+                {monthLabels.map(m => <th key={m} style={TH}>{m}</th>)}
+                <th style={TH}>3개월 변화</th>
+                <th style={TH_L}>판정 / 해석</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((it, i) => (
+                <tr key={it.code} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.015)' : undefined }}>
+                  <td style={{ ...TD_L, maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>{it.name}</td>
+                  {it.series.map((v, j) => (
+                    <td key={j} style={{ ...TD, color: v > 0 ? '#fbbf24' : 'rgba(255,255,255,0.2)', fontWeight: j === it.series.length - 1 ? 700 : 400 }}>{fmt(v)}</td>
+                  ))}
+                  <td style={{ ...TD, color: it.meta.color, fontWeight: 700 }}>
+                    {it.pct == null ? '신규' : `${it.pct >= 0 ? '+' : ''}${(it.pct * 100).toFixed(0)}%`}
+                  </td>
+                  <td style={{ ...TD_L, color: it.meta.color, fontSize: '0.74rem' }}>
+                    {it.meta.label}<span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>{it.meta.desc}</span>
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr><td colSpan={monthLabels.length + 3} style={{ ...TD, textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>해당 품목이 없습니다.</td></tr>
+              )}
+            </tbody>
           </table>
         </div>
       </div>
