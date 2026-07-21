@@ -137,6 +137,8 @@ const EXCLUDED_NAMES = [
   '엠다파정10MG 30T (병)(맥널티제약)',
   // 4차 추가분
   '스테지움PR정 30T (병) (러시아)',
+  '유로박솜캡슐60MG 30C (병)',
+  '유로박솜캡슐60MG 90C (병)',
 ];
 
 const norm = (s: string) => s.replace(/\s+/g, '').toLowerCase();
