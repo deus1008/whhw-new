@@ -47,6 +47,7 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/admin') ||
     pathname.startsWith('/documents') ||
     pathname.startsWith('/meetings') ||
+    pathname.startsWith('/sales-forecast') ||
     pathname.startsWith('/pending');
 
   if (!isProtected) return supabaseResponse;
@@ -60,7 +61,8 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/weekly') ||
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/admin') ||
-    pathname.startsWith('/documents');
+    pathname.startsWith('/documents') ||
+    pathname.startsWith('/sales-forecast');
 
   if (needsApproval) {
     const { data: profile } = await supabase

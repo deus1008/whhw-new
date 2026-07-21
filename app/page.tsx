@@ -178,6 +178,15 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(236,72,153,0.10)',
     bd:   'rgba(236,72,153,0.22)',
   },
+  // ⑬-0 매출예측 (SF)
+  {
+    href: '/sales-forecast',
+    icon: '📊',
+    label: '매출예측',
+    color: '#67e8f9',
+    bg:   'rgba(34,211,238,0.10)',
+    bd:   'rgba(34,211,238,0.22)',
+  },
   // ⑬-1 업계동향
   {
     href: '/competitor-intel',
