@@ -118,7 +118,7 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
             }}
           >
             {periods.map((p, i) => (
-              <option key={`${p.year}-${p.period}`} value={i} style={{ color: '#111' }}>
+              <option key={`${p.year}-${p.period}`} value={i} style={{ color: '#e2e8f0', background: '#1a2030' }}>
                 {p.year}년 {p.period}월
               </option>
             ))}
