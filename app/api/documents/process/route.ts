@@ -428,18 +428,22 @@ export async function POST(request: Request) {
     if (parseError) return fail(`재고현황 파싱 실패: ${parseError}`);
 
     if (rows.length > 0) {
-      // 파일명이 동일해도 안전하도록 연도+기간 기준으로 기존 데이터 교체
+      // 파일명이 동일해도 안전하도록 연도+기간 기준으로 기존 데이터 교체.
+      // 회사 격리: 해당 회사(문서 company_id) 범위에서만 삭제·삽입.
       const yearPeriods = [...new Set(rows.map(r => `${r.year}|${r.period}`))];
       for (const yp of yearPeriods) {
         const [yr, pr] = yp.split('|');
-        await supabase.from('monthly_stock').delete().eq('year', yr).eq('period', pr);
+        let delQ = supabase.from('monthly_stock').delete().eq('year', yr).eq('period', pr);
+        delQ = docCompanyId ? delQ.eq('company_id', docCompanyId) : delQ.is('company_id', null);
+        await delQ;
       }
       const CHUNK = 500;
       let inserted = 0;
       for (let i = 0; i < rows.length; i += CHUNK) {
-        const { error: insErr } = await supabase.from('monthly_stock').insert(rows.slice(i, i + CHUNK));
+        const chunk = rows.slice(i, i + CHUNK).map(r => ({ ...r, company_id: docCompanyId }));
+        const { error: insErr } = await supabase.from('monthly_stock').insert(chunk);
         if (insErr) console.warn(`[process:${documentId}] 재고현황 삽입 오류(chunk ${i}):`, insErr.message);
-        else inserted += rows.slice(i, i + CHUNK).length;
+        else inserted += chunk.length;
       }
       console.log(`[process:${documentId}] 재고현황 ${inserted}/${rows.length}건 저장 완료 (원본 ${total}행, ${yearPeriods.length}개 기간)`);
     }
