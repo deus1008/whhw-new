@@ -236,6 +236,7 @@ export async function buildMarket(svc: SupabaseClient, ingredientKey: string): P
     return {
       product_name: a.product_name,
       manufacturer: a.manufacturer,
+      insurance_code: [...a.insuranceCodes][0] ?? null,
       price,
       commission_rate: rateMap.get(a.product_name) ?? null,
       is_reference: isRef,

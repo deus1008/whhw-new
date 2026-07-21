@@ -51,6 +51,35 @@ export function growthChain(y1amount: number, growths: (number | null)[]): numbe
 }
 
 /**
+ * 기존 품목 처방트렌드 자동산출 — 과거 연도별 처방금액에서 다음 horizon년을 추정한다.
+ * 성장률은 과거 CAGR을 기준으로 하되, 성숙에 따라 매년 둔화(taper 0.85)한다.
+ *   1Y = 최신 실적연도 × (1+g), 2Y = 1Y × (1+g·0.85), …
+ * 성장률이 없으면(단일 연도 등) 최근 YoY, 그것도 없으면 보합(0).
+ */
+export function trendForecast(
+  amountByYear: Record<string, number>, years: string[], cagr: number | null, horizon = 5,
+): ForecastYear[] {
+  const latest = years[years.length - 1];
+  const base = amountByYear[latest] ?? 0;
+  // 성장률 기준: CAGR 우선, 없으면 최근 2개년 YoY
+  let g0 = cagr;
+  if (g0 == null && years.length >= 2) {
+    const p = amountByYear[years[years.length - 2]] ?? 0;
+    g0 = p > 0 ? (base - p) / p : 0;
+  }
+  g0 = g0 ?? 0;
+  const out: ForecastYear[] = [];
+  let prev = base;
+  for (let i = 1; i <= horizon; i++) {
+    const g = g0 * Math.pow(0.85, i - 1);
+    const amount = Math.max(0, Math.round(prev * (1 + g)));
+    out.push({ y: i, amount, growth: i === 1 ? null : g });
+    prev = amount;
+  }
+  return out;
+}
+
+/**
  * 개발비 회수기간(년). 누적 마진이 개발비에 도달하는 연차를 선형 보간.
  * 5년 내 미도달이면 null.
  */

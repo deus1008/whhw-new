@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { proposeForecast, saveForecast, deleteForecast, getActuals } from '@/app/sales-forecast/actions';
-import { deriveYears, paybackPeriod } from '@/lib/sales-forecast/derive';
+import { deriveYears, paybackPeriod, trendForecast } from '@/lib/sales-forecast/derive';
 import type { MarketData, ForecastPlan, ForecastYear } from '@/lib/sales-forecast/types';
 
 export type SavedForecast = {
@@ -204,6 +204,7 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
   market: MarketData | null; ingredientKey: string | null; canEdit: boolean;
   onSaved: (f: SavedForecast) => void;
 }) {
+  const [mode, setMode] = useState<'new' | 'existing'>('new');
   const [productName, setProductName] = useState('');
   const [insuranceCode, setInsuranceCode] = useState('');
   const [launchPrice, setLaunchPrice] = useState<number>(700);
@@ -219,6 +220,7 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
   const [proposing, setProposing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [selProdIdx, setSelProdIdx] = useState<number>(-1);   // 기존품목: 선택된 시장 제품
 
   const plan: ForecastPlan = useMemo(() => ({
     launchPrice, insurancePrice, priceFactor, costRatio, commissionRate,
@@ -228,6 +230,7 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
   const derived = useMemo(() => deriveYears(years, plan), [years, plan]);
   const payback = useMemo(() => paybackPeriod(devCost || null, derived), [devCost, derived]);
 
+  // 신규발매: AI 시장 제안
   async function onPropose() {
     if (!ingredientKey) { setMsg('먼저 시장분석 탭에서 성분을 선택하세요'); return; }
     setProposing(true); setMsg(null);
@@ -238,6 +241,28 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
     setRationale(r.proposal.rationale);
   }
 
+  // 기존품목: 시장 제품 선택 → 약가·수수료율·보험코드·품목명 자동 채움
+  function pickExisting(idx: number) {
+    setSelProdIdx(idx);
+    const p = market?.products[idx];
+    if (!p) return;
+    setProductName(p.product_name);
+    setInsuranceCode(p.insurance_code ?? '');
+    if (p.price != null) { setInsurancePrice(p.price); setLaunchPrice(p.price); }
+    if (p.commission_rate != null) setCommissionRate(p.commission_rate);
+    setYears([]); setRationale('');
+  }
+
+  // 기존품목: 처방트렌드 자동산출
+  function onTrend() {
+    const p = market?.products[selProdIdx];
+    if (!market || !p) { setMsg('대상 제품을 선택하세요'); return; }
+    setYears(trendForecast(p.amountByYear, market.years, p.cagr));
+    const g = p.cagr;
+    setRationale(`${p.product_name}의 과거 처방트렌드(${market.years[0]}~${market.years[market.years.length - 1]}, `
+      + `${g == null ? '성장률 산정불가' : `CAGR ${(g * 100).toFixed(0)}%`})를 기준으로 향후 5년을 추정. 성장률은 성숙에 따라 매년 둔화 적용.`);
+  }
+
   function editAmount(y: number, v: number) {
     setYears(prev => prev.map(row => row.y === y ? { ...row, amount: v } : row));
   }
@@ -245,7 +270,7 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
   async function onSave(status: 'draft' | 'confirmed') {
     if (!ingredientKey) { setMsg('성분 미선택'); return; }
     if (!productName.trim()) { setMsg('당사 품목명을 입력하세요'); return; }
-    if (!years.length) { setMsg('예측을 먼저 생성하세요 (AI 제안)'); return; }
+    if (!years.length) { setMsg('예측을 먼저 생성하세요'); return; }
     setSaving(true); setMsg(null);
     const r = await saveForecast({
       ingredient_key: ingredientKey, product_name: productName.trim(),
@@ -277,26 +302,74 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>대상 성분: <b style={{ color: '#6ee7b7' }}>{ingredientKey}</b></div>
 
-      {/* 입력 */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.6rem' }}>
-        <Field label="당사 품목명"><input value={productName} onChange={e => setProductName(e.target.value)} style={inp} placeholder="예: 아주피나스테리드정" /></Field>
-        <Field label="보험코드(실적매칭)"><input value={insuranceCode} onChange={e => setInsuranceCode(e.target.value)} style={inp} placeholder="9자리(선택)" /></Field>
-        <Field label="발매예상약가(원)"><input type="number" value={launchPrice} onChange={e => setLaunchPrice(+e.target.value)} style={inp} /></Field>
-        <Field label="약가(원)"><input type="number" value={insurancePrice} onChange={e => setInsurancePrice(+e.target.value)} style={inp} /></Field>
-        <Field label="순공급가 계수"><input type="number" step="0.01" value={priceFactor} onChange={e => setPriceFactor(+e.target.value)} style={inp} /></Field>
-        <Field label="원가율(0~1)"><input type="number" step="0.01" value={costRatio} onChange={e => setCostRatio(+e.target.value)} style={inp} /></Field>
-        <Field label="수수료율(0~1)"><input type="number" step="0.01" value={commissionRate} onChange={e => setCommissionRate(+e.target.value)} style={inp} /></Field>
-        <Field label="제조단위(정)"><input type="number" value={lot} onChange={e => setLot(+e.target.value)} style={inp} /></Field>
-        <Field label="개발비(원)"><input type="number" value={devCost} onChange={e => setDevCost(+e.target.value)} style={inp} /></Field>
+      {/* 유형 선택 */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {([['new', '신규 발매품목', '예상약가·원가·수수료 입력 → AI 시장 제안'], ['existing', '기존 품목', '제품 선택 → 처방트렌드 자동산출']] as [typeof mode, string, string][]).map(([k, label, hint]) => (
+          <button key={k} onClick={() => { setMode(k); setYears([]); setRationale(''); setMsg(null); }} title={hint}
+            style={{ padding: '0.45rem 1rem', borderRadius: 9, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', border: '1px solid', fontWeight: mode === k ? 700 : 500,
+              borderColor: mode === k ? 'rgba(110,231,183,0.45)' : 'rgba(255,255,255,0.12)',
+              background: mode === k ? 'rgba(110,231,183,0.14)' : 'rgba(255,255,255,0.03)',
+              color: mode === k ? '#6ee7b7' : 'rgba(255,255,255,0.5)' }}>
+            {label}
+          </button>
+        ))}
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <button onClick={onPropose} disabled={proposing}
-          style={{ padding: '0.55rem 1.2rem', borderRadius: '9px', border: '1px solid rgba(167,139,250,0.45)', background: 'rgba(167,139,250,0.16)', color: '#c4b5fd', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
-          {proposing ? 'AI 분석 중…' : '🤖 AI 예측 제안'}
-        </button>
-        <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>순공급가 = {won(insurancePrice / 1.1 * priceFactor)}원 / 정</span>
-      </div>
+      {mode === 'new' ? (
+        <>
+          {/* 신규발매 입력 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.6rem' }}>
+            <Field label="당사 품목명"><input value={productName} onChange={e => setProductName(e.target.value)} style={inp} placeholder="예: 아주피나스테리드정" /></Field>
+            <Field label="보험코드(실적매칭)"><input value={insuranceCode} onChange={e => setInsuranceCode(e.target.value)} style={inp} placeholder="9자리(선택)" /></Field>
+            <Field label="발매예상약가(원)"><input type="number" value={launchPrice} onChange={e => setLaunchPrice(+e.target.value)} style={inp} /></Field>
+            <Field label="약가(원)"><input type="number" value={insurancePrice} onChange={e => setInsurancePrice(+e.target.value)} style={inp} /></Field>
+            <Field label="순공급가 계수"><input type="number" step="0.01" value={priceFactor} onChange={e => setPriceFactor(+e.target.value)} style={inp} /></Field>
+            <Field label="원가율(0~1)"><input type="number" step="0.01" value={costRatio} onChange={e => setCostRatio(+e.target.value)} style={inp} /></Field>
+            <Field label="예상수수료율(0~1)"><input type="number" step="0.01" value={commissionRate} onChange={e => setCommissionRate(+e.target.value)} style={inp} /></Field>
+            <Field label="제조단위(정)"><input type="number" value={lot} onChange={e => setLot(+e.target.value)} style={inp} /></Field>
+            <Field label="개발비(원)"><input type="number" value={devCost} onChange={e => setDevCost(+e.target.value)} style={inp} /></Field>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button onClick={onPropose} disabled={proposing}
+              style={{ padding: '0.55rem 1.2rem', borderRadius: '9px', border: '1px solid rgba(167,139,250,0.45)', background: 'rgba(167,139,250,0.16)', color: '#c4b5fd', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+              {proposing ? 'AI 분석 중…' : '🤖 AI 예측 제안'}
+            </button>
+            <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>순공급가 = {won(insurancePrice / 1.1 * priceFactor)}원 / 정</span>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* 기존품목: 제품 선택 → 약가·수수료율 자동, 트렌드 산출 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.6rem' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 3, gridColumn: '1 / -1' }}>
+              <span style={{ fontSize: '0.66rem', color: 'rgba(255,255,255,0.45)' }}>대상 제품(시장 목록에서 선택)</span>
+              <select value={selProdIdx} onChange={e => pickExisting(+e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
+                <option value={-1}>— 제품 선택 —</option>
+                {(market?.products ?? []).map((p, i) => (
+                  <option key={i} value={i}>{p.product_name} ({p.manufacturer ?? '-'}) · 약가 {p.price ?? '-'}</option>
+                ))}
+              </select>
+            </label>
+            <Field label="약가(원, 자동)"><input type="number" value={insurancePrice} onChange={e => setInsurancePrice(+e.target.value)} style={inp} /></Field>
+            <Field label="수수료율(0~1, 자동)"><input type="number" step="0.01" value={commissionRate} onChange={e => setCommissionRate(+e.target.value)} style={inp} /></Field>
+            <Field label="순공급가 계수"><input type="number" step="0.01" value={priceFactor} onChange={e => setPriceFactor(+e.target.value)} style={inp} /></Field>
+            <Field label="원가율(0~1)"><input type="number" step="0.01" value={costRatio} onChange={e => setCostRatio(+e.target.value)} style={inp} /></Field>
+            <Field label="제조단위(정)"><input type="number" value={lot} onChange={e => setLot(+e.target.value)} style={inp} /></Field>
+            <Field label="개발비(원, 선택)"><input type="number" value={devCost} onChange={e => setDevCost(+e.target.value)} style={inp} /></Field>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button onClick={onTrend} disabled={selProdIdx < 0}
+              style={{ padding: '0.55rem 1.2rem', borderRadius: '9px', border: '1px solid rgba(110,231,183,0.45)', background: 'rgba(110,231,183,0.16)', color: '#6ee7b7', fontSize: '0.85rem', cursor: selProdIdx < 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 600, opacity: selProdIdx < 0 ? 0.5 : 1 }}>
+              📈 처방트렌드 자동산출
+            </button>
+            {selProdIdx >= 0 && market?.products[selProdIdx] && (
+              <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>
+                최근 실적: {market.years.map(y => `${y} ${eok(market.products[selProdIdx].amountByYear[y] ?? 0)}억`).join(' · ')}
+              </span>
+            )}
+          </div>
+        </>
+      )}
 
       {msg && <div style={{ color: '#fca5a5', fontSize: '0.8rem' }}>{msg}</div>}
 

@@ -4,6 +4,7 @@
 export type MarketProduct = {
   product_name: string;
   manufacturer: string | null;
+  insurance_code: string | null;  // 대표 보험코드(기존품목 SF 실적매칭용)
   price: number | null;          // 약가(drug_prices.max_price)
   commission_rate: number | null; // 0~1
   is_reference: boolean;          // 대조약(오리지날) 여부
