@@ -182,7 +182,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     href: '/sales-forecast',
     icon: '📊',
-    label: '매출예측',
+    label: 'SF',
     color: '#67e8f9',
     bg:   'rgba(34,211,238,0.10)',
     bd:   'rgba(34,211,238,0.22)',

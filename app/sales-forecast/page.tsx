@@ -58,7 +58,7 @@ export default async function SalesForecastPage() {
       <div className="relative z-10 w-full px-4"
         style={{ maxWidth: '1200px', paddingTop: '2rem', paddingBottom: '2rem', alignSelf: 'flex-start' }}>
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem, 4vw, 1.8rem)' }}>
-          매출예측 (SF)
+          SF
         </p>
         <div className="page-nav">
           <HomeButton />
