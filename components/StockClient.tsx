@@ -104,25 +104,25 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
   return (
     <div style={{ marginTop: '1rem' }}>
 
-      {/* 기간 탭 — 한 줄 가로 스크롤(최신월이 좌측, 진입 시 기본 선택). 과거월은 스크롤로 */}
+      {/* 기간 선택 — 드롭다운(진입 시 최신월 기본). 과거월은 목록에서 선택 */}
       {periods.length > 1 && (
-        <div style={{ display: 'flex', gap: '0.4rem', overflowX: 'auto', flexWrap: 'nowrap', marginBottom: '1rem', paddingBottom: '0.35rem' }}>
-          {periods.map((p, i) => (
-            <button
-              key={`${p.year}-${p.period}`}
-              onClick={() => { setSelIdx(i); setSearch(''); }}
-              style={{
-                padding: '0.4rem 0.9rem', borderRadius: '8px', border: 'none',
-                cursor: 'pointer', fontSize: '0.8rem', fontFamily: 'inherit',
-                flexShrink: 0, whiteSpace: 'nowrap',
-                background: i === selIdx ? 'rgba(99,102,241,0.35)' : 'rgba(255,255,255,0.06)',
-                color: i === selIdx ? '#c4b5fd' : 'var(--text-muted)',
-                fontWeight: i === selIdx ? 700 : 400,
-              }}
-            >
-              {p.year}년 {p.period}월
-            </button>
-          ))}
+        <div style={{ marginBottom: '1rem' }}>
+          <select
+            value={selIdx}
+            onChange={e => { setSelIdx(Number(e.target.value)); setSearch(''); }}
+            style={{
+              padding: '0.5rem 0.9rem', borderRadius: '8px',
+              border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(99,102,241,0.18)',
+              color: '#c4b5fd', fontSize: '0.85rem', fontWeight: 700, fontFamily: 'inherit',
+              cursor: 'pointer', outline: 'none', minWidth: '150px',
+            }}
+          >
+            {periods.map((p, i) => (
+              <option key={`${p.year}-${p.period}`} value={i} style={{ color: '#111' }}>
+                {p.year}년 {p.period}월
+              </option>
+            ))}
+          </select>
         </div>
       )}
 
