@@ -168,6 +168,14 @@ function MarketTable({ market, onGoBuild }: { market: MarketData; onGoBuild: () 
             </tr>
           </thead>
           <tbody>
+            {/* 시장 합계 — 헤더 바로 밑에 고정 */}
+            <tr style={{ background: 'rgba(147,197,253,0.08)', fontWeight: 700, borderBottom: '2px solid rgba(147,197,253,0.25)' }}>
+              <td style={TD}></td>
+              <td style={{ ...TD, color: '#93c5fd' }} colSpan={3}>시장 합계</td>
+              <td style={TD}></td>
+              {years.map(y => <td key={y} style={{ ...TD, ...NUM, color: '#93c5fd' }}>{eok(marketTotalByYear[y])}</td>)}
+              <td style={TD} colSpan={2}></td>
+            </tr>
             {products.map((p, i) => (
               <tr key={`${p.product_name}|${p.manufacturer}`} style={{ background: p.is_reference ? 'rgba(251,191,36,0.08)' : i % 2 ? 'rgba(255,255,255,0.015)' : 'transparent' }}>
                 <td style={{ ...TD, textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>{i + 1}</td>
@@ -182,13 +190,6 @@ function MarketTable({ market, onGoBuild }: { market: MarketData; onGoBuild: () 
                 <td style={{ ...TD, ...NUM, color: p.cagr != null ? (p.cagr >= 0 ? '#6ee7b7' : '#fca5a5') : 'rgba(255,255,255,0.25)' }}>{p.cagr != null ? pct(p.cagr, 0) : '-'}</td>
               </tr>
             ))}
-            <tr style={{ background: 'rgba(147,197,253,0.06)', fontWeight: 700 }}>
-              <td style={TD}></td>
-              <td style={{ ...TD, color: '#93c5fd' }} colSpan={3}>시장 합계</td>
-              <td style={TD}></td>
-              {years.map(y => <td key={y} style={{ ...TD, ...NUM, color: '#93c5fd' }}>{eok(marketTotalByYear[y])}</td>)}
-              <td style={TD} colSpan={2}></td>
-            </tr>
           </tbody>
         </table>
       </div>
