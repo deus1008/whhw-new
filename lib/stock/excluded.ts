@@ -76,7 +76,13 @@ const EXCLUDED_NAMES = [
 const norm = (s: string) => s.replace(/\s+/g, '').toLowerCase();
 const EXCLUDED_SET = new Set(EXCLUDED_NAMES.map(norm));
 
-/** 해당 품목이 수탁품목(제외 대상)인지 */
+/**
+ * 해당 품목이 재고관리 제외 대상인지.
+ *  · 수탁품목 목록(EXCLUDED_NAMES)에 있거나
+ *  · 품목명에 '(중단)' 표기가 있는 단종 품목이면 제외.
+ */
 export function isExcludedStock(materialName: string | null | undefined): boolean {
-  return EXCLUDED_SET.has(norm(String(materialName ?? '')));
+  const name = String(materialName ?? '');
+  if (name.includes('(중단)')) return true;   // 단종 품목
+  return EXCLUDED_SET.has(norm(name));
 }
