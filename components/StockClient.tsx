@@ -88,7 +88,7 @@ function StatCard({ label, value, color }: { label: string; value: string; color
 }
 
 export default function StockClient({ periods }: { periods: StockPeriod[] }) {
-  const [view,    setView]    = useState<'month' | 'trend'>('month');
+  const [view,    setView]    = useState<'month' | 'trend'>('trend');
   const [selIdx,  setSelIdx]  = useState(0);
   const [search,  setSearch]  = useState('');
   const [sortKey, setSortKey] = useState<'name' | 'avail' | 'transit' | 'total'>('name');
@@ -181,7 +181,7 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
 
       {/* 뷰 전환 */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-        {([['month', '월별 현황'], ['trend', '3개월 추이 모니터링']] as [typeof view, string][]).map(([k, label]) => (
+        {([['trend', '3개월추이'], ['month', '월별 현황']] as [typeof view, string][]).map(([k, label]) => (
           <button key={k} onClick={() => setView(k)}
             style={{
               padding: '0.5rem 1.1rem', borderRadius: '9px', border: '1px solid',
