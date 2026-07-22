@@ -11,6 +11,7 @@ export type SavedForecast = {
   id: string;
   ingredient_key: string;
   product_name: string;
+  launch_type: LaunchType;
   insurance_code: string | null;
   launch_price: number | null;
   insurance_price: number | null;
@@ -292,8 +293,10 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
     if (!productName.trim()) { setMsg('당사 품목명을 입력하세요'); return; }
     if (!years.length) { setMsg('예측을 먼저 생성하세요'); return; }
     setSaving(true); setMsg(null);
+    const savedLaunchType: LaunchType = mode === 'new' ? launchType : 'same';
     const r = await saveForecast({
       ingredient_key: ingredientKey, product_name: productName.trim(),
+      launch_type: savedLaunchType,
       insurance_code: insuranceCode.trim() || null,
       launch_price: launchPrice, insurance_price: insurancePrice, price_factor: priceFactor,
       cost_ratio: costRatio, commission_rate: commissionRate, pack_units: packs,
@@ -304,6 +307,7 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
     if (!r.ok || !r.id) { setMsg(r.error ?? '저장 실패'); return; }
     onSaved({
       id: r.id, ingredient_key: ingredientKey, product_name: productName.trim(),
+      launch_type: savedLaunchType,
       insurance_code: insuranceCode.trim() || null, launch_price: launchPrice,
       insurance_price: insurancePrice, price_factor: priceFactor, cost_ratio: costRatio,
       commission_rate: commissionRate, pack_units: packs, manufacturing_lot: lot,
@@ -466,12 +470,13 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
   const [eName, setEName] = useState(''); const [eCode, setECode] = useState('');
   const [eLaunch, setELaunch] = useState(0); const [ePrice, setEPrice] = useState(0);
   const [eCost, setECost] = useState(0); const [eComm, setEComm] = useState(0); const [eDev, setEDev] = useState(0);
+  const [eType, setEType] = useState<LaunchType>('same');
   const [savingEdit, setSavingEdit] = useState(false); const [editErr, setEditErr] = useState<string | null>(null);
 
   const sel = saved.find(s => s.id === selId) ?? null;
 
   function startEdit(f: SavedForecast) {
-    setEName(f.product_name); setECode(f.insurance_code ?? '');
+    setEName(f.product_name); setECode(f.insurance_code ?? ''); setEType(f.launch_type ?? 'same');
     setELaunch(f.launch_price ?? 0); setEPrice(f.insurance_price ?? 0);
     setECost(f.cost_ratio ?? 0); setEComm(f.commission_rate ?? 0); setEDev(f.dev_cost ?? 0);
     setEditErr(null); setEditing(true);
@@ -482,6 +487,7 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
     setSavingEdit(true); setEditErr(null);
     const r = await saveForecast({
       id: sel.id, ingredient_key: sel.ingredient_key, product_name: eName.trim(),
+      launch_type: eType,
       insurance_code: eCode.trim() || null,
       launch_price: eLaunch || null, insurance_price: ePrice || null, price_factor: sel.price_factor,
       cost_ratio: eCost || null, commission_rate: eComm || null, pack_units: sel.pack_units,
@@ -491,7 +497,7 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
     setSavingEdit(false);
     if (!r.ok) { setEditErr(r.error ?? '저장 실패'); return; }
     onUpdated({
-      ...sel, product_name: eName.trim(), insurance_code: eCode.trim() || null,
+      ...sel, product_name: eName.trim(), launch_type: eType, insurance_code: eCode.trim() || null,
       launch_price: eLaunch || null, insurance_price: ePrice || null,
       cost_ratio: eCost || null, commission_rate: eComm || null, dev_cost: eDev || null,
       updated_at: new Date().toISOString(),
@@ -532,6 +538,7 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
       {sel && (
         <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>
           성분 <b style={{ color: '#6ee7b7' }}>{sel.ingredient_key}</b> · 품목 <b style={{ color: '#e2e8f0' }}>{sel.product_name}</b>
+          <span style={{ marginLeft: 6, color: '#c4b5fd' }}>· {LAUNCH_TYPE_LABEL[sel.launch_type ?? 'same']}</span>
           {sel.insurance_code && <span style={{ marginLeft: 6, color: 'rgba(255,255,255,0.4)' }}>· 보험코드 {sel.insurance_code}</span>}
           {sel.ai_rationale && <div style={{ marginTop: 6, lineHeight: 1.6, color: 'rgba(255,255,255,0.55)' }}>{sel.ai_rationale}</div>}
         </div>
@@ -542,6 +549,13 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
         <div style={{ border: '1px solid rgba(147,197,253,0.25)', background: 'rgba(147,197,253,0.05)', borderRadius: 10, padding: '0.8rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
           <div style={{ fontSize: '0.75rem', color: '#93c5fd', fontWeight: 600 }}>입력값 수정 (예측 결과는 그대로 유지됩니다)</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.6rem' }}>
+            <Field label="출시 유형">
+              <select value={eType} onChange={e => setEType(e.target.value as LaunchType)} style={{ ...inp, cursor: 'pointer' }}>
+                {(['same', 'formulation', 'salt', 'other'] as LaunchType[]).map(t => (
+                  <option key={t} value={t} style={{ color: '#e2e8f0', background: '#1a2030' }}>{LAUNCH_TYPE_LABEL[t]}</option>
+                ))}
+              </select>
+            </Field>
             <Field label="제품명"><input value={eName} onChange={e => setEName(e.target.value)} style={inp} placeholder="허가 확정 제품명" /></Field>
             <Field label="보험코드(실적매칭)"><input value={eCode} onChange={e => setECode(e.target.value)} style={inp} placeholder="9자리" /></Field>
             <Field label="발매예상약가(원)"><CommaNumberInput value={eLaunch} onChange={setELaunch} style={inp} allowEmpty /></Field>

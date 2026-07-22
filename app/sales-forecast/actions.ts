@@ -71,6 +71,7 @@ type SaveInput = {
   id?: string;
   ingredient_key: string;
   product_name: string;
+  launch_type: string;
   insurance_code: string | null;
   launch_price: number | null;
   insurance_price: number | null;
@@ -94,6 +95,7 @@ export async function saveForecast(input: SaveInput): Promise<{ ok: boolean; id?
       ...(input.id ? { id: input.id } : {}),
       ingredient_key: input.ingredient_key,
       product_name: input.product_name,
+      launch_type: input.launch_type,
       insurance_code: input.insurance_code,
       launch_price: input.launch_price,
       insurance_price: input.insurance_price,

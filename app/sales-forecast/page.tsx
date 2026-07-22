@@ -34,6 +34,7 @@ export default async function SalesForecastPage() {
     id: String(r.id),
     ingredient_key: String(r.ingredient_key),
     product_name: String(r.product_name),
+    launch_type: (r.launch_type as SavedForecast['launch_type']) ?? 'same',
     insurance_code: (r.insurance_code as string | null) ?? null,
     launch_price: (r.launch_price as number | null) ?? null,
     insurance_price: (r.insurance_price as number | null) ?? null,
