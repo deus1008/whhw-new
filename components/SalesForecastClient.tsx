@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { proposeForecast, saveForecast, deleteForecast, getActuals, refineForecast } from '@/app/sales-forecast/actions';
 import { deriveYears, paybackPeriod, trendForecast } from '@/lib/sales-forecast/derive';
+import CommaNumberInput from '@/components/CommaNumberInput';
 import type { MarketData, ForecastPlan, ForecastYear } from '@/lib/sales-forecast/types';
 
 export type SavedForecast = {
@@ -335,10 +336,10 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
           {/* 신규발매 입력 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.6rem' }}>
             <Field label="당사 품목명"><input value={productName} onChange={e => setProductName(e.target.value)} style={inp} placeholder="예: 아주피나스테리드정" /></Field>
-            <Field label="발매예상약가(원)"><input type="number" value={launchPrice} onChange={e => setLaunchPrice(+e.target.value)} style={inp} /></Field>
+            <Field label="발매예상약가(원)"><CommaNumberInput value={launchPrice} onChange={setLaunchPrice} style={inp} /></Field>
             <Field label="원가율(0~1)"><input type="number" step="0.01" value={costRatio} onChange={e => setCostRatio(+e.target.value)} style={inp} /></Field>
             <Field label="예상수수료율(0~1)"><input type="number" step="0.01" value={commissionRate} onChange={e => setCommissionRate(+e.target.value)} style={inp} /></Field>
-            <Field label="개발비(원)"><input type="number" value={devCost} onChange={e => setDevCost(+e.target.value)} style={inp} /></Field>
+            <Field label="개발비(원)"><CommaNumberInput value={devCost} onChange={setDevCost} style={inp} allowEmpty /></Field>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button onClick={onPropose} disabled={proposing}
@@ -361,7 +362,7 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
                 ))}
               </select>
             </label>
-            <Field label="약가(원, 자동)"><input type="number" value={insurancePrice} onChange={e => setInsurancePrice(+e.target.value)} style={inp} /></Field>
+            <Field label="약가(원, 자동)"><CommaNumberInput value={insurancePrice} onChange={setInsurancePrice} style={inp} /></Field>
             <Field label="수수료율(0~1, 자동)"><input type="number" step="0.01" value={commissionRate} onChange={e => setCommissionRate(+e.target.value)} style={inp} /></Field>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -404,7 +405,7 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
                 <td style={{ ...TD, color: '#93c5fd', fontWeight: 600 }}>금액(원)</td>
                 {derived.map(d => (
                   <td key={d.y} style={{ ...TD, ...NUM }}>
-                    <input type="number" value={d.amount} onChange={e => editAmount(d.y, +e.target.value)}
+                    <CommaNumberInput value={d.amount} onChange={v => editAmount(d.y, v)}
                       style={{ width: 110, textAlign: 'right', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#e2e8f0', fontSize: '0.74rem', padding: '2px 6px', fontFamily: 'inherit' }} />
                   </td>
                 ))}
