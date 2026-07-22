@@ -6,6 +6,7 @@
  * Anthropic fetch 패턴은 lib/competitor/classify.ts, lib/ingredient-info/build.ts 와 동일.
  */
 import type { MarketData, ForecastPlan, ForecastProposal, ForecastYear } from './types';
+import { LAUNCH_TYPE_LABEL } from './types';
 
 const 억 = (n: number) => (n / 1e8).toFixed(1);
 
@@ -30,18 +31,23 @@ function marketBrief(market: MarketData, plan: ForecastPlan): string {
     avgCommission != null ? `[시장 처방액 가중 평균 수수료율] ${(avgCommission * 100).toFixed(1)}%` : '',
     peers.length ? `[유사약가(${Math.round(lo)}~${Math.round(hi)}원) 경쟁사 ${peers.length}곳] 평균요율 ${peers.filter(p => p.commission_rate != null).length ? (peers.reduce((s, p) => s + (p.commission_rate ?? 0), 0) / peers.filter(p => p.commission_rate != null).length * 100).toFixed(0) + '%' : '-'}` : '',
     `[상위 경쟁품목]\n${top}`,
+    `[당사 출시 유형] ${LAUNCH_TYPE_LABEL[plan.launchType]}`,
     `[당사 계획] 발매예상약가 ${plan.launchPrice}원 / 수수료율 ${(plan.commissionRate * 100).toFixed(0)}% / 원가율 ${(plan.costRatio * 100).toFixed(0)}%`,
   ].filter(Boolean).join('\n');
 }
 
 const SYS =
-  '당신은 국내 제약 판매대행사의 제품전략 담당자입니다. 후발 제네릭 품목의 5개년 Sales Forecast(매출예측)를 ' +
-  '보수적이고 근거 있게 제안합니다. 판단 원칙: ' +
+  '당신은 국내 제약 판매대행사의 제품전략 담당자입니다. 신규 품목의 5개년 Sales Forecast(매출예측)를 ' +
+  '보수적이고 근거 있게 제안합니다. 공통 원칙: ' +
   '① 대조약(오리지날) 점유율은 제네릭이 뺏기 어려우므로 addressable 시장에서 제외한다. ' +
-  '② 후발주자는 이미 자리잡은 선발 제네릭보다 낮은 초기 점유율에서 시작한다. ' +
-  '③ 1년차는 부분 발매(발매 시점)라 연 환산보다 낮게 잡는다. ' +
-  '④ 성장률은 초기 높고 점차 둔화(예: 30%→20%→15%→12%)한다. ' +
-  '과도하게 공격적인 수치를 경계하고, 시장 데이터에 없는 사실을 지어내지 않습니다.';
+  '② 1년차는 부분 발매(발매 시점)라 연 환산보다 낮게 잡는다. ' +
+  '③ 성장률은 초기 높고 점차 둔화(예: 30%→20%→15%→12%)한다. ' +
+  '④ 과도하게 공격적인 수치를 경계하고, 시장 데이터에 없는 사실을 지어내지 않는다.\n' +
+  '출시 유형별 판단: ' +
+  '· 후발주자(동일 성분·제형·염) — 이미 포화된 제네릭 시장에서 선발 제네릭보다 낮은 초기 점유율로 시작(보수적). ' +
+  '· 제형변경(서방정·ODT·패치 등)/염변경/기타변경 — 복용편의·차별화로 신규 수요 창출·전환이 가능하고 ' +
+  '경쟁력 있는 약가로 등록할 수 있어, 기존 제네릭 점유율 경쟁에 국한되지 않는다. 후발주자보다 유리한 초기 점유율과 ' +
+  '가격 포지션을 가정하되(단순 제네릭보다 높게), 시장 전체를 잠식하는 식의 무리한 낙관은 지양한다.';
 
 export async function proposeForecast(
   market: MarketData, plan: ForecastPlan, apiKey: string,

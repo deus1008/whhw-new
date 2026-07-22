@@ -27,8 +27,18 @@ export type MarketData = {
   note?: string;
 };
 
+/** 신규 발매 출시 유형 */
+export type LaunchType = 'same' | 'formulation' | 'salt' | 'other';
+export const LAUNCH_TYPE_LABEL: Record<LaunchType, string> = {
+  same:        '후발주자(동일 성분·제형·염)',
+  formulation: '제형변경 신제품(서방정·ODT·패치 등)',
+  salt:        '염변경 신제품',
+  other:       '기타 변경 신제품',
+};
+
 /** 당사 계획 입력 */
 export type ForecastPlan = {
+  launchType: LaunchType;   // 출시 유형(후발주자/제형변경/염변경/기타)
   launchPrice: number;      // 발매예상약가(원)
   insurancePrice: number;   // 약가(원)
   priceFactor: number;      // 순공급가 계수(기본 0.93)

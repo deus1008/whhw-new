@@ -4,7 +4,8 @@ import { useState, useMemo, useCallback } from 'react';
 import { proposeForecast, saveForecast, deleteForecast, getActuals, refineForecast } from '@/app/sales-forecast/actions';
 import { deriveYears, paybackPeriod, trendForecast } from '@/lib/sales-forecast/derive';
 import CommaNumberInput from '@/components/CommaNumberInput';
-import type { MarketData, ForecastPlan, ForecastYear } from '@/lib/sales-forecast/types';
+import type { MarketData, ForecastPlan, ForecastYear, LaunchType } from '@/lib/sales-forecast/types';
+import { LAUNCH_TYPE_LABEL } from '@/lib/sales-forecast/types';
 
 export type SavedForecast = {
   id: string;
@@ -207,6 +208,7 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
   onSaved: (f: SavedForecast) => void;
 }) {
   const [mode, setMode] = useState<'new' | 'existing'>('new');
+  const [launchType, setLaunchType] = useState<LaunchType>('same');
   const [productName, setProductName] = useState('');
   const [insuranceCode, setInsuranceCode] = useState('');
   const [launchPrice, setLaunchPrice] = useState<number>(700);
@@ -227,9 +229,10 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
   // 가격 기준: 신규발매는 발매예상약가, 기존품목은 선택 제품의 약가
   const priceBasis = mode === 'new' ? launchPrice : insurancePrice;
   const plan: ForecastPlan = useMemo(() => ({
+    launchType: mode === 'new' ? launchType : 'same',
     launchPrice, insurancePrice: priceBasis, priceFactor, costRatio, commissionRate,
     packUnits: packs, manufacturingLot: lot, devCost,
-  }), [launchPrice, priceBasis, priceFactor, costRatio, commissionRate, packs, lot, devCost]);
+  }), [mode, launchType, launchPrice, priceBasis, priceFactor, costRatio, commissionRate, packs, lot, devCost]);
 
   const derived = useMemo(() => deriveYears(years, plan), [years, plan]);
   const payback = useMemo(() => paybackPeriod(devCost || null, derived), [devCost, derived]);
@@ -336,6 +339,13 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
         <>
           {/* 신규발매 입력 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.6rem' }}>
+            <Field label="출시 유형">
+              <select value={launchType} onChange={e => setLaunchType(e.target.value as LaunchType)} style={{ ...inp, cursor: 'pointer' }}>
+                {(['same', 'formulation', 'salt', 'other'] as LaunchType[]).map(t => (
+                  <option key={t} value={t} style={{ color: '#e2e8f0', background: '#1a2030' }}>{LAUNCH_TYPE_LABEL[t]}</option>
+                ))}
+              </select>
+            </Field>
             <Field label="당사 품목명"><input value={productName} onChange={e => setProductName(e.target.value)} style={inp} placeholder="예: 아주피나스테리드정" /></Field>
             <Field label="발매예상약가(원)"><CommaNumberInput value={launchPrice} onChange={setLaunchPrice} style={inp} /></Field>
             <Field label="원가율(0~1)"><input type="number" step="0.01" value={costRatio} onChange={e => setCostRatio(+e.target.value)} style={inp} /></Field>
