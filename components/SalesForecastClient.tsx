@@ -365,10 +365,6 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
             </label>
             <Field label="약가(원, 자동)"><input type="number" value={insurancePrice} onChange={e => setInsurancePrice(+e.target.value)} style={inp} /></Field>
             <Field label="수수료율(0~1, 자동)"><input type="number" step="0.01" value={commissionRate} onChange={e => setCommissionRate(+e.target.value)} style={inp} /></Field>
-            <Field label="순공급가 계수"><input type="number" step="0.01" value={priceFactor} onChange={e => setPriceFactor(+e.target.value)} style={inp} /></Field>
-            <Field label="원가율(0~1)"><input type="number" step="0.01" value={costRatio} onChange={e => setCostRatio(+e.target.value)} style={inp} /></Field>
-            <Field label="제조단위(정)"><input type="number" value={lot} onChange={e => setLot(+e.target.value)} style={inp} /></Field>
-            <Field label="개발비(원, 선택)"><input type="number" value={devCost} onChange={e => setDevCost(+e.target.value)} style={inp} /></Field>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button onClick={onTrend} disabled={selProdIdx < 0}
@@ -417,11 +413,14 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
               </tr>
               <tr><td style={{ ...TD, color: 'rgba(255,255,255,0.5)' }}>금액(억)</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM }}>{eok(d.amount)}</td>)}</tr>
               <tr><td style={{ ...TD, color: 'rgba(255,255,255,0.5)' }}>성장률</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM, color: d.growth == null ? 'rgba(255,255,255,0.25)' : d.growth >= 0 ? '#6ee7b7' : '#fca5a5' }}>{d.growth == null ? '-' : pct(d.growth, 0)}</td>)}</tr>
-              <tr><td style={{ ...TD, color: 'rgba(255,255,255,0.5)' }}>정 수량</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM }}>{won(d.tablets)}</td>)}</tr>
-              {packs.map(pk => (
-                <tr key={pk.label}><td style={{ ...TD, color: 'rgba(255,255,255,0.4)' }}>{pk.label} 박스</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM }}>{won(d.boxesByPack[pk.label])}</td>)}</tr>
-              ))}
-              <tr><td style={{ ...TD, color: 'rgba(255,255,255,0.5)' }}>마진(억)</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM, color: '#a5f3fc' }}>{eok(d.grossProfit)}</td>)}</tr>
+              {/* 정 수량·박스·마진은 순공급가·원가율·포장 입력이 필요한 신규발매 전용 */}
+              {mode === 'new' && <>
+                <tr><td style={{ ...TD, color: 'rgba(255,255,255,0.5)' }}>정 수량</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM }}>{won(d.tablets)}</td>)}</tr>
+                {packs.map(pk => (
+                  <tr key={pk.label}><td style={{ ...TD, color: 'rgba(255,255,255,0.4)' }}>{pk.label} 박스</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM }}>{won(d.boxesByPack[pk.label])}</td>)}</tr>
+                ))}
+                <tr><td style={{ ...TD, color: 'rgba(255,255,255,0.5)' }}>마진(억)</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM, color: '#a5f3fc' }}>{eok(d.grossProfit)}</td>)}</tr>
+              </>}
             </tbody>
           </table>
         </div>
@@ -430,7 +429,9 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
       {years.length > 0 && (
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <Stat label="5년 누적매출" value={`${eok(derived.reduce((s, d) => s + d.amount, 0))}억`} color="#93c5fd" />
-          <Stat label="개발비 회수" value={payback == null ? '5년내 미회수' : payback <= 0 ? '즉시' : `${payback.toFixed(1)}년`} color="#fbbf24" />
+          {mode === 'new' && (
+            <Stat label="개발비 회수" value={payback == null ? '5년내 미회수' : payback <= 0 ? '즉시' : `${payback.toFixed(1)}년`} color="#fbbf24" />
+          )}
           {canEdit ? (
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
               <button onClick={() => onSave('draft')} disabled={saving} style={btn('#93c5fd')}>{saving ? '저장 중…' : '초안 저장'}</button>
