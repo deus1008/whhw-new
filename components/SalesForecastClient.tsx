@@ -70,7 +70,8 @@ export default function SalesForecastClient({ saved, canEdit }: { saved: SavedFo
       )}
       {tab === 'compare' && (
         <CompareTab saved={savedList} canEdit={canEdit}
-          onDeleted={(id) => setSavedList(prev => prev.filter(x => x.id !== id))} />
+          onDeleted={(id) => setSavedList(prev => prev.filter(x => x.id !== id))}
+          onUpdated={(f) => setSavedList(prev => prev.map(x => x.id === f.id ? f : x))} />
       )}
     </div>
   );
@@ -444,13 +445,49 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
 }
 
 /* ══════════════ 실적비교 탭 ══════════════ */
-function CompareTab({ saved, canEdit, onDeleted }: { saved: SavedForecast[]; canEdit: boolean; onDeleted: (id: string) => void }) {
+function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedForecast[]; canEdit: boolean; onDeleted: (id: string) => void; onUpdated: (f: SavedForecast) => void }) {
   const [selId, setSelId] = useState<string | null>(saved[0]?.id ?? null);
   const [actuals, setActuals] = useState<{ byYear: Record<string, number>; byMonth: Record<string, number> } | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // 입력값 수정(결과값 유지) — 허가 시점에 제품명·보험코드 확정 등
+  const [editing, setEditing] = useState(false);
+  const [eName, setEName] = useState(''); const [eCode, setECode] = useState('');
+  const [eLaunch, setELaunch] = useState(0); const [ePrice, setEPrice] = useState(0);
+  const [eCost, setECost] = useState(0); const [eComm, setEComm] = useState(0); const [eDev, setEDev] = useState(0);
+  const [savingEdit, setSavingEdit] = useState(false); const [editErr, setEditErr] = useState<string | null>(null);
+
   const sel = saved.find(s => s.id === selId) ?? null;
+
+  function startEdit(f: SavedForecast) {
+    setEName(f.product_name); setECode(f.insurance_code ?? '');
+    setELaunch(f.launch_price ?? 0); setEPrice(f.insurance_price ?? 0);
+    setECost(f.cost_ratio ?? 0); setEComm(f.commission_rate ?? 0); setEDev(f.dev_cost ?? 0);
+    setEditErr(null); setEditing(true);
+  }
+  async function saveEdit() {
+    if (!sel) return;
+    if (!eName.trim()) { setEditErr('제품명을 입력하세요'); return; }
+    setSavingEdit(true); setEditErr(null);
+    const r = await saveForecast({
+      id: sel.id, ingredient_key: sel.ingredient_key, product_name: eName.trim(),
+      insurance_code: eCode.trim() || null,
+      launch_price: eLaunch || null, insurance_price: ePrice || null, price_factor: sel.price_factor,
+      cost_ratio: eCost || null, commission_rate: eComm || null, pack_units: sel.pack_units,
+      manufacturing_lot: sel.manufacturing_lot, dev_cost: eDev || null,
+      years: sel.years, ai_rationale: sel.ai_rationale, market_snapshot: null, status: sel.status,
+    });
+    setSavingEdit(false);
+    if (!r.ok) { setEditErr(r.error ?? '저장 실패'); return; }
+    onUpdated({
+      ...sel, product_name: eName.trim(), insurance_code: eCode.trim() || null,
+      launch_price: eLaunch || null, insurance_price: ePrice || null,
+      cost_ratio: eCost || null, commission_rate: eComm || null, dev_cost: eDev || null,
+      updated_at: new Date().toISOString(),
+    });
+    setEditing(false);
+  }
 
   const load = useCallback(async (f: SavedForecast) => {
     setActuals(null); setErr(null);
@@ -485,7 +522,29 @@ function CompareTab({ saved, canEdit, onDeleted }: { saved: SavedForecast[]; can
       {sel && (
         <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>
           성분 <b style={{ color: '#6ee7b7' }}>{sel.ingredient_key}</b> · 품목 <b style={{ color: '#e2e8f0' }}>{sel.product_name}</b>
+          {sel.insurance_code && <span style={{ marginLeft: 6, color: 'rgba(255,255,255,0.4)' }}>· 보험코드 {sel.insurance_code}</span>}
           {sel.ai_rationale && <div style={{ marginTop: 6, lineHeight: 1.6, color: 'rgba(255,255,255,0.55)' }}>{sel.ai_rationale}</div>}
+        </div>
+      )}
+
+      {/* 입력값 수정 — 예측 결과(연도별 금액)는 유지, 제품명·보험코드 등 입력만 수정 */}
+      {sel && editing && (
+        <div style={{ border: '1px solid rgba(147,197,253,0.25)', background: 'rgba(147,197,253,0.05)', borderRadius: 10, padding: '0.8rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
+          <div style={{ fontSize: '0.75rem', color: '#93c5fd', fontWeight: 600 }}>입력값 수정 (예측 결과는 그대로 유지됩니다)</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.6rem' }}>
+            <Field label="제품명"><input value={eName} onChange={e => setEName(e.target.value)} style={inp} placeholder="허가 확정 제품명" /></Field>
+            <Field label="보험코드(실적매칭)"><input value={eCode} onChange={e => setECode(e.target.value)} style={inp} placeholder="9자리" /></Field>
+            <Field label="발매예상약가(원)"><CommaNumberInput value={eLaunch} onChange={setELaunch} style={inp} allowEmpty /></Field>
+            <Field label="약가(원)"><CommaNumberInput value={ePrice} onChange={setEPrice} style={inp} allowEmpty /></Field>
+            <Field label="원가율(0~1)"><input type="number" step="0.01" value={eCost} onChange={e => setECost(+e.target.value)} style={inp} /></Field>
+            <Field label="수수료율(0~1)"><input type="number" step="0.01" value={eComm} onChange={e => setEComm(+e.target.value)} style={inp} /></Field>
+            <Field label="개발비(원)"><CommaNumberInput value={eDev} onChange={setEDev} style={inp} allowEmpty /></Field>
+          </div>
+          {editErr && <div style={{ color: '#fca5a5', fontSize: '0.78rem' }}>{editErr}</div>}
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={saveEdit} disabled={savingEdit} style={btn('#6ee7b7')}>{savingEdit ? '저장 중…' : '저장'}</button>
+            <button onClick={() => setEditing(false)} disabled={savingEdit} style={btn('rgba(255,255,255,0.4)')}>취소</button>
+          </div>
         </div>
       )}
 
@@ -528,11 +587,17 @@ function CompareTab({ saved, canEdit, onDeleted }: { saved: SavedForecast[]; can
         </div>
       )}
 
-      {sel && canEdit && (
-        <button onClick={async () => { if (confirm('이 SF를 삭제할까요?')) { const r = await deleteForecast(sel.id); if (r.ok) { onDeleted(sel.id); setSelId(null); setActuals(null); } } }}
-          style={{ alignSelf: 'flex-start', padding: '0.35rem 0.8rem', borderRadius: 7, border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: '#fca5a5', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-          삭제
-        </button>
+      {sel && canEdit && !editing && (
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button onClick={() => startEdit(sel)}
+            style={{ padding: '0.35rem 0.8rem', borderRadius: 7, border: '1px solid rgba(147,197,253,0.4)', background: 'rgba(147,197,253,0.1)', color: '#93c5fd', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+            입력값 수정
+          </button>
+          <button onClick={async () => { if (confirm('이 SF를 삭제할까요?')) { const r = await deleteForecast(sel.id); if (r.ok) { onDeleted(sel.id); setSelId(null); setActuals(null); } } }}
+            style={{ padding: '0.35rem 0.8rem', borderRadius: 7, border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: '#fca5a5', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+            삭제
+          </button>
+        </div>
       )}
     </div>
   );
