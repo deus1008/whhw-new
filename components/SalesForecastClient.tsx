@@ -222,10 +222,12 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
   const [msg, setMsg] = useState<string | null>(null);
   const [selProdIdx, setSelProdIdx] = useState<number>(-1);   // 기존품목: 선택된 시장 제품
 
+  // 가격 기준: 신규발매는 발매예상약가, 기존품목은 선택 제품의 약가
+  const priceBasis = mode === 'new' ? launchPrice : insurancePrice;
   const plan: ForecastPlan = useMemo(() => ({
-    launchPrice, insurancePrice, priceFactor, costRatio, commissionRate,
+    launchPrice, insurancePrice: priceBasis, priceFactor, costRatio, commissionRate,
     packUnits: packs, manufacturingLot: lot, devCost,
-  }), [launchPrice, insurancePrice, priceFactor, costRatio, commissionRate, packs, lot, devCost]);
+  }), [launchPrice, priceBasis, priceFactor, costRatio, commissionRate, packs, lot, devCost]);
 
   const derived = useMemo(() => deriveYears(years, plan), [years, plan]);
   const payback = useMemo(() => paybackPeriod(devCost || null, derived), [devCost, derived]);
@@ -333,13 +335,9 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
           {/* 신규발매 입력 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.6rem' }}>
             <Field label="당사 품목명"><input value={productName} onChange={e => setProductName(e.target.value)} style={inp} placeholder="예: 아주피나스테리드정" /></Field>
-            <Field label="보험코드(실적매칭)"><input value={insuranceCode} onChange={e => setInsuranceCode(e.target.value)} style={inp} placeholder="9자리(선택)" /></Field>
             <Field label="발매예상약가(원)"><input type="number" value={launchPrice} onChange={e => setLaunchPrice(+e.target.value)} style={inp} /></Field>
-            <Field label="약가(원)"><input type="number" value={insurancePrice} onChange={e => setInsurancePrice(+e.target.value)} style={inp} /></Field>
-            <Field label="순공급가 계수"><input type="number" step="0.01" value={priceFactor} onChange={e => setPriceFactor(+e.target.value)} style={inp} /></Field>
             <Field label="원가율(0~1)"><input type="number" step="0.01" value={costRatio} onChange={e => setCostRatio(+e.target.value)} style={inp} /></Field>
             <Field label="예상수수료율(0~1)"><input type="number" step="0.01" value={commissionRate} onChange={e => setCommissionRate(+e.target.value)} style={inp} /></Field>
-            <Field label="제조단위(정)"><input type="number" value={lot} onChange={e => setLot(+e.target.value)} style={inp} /></Field>
             <Field label="개발비(원)"><input type="number" value={devCost} onChange={e => setDevCost(+e.target.value)} style={inp} /></Field>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -347,7 +345,7 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
               style={{ padding: '0.55rem 1.2rem', borderRadius: '9px', border: '1px solid rgba(167,139,250,0.45)', background: 'rgba(167,139,250,0.16)', color: '#c4b5fd', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
               {proposing ? 'AI 분석 중…' : '🤖 AI 예측 제안'}
             </button>
-            <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>순공급가 = {won(insurancePrice / 1.1 * priceFactor)}원 / 정</span>
+            <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>순공급가 = {won(priceBasis / 1.1 * priceFactor)}원 / 정 (발매예상약가 기준)</span>
           </div>
         </>
       ) : (
