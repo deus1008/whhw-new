@@ -991,7 +991,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       <td className="center" style={{ whiteSpace: 'nowrap', fontSize: '0.8rem' }}>
                         {p.launchDate ? fmtDate(p.launchDate.slice(0, 10)) : '-'}
                       </td>
-                      <td className="right" style={{ fontSize: '0.8rem' }}>{p.insurancePrice ?? '-'}</td>
+                      <td className="right" style={{ fontSize: '0.8rem' }}>{/^\d+$/.test(String(p.insurancePrice ?? '')) ? Number(p.insurancePrice).toLocaleString('ko-KR') : (p.insurancePrice ?? '-')}</td>
                       <td className="center">
                         {p.status ?? '예정'}
                       </td>

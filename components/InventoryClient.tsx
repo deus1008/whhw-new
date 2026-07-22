@@ -124,7 +124,7 @@ function AlertCard({ item, onEdit, onDelete }: {
               fontSize: '0.88rem', fontWeight: 700,
               color: (item.stock_amount ?? -1) <= 0 ? '#ef4444' : 'rgba(255,255,255,0.7)',
             }}>
-              {item.stock_amount !== null ? `${item.stock_amount.toFixed(2)} 백만` : '-'}
+              {item.stock_amount !== null ? `${item.stock_amount.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 백만` : '-'}
             </span>
           </div>
         </div>
@@ -149,12 +149,12 @@ function AlertCard({ item, onEdit, onDelete }: {
         <Meta label="품절 시작일" value={fmtDate(item.stockout_start)} color="#fca5a5" />
         <Meta label={item.collect_month ? '품절 종료일' : '공급 예정일'} value={fmtDate(item.supply_date)} color="#86efac" />
         {item.collect_month
-          ? <Meta label="월평균 매출" value={item.sales_3m !== null ? `${item.sales_3m.toFixed(1)} 백만` : '-'} />
+          ? <Meta label="월평균 매출" value={item.sales_3m !== null ? `${item.sales_3m.toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 백만` : '-'} />
           : <Meta label="품절 기간"   value={item.stockout_days ?? '-'} />
         }
         {item.collect_month
           ? <Meta label="제조사 구분" value={item.manufacturer || '-'} />
-          : <Meta label="직3매출"     value={item.sales_3m !== null ? `${item.sales_3m.toFixed(1)} 백만` : '-'} />
+          : <Meta label="직3매출"     value={item.sales_3m !== null ? `${item.sales_3m.toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 백만` : '-'} />
         }
       </div>
 

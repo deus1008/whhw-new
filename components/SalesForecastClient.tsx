@@ -358,7 +358,7 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
               <select value={selProdIdx} onChange={e => pickExisting(+e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
                 <option value={-1}>— 제품 선택 —</option>
                 {(market?.products ?? []).map((p, i) => (
-                  <option key={i} value={i}>{p.product_name} ({p.manufacturer ?? '-'}) · 약가 {p.price ?? '-'}</option>
+                  <option key={i} value={i}>{p.product_name} ({p.manufacturer ?? '-'}) · 약가 {p.price != null ? p.price.toLocaleString('ko-KR') : '-'}</option>
                 ))}
               </select>
             </label>

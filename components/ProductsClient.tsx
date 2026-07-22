@@ -457,7 +457,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
 
                     {/* ⑦ 보험가 */}
                     <td style={{ padding: '0.7rem 0.9rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                      {p.insurance_price ?? '—'}
+                      {/^\d+$/.test(String(p.insurance_price ?? '')) ? Number(p.insurance_price).toLocaleString('ko-KR') : (p.insurance_price ?? '—')}
                     </td>
 
                     {/* ⑧ 진행상태 */}
