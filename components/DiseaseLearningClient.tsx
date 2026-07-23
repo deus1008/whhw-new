@@ -343,6 +343,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
         background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
         borderRadius: '14px', padding: '0.75rem 0.5rem', alignSelf: 'start',
         position: 'sticky', top: '1rem',
+        maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto',   // 우측 리스트와 무관하게 좌측 메뉴 독립 스크롤
       }}>
         <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600,
           letterSpacing: '0.06em', textTransform: 'uppercase', padding: '0 0.5rem', marginBottom: '0.5rem' }}>
