@@ -187,6 +187,16 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(34,211,238,0.10)',
     bd:   'rgba(34,211,238,0.22)',
   },
+  // ⑬-0b Sales Report (관리자 전용)
+  {
+    href: '/sales-report',
+    icon: '📈',
+    label: 'Sales Report',
+    color: '#5eead4',
+    bg:   'rgba(45,212,191,0.10)',
+    bd:   'rgba(45,212,191,0.22)',
+    adminOnly: true,
+  },
   // ⑬-1 업계동향
   {
     href: '/competitor-intel',
