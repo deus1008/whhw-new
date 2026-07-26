@@ -599,6 +599,14 @@ export default async function DashboardPage() {
           <HomeButton />
           <LogoutButton compact />
         </div>
+        {/* 현재 로그인된 계정 — 다른 계정 로그인 여부를 즉시 확인 */}
+        {user.email && (
+          <p className="no-print" style={{ textAlign: 'center', marginTop: '-1.4rem', marginBottom: '2rem' }}>
+            <span style={{ fontSize: '0.7rem', color: '#6b7a99', letterSpacing: '0.02em' }}>
+              {user.email}
+            </span>
+          </p>
+        )}
 
         {(isAllianceUser || isAdmin) && (
           <div className="no-print">

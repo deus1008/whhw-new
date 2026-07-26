@@ -344,6 +344,7 @@ export default function Home() {
 
   // 인증 상태: null=확인 중, false=비로그인, true=로그인됨
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [userEmail,  setUserEmail]  = useState<string | null>(null);
   const [isAdmin,    setIsAdmin]    = useState(false);
   const [toast, setToast]           = useState('');
   const [toastVisible, setToastVisible] = useState(false);
@@ -399,10 +400,12 @@ export default function Home() {
 
     supabase.auth.getSession().then(({ data }) => {
       setIsLoggedIn(!!data.session);
+      setUserEmail(data.session?.user?.email ?? null);
       checkSession(data.session?.user?.id);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setIsLoggedIn(!!session);
+      setUserEmail(session?.user?.email ?? null);
       checkSession(session?.user?.id);
     });
     return () => subscription.unsubscribe();
@@ -683,9 +686,32 @@ export default function Home() {
       {showErrorModal && <ErrorReportModal onClose={() => setShowErrorModal(false)} />}
 
       {/* 우측 상단: 로그인 상태에 따라 다르게 표시 */}
-      <div className="fixed top-5 right-6 z-20 flex gap-3">
+      <div className="fixed top-5 right-6 z-20 flex items-center gap-3">
         {isLoggedIn ? (
-          <LogoutButton />
+          <>
+            {/* 현재 로그인된 계정 — 다른 계정 로그인 여부를 즉시 확인 */}
+            {userEmail && (
+              <span
+                title={`현재 로그인: ${userEmail}`}
+                style={{
+                  maxWidth: '46vw',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  padding: '0.4rem 0.7rem',
+                  borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'var(--text-muted)',
+                  fontSize: '0.72rem',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {userEmail}
+              </span>
+            )}
+            <LogoutButton />
+          </>
         ) : (
           <>
             <Link
