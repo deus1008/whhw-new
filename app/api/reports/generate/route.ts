@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
 import { profileIsAdmin } from '@/lib/roles';
+import { getEffectiveCompanyId } from '@/lib/active-company';
 import Anthropic from '@anthropic-ai/sdk';
 
 export const dynamic     = 'force-dynamic';
@@ -291,9 +292,12 @@ export async function POST(req: NextRequest) {
   const { data: { user }, error: authErr } = await authClient.auth.getUser();
   if (authErr || !user) return NextResponse.json({ error: '인증이 필요합니다.' }, { status: 401 });
 
-  const { data: profile } = await authClient.from('profiles').select('role, roles, status').eq('id', user.id).single();
+  const { data: profile } = await authClient.from('profiles').select('role, roles, status, company_id').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') return NextResponse.json({ error: '접근 권한 없음' }, { status: 403 });
   if (!profileIsAdmin(profile)) return NextResponse.json({ error: '관리자만 AI 리포트를 생성할 수 있습니다.' }, { status: 403 });
+
+  // 활성 위탁사(쿠키 전환값 우선) — 리포트를 해당 위탁사에 귀속시켜 목록 필터와 일치시킴
+  const companyId = await getEffectiveCompanyId((profile.company_id as string) ?? null, true);
 
   // 2. 요청 파싱
   let title: string;
@@ -411,6 +415,7 @@ export async function POST(req: NextRequest) {
     uploaded_by:  user.id,
     status:       'ready',
     summary:      topic,
+    company_id:   companyId,
   }).select('id').single();
 
   if (insErr) {

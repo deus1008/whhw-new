@@ -52,8 +52,9 @@ export default async function ReportsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let docsQ: any = svc.from('documents').select('id, filename, file_type, storage_path, summary, created_at').eq('category', '분석리포트').order('created_at', { ascending: false });
   if (companyId) {
-    reportsQ = reportsQ.eq('company_id', companyId);
-    docsQ    = docsQ.eq('company_id', companyId);
+    // 위탁사 귀속 리포트 + 전역(company_id NULL) 리포트를 함께 노출
+    reportsQ = reportsQ.or(`company_id.eq.${companyId},company_id.is.null`);
+    docsQ    = docsQ.or(`company_id.eq.${companyId},company_id.is.null`);
   }
   const [{ data: rows }, { data: docRows }] = await Promise.all([reportsQ, docsQ]);
 
