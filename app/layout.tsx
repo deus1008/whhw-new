@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="flex flex-col items-center justify-center min-h-screen">
+      <body className="flex flex-col items-center justify-start min-h-screen">
         {children}
       </body>
     </html>
