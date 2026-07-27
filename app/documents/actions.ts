@@ -42,7 +42,7 @@ export async function deleteDocument(formData: FormData) {
   // 문서 소유자 확인 (uploader는 본인 것만)
   const { data: doc, error: fetchErr } = await supabase
     .from('documents')
-    .select('id, uploaded_by')
+    .select('id, uploaded_by, filename, category, company_id')
     .eq('id', documentId)
     .single();
 
@@ -70,6 +70,20 @@ export async function deleteDocument(formData: FormData) {
   if (dbErr) {
     console.error('[deleteDocument db error]', dbErr);
     throw new Error(`DB 삭제 실패: ${dbErr.message}`);
+  }
+
+  // EDI 문서 삭제 시 해당 파일이 적재한 처방 데이터(trend_prescriptions)도 함께 정리.
+  // (source_file = 파일명, 회사 스코프. 정리하지 않으면 문서 삭제 후에도 처방실적이 고아로 남아
+  //  주간·대시보드 등에 계속 집계됨.)
+  if (doc.category === 'EDI' && doc.filename) {
+    const svc = createServiceClient();
+    let delQ = svc.from('trend_prescriptions').delete().eq('source_file', doc.filename as string);
+    delQ = doc.company_id ? delQ.eq('company_id', doc.company_id) : delQ.is('company_id', null);
+    const { error: rxErr } = await delQ;
+    if (rxErr) console.error('[deleteDocument trend_prescriptions cleanup error]', rxErr);
+    revalidatePath('/edi');
+    revalidatePath('/weekly');
+    revalidatePath('/dashboard');
   }
 
   revalidatePath('/documents');
