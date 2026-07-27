@@ -72,18 +72,39 @@ export async function deleteDocument(formData: FormData) {
     throw new Error(`DB 삭제 실패: ${dbErr.message}`);
   }
 
-  // EDI 문서 삭제 시 해당 파일이 적재한 처방 데이터(trend_prescriptions)도 함께 정리.
-  // (source_file = 파일명, 회사 스코프. 정리하지 않으면 문서 삭제 후에도 처방실적이 고아로 남아
-  //  주간·대시보드 등에 계속 집계됨.)
-  if (doc.category === 'EDI' && doc.filename) {
+  // 문서(파일)를 삭제할 때, 그 파일이 적재한 파생 데이터도 함께 정리한다.
+  //
+  // ★ 원칙: '문서에 없는데 DB에 있는 데이터'를 전부 고아로 간주해 지우지 않는다.
+  //   오직 '삭제되는 이 파일'이 적재한 행만(source_file = 파일명) 대상으로 한다.
+  //   → 문서 없이 DB에 직접 적재된(source_file=null 등) 데이터는 절대 자동 삭제되지 않는다.
+  //
+  // 대상: source_file 로 파일에 정확히 귀속되는 카테고리만 포함.
+  //   제외 — 거래처현황(회사/전체 스코프), 재고현황(년+월 스코프), 위탁품목리스트(products 마스터),
+  //          허가현황(source_document_id 방식·기존행 미태깅) 은 파일 귀속이 아니므로 제외.
+  const DERIVED: Record<string, { table: string; company?: boolean }> = {
+    '약가':             { table: 'drug_prices' },
+    '수수료율':         { table: 'commission_rates' },
+    '수수료율(딜러)':   { table: 'commission_rates' },
+    '수수료율(제약사)': { table: 'commission_rates' },
+    '수수료정산':       { table: 'commission_settlements' },
+    'Ubist':            { table: 'ubist_data' },
+    '생동품목':         { table: 'drug_bioequiv' },
+    '원료DMF':          { table: 'drug_dmf' },
+    'EDI':              { table: 'trend_prescriptions', company: true },
+  };
+  const rule = doc.category ? DERIVED[doc.category as string] : undefined;
+  if (rule && doc.filename) {
     const svc = createServiceClient();
-    let delQ = svc.from('trend_prescriptions').delete().eq('source_file', doc.filename as string);
-    delQ = doc.company_id ? delQ.eq('company_id', doc.company_id) : delQ.is('company_id', null);
+    let delQ = svc.from(rule.table).delete().eq('source_file', doc.filename as string);
+    // EDI(trend_prescriptions)만 회사 컬럼이 있어 회사 스코프까지 적용(더 정밀). 나머지는 파일명 단독.
+    if (rule.company) delQ = doc.company_id ? delQ.eq('company_id', doc.company_id) : delQ.is('company_id', null);
     const { error: rxErr } = await delQ;
-    if (rxErr) console.error('[deleteDocument trend_prescriptions cleanup error]', rxErr);
-    revalidatePath('/edi');
-    revalidatePath('/weekly');
-    revalidatePath('/dashboard');
+    if (rxErr) console.error(`[deleteDocument ${rule.table} cleanup error]`, rxErr);
+    // 파생 데이터를 소비하는 페이지 갱신
+    for (const p of ['/edi', '/weekly', '/dashboard', '/settlement', '/commission', '/commission-rate',
+      '/prescription', '/market-analysis', '/drug-search', '/products']) {
+      revalidatePath(p);
+    }
   }
 
   revalidatePath('/documents');
