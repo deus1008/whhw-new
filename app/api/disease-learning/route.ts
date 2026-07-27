@@ -339,6 +339,44 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 2-b) 영문 시그니처 미해석 성분 → 한글 성분명으로 drug_prices item_name 직접 매칭 보강.
+    //   큐레이션 대표 브랜드가 약가 DB에 없거나 철자가 달라 접두매칭이 실패하는 경우
+    //   (예: '콜린 알포세레이트'의 '글리아티린'은 DB 부재).
+    //   drug_prices.item_name 은 '제품명(성분한글)_(용량/단위)' 형식이라, 한글 성분명으로
+    //   정밀 매칭하면 영문 시그니처의 첫토큰 뭉갬 문제(choline alfoscerate↔choline fenofibrate
+    //   가 모두 'choline'으로 축약)로 인한 오염 없이 해당 성분만 정확히 걸린다.
+    const doseSimple = (eng: string): string | null => {
+      const m = eng.match(/([\d.]+)\s*(mg|mcg|g|iu|ml|㎎|㎍)/i);
+      return m ? `${Number(m[1])}${m[2].toLowerCase()}` : null;
+    };
+    const unresolvedIngrs = uniqueIngrs.filter(ko => !sigByKo.has(ko));
+    for (const ko of unresolvedIngrs) {
+      const koCore = ko.replace(/\([^)]*\)/g, '').replace(/\s+/g, '').trim();
+      if (koCore.length < 3) continue;
+      const { data } = await svc()
+        .from('drug_prices')
+        .select('item_code, item_name, ingredient_name, manufacturer, standard, pay_type, max_price, unit')
+        .ilike('item_name', `%${koCore}%`).limit(1500);
+      for (const r of data ?? []) {
+        const code = String(r.item_code ?? '');
+        if (!code || byCode.has(code)) continue;
+        const eng = (r.ingredient_name as string) ?? '';
+        byCode.set(code, {
+          id: null, disease_group: group, sub_category: sub ?? null, treatment_class: null,
+          ingredient_name: ko, product_name: r.item_name,
+          strength: doseSimple(eng),
+          manufacturer: r.manufacturer || null,
+          distributor:  r.manufacturer || null,
+          standard: r.standard || null, pay_type: r.pay_type || null,
+          is_original: isOriginalName((r.item_name as string) ?? ''),
+          mechanism: null, note: null, atc_code: null, atc_name: null,
+          item_code: code, max_price: r.max_price ?? null, reference_drug: null,
+          permit_kind: null, approval_date: null, from_price_db: true,
+          form: formOf(r.unit as string | null, (r.item_name as string) ?? null),
+        });
+      }
+    }
+
     // 제조사(제조원) 보강: permit_pkg(급여코드 → 허가 상세 제조원)
     {
       const codes = [...byCode.keys()];
