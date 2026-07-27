@@ -245,8 +245,10 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     setNeedsSearch(true);
   }
 
-  /** 함량 선택(4단계) — 부모 성분도 함께 선택. 조회 대기 상태로 전환 */
-  function selectStrength(ing: string, st: string | null) {
+  /** 함량 선택(4단계) — 상위(질환군·중분류·성분)까지 함께 확정. 조회 대기 상태로 전환 */
+  function selectStrength(group: string, sub: string, ing: string, st: string | null) {
+    if (selectedGroup !== group) { setSelectedGroup(group); setOpenGroups(p => new Set(p).add(group)); }
+    if (selectedSub !== sub) setSelectedSub(sub);
     setSelectedIngr(ing);
     setSelectedStrength(st !== null && st === selectedStrength && selectedIngr === ing ? null : st);
     setNeedsSearch(true);
@@ -268,15 +270,21 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     if (needFetch) fetchDrugs(selectedGroup, selectedSub);
   }
 
-  /** 성분 클릭 — 다른 성분이면 '선택 + 함량 펼치기', 이미 선택된 성분이면 '해제 + 접기'(= 중분류 전체) */
-  function toggleIngr(ing: string) {
-    const willSelect = selectedIngr !== ing;
+  /** 성분 클릭 — 상위(질환군·중분류)까지 함께 확정. 다른 성분이면 '선택+함량 펼치기', 같은 성분이면 '해제+접기' */
+  function toggleIngr(group: string, sub: string, ing: string) {
+    const willSelect = !(selectedGroup === group && selectedSub === sub && selectedIngr === ing);
     setOpenIngrs(prev => {
       const n = new Set(prev);
       if (willSelect) n.add(ing); else n.delete(ing);
       return n;
     });
-    selectIngr(willSelect ? ing : null);
+    if (willSelect) {
+      if (selectedGroup !== group) { setSelectedGroup(group); setOpenGroups(p => new Set(p).add(group)); }
+      if (selectedSub !== sub) setSelectedSub(sub);
+      selectIngr(ing);
+    } else {
+      selectIngr(null);
+    }
   }
 
   // 4단계: 현재 로드된 약품에서 성분별 함량 목록(숫자 오름차순)
@@ -310,16 +318,20 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     else if (resetToAll) selectSub(null);
   }
 
-  /** 중분류 클릭 — 다른 중분류면 '선택 + 열기', 이미 선택된 것이면 열기/접기 토글 */
+  /** 중분류 클릭 — 부모 질환군까지 함께 확정(여러 질환군이 펼쳐진 상태에서 다른 군의 중분류를
+   *  눌러도 질환군이 그 중분류의 부모로 전환되도록). 같은 중분류면 열기/접기 토글 */
   function toggleSub(group: string, sub: string) {
     const key = `${group}|${sub}`;
-    const willSelect = selectedSub !== sub;
+    const willSelect = !(selectedGroup === group && selectedSub === sub);
     setOpenSubs(prev => {
       const n = new Set(prev);
       if (willSelect || !prev.has(key)) n.add(key); else n.delete(key);
       return n;
     });
-    if (willSelect) selectSub(sub);
+    if (willSelect) {
+      if (selectedGroup !== group) { setSelectedGroup(group); setOpenGroups(p => new Set(p).add(group)); }
+      selectSub(sub);
+    }
   }
 
   // 선택영역 = 적용된 성분·함량(applied) + 검색 — 상단 집계는 이 범위 기준.
@@ -446,7 +458,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                                 return (
                                   <div key={ing}>
                                     <button
-                                      onClick={() => toggleIngr(ing)}
+                                      onClick={() => toggleIngr(g.group, sub, ing)}
                                       title={ing}
                                       style={{
                                         width: '100%', textAlign: 'left', padding: '0.22rem 0.4rem', borderRadius: '5px',
@@ -472,7 +484,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                                         {strengths.map(st => (
                                           <button
                                             key={st}
-                                            onClick={() => selectStrength(ing, st)}
+                                            onClick={() => selectStrength(g.group, sub, ing, st)}
                                             style={{
                                               textAlign: 'left', padding: '0.18rem 0.35rem', borderRadius: '4px',
                                               border: 'none', cursor: 'pointer', fontSize: '0.63rem',
