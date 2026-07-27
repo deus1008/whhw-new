@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { DRUG_FORMS, type DrugForm } from '@/lib/drug-form';
 
 type FormFilter = 'all' | DrugForm;
@@ -186,7 +186,12 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
 
   const currentGroup = groups.find(g => g.group === selectedGroup);
 
+  // 최신 요청만 반영 — 질환을 빠르게 바꿔 여러 번 조회할 때, 이전(느린) 응답이
+  // 나중에 도착해 현재 선택 결과를 덮어써 다른 질환 약이 섞이는 경쟁 조건 방지.
+  const reqIdRef = useRef(0);
+
   const fetchDrugs = useCallback(async (group: string, sub: string | null) => {
+    const reqId = ++reqIdRef.current;
     setLoading(true);
     setDrugs([]);
     try {
@@ -194,14 +199,16 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
       if (sub) params.set('sub', sub);
       const res = await fetch(`/api/disease-learning?${params}`);
       const json = await res.json();
+      if (reqId !== reqIdRef.current) return;   // 더 최신 요청이 있으면 이 응답은 폐기
       setDrugs(json.drugs ?? []);
       setPeriods(json.periods ?? []);
       setInfoMap(json.info ?? {});
     } catch {
+      if (reqId !== reqIdRef.current) return;
       setDrugs([]);
       setPeriods([]);
     } finally {
-      setLoading(false);
+      if (reqId === reqIdRef.current) setLoading(false);
     }
   }, []);
 
