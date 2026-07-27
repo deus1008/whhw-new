@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { DRUG_FORMS, type DrugForm } from '@/lib/drug-form';
 
 type FormFilter = 'all' | DrugForm;
@@ -183,6 +183,12 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   const [filter, setFilter] = useState<FormFilter>('all');
   const [search, setSearch] = useState('');
   const [infoMap, setInfoMap] = useState<Record<string, IngredientInfo>>({});
+  // 조회 버튼 방식: 트리(1~4단계) 선택은 '대기' 상태로만 두고, [조회]를 눌러야 실제 적용.
+  // (선택마다 자동 호출하던 방식은 느린 확장 쿼리의 응답 순서 역전으로 다른 질환 약이 섞였음)
+  const [needsSearch, setNeedsSearch] = useState(true);
+  // 실제 결과에 적용된 스냅샷 — 화면 필터·집계는 selected*(대기)가 아니라 applied 로만 계산.
+  type Applied = { group: string; sub: string | null; ingr: string | null; strength: string | null };
+  const [applied, setApplied] = useState<Applied | null>(null);
 
   const currentGroup = groups.find(g => g.group === selectedGroup);
 
@@ -192,6 +198,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
 
   const fetchDrugs = useCallback(async (group: string, sub: string | null) => {
     const reqId = ++reqIdRef.current;
+    setNeedsSearch(false);   // 현재 선택을 조회하는 중 → 안내 해제
     setLoading(true);
     setDrugs([]);
     try {
@@ -212,10 +219,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     }
   }, []);
 
-  useEffect(() => {
-    if (selectedGroup) fetchDrugs(selectedGroup, selectedSub);
-  }, [selectedGroup, selectedSub, fetchDrugs]);
-
+  // 질환군/중분류가 바뀌면 자동 조회하지 않고 [조회] 대기 상태로 전환
   function selectGroup(g: GroupItem) {
     setSelectedGroup(g.group);
     setSelectedSub(null);        // 1단계 선택 = 질환군 전체
@@ -223,6 +227,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     setSelectedStrength(null);
     setFilter('all');
     setSearch('');
+    setNeedsSearch(true);
   }
   function selectSub(sub: string | null) {
     setSelectedSub(sub);
@@ -230,18 +235,37 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     setSelectedStrength(null);
     setFilter('all');
     setSearch('');
+    setNeedsSearch(true);
   }
 
-  /** 성분 선택(3단계) — 함량 선택 해제 */
+  /** 성분 선택(3단계) — 함량 선택 해제. 조회 대기 상태로 전환(버튼 눌러야 적용) */
   function selectIngr(ing: string | null) {
     setSelectedIngr(ing);
     setSelectedStrength(null);
+    setNeedsSearch(true);
   }
 
-  /** 함량 선택(4단계) — 부모 성분도 함께 선택(성분 미선택 상태로 함량만 남는 것 방지) */
+  /** 함량 선택(4단계) — 부모 성분도 함께 선택. 조회 대기 상태로 전환 */
   function selectStrength(ing: string, st: string | null) {
     setSelectedIngr(ing);
     setSelectedStrength(st !== null && st === selectedStrength && selectedIngr === ing ? null : st);
+    setNeedsSearch(true);
+  }
+
+  /** 성분 필터 즉시 해제(헤더 ✕) — '제거'는 조회 없이 바로 반영 */
+  function clearIngrFilter() {
+    setSelectedIngr(null);
+    setSelectedStrength(null);
+    setApplied(a => (a ? { ...a, ingr: null, strength: null } : a));
+  }
+
+  /** [조회] — 대기 중인 트리 선택(1~4단계)을 결과에 적용. 질환군/중분류가 바뀐 경우에만 재조회 */
+  function doSearch() {
+    if (!selectedGroup) return;
+    const needFetch = !applied || applied.group !== selectedGroup || applied.sub !== selectedSub;
+    setApplied({ group: selectedGroup, sub: selectedSub, ingr: selectedIngr, strength: selectedStrength });
+    setNeedsSearch(false);
+    if (needFetch) fetchDrugs(selectedGroup, selectedSub);
   }
 
   /** 성분 클릭 — 다른 성분이면 '선택 + 함량 펼치기', 이미 선택된 성분이면 '해제 + 접기'(= 중분류 전체) */
@@ -298,10 +322,11 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     if (willSelect) selectSub(sub);
   }
 
-  // 선택영역 = 메뉴 선택(성분 3단계·함량 4단계) + 검색 — 상단 집계는 이 범위 기준
+  // 선택영역 = 적용된 성분·함량(applied) + 검색 — 상단 집계는 이 범위 기준.
+  //   대기(selected*)가 아니라 [조회]로 확정된 applied 로 필터해야 버튼 방식과 일치.
   const scoped = drugs.filter(d => {
-    if (selectedIngr && (d.ingredient_name ?? '').trim() !== selectedIngr) return false;
-    if (selectedStrength && (d.strength ?? '') !== selectedStrength) return false;
+    if (applied?.ingr && (d.ingredient_name ?? '').trim() !== applied.ingr) return false;
+    if (applied?.strength && (d.strength ?? '') !== applied.strength) return false;
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       return !!(
@@ -482,8 +507,34 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
       {/* ── 메인 패널 ────────────────────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
 
-        {/* 헤더 + 통계 */}
+        {/* 조회 버튼 — 질환군/중분류 선택 후 눌러야 조회(자동 조회 시 응답 순서 역전으로 다른 질환 약이 섞이던 문제 방지) */}
         {selectedGroup && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={doSearch}
+              disabled={loading}
+              style={{
+                padding: '0.5rem 1.15rem', borderRadius: '9px', fontSize: '0.85rem', fontWeight: 700,
+                cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                background: needsSearch ? 'rgba(251,191,36,0.18)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${needsSearch ? 'rgba(251,191,36,0.5)' : 'rgba(255,255,255,0.14)'}`,
+                color: needsSearch ? '#fbbf24' : 'rgba(255,255,255,0.6)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {loading ? '조회 중…' : '🔍 조회'}
+            </button>
+            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {[selectedGroup, selectedSub].filter(Boolean).join(' › ')}
+            </span>
+            {needsSearch && !loading && (
+              <span style={{ fontSize: '0.75rem', color: '#fbbf24' }}>선택이 변경됐습니다 · [조회]를 눌러주세요</span>
+            )}
+          </div>
+        )}
+
+        {/* 헤더 + 통계 */}
+        {selectedGroup && !needsSearch && (
           <div style={{
             background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
             borderRadius: '14px', padding: '1rem 1.25rem',
@@ -492,12 +543,12 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <h1 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', margin: 0 }}>
-                    {selectedStrength
-                      ? [selectedIngr, selectedStrength].filter(Boolean).join(' ')   // 성분+함량
-                      : (selectedIngr ?? selectedSub ?? selectedGroup)}
+                    {applied?.strength
+                      ? [applied?.ingr, applied?.strength].filter(Boolean).join(' ')   // 성분+함량
+                      : (applied?.ingr ?? applied?.sub ?? applied?.group ?? selectedGroup)}
                   </h1>
-                  {selectedIngr && (
-                    <button onClick={() => selectIngr(null)} title="성분 선택 해제"
+                  {applied?.ingr && (
+                    <button onClick={clearIngrFilter} title="성분 선택 해제"
                       style={{ fontSize: '0.66rem', color: '#67e8f9', background: 'rgba(34,211,238,0.12)',
                         border: '1px solid rgba(34,211,238,0.3)', borderRadius: '5px', padding: '1px 6px',
                         cursor: 'pointer', fontFamily: 'inherit', minHeight: 'auto' }}>
@@ -506,7 +557,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                   )}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginTop: '3px' }}>
-                  {[selectedGroup, selectedSub, selectedIngr, selectedStrength].filter(Boolean).join(' › ')}
+                  {[applied?.group, applied?.sub, applied?.ingr, applied?.strength].filter(Boolean).join(' › ')}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -520,7 +571,8 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
           </div>
         )}
 
-        {/* 검색 + 필터 바 */}
+        {/* 검색 + 필터 바 — 조회 완료 후에만 노출(로드된 결과 내 필터) */}
+        {!needsSearch && (
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           <input
             value={search}
@@ -561,11 +613,16 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
             </span>
           )}
         </div>
+        )}
 
         {/* 의약품 테이블 */}
         {loading ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.85rem' }}>
             불러오는 중…
+          </div>
+        ) : needsSearch ? (
+          <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+            🔍 <b style={{ color: '#fbbf24' }}>조회</b> 버튼을 눌러 선택한 질환의 의약품을 불러오세요.
           </div>
         ) : displayed.length === 0 ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.85rem' }}>
