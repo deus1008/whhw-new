@@ -242,21 +242,47 @@ export async function GET(req: NextRequest) {
       return [...new Set(toks)].sort().join('+');
     };
 
-    // 1) 한글 성분 → 영문 시그니처 (성분별 대표 제품을 drug_prices 접두 매칭)
+    // 1) 한글 성분 → 영문 시그니처 (성분의 큐레이션 제품들을 drug_prices 접두 매칭)
+    //    ⚠️ 브랜드명 접두 충돌 주의: 예) '코알비정'은 도네페질(큐레이션)과 레보세티리진(HIRA)
+    //    양쪽에 쓰여, 대표 제품 1개만 임의 매칭하면 성분 시그니처가 통째로 오인된다
+    //    (치매치료제인데 항히스타민/항혈전제가 딸려오는 원인). 따라서 성분의 '모든' 제품을
+    //    접두 매칭해 제품별 시그니처를 다수결로 확정하고, 동점(모호)이면 미해석 → 큐레이션 원본만 노출.
     const sigByKo = new Map<string, string>();
-    const seedByKo = new Map<string, string>();
+    const prodsByKo = new Map<string, string[]>();
     for (const d of baseDrugs) {
       const ko = ((d.ingredient_name as string | null) ?? '').trim();
       const pn = ((d.product_name as string | null) ?? '').trim();
-      if (ko && pn && !seedByKo.has(ko)) seedByKo.set(ko, pn);
+      if (!ko || !pn) continue;
+      if (!prodsByKo.has(ko)) prodsByKo.set(ko, []);
+      const arr = prodsByKo.get(ko)!;
+      if (!arr.includes(pn)) arr.push(pn);
     }
-    for (const [ko, pn] of seedByKo) {
-      const seed = pn.replace(/[（(].*$/, '').trim().split(/\s/)[0];
-      if (seed.length < 2) continue;
+    // 제품명 seed: 괄호 이전 첫 토큰 + or() 구문 충돌문자 제거
+    const seedOf = (pn: string) =>
+      pn.replace(/[（(].*$/, '').trim().split(/\s/)[0].replace(/[,()%*.]/g, '');
+    for (const [ko, prods] of prodsByKo) {
+      const seeds = [...new Set(prods.map(seedOf).filter(s => s.length >= 2))];
+      if (!seeds.length) continue;
+      // 성분당 1쿼리: 모든 seed 를 OR 로 조회
+      const orFilter = seeds.map(s => `item_name.ilike.${s}%`).join(',');
       const { data } = await svc().from('drug_prices')
-        .select('ingredient_name').ilike('item_name', `${seed}%`).limit(1);
-      const eng = (data?.[0]?.ingredient_name as string | undefined);
-      if (eng) { const sig = engSig(eng); if (sig) sigByKo.set(ko, sig); }
+        .select('item_name, ingredient_name').or(orFilter).limit(300);
+      const rows = (data ?? []) as { item_name: string; ingredient_name: string }[];
+      // 제품(seed)별 첫 매치의 영문 시그니처를 1표로 집계
+      const votes = new Map<string, number>();
+      for (const s of seeds) {
+        const ns = norm0(s);
+        const row = rows.find(r => norm0(r.item_name ?? '').startsWith(ns));
+        if (!row) continue;
+        const sig = engSig(row.ingredient_name ?? '');
+        if (sig) votes.set(sig, (votes.get(sig) ?? 0) + 1);
+      }
+      if (!votes.size) continue;
+      const ranked = [...votes.entries()].sort((a, b) => b[1] - a[1]);
+      // 단독 최다득표만 채택(동점이면 오매칭 위험 → 미해석)
+      if (ranked.length === 1 || ranked[0][1] > ranked[1][1]) {
+        sigByKo.set(ko, ranked[0][0]);
+      }
     }
 
     // 오리지널 판정용 접두어(큐레이션 is_original 제품명)
