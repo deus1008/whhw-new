@@ -48,6 +48,27 @@ button, a[href] {
   text-align: left;
 }
 
+/* ── 스크롤바: 다크 배경과 이질감 없이 은은하게 ──────────── */
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+/* WebKit(Chrome·Edge·Safari) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }   /* 트랙 = 배경 그대로 */
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  border: 2px solid transparent;   /* 배경과 붙지 않도록 얇은 여백 */
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner { background: transparent; }
+
 /* Grid overlay */
 body::before {
   content: '';
