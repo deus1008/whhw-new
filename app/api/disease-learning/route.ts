@@ -228,16 +228,22 @@ export async function GET(req: NextRequest) {
 
     const norm0 = (s: string) => s.replace(/[\s.\-/,·]/g, '').toLowerCase();
     // 영문 성분 시그니처: 염·용량 제거 후 핵심 성분 토큰 집합(정렬)
+    //   ⚠️ 각 파트의 '첫 토큰만' 취하면 서로 다른 성분이 뭉개진다.
+    //   예) 'standardized lyophilized mixed bacterial lysates'(브롱코박솜)과
+    //       'standardized lyophilized bacterial lysates of E.coli'(유로박솜)이 모두 'standardized'로 동일 →
+    //       서로 다른 질환군(호흡기·비뇨기)에 교차 유입됨.
+    //   따라서 파트 내 의미 토큰을 '전부' 보존해 구분한다(mixed vs coli). 단일성분·복합제는
+    //   염 제거 후 토큰이 하나라 결과 불변(회귀 없음).
     const SALTS = /\b(calcium|sodium|potassium|magnesium|hydrochloride|hcl|sulfate|sulphate|maleate|besylate|mesylate|dihydrate|trihydrate|monohydrate|hydrate|acetate|fumarate|succinate|tartrate|bitartrate|phosphate|hemihydrate|hydrobromide|nitrate|citrate|ethyl|ester)\b/gi;
     const engSig = (ingr: string): string => {
       const toks = ingr.toLowerCase()
         .replace(/\([^)]*\)/g, ' ')
         .split(/[,/]/)
-        .map(part => part
+        .flatMap(part => part
           .replace(/\d[\d.]*\s*(mg|mcg|g|iu|ml|㎎|㎍)?/gi, ' ')
           .replace(SALTS, ' ')
           .replace(/[^a-z\s]/gi, ' ')
-          .trim().split(/\s+/)[0])
+          .trim().split(/\s+/))
         .filter(t => t && t.length >= 3);
       return [...new Set(toks)].sort().join('+');
     };
