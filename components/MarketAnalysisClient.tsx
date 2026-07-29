@@ -70,6 +70,9 @@ function fmtCount(n: number): string {
   return n.toLocaleString('ko-KR');
 }
 
+/** CSO 경쟁사 — 'CSO경쟁선택' 버튼이 이 제조사 품목을 자동 선택 */
+const CSO_COMPETITORS = ['대웅바이오', '셀트리온', '안국약품', '동구바이오제약', '마더스제약'];
+
 /* ── 월별 꺾은선 차트 (SVG inline) ──────────────────────────── */
 function LineChart({ products, periods }: {
   products: { name: string; color: string; values: (number | null)[] }[];
@@ -282,12 +285,19 @@ export default function MarketAnalysisClient() {
     if (next.size === 0) setPickMode(true);   // 선택이 비면 다시 전체 목록에서 선택
   }
 
-  function toggleAll() {
-    if (selected.size === results.length) {
-      setSelected(new Set());
-    } else {
-      setSelected(new Set(results.map(r => r.product_name)));
-    }
+  /* ── CSO 경쟁사 품목 자동 선택 ──
+     제조사 표기가 다양('동구 바이오'·'마더스'·'셀트리온제약' 등)해 양방향 포함 매칭.
+     빈 제조사는 제외(빈 문자열이 모든 값에 포함되어 오매칭되는 것 방지). */
+  function selectCsoCompetitors() {
+    const norm = (s: string) => (s ?? '').replace(/[\s()]/g, '');
+    const matched = results
+      .filter(r => {
+        const m = norm(r.manufacturer ?? '');
+        if (!m) return false;
+        return CSO_COMPETITORS.some(c => { const cn = norm(c); return m.includes(cn) || cn.includes(m); });
+      })
+      .map(r => r.product_name);
+    setSelected(new Set(matched));
   }
 
   /* ── 분석 ── */
@@ -438,10 +448,11 @@ export default function MarketAnalysisClient() {
                 /* 전체 목록에서 선택하는 상태 */
                 <>
                   <button
-                    style={{ ...disabledBtn, ...(results.length > 0 ? { background: 'rgba(255,255,255,0.08)', cursor: 'pointer', color: 'var(--text-muted)' } : {}), fontSize: '0.8rem', padding: '0.4rem 0.8rem', minHeight: 'auto' }}
-                    onClick={toggleAll}
+                    style={{ ...disabledBtn, ...(results.length > 0 ? { background: 'rgba(129,140,248,0.15)', cursor: 'pointer', color: '#a5b4fc', border: '1px solid rgba(129,140,248,0.35)' } : {}), fontSize: '0.8rem', padding: '0.4rem 0.8rem', minHeight: 'auto' }}
+                    onClick={selectCsoCompetitors}
+                    title="대웅바이오·셀트리온·안국약품·동구바이오제약·마더스제약 품목 선택"
                   >
-                    {selected.size === results.length ? '전체 해제' : '전체 선택'}
+                    CSO경쟁선택
                   </button>
                   <button
                     style={selected.size > 0 ? primaryBtn : disabledBtn}
