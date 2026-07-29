@@ -191,7 +191,6 @@ export default function ProductListClient({
                 <th style={{ ...th, minWidth: '110px' }}>보험코드</th>
                 <th style={{ ...th, minWidth: '200px' }}>품목명</th>
                 <th style={{ ...th, minWidth: '240px' }}>성분명</th>
-                <th style={{ ...th, width: '80px' }}>ATC</th>
                 <th style={{ ...th, width: '60px', textAlign: 'center' }}>생동</th>
                 <th style={{ ...th, width: '60px', textAlign: 'center' }}>DMF</th>
                 <th style={{ ...th, width: '62px', textAlign: 'center' }}>대조약</th>
@@ -213,7 +212,6 @@ export default function ProductListClient({
                     <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.78rem', color: 'rgba(255,255,255,0.55)' }}>{row.code}</td>
                     <td style={{ ...td, fontWeight: 600 }}>{row.name}</td>
                     <td style={{ ...td, fontSize: '0.78rem', color: 'rgba(255,255,255,0.65)' }}>{row.ingredient}</td>
-                    <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{row.atc || '—'}</td>
                     <td style={{ ...td, textAlign: 'center' }}>
                       <FlagBadge value={row.id ? flags[row.id]?.isBioequiv ?? null : (row.isBioequiv ?? null)} label="생동" falseText="-"
                         editable={isAdmin && !!row.id} onClick={() => cycleFlag(row.id, 'is_bioequiv', row.id ? flags[row.id]?.isBioequiv ?? null : null)} />
