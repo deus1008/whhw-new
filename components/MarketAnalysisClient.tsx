@@ -185,6 +185,7 @@ export default function MarketAnalysisClient() {
   // 2단계: 품목 목록
   const [results,           setResults]          = useState<UbistSearchItem[]>([]);
   const [selected,          setSelected]         = useState<Set<string>>(new Set());
+  const [pickMode,          setPickMode]         = useState(true);   // true=전체목록에서 선택, false=선택 품목만 표시
   const [isLoadingProducts, startProductTransition] = useTransition();
   // 3단계: 분석
   const [analysis,    setAnalysis]    = useState<UbistProductAnalysis[] | null>(null);
@@ -255,6 +256,7 @@ export default function MarketAnalysisClient() {
 
     setSelectedIngr(next);
     setSelected(new Set());
+    setPickMode(true);
     setAnalysis(null);
 
     if (next.size === 0) {
@@ -270,11 +272,10 @@ export default function MarketAnalysisClient() {
 
   /* ── 선택 토글 ── */
   function toggle(name: string) {
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name); else next.add(name);
-      return next;
-    });
+    const next = new Set(selected);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    setSelected(next);
+    if (next.size === 0) setPickMode(true);   // 선택이 비면 다시 전체 목록에서 선택
   }
 
   function toggleAll() {
@@ -398,18 +399,39 @@ export default function MarketAnalysisClient() {
         <div className="auth-card" style={{ marginBottom: '1rem', padding: '1rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              품목 {results.length}개
-              {selected.size > 0 && (
-                <span style={{ marginLeft: '0.6rem', color: '#86efac' }}>— {selected.size}개 선택됨</span>
-              )}
+              {(!pickMode && selected.size > 0)
+                ? <>선택 품목 <span style={{ color: '#86efac' }}>{selected.size}개</span></>
+                : <>품목 {results.length}개{selected.size > 0 && (
+                    <span style={{ marginLeft: '0.6rem', color: '#86efac' }}>— {selected.size}개 선택됨</span>
+                  )}</>}
             </span>
             <div style={{ display: 'flex', gap: '0.4rem' }}>
-              <button
-                style={{ ...disabledBtn, ...(results.length > 0 ? { background: 'rgba(255,255,255,0.08)', cursor: 'pointer', color: 'var(--text-muted)' } : {}), fontSize: '0.8rem', padding: '0.4rem 0.8rem', minHeight: 'auto' }}
-                onClick={toggleAll}
-              >
-                {selected.size === results.length ? '전체 해제' : '전체 선택'}
-              </button>
+              {(!pickMode && selected.size > 0) ? (
+                /* 선택 품목만 보이는 상태 — 초기화로 다시 선택 */
+                <button
+                  onClick={() => { setSelected(new Set()); setPickMode(true); }}
+                  style={{ ...disabledBtn, background: 'rgba(255,255,255,0.08)', cursor: 'pointer', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.12)', fontSize: '0.8rem', padding: '0.4rem 0.8rem', minHeight: 'auto' }}
+                >
+                  ↺ 초기화
+                </button>
+              ) : (
+                /* 전체 목록에서 선택하는 상태 */
+                <>
+                  <button
+                    style={{ ...disabledBtn, ...(results.length > 0 ? { background: 'rgba(255,255,255,0.08)', cursor: 'pointer', color: 'var(--text-muted)' } : {}), fontSize: '0.8rem', padding: '0.4rem 0.8rem', minHeight: 'auto' }}
+                    onClick={toggleAll}
+                  >
+                    {selected.size === results.length ? '전체 해제' : '전체 선택'}
+                  </button>
+                  <button
+                    style={selected.size > 0 ? primaryBtn : disabledBtn}
+                    onClick={() => setPickMode(false)}
+                    disabled={selected.size === 0}
+                  >
+                    선택 완료 ({selected.size})
+                  </button>
+                </>
+              )}
               <button
                 style={selected.size > 0 ? primaryBtn : disabledBtn}
                 onClick={handleAnalyze}
@@ -424,7 +446,10 @@ export default function MarketAnalysisClient() {
           {(() => {
             const selectedItems   = results.filter(r =>  selected.has(r.product_name));
             const unselectedItems = results.filter(r => !selected.has(r.product_name));
-            const visibleResults  = [...selectedItems, ...unselectedItems];
+            // 선택 완료 상태(pickMode=false, 선택 있음)면 선택 품목만, 아니면 전체(선택 상단 고정)
+            const visibleResults  = (!pickMode && selectedItems.length)
+              ? selectedItems
+              : [...selectedItems, ...unselectedItems];
             return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '320px', overflowY: 'auto' }}>
             {visibleResults.map(item => (
