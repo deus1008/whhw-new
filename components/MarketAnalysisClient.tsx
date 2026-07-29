@@ -185,7 +185,8 @@ export default function MarketAnalysisClient() {
   // 2단계: 품목 목록
   const [results,           setResults]          = useState<UbistSearchItem[]>([]);
   const [selected,          setSelected]         = useState<Set<string>>(new Set());
-  const [pickMode,          setPickMode]         = useState(true);   // true=전체목록에서 선택, false=선택 품목만 표시
+  const [ingrPickMode,      setIngrPickMode]     = useState(true);   // 성분: true=전체 후보에서 선택, false=선택 성분만 표시
+  const [pickMode,          setPickMode]         = useState(true);   // 품목: true=전체목록에서 선택, false=선택 품목만 표시
   const [isLoadingProducts, startProductTransition] = useTransition();
   // 3단계: 분석
   const [analysis,    setAnalysis]    = useState<UbistProductAnalysis[] | null>(null);
@@ -242,6 +243,8 @@ export default function MarketAnalysisClient() {
     setSelectedIngr(new Set());
     setResults([]);
     setSelected(new Set());
+    setIngrPickMode(true);
+    setPickMode(true);
     startSearchTransition(async () => {
       const opts = await findUbistIngredientOptions(q);
       setIngredientOptions(opts);
@@ -261,6 +264,7 @@ export default function MarketAnalysisClient() {
 
     if (next.size === 0) {
       setResults([]);
+      setIngrPickMode(true);   // 성분이 비면 다시 전체 후보에서 선택
       return;
     }
 
@@ -356,17 +360,33 @@ export default function MarketAnalysisClient() {
         {/* 성분명 후보 칩 목록 */}
         {ingredientOptions.length > 0 && (
           <div style={{ marginTop: '0.9rem' }}>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem', fontWeight: 600 }}>
-              성분 선택
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, margin: 0 }}>
+                {(!ingrPickMode && selectedIngr.size > 0)
+                  ? <>선택 성분 <span style={{ color: '#86efac' }}>{selectedIngr.size}개</span></>
+                  : <>성분 선택{selectedIngr.size > 0 && (
+                      <span style={{ marginLeft: '0.5rem', color: '#86efac' }}>— {selectedIngr.size}개 선택됨</span>
+                    )}</>}
+                {isLoadingProducts && (
+                  <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)', fontWeight: 400 }}>품목 조회 중…</span>
+                )}
+              </p>
               {selectedIngr.size > 0 && (
-                <span style={{ marginLeft: '0.5rem', color: '#86efac' }}>— {selectedIngr.size}개 선택됨</span>
+                (!ingrPickMode)
+                  ? <button
+                      onClick={() => { setSelectedIngr(new Set()); setResults([]); setSelected(new Set()); setAnalysis(null); setIngrPickMode(true); setPickMode(true); }}
+                      style={{ padding: '0.3rem 0.7rem', borderRadius: '8px', fontSize: '0.75rem', fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-muted)', minHeight: 'auto' }}
+                    >↺ 초기화</button>
+                  : <button
+                      onClick={() => setIngrPickMode(false)}
+                      style={{ padding: '0.3rem 0.7rem', borderRadius: '8px', fontSize: '0.75rem', fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(129,140,248,0.25)', border: '1px solid rgba(129,140,248,0.5)', color: '#c7d2fe', fontWeight: 600, minHeight: 'auto' }}
+                    >선택 완료 ({selectedIngr.size})</button>
               )}
-              {isLoadingProducts && (
-                <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)', fontWeight: 400 }}>품목 조회 중…</span>
-              )}
-            </p>
+            </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-              {ingredientOptions.map(opt => {
+              {(!ingrPickMode && selectedIngr.size
+                ? ingredientOptions.filter(o => selectedIngr.has(o.ingredient_name))
+                : ingredientOptions).map(opt => {
                 const active = selectedIngr.has(opt.ingredient_name);
                 return (
                   <button
