@@ -71,7 +71,7 @@ function fmtCount(n: number): string {
 }
 
 /** CSO 경쟁사 — 'CSO경쟁선택' 버튼이 이 제조사 품목을 자동 선택 */
-const CSO_COMPETITORS = ['대웅바이오', '셀트리온', '안국약품', '동구바이오제약', '마더스제약'];
+const CSO_COMPETITORS = ['아주약품', '대웅바이오', '셀트리온', '안국약품', '동구바이오제약', '마더스제약'];
 
 /* ── 월별 꺾은선 차트 (SVG inline) ──────────────────────────── */
 function LineChart({ products, periods }: {
@@ -450,7 +450,7 @@ export default function MarketAnalysisClient() {
                   <button
                     style={{ ...disabledBtn, ...(results.length > 0 ? { background: 'rgba(129,140,248,0.15)', cursor: 'pointer', color: '#a5b4fc', border: '1px solid rgba(129,140,248,0.35)' } : {}), fontSize: '0.8rem', padding: '0.4rem 0.8rem', minHeight: 'auto' }}
                     onClick={selectCsoCompetitors}
-                    title="대웅바이오·셀트리온·안국약품·동구바이오제약·마더스제약 품목 선택"
+                    title="아주약품·대웅바이오·셀트리온·안국약품·동구바이오제약·마더스제약 품목 선택"
                   >
                     CSO경쟁선택
                   </button>
