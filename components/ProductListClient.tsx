@@ -215,7 +215,7 @@ export default function ProductListClient({
                     <td style={{ ...td, fontSize: '0.78rem', color: 'rgba(255,255,255,0.65)' }}>{row.ingredient}</td>
                     <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)' }}>{row.atc || '—'}</td>
                     <td style={{ ...td, textAlign: 'center' }}>
-                      <FlagBadge value={row.id ? flags[row.id]?.isBioequiv ?? null : (row.isBioequiv ?? null)} label="생동"
+                      <FlagBadge value={row.id ? flags[row.id]?.isBioequiv ?? null : (row.isBioequiv ?? null)} label="생동" falseText="-"
                         editable={isAdmin && !!row.id} onClick={() => cycleFlag(row.id, 'is_bioequiv', row.id ? flags[row.id]?.isBioequiv ?? null : null)} />
                     </td>
                     <td style={{ ...td, textAlign: 'center' }}>
@@ -270,13 +270,13 @@ export default function ProductListClient({
   );
 }
 
-function FlagBadge({ value, label, editable, onClick }: {
-  value: boolean | null; label: string; editable: boolean; onClick: () => void;
+function FlagBadge({ value, label, editable, onClick, falseText = '아니오' }: {
+  value: boolean | null; label: string; editable: boolean; onClick: () => void; falseText?: string;
 }) {
   const style = value === true
     ? { color: '#34d399', bg: 'rgba(52,211,153,0.14)', text: label }
     : value === false
-    ? { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', text: '아니오' }
+    ? { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)', text: falseText }
     : { color: 'rgba(255,255,255,0.3)', bg: 'transparent', text: '—' };
   return (
     <span
