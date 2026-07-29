@@ -10,12 +10,9 @@ type SortDir   = 'asc' | 'desc';
 type SortKey   = keyof PrescriptionRow | null;
 type HospitalRx = { total: number; products: { name: string; amount: number }[] };
 
-/** 처방액(원) 압축 표기: 억/만/원 */
+/** 처방액(원) → 천원 단위 콤마 표기 */
 function fmtAmt(won: number): string {
-  if (!won) return '0';
-  if (won >= 1e8) return `${(won / 1e8).toFixed(1)}억`;
-  if (won >= 1e4) return `${Math.round(won / 1e4).toLocaleString()}만`;
-  return Math.round(won).toLocaleString();
+  return Math.round((won || 0) / 1000).toLocaleString();
 }
 /** 처방월 YYYYMM → YY.MM */
 function fmtRxMonth(m: string | null): string {
@@ -321,10 +318,10 @@ function PrescriptionCard({
       <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.55rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: rx && rx.products.length ? '0.4rem' : 0 }}>
           <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
-            최근 처방{rxMonth ? ` (${fmtRxMonth(rxMonth)})` : ''}
+            최근 처방{rxMonth ? ` (${fmtRxMonth(rxMonth)})` : ''} <span style={{ color: 'rgba(255,255,255,0.25)' }}>· 천원</span>
           </span>
           {rx && rx.total > 0 && (
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#7eb3ff' }}>{fmtAmt(rx.total)}원</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#7eb3ff' }}>{fmtAmt(rx.total)}</span>
           )}
         </div>
         {rxLoading ? (
