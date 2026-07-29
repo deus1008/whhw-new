@@ -75,7 +75,7 @@ function LineChart({ products, periods }: {
   products: { name: string; color: string; values: (number | null)[] }[];
   periods: string[];
 }) {
-  const W = 640, H = 230, PAD_L = 58, PAD_B = 46, PAD_T = 20, PAD_R = 20;
+  const W = 820, H = 230, PAD_L = 58, PAD_B = 46, PAD_T = 20, PAD_R = 20;
   const chartW = W - PAD_L - PAD_R;
   const chartH = H - PAD_T - PAD_B;
 
@@ -87,7 +87,7 @@ function LineChart({ products, periods }: {
   const yOf = (v: number) => PAD_T + chartH * (1 - v / maxVal);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, display: 'block' }}>
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
       {/* Y축 격자 */}
       {[0, 0.25, 0.5, 0.75, 1].map(t => {
         const y = PAD_T + chartH * (1 - t);
