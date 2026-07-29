@@ -8,6 +8,19 @@ import { stripCompanyAffix, fmtNum } from '@/lib/format';
 type FileInfo  = { id: string; filename: string; createdAt: string };
 type SortDir   = 'asc' | 'desc';
 type SortKey   = keyof PrescriptionRow | null;
+type HospitalRx = { total: number; products: { name: string; amount: number }[] };
+
+/** 처방액(원) 압축 표기: 억/만/원 */
+function fmtAmt(won: number): string {
+  if (!won) return '0';
+  if (won >= 1e8) return `${(won / 1e8).toFixed(1)}억`;
+  if (won >= 1e4) return `${Math.round(won / 1e4).toLocaleString()}만`;
+  return Math.round(won).toLocaleString();
+}
+/** 처방월 YYYYMM → YY.MM */
+function fmtRxMonth(m: string | null): string {
+  return m && m.length === 6 ? `${m.slice(2, 4)}.${m.slice(4, 6)}` : (m ?? '');
+}
 
 const CARD_STYLE: React.CSSProperties = {
   background: 'rgba(255,255,255,0.04)',
@@ -190,12 +203,15 @@ function MemoPanel({
 
 /* ── 처방처 카드 ── */
 function PrescriptionCard({
-  row, mc, isSelected, onMemo,
+  row, mc, isSelected, onMemo, rx, rxMonth, rxLoading,
 }: {
   row: PrescriptionRow;
   mc: number;
   isSelected: boolean;
   onMemo: () => void;
+  rx?: HospitalRx;
+  rxMonth: string | null;
+  rxLoading?: boolean;
 }) {
   const ts = typeStyle(row.type);
   const name = stripCompanyAffix(row.sourceName);
@@ -300,6 +316,32 @@ function PrescriptionCard({
           )}
         </div>
       )}
+
+      {/* 최근 EDI 처방: 처방품목 리스트 + 처방액 */}
+      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.55rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: rx && rx.products.length ? '0.4rem' : 0 }}>
+          <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
+            최근 처방{rxMonth ? ` (${fmtRxMonth(rxMonth)})` : ''}
+          </span>
+          {rx && rx.total > 0 && (
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#7eb3ff' }}>{fmtAmt(rx.total)}원</span>
+          )}
+        </div>
+        {rxLoading ? (
+          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>처방 조회 중…</div>
+        ) : rx && rx.products.length > 0 ? (
+          <div style={{ maxHeight: 130, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+            {rx.products.map((p, idx) => (
+              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontSize: '0.72rem' }}>
+                <span style={{ color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.name}>{p.name}</span>
+                <span style={{ color: 'rgba(255,255,255,0.55)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(p.amount)}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.28)' }}>최근월 EDI 처방 없음</div>
+        )}
+      </div>
     </div>
   );
 }
@@ -545,6 +587,10 @@ export default function PrescriptionClient({
   const [sortDir,       setSortDir]       = useState<SortDir>('asc');
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [page,          setPage]          = useState(1);
+  // 병원별 최신월 EDI 처방(품목·처방액) — 현재 페이지 병원만 조회해 카드에 표시
+  const [rxMap,   setRxMap]   = useState<Record<string, HospitalRx>>({});
+  const [rxMonth, setRxMonth] = useState<string | null>(null);
+  const [rxLoading, setRxLoading] = useState(false);
   const PAGE_SIZE = 60;
 
   const ids = useMemo(() => files.map(f => f.id).join(','), [files]);
@@ -655,6 +701,32 @@ export default function PrescriptionClient({
     a.remove();
     URL.revokeObjectURL(url);
   }, [filtered]);
+
+  // 현재 페이지 병원들의 최신월 EDI 처방 조회 (결과는 rxMap에 누적)
+  const pagedNamesKey = paged.map(r => r.sourceName).join('\u0001');
+  useEffect(() => {
+    const names = pagedNamesKey ? pagedNamesKey.split('\u0001') : [];
+    if (!names.length) return;
+    let cancelled = false;
+    setRxLoading(true);
+    fetch('/api/prescription-rx', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ names }),
+    })
+      .then(r => r.json())
+      .then((data: { month: string | null; byHospital: Record<string, HospitalRx> }) => {
+        if (cancelled) return;
+        if (data.month) setRxMonth(data.month);
+        setRxMap(prev => {
+          const next = { ...prev };
+          for (const n of names) next[n] = data.byHospital?.[n] ?? { total: 0, products: [] };
+          return next;
+        });
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setRxLoading(false); });
+    return () => { cancelled = true; };
+  }, [pagedNamesKey]);
 
   if (files.length === 0) {
     return (
@@ -807,6 +879,9 @@ export default function PrescriptionClient({
                   mc={memoCount(row.sourceName)}
                   isSelected={selectedSource === row.sourceName}
                   onMemo={() => setSelectedSource(row.sourceName)}
+                  rx={rxMap[row.sourceName]}
+                  rxMonth={rxMonth}
+                  rxLoading={rxLoading && !(row.sourceName in rxMap)}
                 />
               ))}
             </div>
