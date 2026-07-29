@@ -85,7 +85,10 @@ export default function MfdsListSearch({ type, columns, placeholder }: {
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{view.length.toLocaleString()}건</span>
           </div>
           <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+            <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', fontSize: '0.82rem', tableLayout: 'fixed' }}>
+              <colgroup>
+                {columns.map(c => <col key={c.key} style={c.w ? { width: c.w } : undefined} />)}
+              </colgroup>
               <thead>
                 <tr>
                   {columns.map(c => {
@@ -104,7 +107,7 @@ export default function MfdsListSearch({ type, columns, placeholder }: {
                 {view.map((r, i) => (
                   <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                     {columns.map(c => (
-                      <td key={c.key} style={{ padding: '0.45rem 0.7rem', color: 'rgba(255,255,255,0.85)', verticalAlign: 'top' }}>{r[c.key] || '—'}</td>
+                      <td key={c.key} style={{ padding: '0.45rem 0.7rem', color: 'rgba(255,255,255,0.85)', verticalAlign: 'top', wordBreak: 'break-word' }}>{r[c.key] || '—'}</td>
                     ))}
                   </tr>
                 ))}

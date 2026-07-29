@@ -47,11 +47,11 @@ export default function DrugSearchTabs({ apiConfigured }: { apiConfigured: boole
           type="admin"
           placeholder="업체명·제품명으로 행정처분 조회"
           columns={[
-            { key: 'company', label: '업체명', w: 170 },
-            { key: 'product', label: '제품명' },
-            { key: 'action',  label: '처분내용', w: 160 },
+            { key: 'company', label: '업체명', w: 130 },
+            { key: 'product', label: '제품명', w: 210 },
+            { key: 'action',  label: '처분내용' },
             { key: 'reason',  label: '위반내용' },
-            { key: 'date',    label: '처분일자', w: 110 },
+            { key: 'date',    label: '처분일자', w: 95 },
           ]}
         />
       )}
