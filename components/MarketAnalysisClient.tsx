@@ -452,7 +452,7 @@ export default function MarketAnalysisClient() {
                     onClick={selectCsoCompetitors}
                     title="아주약품·대웅바이오·셀트리온·안국약품·동구바이오제약·마더스제약 품목 선택"
                   >
-                    CSO경쟁선택
+                    밴치마킹대상
                   </button>
                   <button
                     style={selected.size > 0 ? primaryBtn : disabledBtn}
