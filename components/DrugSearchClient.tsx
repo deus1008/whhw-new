@@ -1,13 +1,11 @@
 'use client';
 
-import { useState, useMemo, useTransition, useRef, Fragment } from 'react';
+import { useState, useMemo, useTransition } from 'react';
 import { searchDrugPrices, type DrugRow } from '@/app/drug-search/actions';
-import type { DrugInfoResponse } from '@/app/api/drug-info/route';
 
 type SortKey = 'productName' | 'ingredientName' | 'manufacturer' | 'form' | 'payType' | 'maxPrice' | 'isBioequiv';
-type DetailState = { loading: boolean; data?: DrugInfoResponse; error?: string };
 
-export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boolean }) {
+export default function DrugSearchClient(_props: { apiConfigured: boolean }) {
   const [query, setQuery]       = useState('');
   const [rows, setRows]         = useState<DrugRow[]>([]);
   const [searched, setSearched] = useState('');
@@ -21,11 +19,6 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
   const [sortKey, setSortKey]   = useState<SortKey>('productName');
   const [sortDir, setSortDir]   = useState<'asc' | 'desc'>('asc');
 
-  // 행 상세(MFDS)
-  const [openRow, setOpenRow]   = useState<string | null>(null);
-  const [detail, setDetail]     = useState<Record<string, DetailState>>({});
-  const loadingRef = useRef(new Set<string>());
-
   function runSearch(e?: React.FormEvent) {
     e?.preventDefault();
     const q = query.trim();
@@ -36,7 +29,7 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
         const { rows } = await searchDrugPrices(q);
         setRows(rows);
         setSearched(q);
-        setForm(''); setIngrKeys(new Set()); setListQuery(''); setOpenRow(null);
+        setForm(''); setIngrKeys(new Set()); setListQuery('');
       } catch {
         setError('검색 중 오류가 발생했습니다.');
       }
@@ -95,28 +88,6 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
     setIngrKeys(prev => { const n = new Set(prev); if (n.has(g)) n.delete(g); else n.add(g); return n; });
   }
 
-  async function loadDetail(r: DrugRow) {
-    const k = r.itemCode + r.productName;
-    if (loadingRef.current.has(k) || detail[k]?.data) return;
-    loadingRef.current.add(k);
-    setDetail(p => ({ ...p, [k]: { loading: true } }));
-    try {
-      const params = new URLSearchParams({ item: r.productName });
-      if (r.ingredientName) params.set('ingr', r.ingredientName);
-      const res = await fetch(`/api/drug-info?${params}`);
-      const data = await res.json() as DrugInfoResponse & { error?: string };
-      setDetail(p => ({ ...p, [k]: data.error ? { loading: false, error: data.error } : { loading: false, data } }));
-    } catch {
-      setDetail(p => ({ ...p, [k]: { loading: false, error: '조회 실패' } }));
-    }
-    loadingRef.current.delete(k);
-  }
-  function onRowClick(r: DrugRow) {
-    const k = r.itemCode + r.productName;
-    setOpenRow(o => o === k ? null : k);
-    loadDetail(r);
-  }
-
   return (
     <div style={{ width: '100%', maxWidth: 1200 }}>
       {/* 검색 */}
@@ -130,11 +101,6 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
           {isPending ? '검색 중…' : '검색'}
         </button>
       </form>
-      {!apiConfigured && (
-        <p style={{ fontSize: '0.75rem', color: '#fca5a5', marginBottom: '0.8rem' }}>
-          ⚠ DRUG_API_KEY 미설정 — 행 클릭 시 MFDS 상세(생동·DMF)는 조회되지 않습니다.
-        </p>
-      )}
       {error && <p style={{ color: '#fca5a5', fontSize: '0.85rem' }}>{error}</p>}
 
       {searched && rows.length === 0 && !isPending && (
@@ -200,10 +166,8 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
               <tbody>
                 {view.map(r => {
                   const k = r.itemCode + r.productName;
-                  const isOpen = openRow === k;
                   return (
-                    <Fragment key={k}>
-                      <tr onClick={() => onRowClick(r)} style={{ cursor: 'pointer', borderTop: '1px solid rgba(255,255,255,0.05)', background: isOpen ? 'rgba(59,130,246,0.08)' : undefined }}>
+                    <tr key={k} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                         <td style={{ ...TD, textAlign: 'center' }}>
                           {r.isBioequiv
                             ? <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#6ee7b7', background: 'rgba(52,211,153,0.14)', padding: '0.1rem 0.4rem', borderRadius: 4 }}>생동</span>
@@ -224,70 +188,13 @@ export default function DrugSearchClient({ apiConfigured }: { apiConfigured: boo
                         <td style={{ ...TD, fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>{r.packageUnit || '—'}</td>
                         <td style={{ ...TD, textAlign: 'center', fontSize: '0.76rem', color: 'rgba(255,255,255,0.6)' }}>{r.payType || '—'}</td>
                         <td style={{ ...TD, textAlign: 'right', fontWeight: 700 }}>{r.maxPrice != null ? r.maxPrice.toLocaleString() : '—'}</td>
-                      </tr>
-                      {isOpen && (
-                        <tr>
-                          <td colSpan={9} style={{ padding: '0.6rem 1rem 0.9rem', background: 'rgba(255,255,255,0.02)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                            <DetailPanel state={detail[k]} />
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
+                    </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
         </>
-      )}
-    </div>
-  );
-}
-
-/* ── 상세 패널 (MFDS: 생동·DMF·약가) ── */
-const fmtYmd8 = (s?: string | null) => {
-  const d = String(s || '').replace(/\D/g, '');
-  return d.length === 8 ? `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6, 8)}` : (s || '');
-};
-
-function DetailPanel({ state }: { state?: DetailState }) {
-  if (!state || state.loading) return <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>⏳ MFDS 상세(생동·DMF·대조약·허가) 조회 중…</p>;
-  if (state.error) return <p style={{ fontSize: '0.78rem', color: '#fca5a5' }}>상세 조회 실패: {state.error}</p>;
-  const d = state.data;
-  const dmf = d?.dmf ?? [];
-  const bioEq = d?.bioEq ?? [];
-  const reference = d?.reference ?? [];
-  const permit = d?.permit ?? null;
-  return (
-    <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.8)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-      <div style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap' }}>
-        <span>생동 등록: <b style={{ color: bioEq.length ? '#6ee7b7' : 'rgba(255,255,255,0.6)' }}>{bioEq.length ? `${bioEq.length}건` : '없음'}</b></span>
-        <span>원료 DMF: <b style={{ color: dmf.length ? '#93c5fd' : 'rgba(255,255,255,0.6)' }}>{dmf.length ? `${dmf.length}건 등록` : '없음'}</b></span>
-        <span>대조약: <b style={{ color: reference.length ? '#fcd34d' : 'rgba(255,255,255,0.6)' }}>{reference.length ? `${reference.length}건` : '해당없음'}</b></span>
-      </div>
-      {dmf.length > 0 && (
-        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.55)' }}>
-          {dmf.slice(0, 4).map((x, i) => <div key={i}>· {x.ingrName} — {x.entpName ?? x.country ?? ''} ({x.dmfNo ?? '-'})</div>)}
-        </div>
-      )}
-      {reference.length > 0 && (
-        <div style={{ fontSize: '0.72rem', color: 'rgba(253,211,77,0.75)' }}>
-          {reference.slice(0, 4).map((x, i) => <div key={i}>· {x.itemName} — {x.entpName ?? ''} {x.dosageForm ? `(${x.dosageForm})` : ''}</div>)}
-        </div>
-      )}
-      {permit && (
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '0.45rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.15rem 1rem', fontSize: '0.73rem', color: 'rgba(255,255,255,0.65)' }}>
-          <span>허가일자: <b style={{ color: 'rgba(255,255,255,0.85)' }}>{fmtYmd8(permit.permitDate) || '—'}</b></span>
-          <span>허가번호: {permit.permitNo || '—'}</span>
-          <span>구분: {permit.etcOtc || '—'}</span>
-          <span>허가업체: {permit.entpName || '—'}</span>
-          <span>제조원: <b style={{ color: 'rgba(255,255,255,0.85)' }}>{permit.maker || '—'}</b>{permit.isConsignment != null && (
-            <span style={{ marginLeft: 4, color: permit.isConsignment ? '#fbbf24' : '#34d399' }}>({permit.isConsignment ? '위탁' : '자사'})</span>
-          )}</span>
-          <span>포장: {permit.packageUnit || '—'}</span>
-          {permit.storageMethod && <span>저장: {permit.storageMethod}</span>}
-          {permit.atcCode && <span>ATC: {permit.atcCode}</span>}
-        </div>
       )}
     </div>
   );
