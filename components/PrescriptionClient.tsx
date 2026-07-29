@@ -628,6 +628,34 @@ export default function PrescriptionClient({
   const paged      = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const memoCount  = (n: string) => (memoMap[n] ?? []).length;
 
+  // 검색된 병원 목록을 CSV로 다운로드 (엑셀 한글 호환: UTF-8 BOM)
+  const downloadCsv = useCallback(() => {
+    if (!filtered.length) return;
+    const headers = ['처방처명', '시도', '구군', '종별', '의사수', 'CSO', '중복', '허용품목', '불가품목', '회수불가', '담당자'];
+    const esc = (v: unknown) => {
+      const s = String(v ?? '');
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [headers.join(',')];
+    for (const r of filtered) {
+      lines.push([
+        r.sourceName, r.sido, r.gugun, r.type, r.doctorCount,
+        stripCompanyAffix(r.csoName), r.duplicate,
+        r.allowedCount, r.disallowedCount, r.unrecoverableCount, r.internalManager,
+      ].map(esc).join(','));
+    }
+    const csv = '﻿' + lines.join('\r\n');   // BOM: 엑셀 한글 깨짐 방지
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `처방처현황_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, [filtered]);
+
   if (files.length === 0) {
     return (
       <div style={{ ...CARD_STYLE, textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', padding: '2.5rem' }}>
@@ -703,8 +731,22 @@ export default function PrescriptionClient({
           >{sortDir === 'asc' ? '↑ 오름차순' : '↓ 내림차순'}</button>
         )}
 
+        {!loading && rows.length > 0 && (
+          <button
+            onClick={downloadCsv}
+            disabled={filtered.length === 0}
+            title="검색된 병원 목록을 CSV로 다운로드 (엑셀 열람 가능)"
+            style={{
+              marginLeft: 'auto', padding: '0.5rem 0.95rem', borderRadius: '10px',
+              cursor: filtered.length ? 'pointer' : 'not-allowed',
+              background: 'rgba(52,211,153,0.14)', border: '1px solid rgba(52,211,153,0.4)',
+              color: '#6ee7b7', fontSize: '0.8rem', fontWeight: 600, flexShrink: 0,
+              opacity: filtered.length ? 1 : 0.45, whiteSpace: 'nowrap',
+            }}
+          >⬇ 다운로드</button>
+        )}
         {!loading && (
-          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', flexShrink: 0, marginLeft: 'auto' }}>
+          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>
             {filtered.length !== rows.length
               ? `${filtered.length} / ${rows.length}건`
               : `총 ${rows.length}건`}
