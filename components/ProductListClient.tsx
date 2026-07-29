@@ -49,6 +49,8 @@ export default function ProductListClient({
 }) {
   const [query, setQuery]   = useState('');
   const [dist,  setDist]    = useState<string | null>(null);
+  const [bioOnly, setBioOnly] = useState(false);                              // 생동품목만
+  const [prod,    setProd]    = useState<'inhouse' | 'consign' | null>(null); // 자사생산/위탁생산(상호배타)
   // 생동/DMF/대조약 편집 반영용 로컬 상태
   type FlagState = { isBioequiv: boolean | null; hasDmf: boolean | null; isReference: boolean | null };
   const [flags, setFlags] = useState<Record<string, FlagState>>(
@@ -78,10 +80,16 @@ export default function ProductListClient({
     return ORDER.filter(v => s.has(v));
   }, [rows]);
 
+  // 생동여부는 로컬 편집(flags) 우선
+  const bioOf = (r: ProductRow) => (r.id && flags[r.id] ? flags[r.id].isBioequiv : (r.isBioequiv ?? null));
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter(r => {
       if (dist && r.distribution !== dist) return false;
+      if (bioOnly && bioOf(r) !== true) return false;
+      if (prod === 'inhouse' && r.isConsignment !== false) return false;
+      if (prod === 'consign' && r.isConsignment !== true)  return false;
       if (!q) return true;
       return (
         r.name.toLowerCase().includes(q) ||
@@ -92,7 +100,7 @@ export default function ProductListClient({
         r.note.toLowerCase().includes(q)
       );
     });
-  }, [rows, query, dist]);
+  }, [rows, query, dist, bioOnly, prod, flags]);
 
   return (
     <div>
@@ -164,10 +172,37 @@ export default function ProductListClient({
         </div>
       )}
 
+      {/* 속성 필터: 생동품목(독립) / 자사·위탁생산(상호배타) — 유통 필터와 자유 조합 */}
+      <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+        {[
+          { label: '생동품목', color: '#67e8f9', bg: 'rgba(34,211,238,0.12)', active: bioOnly,             count: rows.filter(r => bioOf(r) === true).length,        toggle: () => setBioOnly(v => !v) },
+          { label: '자사생산', color: '#34d399', bg: 'rgba(52,211,153,0.12)', active: prod === 'inhouse',   count: rows.filter(r => r.isConsignment === false).length, toggle: () => setProd(p => p === 'inhouse' ? null : 'inhouse') },
+          { label: '위탁생산', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)', active: prod === 'consign',   count: rows.filter(r => r.isConsignment === true).length,  toggle: () => setProd(p => p === 'consign' ? null : 'consign') },
+        ].map(o => (
+          <button key={o.label} onClick={o.toggle} style={{
+            fontSize: '0.75rem', padding: '0.25rem 0.8rem', borderRadius: '100px',
+            cursor: 'pointer', fontFamily: 'inherit', fontWeight: o.active ? 700 : 400,
+            background: o.active ? o.bg : 'transparent',
+            border: `1px solid ${o.active ? o.color + '70' : 'rgba(255,255,255,0.12)'}`,
+            color: o.active ? o.color : 'rgba(255,255,255,0.45)',
+          }}>
+            {o.label} ({o.count})
+          </button>
+        ))}
+        {(bioOnly || prod) && (
+          <button onClick={() => { setBioOnly(false); setProd(null); }} style={{
+            fontSize: '0.68rem', padding: '0.2rem 0.55rem', borderRadius: '100px',
+            cursor: 'pointer', fontFamily: 'inherit',
+            background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
+            color: 'rgba(255,255,255,0.3)',
+          }}>✕ 초기화</button>
+        )}
+      </div>
+
       {/* 결과 카운트 + 기준일 */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.4rem' }}>
         <p style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', margin: 0 }}>
-          {(query || dist)
+          {(query || dist || bioOnly || prod)
             ? <><span style={{ color: '#a5b4fc', fontWeight: 600 }}>{filtered.length.toLocaleString()}</span>건 / 전체 {rows.length.toLocaleString()}건</>
             : <>전체 <span style={{ color: '#a5b4fc', fontWeight: 600 }}>{rows.length.toLocaleString()}</span>건</>
           }
