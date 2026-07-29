@@ -188,9 +188,9 @@ export default function ProductListClient({
             <thead>
               <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
                 <th style={{ ...th, width: '3rem', textAlign: 'center' }}>NO</th>
-                <th style={{ ...th, minWidth: '110px' }}>보험코드</th>
-                <th style={{ ...th, minWidth: '200px' }}>품목명</th>
-                <th style={{ ...th, minWidth: '240px' }}>성분명</th>
+                <th style={{ ...th, minWidth: '88px' }}>보험코드</th>
+                <th style={{ ...th, minWidth: '160px' }}>품목명</th>
+                <th style={{ ...th, minWidth: '144px' }}>성분명</th>
                 <th style={{ ...th, width: '60px', textAlign: 'center' }}>생동</th>
                 <th style={{ ...th, width: '60px', textAlign: 'center' }}>DMF</th>
                 <th style={{ ...th, width: '62px', textAlign: 'center' }}>대조약</th>
