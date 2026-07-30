@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { normalizeRole } from '@/lib/roles';
 import ErrorReportModal from '@/components/ErrorReportModal';
-import { getPendingCount } from '@/app/errors/actions';
+import { getPendingCount, getMyUnseenCount } from '@/app/errors/actions';
 import { getPendingUsersCount } from '@/app/admin/actions';
 
 type NavItem = {
@@ -349,6 +349,7 @@ export default function Home() {
   const [toastVisible, setToastVisible] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorBadge, setErrorBadge]   = useState(0);
+  const [userErrorBadge, setUserErrorBadge] = useState(0);
   const [adminBadge, setAdminBadge]   = useState(0);
 
   // 위탁사 정보
@@ -383,6 +384,8 @@ export default function Home() {
         getPendingCount().then(setErrorBadge);
         getPendingUsersCount().then(setAdminBadge);
       }
+      // 신고자 본인: 관리자 조치결과 미확인 건수 → '오류신고' 배지
+      getMyUnseenCount().then(setUserErrorBadge);
 
       // 위탁사 정보 조회 (쿠키 포함 서버 측에서 읽어야 하므로 API 호출)
       try {
@@ -549,6 +552,7 @@ export default function Home() {
         }}>
           {orderedItems.map(({ href, icon, label, color, bg, bd, external, action }) => {
             const badge =
+              (label === '오류신고'   && userErrorBadge > 0) ? userErrorBadge :
               (label === '오류신고함' && errorBadge > 0) ? errorBadge :
               (label === '관리자'    && adminBadge  > 0) ? adminBadge  : 0;
             const isDragging = dragging === label;
@@ -680,7 +684,7 @@ export default function Home() {
       </div>
 
       {/* 오류신고 모달 */}
-      {showErrorModal && <ErrorReportModal onClose={() => setShowErrorModal(false)} />}
+      {showErrorModal && <ErrorReportModal onClose={() => setShowErrorModal(false)} onSeen={() => setUserErrorBadge(0)} />}
 
       {/* 우측 상단: 로그인 상태에 따라 다르게 표시 */}
       <div className="fixed top-5 right-6 z-20 flex gap-3">

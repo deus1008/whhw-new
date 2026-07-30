@@ -20,7 +20,6 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
   const [editing,    setEditing]   = useState(false);
   const [pending,    startTrans]   = useTransition();
   const [err,        setErr]       = useState('');
-  const [emailResult, setEmailResult] = useState<{ ok: boolean; error?: string } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const meta = STATUS_META[report.status] ?? STATUS_META['접수'];
 
@@ -29,13 +28,9 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
     if (!formRef.current) return;
     const fd = new FormData(formRef.current);
     setErr('');
-    setEmailResult(null);
     startTrans(async () => {
       const res = await updateErrorReport(fd);
       if (res.error) { setErr(res.error); return; }
-      if (fd.get('send_email') === '1') {
-        setEmailResult({ ok: !!res.emailSent, error: res.emailError });
-      }
       onUpdated({
         ...report,
         status:        fd.get('status') as ErrorReport['status'],
@@ -161,20 +156,9 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
               {err && <p style={{ color: '#fca5a5', fontSize: '0.8rem', margin: 0 }}>⚠ {err}</p>}
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-                {/* 메일 발송 체크박스 */}
-                {report.reporter_email && (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    <input
-                      type="checkbox"
-                      name="send_email"
-                      value="1"
-                      defaultChecked
-                      style={{ accentColor: '#818cf8', width: 14, height: 14 }}
-                    />
-                    조치결과 메일 발송
-                    <span style={{ color: '#a5b4fc', fontSize: '0.7rem' }}>({report.reporter_email})</span>
-                  </label>
-                )}
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                  💡 저장하면 신고자의 <b style={{ color: '#a5b4fc' }}>오류신고</b> 화면에 조치결과가 표시됩니다.
+                </span>
                 <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
                   <button type="button" onClick={() => setEditing(false)} style={{
                     padding: '0.45rem 1rem', borderRadius: '7px', fontSize: '0.82rem',
@@ -194,7 +178,7 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', flexWrap: 'wrap' }}>
               <button
-                onClick={() => { setEditing(true); setEmailResult(null); }}
+                onClick={() => setEditing(true)}
                 style={{
                   padding: '0.4rem 1rem', borderRadius: '7px', fontSize: '0.8rem', fontWeight: 600,
                   border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.1)',
@@ -203,14 +187,6 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
               >
                 ✏️ {report.admin_comment ? '조치결과 수정' : '조치결과 입력'}
               </button>
-              {emailResult?.ok && (
-                <span style={{ fontSize: '0.75rem', color: '#4ade80' }}>✉ 메일 발송 완료</span>
-              )}
-              {emailResult && !emailResult.ok && (
-                <span style={{ fontSize: '0.75rem', color: '#fca5a5' }}>
-                  ⚠ 메일 발송 실패{emailResult.error ? ` — ${emailResult.error}` : ''}
-                </span>
-              )}
             </div>
           )}
         </div>
