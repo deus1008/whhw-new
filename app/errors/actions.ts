@@ -69,7 +69,7 @@ export async function getErrorReports(): Promise<ErrorReport[]> {
 /* ── 상태/조치결과 업데이트 (관리자) ─────────────── */
 export async function updateErrorReport(
   formData: FormData,
-): Promise<{ error?: string; emailSent?: boolean }> {
+): Promise<{ error?: string; emailSent?: boolean; emailError?: string }> {
   const id            = formData.get('id')            as string;
   const status        = formData.get('status')        as string;
   const admin_comment = (formData.get('admin_comment') as string)?.trim() || null;
@@ -91,18 +91,21 @@ export async function updateErrorReport(
 
   // 이메일 발송: 체크박스 ON + 조치결과 있음 + 수신자 이메일 있음
   let emailSent = false;
+  let emailError: string | undefined;
   if (sendEmail && admin_comment && report?.reporter_email) {
-    emailSent = await sendErrorReportReply({
+    const r = await sendErrorReportReply({
       to:            report.reporter_email,
       reportTitle:   report.title,
       reportContent: report.content,
       status,
       adminComment:  admin_comment,
     });
+    emailSent  = r.ok;
+    emailError = r.error;
   }
 
   revalidatePath('/errors');
-  return { emailSent };
+  return { emailSent, emailError };
 }
 
 /* ── 접수 건수 (대시보드 배지용) ─────────────────── */

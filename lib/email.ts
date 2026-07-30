@@ -22,7 +22,7 @@ export async function sendErrorReportReply(opts: {
   reportContent: string;
   status:        string;
   adminComment:  string;
-}): Promise<boolean> {
+}): Promise<{ ok: boolean; error?: string }> {
   const { to, reportTitle, reportContent, status, adminComment } = opts;
   const statusLabel = STATUS_KO[status] ?? status;
   const now = new Date().toLocaleString('ko-KR', {
@@ -85,7 +85,7 @@ export async function sendErrorReportReply(opts: {
 
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
     console.error('[sendErrorReportReply] GMAIL_USER 또는 GMAIL_APP_PASSWORD 환경변수 없음');
-    return false;
+    return { ok: false, error: 'Gmail 계정 미설정 (GMAIL_USER·GMAIL_APP_PASSWORD)' };
   }
 
   try {
@@ -96,10 +96,14 @@ export async function sendErrorReportReply(opts: {
       subject: `[CSO Biz] 오류 신고 처리 결과: ${reportTitle}`,
       html,
     });
-    return true;
+    return { ok: true };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[sendErrorReportReply] 발송 실패:', msg);
-    return false;
+    // Gmail 인증 실패 메시지를 사람이 읽기 쉽게
+    const friendly = /invalid login|username and password|BadCredentials|535/i.test(msg)
+      ? 'Gmail 인증 실패 — 앱 비밀번호(GMAIL_APP_PASSWORD) 확인'
+      : msg;
+    return { ok: false, error: friendly };
   }
 }

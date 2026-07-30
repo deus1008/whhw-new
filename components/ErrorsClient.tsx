@@ -20,7 +20,7 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
   const [editing,    setEditing]   = useState(false);
   const [pending,    startTrans]   = useTransition();
   const [err,        setErr]       = useState('');
-  const [emailResult, setEmailResult] = useState<'sent' | 'failed' | null>(null);
+  const [emailResult, setEmailResult] = useState<{ ok: boolean; error?: string } | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const meta = STATUS_META[report.status] ?? STATUS_META['접수'];
 
@@ -34,7 +34,7 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
       const res = await updateErrorReport(fd);
       if (res.error) { setErr(res.error); return; }
       if (fd.get('send_email') === '1') {
-        setEmailResult(res.emailSent ? 'sent' : 'failed');
+        setEmailResult({ ok: !!res.emailSent, error: res.emailError });
       }
       onUpdated({
         ...report,
@@ -203,11 +203,13 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
               >
                 ✏️ {report.admin_comment ? '조치결과 수정' : '조치결과 입력'}
               </button>
-              {emailResult === 'sent' && (
+              {emailResult?.ok && (
                 <span style={{ fontSize: '0.75rem', color: '#4ade80' }}>✉ 메일 발송 완료</span>
               )}
-              {emailResult === 'failed' && (
-                <span style={{ fontSize: '0.75rem', color: '#fca5a5' }}>⚠ 메일 발송 실패 (API 키 확인)</span>
+              {emailResult && !emailResult.ok && (
+                <span style={{ fontSize: '0.75rem', color: '#fca5a5' }}>
+                  ⚠ 메일 발송 실패{emailResult.error ? ` — ${emailResult.error}` : ''}
+                </span>
               )}
             </div>
           )}
