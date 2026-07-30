@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 const STATUS_KO: Record<string, string> = {
   '접수':  '접수됨',
@@ -6,15 +6,9 @@ const STATUS_KO: Record<string, string> = {
   '완료':  '처리 완료',
 };
 
-function createTransporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
-}
+// 발신 주소: Resend에 인증된 도메인(ajupharm.co.kr)의 주소.
+// RESEND_FROM 으로 재정의 가능. 도메인 미인증 시 Resend가 발송을 거부한다.
+const FROM = process.env.RESEND_FROM || 'CSO Biz <wookhwan.lee@ajupharm.co.kr>';
 
 export async function sendErrorReportReply(opts: {
   to:            string;
@@ -83,27 +77,33 @@ export async function sendErrorReportReply(opts: {
 </body>
 </html>`;
 
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.error('[sendErrorReportReply] GMAIL_USER 또는 GMAIL_APP_PASSWORD 환경변수 없음');
-    return { ok: false, error: 'Gmail 계정 미설정 (GMAIL_USER·GMAIL_APP_PASSWORD)' };
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error('[sendErrorReportReply] RESEND_API_KEY 환경변수 없음');
+    return { ok: false, error: 'Resend 미설정 (RESEND_API_KEY)' };
   }
 
   try {
-    const transporter = createTransporter();
-    await transporter.sendMail({
-      from:    `"CSO Biz." <${process.env.GMAIL_USER}>`,
-      to,
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from:    FROM,
+      to:      [to],
       subject: `[CSO Biz] 오류 신고 처리 결과: ${reportTitle}`,
       html,
     });
+    if (error) {
+      const msg = error.message || String(error);
+      console.error('[sendErrorReportReply] Resend 오류:', msg);
+      const friendly =
+        /domain|verify|not verified/i.test(msg) ? `Resend 발신 도메인(ajupharm.co.kr) 미인증 — ${msg}`
+        : /api[_ ]?key|unauthorized|401|restricted/i.test(msg) ? 'Resend 인증 실패 — RESEND_API_KEY 확인'
+        : msg;
+      return { ok: false, error: friendly };
+    }
     return { ok: true };
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     console.error('[sendErrorReportReply] 발송 실패:', msg);
-    // Gmail 인증 실패 메시지를 사람이 읽기 쉽게
-    const friendly = /invalid login|username and password|BadCredentials|535/i.test(msg)
-      ? 'Gmail 인증 실패 — 앱 비밀번호(GMAIL_APP_PASSWORD) 확인'
-      : msg;
-    return { ok: false, error: friendly };
+    return { ok: false, error: msg };
   }
 }
