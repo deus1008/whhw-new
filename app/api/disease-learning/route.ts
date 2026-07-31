@@ -301,17 +301,19 @@ export async function GET(req: NextRequest) {
       return !!nn && origPrefixes.some(p => nn.startsWith(p) || p.startsWith(nn));
     };
 
-    // 함량 추출: 영문 성분에서 해당 성분의 '기준 함량'
-    //   "rosuvastatin calcium (as rosuvastatin   10mg)" → 10mg  (as 표기 우선)
-    //   "simvastatin   20mg"                            → 20mg
-    const doseOf = (eng: string, tok: string): string => {
-      const asRe    = new RegExp(`as\\s+${tok}[^)0-9]*([\\d.]+)\\s*(mg|mcg|g|iu|ml|㎍)`, 'i');
-      const plainRe = new RegExp(`${tok}[^,/;()]*?([\\d.]+)\\s*(mg|mcg|g|iu|ml|㎍)`, 'i');
-      const m = eng.match(asRe) ?? eng.match(plainRe);
+    // 함량 추출: '활성성분(콤마 구분)'별로 대표 용량 1개.
+    //   ⚠️ 시그니처 토큰 단위로 뽑으면 단일 다단어 성분(예: bacterial lysates)이
+    //   여러 용량으로 이어붙는 오류가 남 → 콤마로 나뉜 실제 성분 단위로 추출한다.
+    //   파트 내 '괄호 밖' 용량 우선("...lysates 40mg (as ... 7mg)" → 40mg),
+    //   괄호 밖에 없으면 '(as base Xmg)' 안의 용량("rosuvastatin calcium (as rosuvastatin 10mg)" → 10mg).
+    const DOSE_RE = /([\d.]+)\s*(mg|mcg|g|iu|ml|㎎|㎍)/i;
+    const doseOfPart = (part: string): string => {
+      const outside = part.replace(/\([^)]*\)/g, ' ');   // 괄호 밖 텍스트
+      const m = outside.match(DOSE_RE) ?? part.match(DOSE_RE);
       return m ? `${Number(m[1])}${m[2].toLowerCase()}` : '';
     };
-    const strengthOf = (eng: string, sig: string): string =>
-      sig.split('+').map(t => doseOf(eng, t)).filter(Boolean).join('/');
+    const strengthOf = (eng: string): string =>
+      eng.split(',').map(doseOfPart).filter(Boolean).join('/');
 
     // 2) 시그니처별 drug_prices 전 품목 보강 (급여코드=item_code 단위 중복제거)
     const byCode = new Map<string, Record<string, unknown>>();
@@ -329,7 +331,7 @@ export async function GET(req: NextRequest) {
           byCode.set(code, {
             id: null, disease_group: group, sub_category: sub ?? null, treatment_class: null,
             ingredient_name: koIngr, product_name: r.item_name,
-            strength: strengthOf(eng, sig) || null,          // 4단계: 함량
+            strength: strengthOf(eng) || null,               // 4단계: 함량
             // drug_prices.manufacturer 는 허가/판매사 → 판매사(distributor).
             // 제조사(제조원)는 아래에서 permit_pkg.maker 로 보강.
             manufacturer: r.manufacturer || null,
