@@ -58,7 +58,7 @@ export default async function ContractsPage() {
 
       <div
         className="relative z-10 w-full px-4"
-        style={{ maxWidth: '720px', paddingTop: '2rem', paddingBottom: '2rem', alignSelf: 'flex-start' }}
+        style={{ maxWidth: '1040px', paddingTop: '2rem', paddingBottom: '2rem', alignSelf: 'flex-start' }}
       >
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>
           신규거래처계약

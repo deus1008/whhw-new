@@ -46,6 +46,36 @@ function fmtDate(d: string | null): string {
   return d.replace(/-/g, '.').slice(0, 10);
 }
 
+/* ── CSV 다운로드 (엑셀 한글 호환: UTF-8 BOM) ── */
+const CSV_HEADERS = [
+  '업체명', '담당자', '계약시작', '계약종료', '자동갱신',
+  '처방예상월', '처방예상액', '연락처명', '전화', '이메일',
+  '주요병원·품목', '증빙자료', '세부내역', '비고', '등록일',
+];
+function csvEsc(v: unknown): string {
+  return `"${(v == null ? '' : String(v)).replace(/"/g, '""')}"`;
+}
+function contractsToCsv(rows: ContractRow[]): string {
+  const lines = rows.map(c => [
+    c.company_name, c.manager, c.contract_start, c.contract_end ?? '',
+    c.auto_renewal ? '자동갱신' : '-',
+    c.expected_month ?? '', c.expected_amount ?? '',
+    c.contact_name ?? '', c.contact_phone ?? '', c.contact_email ?? '',
+    c.hospitals ?? '', c.evidence ?? '', c.details ?? '', c.memo ?? '',
+    (c.created_at ?? '').slice(0, 10),
+  ].map(csvEsc).join(','));
+  return '﻿' + [CSV_HEADERS.map(csvEsc).join(','), ...lines].join('\r\n');
+}
+function downloadContractsCsv(rows: ContractRow[]) {
+  const blob = new Blob([contractsToCsv(rows)], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const stamp = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
+  const a = document.createElement('a');
+  a.href = url; a.download = `신규거래처계약_${stamp}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
 /* ── 공통 스타일 ── */
 const CARD = {
   background:   'rgba(255,255,255,0.04)',
@@ -256,114 +286,75 @@ function ContractForm({
   );
 }
 
-/* ── 계약 카드 ── */
-function ContractCard({
-  contract,
-  canEdit,
-  onEdit,
-  onDelete,
-}: {
-  contract: ContractRow;
-  canEdit: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
+/* ── 테이블 셀 스타일 ── */
+const cellTd: React.CSSProperties = {
+  padding: '0.55rem 0.65rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)',
+  borderBottom: '1px solid rgba(255,255,255,0.05)', verticalAlign: 'top',
+};
+const cellTh: React.CSSProperties = {
+  padding: '0.55rem 0.65rem', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600,
+  textAlign: 'left', whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.03)',
+  borderBottom: '1px solid rgba(255,255,255,0.1)',
+};
 
-  const period = `${fmtDate(contract.contract_start)} ~ ${fmtDate(contract.contract_end)}${contract.auto_renewal ? ' (자동갱신)' : ''}`;
+/* ── 계약 리스트 행 (클릭 시 상세 펼침) ── */
+function ContractTr({
+  contract: c, canEdit, showActions, colSpan, onEdit, onDelete,
+}: {
+  contract: ContractRow; canEdit: boolean; showActions: boolean; colSpan: number;
+  onEdit: () => void; onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const period = `${fmtDate(c.contract_start)} ~ ${fmtDate(c.contract_end)}${c.auto_renewal ? ' (자동갱신)' : ''}`;
+  const contact = [c.contact_name, c.contact_phone].filter(Boolean).join(' / ');
+  const expect  = [c.expected_month, c.expected_amount && `예상 ${c.expected_amount}`].filter(Boolean).join(' · ');
 
   return (
-    <div style={CARD}>
-      {/* 헤더 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.6rem', gap: '0.5rem' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', marginRight: '0.5rem' }}>
-            {contract.company_name}
-          </span>
-          <span style={{
-            fontSize: '0.72rem', padding: '0.15rem 0.5rem',
-            background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.35)',
-            borderRadius: '999px', color: '#a5b4fc', whiteSpace: 'nowrap' as const,
-          }}>
-            {contract.manager}
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
-          {canEdit && (
-            <>
-              <button onClick={onEdit} style={{
-                ...BTN_GHOST, fontSize: '0.72rem', padding: '0.3rem 0.6rem',
-              }}>수정</button>
-              <button onClick={onDelete} style={{
-                ...BTN_GHOST, fontSize: '0.72rem', padding: '0.3rem 0.6rem',
-                borderColor: 'rgba(248,113,113,0.3)', color: '#f87171',
-              }}>삭제</button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* 계약기간 */}
-      <p style={{ fontSize: '0.78rem', color: '#a8c4ff', margin: '0 0 0.5rem' }}>
-        📅 {period}
-      </p>
-
-      {/* 연락처 요약 */}
-      {(contract.contact_name || contract.contact_phone) && (
-        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.5rem' }}>
-          📞 {[contract.contact_name, contract.contact_phone].filter(Boolean).join(' / ')}
-          {contract.contact_email && ` / ${contract.contact_email}`}
-        </p>
+    <>
+      <tr onClick={() => setOpen(v => !v)} style={{ cursor: 'pointer', background: open ? 'rgba(99,102,241,0.06)' : undefined }}>
+        <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>
+          <span style={{ marginRight: 5, fontSize: '0.6rem', opacity: 0.6 }}>{open ? '▼' : '▶'}</span>
+          <span style={{ fontWeight: 700, color: '#fff' }}>{c.company_name}</span>
+        </td>
+        <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>{c.manager}</td>
+        <td style={{ ...cellTd, color: '#a8c4ff', whiteSpace: 'nowrap' }}>{period}</td>
+        <td style={{ ...cellTd, maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={contact}>{contact || '-'}</td>
+        <td style={{ ...cellTd, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={expect}>{expect || '-'}</td>
+        <td style={{ ...cellTd, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.hospitals ?? ''}>{c.hospitals || '-'}</td>
+        {showActions && (
+          <td style={{ ...cellTd, whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
+            {canEdit ? (
+              <div style={{ display: 'flex', gap: '0.3rem' }}>
+                <button onClick={onEdit} style={{ ...BTN_GHOST, fontSize: '0.7rem', padding: '0.25rem 0.55rem' }}>수정</button>
+                <button onClick={onDelete} style={{ ...BTN_GHOST, fontSize: '0.7rem', padding: '0.25rem 0.55rem', borderColor: 'rgba(248,113,113,0.3)', color: '#f87171' }}>삭제</button>
+              </div>
+            ) : <span style={{ opacity: 0.3 }}>-</span>}
+          </td>
+        )}
+      </tr>
+      {open && (
+        <tr>
+          <td colSpan={colSpan} style={{ ...cellTd, background: 'rgba(255,255,255,0.02)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', padding: '0.1rem 0.2rem' }}>
+              {c.contact_email && <DetailRow label="이메일"    value={c.contact_email} />}
+              {c.hospitals     && <DetailRow label="병원·품목" value={c.hospitals} />}
+              {c.evidence      && <DetailRow label="증빙자료"  value={c.evidence} />}
+              {c.details       && <DetailRow label="세부내역"  value={c.details} />}
+              {c.memo          && <DetailRow label="비고"      value={c.memo} />}
+              <DetailRow label="등록일" value={fmtDate(c.created_at.slice(0, 10))} />
+            </div>
+          </td>
+        </tr>
       )}
-
-      {/* 처방 예상 */}
-      {(contract.expected_month || contract.expected_amount) && (
-        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.5rem' }}>
-          💊 {contract.expected_month && `${contract.expected_month}`}
-          {contract.expected_month && contract.expected_amount && ' · '}
-          {contract.expected_amount && `예상 ${contract.expected_amount}`}
-        </p>
-      )}
-
-      {/* 병원/품목 요약 */}
-      {contract.hospitals && (
-        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0 0 0.5rem',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: expanded ? 'pre-wrap' : 'nowrap' as const }}>
-          🏥 {contract.hospitals}
-        </p>
-      )}
-
-      {/* 더보기 토글 */}
-      <button onClick={() => setExpanded(v => !v)} style={{
-        background: 'none', border: 'none', cursor: 'pointer',
-        fontSize: '0.72rem', color: 'var(--text-muted)', padding: '0.2rem 0',
-      }}>
-        {expanded ? '▲ 접기' : '▼ 상세 보기'}
-      </button>
-
-      {expanded && (
-        <div style={{ marginTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {contract.evidence && (
-            <DetailRow label="증빙자료" value={contract.evidence} />
-          )}
-          {contract.details && (
-            <DetailRow label="세부내역" value={contract.details} />
-          )}
-          {contract.memo && (
-            <DetailRow label="비고" value={contract.memo} />
-          )}
-          <DetailRow label="등록일" value={fmtDate(contract.created_at.slice(0, 10))} />
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0, minWidth: '54px', paddingTop: '0.1rem' }}>{label}</span>
-      <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>{value}</span>
+      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0, minWidth: '64px', paddingTop: '0.1rem' }}>{label}</span>
+      <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{value}</span>
     </div>
   );
 }
@@ -520,27 +511,60 @@ export default function ContractsClient({
         )}
       </div>
 
-      {/* ── 건수 ── */}
-      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-        {filtered.length}건{filtered.length !== contracts.length && ` / 전체 ${contracts.length}건`}
+      {/* ── 건수 + 다운로드 ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '0.5rem' }}>
+        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+          {filtered.length}건{filtered.length !== contracts.length && ` / 전체 ${contracts.length}건`}
+        </span>
+        <button
+          onClick={() => downloadContractsCsv(filtered)}
+          disabled={filtered.length === 0}
+          style={{ ...BTN_GHOST, fontSize: '0.76rem', padding: '0.35rem 0.8rem',
+            opacity: filtered.length === 0 ? 0.4 : 1, cursor: filtered.length === 0 ? 'not-allowed' : 'pointer' }}
+        >
+          ⬇ 리스트 다운로드
+        </button>
       </div>
 
-      {/* ── 계약 목록 ── */}
+      {/* ── 계약 리스트(테이블) ── */}
       {filtered.length === 0 ? (
         <div style={{ ...CARD, textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
           {contracts.length === 0 ? '등록된 계약이 없습니다.' : '검색 결과가 없습니다.'}
         </div>
-      ) : (
-        filtered.map(c => (
-          <ContractCard
-            key={c.id}
-            contract={c}
-            canEdit={isAdmin || c.user_id === userId}
-            onEdit={() => openEdit(c)}
-            onDelete={() => !deleting && handleDelete(c.id)}
-          />
-        ))
-      )}
+      ) : (() => {
+        const showActions = isAdmin || filtered.some(c => c.user_id === userId);
+        const colCount = 6 + (showActions ? 1 : 0);
+        return (
+          <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
+            <table style={{ width: '100%', minWidth: showActions ? 880 : 760, borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={cellTh}>업체명</th>
+                  <th style={cellTh}>담당자</th>
+                  <th style={cellTh}>계약기간</th>
+                  <th style={cellTh}>연락처</th>
+                  <th style={cellTh}>처방 예상</th>
+                  <th style={cellTh}>주요 병원·품목</th>
+                  {showActions && <th style={cellTh}>관리</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(c => (
+                  <ContractTr
+                    key={c.id}
+                    contract={c}
+                    showActions={showActions}
+                    colSpan={colCount}
+                    canEdit={isAdmin || c.user_id === userId}
+                    onEdit={() => openEdit(c)}
+                    onDelete={() => !deleting && handleDelete(c.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })()}
 
       {/* ── 폼 모달 ── */}
       {showForm && (
