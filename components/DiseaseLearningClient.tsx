@@ -38,6 +38,7 @@ type DrugItem = {
   atc_code: string | null;
   atc_name: string | null;
   max_price: number | null;
+  orig_list_price: number | null; // 최초등재약가(오리지널) — 동일제제군 대조약 상한금액
   reference_drug: string | null;
   permit_kind: string | null;
   approval_date: string | null;
@@ -70,7 +71,8 @@ const DOSE_W  = 60;   // 함량
 
 /* 숫자 열 — 데이터 실폭에 맞춘 고정폭. 헤더 그룹화 + 좁은 좌우 패딩 기준 */
 const PRICE_W = 74;   // 약가(상한): 최대 "12,345원"
-const RATIO_W = 66;   // 약가산정율: 성분 그룹 내 최고가 대비 %
+const ORIG_W  = 84;   // 최초등재약가: 동일제제군 대조약(오리지널) 상한금액
+const RATIO_W = 66;   // 약가산정율: 최초등재약가 대비 %
 const RATE_W  = 68;   // 수수료율:   최대 "100.0%"
 const UBIST_W = 58;   // 처방액 월별: 최대 6자리 + 콤마
 
@@ -91,7 +93,7 @@ function ubistColWidth(monthCount: number): number {
   return monthCount <= 1 ? 86 : UBIST_W;
 }
 function tableMinWidth(monthCount: number): number {
-  return PROD_W + DOSE_W + GUBUN_W + PRICE_W + RATIO_W + RATE_W + monthCount * ubistColWidth(monthCount) + MFR_MIN * 2;
+  return PROD_W + DOSE_W + GUBUN_W + PRICE_W + ORIG_W + RATIO_W + RATE_W + monthCount * ubistColWidth(monthCount) + MFR_MIN * 2;
 }
 
 /* 처방액 합계(정렬용) */
@@ -658,9 +660,9 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
     { label: '제품명', w: PROD_W }, { label: '함량', w: DOSE_W },
     { label: '판매사' }, { label: '제조사' },
     { label: '구분', w: GUBUN_W },
-    { label: '약가(상한)', w: PRICE_W, num: true }, { label: '약가산정율', w: RATIO_W, num: true }, { label: '수수료율', w: RATE_W, num: true },
+    { label: '약가(상한)', w: PRICE_W, num: true }, { label: '최초등재약가', w: ORIG_W, num: true }, { label: '약가산정율', w: RATIO_W, num: true }, { label: '수수료율', w: RATE_W, num: true },
   ];
-  // 약가산정율 기준가 = 이 성분 그룹 내 최고 약가
+  // 약가산정율 폴백 기준가 = 이 성분 그룹 내 최고 약가(최초등재약가 미상 시)
   const maxPrice = Math.max(0, ...items.map(d => d.max_price ?? 0));
   const periodHeaders = periods.map(fmtPeriod);
   const ubistOn = sort?.key === 'ubist';
@@ -781,8 +783,10 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
 function DrugRow({ drug: d, even, periods, maxPrice }: {
   drug: DrugItem; even: boolean; periods: string[]; maxPrice: number;
 }) {
-  const priceRatio = (d.max_price != null && maxPrice > 0)
-    ? (d.max_price / maxPrice) * 100
+  // 약가산정율 기준가 = 최초등재약가(오리지널). 미상 시 성분 그룹 최고가로 폴백.
+  const ratioBase = d.orig_list_price ?? (maxPrice > 0 ? maxPrice : null);
+  const priceRatio = (d.max_price != null && ratioBase != null && ratioBase > 0)
+    ? (d.max_price / ratioBase) * 100
     : null;
   return (
     <tr style={{ background: even ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
@@ -833,6 +837,12 @@ function DrugRow({ drug: d, even, periods, maxPrice }: {
       <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
         <span style={{ color: d.max_price ? '#e2e8f0' : 'rgba(255,255,255,0.25)', fontSize: '0.75rem' }}>
           {fmtPrice(d.max_price)}
+        </span>
+      </td>
+      <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
+          title={d.orig_list_price != null ? '동일제제군(성분·함량·제형) 대조약(오리지널)의 상한금액' : undefined}>
+        <span style={{ color: d.orig_list_price != null ? '#fcd34d' : 'rgba(255,255,255,0.2)', fontSize: '0.75rem' }}>
+          {d.orig_list_price != null ? fmtPrice(d.orig_list_price) : '-'}
         </span>
       </td>
       <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>

@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
-import { resolveDrugCore } from '@/lib/disease-learning/resolve';
+import { resolveDrugCore, loadReferenceKeys, computeOrigListPrices, origGroupKey } from '@/lib/disease-learning/resolve';
 import { profileIsAdmin } from '@/lib/roles';
 // getEffectiveCompanyId 불필요 — Ubist는 시장 전체 데이터
 
@@ -254,12 +254,17 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 최초등재약가(오리지널) — 동일제제군(성분+함량+제형)별 대조약/오리지널 상한금액 최고가
+    const refKeys = await loadReferenceKeys(svc());
+    const origPriceByGrp = computeOrigListPrices(allDrugs, refKeys);
+
     const enriched: Record<string, unknown>[] = allDrugs.map((d: Record<string, unknown>) => {
       const ingrKey = ((d.ingredient_name as string | null) ?? '').trim();
       const computedRef = !d.is_original ? (origByIngr.get(ingrKey) ?? null) : null;
       return {
         ...d,
         reference_drug:  (d.reference_drug as string | null) ?? computedRef,
+        orig_list_price: origPriceByGrp.get(origGroupKey(d)) ?? null,
         ubist_monthly:   ubistData.byCode.get(String(d.item_code ?? '')) ?? null,
         commission_rate: rateMap.get((d.product_name as string) ?? '') ?? null,
       };

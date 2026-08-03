@@ -49,6 +49,53 @@ export function cmpStrength(a: string | null, b: string | null): number {
 
 export type DrugCore = Record<string, unknown>;
 
+/* ── 최초등재약가(오리지널) 산출 ────────────────────────────────────────
+   최초등재제품 = 규정상 동일제제군(성분·함량·제형·투여경로) 중 가장 먼저 등재된 제품.
+   등재일자는 어떤 공식 API에도 없어(약가마스터 파일 전용), 식약처가 지정한 대조약
+   (drug_reference = 오리지널)을 authoritative 신호로 사용한다. 대조약이 곧 최초등재제품.
+   → 동일제제군별 대조약(없으면 is_original) 제품의 상한금액 최고가 = 최초등재약가. */
+
+// 대조약 목록의 품목명 정규화 키(용량 괄호·규격 접미어 제거 후 norm0)
+export const refKeyOf = (itemName: string): string =>
+  norm0(itemName.replace(/_\(.*$/, '').replace(/[（(].*$/, ''));
+
+// 동일제제군 키: 성분(한글) + 함량 + 제형
+export const origGroupKey = (d: Record<string, unknown>): string =>
+  `${String(d.ingredient_name ?? '').trim()}|${d.strength ?? ''}|${d.form ?? ''}`;
+
+// 식약처 대조약(오리지널) 품목명 정규화 키셋 로드
+export async function loadReferenceKeys(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: SupabaseClient<any, any, any>,
+): Promise<Set<string>> {
+  const keys = new Set<string>();
+  let from = 0; const P = 1000;
+  while (true) {
+    const { data } = await db.from('drug_reference').select('item_name').range(from, from + P - 1);
+    if (!data?.length) break;
+    for (const r of data) { const k = refKeyOf(String((r as { item_name?: string }).item_name ?? '')); if (k) keys.add(k); }
+    if (data.length < P) break; from += P;
+  }
+  return keys;
+}
+
+// 동일제제군별 최초등재약가(대조약/오리지널 상한금액 최고가) 맵
+export function computeOrigListPrices(
+  drugs: Record<string, unknown>[],
+  refKeys: Set<string>,
+): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const d of drugs) {
+    const isRef = refKeys.has(refKeyOf(String(d.product_name ?? '')));
+    if (!isRef && !d.is_original) continue;
+    const p = Number(d.max_price ?? 0);
+    if (!(p > 0)) continue;
+    const k = origGroupKey(d);
+    m.set(k, Math.max(m.get(k) ?? 0, p));
+  }
+  return m;
+}
+
 /* ── drugs 결정적 코어 ──────────────────────────────────────────────
    disease_drugs(큐레이션) → 영문 시그니처 다수결 → drug_prices 확장 →
    한글 성분명 폴백 → 제조원(permit_pkg) 보강 → 가격 백필 → allDrugs(각 행 strength 포함).
