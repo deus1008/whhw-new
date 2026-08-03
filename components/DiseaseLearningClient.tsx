@@ -792,7 +792,7 @@ function DrugRow({ drug: d, even, periods, maxPrice }: {
   drug: DrugItem; even: boolean; periods: string[]; maxPrice: number;
 }) {
   const priceRatio = (d.max_price != null && maxPrice > 0)
-    ? Math.round((d.max_price / maxPrice) * 100)
+    ? (d.max_price / maxPrice) * 100
     : null;
   return (
     <tr style={{ background: even ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
@@ -848,7 +848,7 @@ function DrugRow({ drug: d, even, periods, maxPrice }: {
       <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
         {priceRatio != null ? (
           <span style={{ color: priceRatio >= 100 ? '#6ee7b7' : 'rgba(255,255,255,0.6)', fontSize: '0.75rem', fontWeight: priceRatio >= 100 ? 700 : 400 }}>
-            {priceRatio}%
+            {priceRatio.toFixed(1)}%
           </span>
         ) : <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.72rem' }}>-</span>}
       </td>
