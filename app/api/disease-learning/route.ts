@@ -75,24 +75,33 @@ async function fetchUbistByCode(
 async function fetchCommissionRates(
   drugs: { product_name: string; company: string | null }[],
 ): Promise<Map<string, number>> {
-  // 최신 수수료율(딜러) 파일명 조회
-  const { data: latestDoc } = await svc()
+  // 수수료율(딜러) 문서를 최신순으로 조회
+  const { data: docs } = await svc()
     .from('documents')
     .select('filename')
     .eq('category', '수수료율(딜러)')
     .eq('status', 'ready')
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .limit(50);
 
-  // 최신 파일 기준으로 전체 수수료율 로드 (파일이 없으면 전체)
+  // 최신 문서부터 훑어 commission_rates 에 "실제 적재된" 첫 파일을 사용.
+  //   최신 수수료율 파일이 문서엔 올라왔으나 아직 파싱(적재)되지 않은 경우,
+  //   직전 유효 파일로 폴백해 수수료율이 통째로 사라지지 않게 한다.
+  let sourceFile: string | null = null;
+  for (const d of docs ?? []) {
+    const fname = String((d as { filename?: string }).filename ?? '');
+    if (!fname) continue;
+    const { count } = await svc()
+      .from('commission_rates')
+      .select('*', { count: 'exact', head: true })
+      .eq('source_file', fname);
+    if (count && count > 0) { sourceFile = fname; break; }
+  }
+
   let q = svc()
     .from('commission_rates')
     .select('company_name, product_name, rate');
-
-  if (latestDoc?.filename) {
-    q = q.eq('source_file', latestDoc.filename);
-  }
+  if (sourceFile) q = q.eq('source_file', sourceFile);   // 매칭 파일 없으면 전체 로드(최후 폴백)
 
   const { data: rows } = await q;
   if (!rows?.length) return new Map();
