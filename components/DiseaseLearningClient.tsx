@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { DRUG_FORMS, type DrugForm } from '@/lib/drug-form';
 
 type FormFilter = 'all' | DrugForm;
+
+// 새로고침 시 조회 상태 복원용 sessionStorage 키(탭 단위 유지)
+const STORAGE_KEY = 'disease-learning:v1';
 
 /** 성분 설명 — 식약처 허가 효능효과 기반 요약(ingredient_info) */
 type IngredientInfo = { description: string; drug_class: string | null; grounded: boolean };
@@ -222,6 +225,53 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
       if (reqId === reqIdRef.current) setLoading(false);
     }
   }, []);
+
+  // ── 새로고침 시 조회 상태 유지(sessionStorage, 탭 단위) ──────────────────
+  const restoredRef = useRef(false);
+
+  // 복원: 마운트 시 저장된 스냅샷이 있으면 선택·펼침·필터를 되살리고 결과를 재조회
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s?.applied?.group && groups.some(g => g.group === s.applied.group)) {
+          setSelectedGroup(s.selectedGroup ?? s.applied.group);
+          setSelectedSub(s.selectedSub ?? null);
+          setSelectedIngr(s.selectedIngr ?? null);
+          setSelectedStrength(s.selectedStrength ?? null);
+          setOpenGroups(new Set<string>(s.openGroups ?? [s.applied.group]));
+          setOpenSubs(new Set<string>(s.openSubs ?? []));
+          setOpenIngrs(new Set<string>(s.openIngrs ?? []));
+          setFilter(s.filter ?? 'all');
+          setSearch(s.search ?? '');
+          setSort(s.sort ?? null);
+          setApplied(s.applied);
+          setNeedsSearch(false);
+          fetchDrugs(s.applied.group, s.applied.sub ?? null);
+        }
+      }
+    } catch { /* 손상된 스냅샷 무시 */ }
+    restoredRef.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 저장: 조회한 화면(applied)이 있을 때만 스냅샷 보존(결과 목록은 복원 시 재조회)
+  useEffect(() => {
+    if (!restoredRef.current) return;
+    try {
+      if (applied) {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
+          selectedGroup, selectedSub, selectedIngr, selectedStrength, applied,
+          openGroups: [...openGroups], openSubs: [...openSubs], openIngrs: [...openIngrs],
+          filter, search, sort,
+        }));
+      } else {
+        sessionStorage.removeItem(STORAGE_KEY);
+      }
+    } catch { /* 저장 실패 무시 */ }
+  }, [selectedGroup, selectedSub, selectedIngr, selectedStrength, applied,
+      openGroups, openSubs, openIngrs, filter, search, sort]);
 
   // 질환군/중분류가 바뀌면 자동 조회하지 않고 [조회] 대기 상태로 전환
   function selectGroup(g: GroupItem) {
