@@ -254,9 +254,23 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 최초등재약가(오리지널) — 동일제제군(성분+함량+제형)별 대조약/오리지널 상한금액 최고가
+    // 최초등재약가(오리지널) — 급여이력 정확값(disease_orig_price) 우선, 없으면 역산 추정
     const refKeys = await loadReferenceKeys(svc());
-    const origPriceByGrp = computeOrigListPrices(allDrugs, refKeys);
+    const origByCode = new Map<string, number>();
+    {
+      const codes = [...new Set(allDrugs.map(d => String(d.item_code ?? '')).filter(Boolean))];
+      for (let i = 0; i < codes.length; i += 300) {
+        const { data } = await svc()
+          .from('disease_orig_price')
+          .select('item_code, orig_price')
+          .in('item_code', codes.slice(i, i + 300));
+        for (const r of data ?? []) {
+          const p = Number((r as { orig_price?: number }).orig_price ?? 0);
+          if (p > 0) origByCode.set(String((r as { item_code?: string }).item_code), p);
+        }
+      }
+    }
+    const origPriceByGrp = computeOrigListPrices(allDrugs, refKeys, origByCode);
 
     const enriched: Record<string, unknown>[] = allDrugs.map((d: Record<string, unknown>) => {
       const ingrKey = ((d.ingredient_name as string | null) ?? '').trim();

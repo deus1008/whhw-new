@@ -25,6 +25,9 @@
     },
     "app/api/cron/build-disease-strengths/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/cron/scrape-orig-price/route.ts": {
+      "maxDuration": 300
     }
   },
   "crons": [
@@ -71,6 +74,10 @@
     {
       "path": "/api/cron/build-disease-strengths",
       "schedule": "0 17 * * 0"
+    },
+    {
+      "path": "/api/cron/scrape-orig-price?limit=400",
+      "schedule": "30 17 * * 0"
     }
   ]
 }

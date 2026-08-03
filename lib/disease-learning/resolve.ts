@@ -86,28 +86,33 @@ export async function loadReferenceKeys(
   return keys;
 }
 
-// 동일제제군별 최초등재약가 추정 맵. price=추정 상한가, estimated=역산 추정 여부.
+// 동일제제군별 최초등재약가 맵. price=상한가, estimated=역산 추정 여부(false=급여이력 정확값).
+//   origByCode(선택): item_code → 급여이력 최초 등재가. 있으면 해당 동일제제군은 정확값 사용.
 export function computeOrigListPrices(
   drugs: Record<string, unknown>[],
   refKeys: Set<string>,
+  origByCode?: Map<string, number>,
 ): Map<string, { price: number; estimated: boolean }> {
-  // 동일제제군별로 대조약/오리지널 최고가(refMax)와 제네릭 최고가(genMax) 집계
-  const agg = new Map<string, { refMax: number; genMax: number }>();
+  // 동일제제군별로 대조약/오리지널 최고가(refMax)·제네릭 최고가(genMax)·이력 정확가(exact) 집계
+  const agg = new Map<string, { refMax: number; genMax: number; exact: number }>();
   for (const d of drugs) {
     const p = Number(d.max_price ?? 0);
     if (!(p > 0)) continue;
     const k = origGroupKey(d);
-    const a = agg.get(k) ?? { refMax: 0, genMax: 0 };
+    const a = agg.get(k) ?? { refMax: 0, genMax: 0, exact: 0 };
     const isRef = refKeys.has(refKeyOf(String(d.product_name ?? ''))) || Boolean(d.is_original);
     if (isRef) a.refMax = Math.max(a.refMax, p);
     else       a.genMax = Math.max(a.genMax, p);
+    const hist = origByCode?.get(String(d.item_code ?? ''));
+    if (hist && hist > 0) a.exact = Math.max(a.exact, hist);
     agg.set(k, a);
   }
   const out = new Map<string, { price: number; estimated: boolean }>();
   for (const [k, a] of agg) {
+    if (a.exact > 0) { out.set(k, { price: a.exact, estimated: false }); continue; } // 급여이력 정확값
     const est = a.genMax > 0 ? Math.round(a.genMax / GENERIC_CEILING) : 0;
     const price = Math.max(a.refMax, est);
-    if (price > 0) out.set(k, { price, estimated: true }); // Phase 1: 전부 추정값
+    if (price > 0) out.set(k, { price, estimated: true }); // 폴백: 역산 추정
   }
   return out;
 }
