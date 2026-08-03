@@ -60,13 +60,27 @@ export default async function DiseaseLearningPage() {
     return i === -1 ? GROUP_ORDER.length : i;
   };
 
+  // 사전계산된 성분별 함량(4단계) — 조회 없이 트리에 포함
+  const { data: strRows } = await svc
+    .from('disease_drug_strengths')
+    .select('disease_group, sub_category, ingredient_name, strengths');
+  const strMap = new Map<string, string[]>();
+  for (const r of strRows ?? []) {
+    strMap.set(
+      `${r.disease_group}|${r.sub_category}|${r.ingredient_name}`,
+      Array.isArray(r.strengths) ? (r.strengths as string[]) : [],
+    );
+  }
+
   const groups = Array.from(treeMap.entries())
     .map(([group, subMap]) => ({
       group,
       subs: Array.from(subMap.entries())
         .map(([sub, ings]) => ({
           sub,
-          ingredients: Array.from(ings).sort((a, b) => a.localeCompare(b, 'ko')),
+          ingredients: Array.from(ings)
+            .sort((a, b) => a.localeCompare(b, 'ko'))
+            .map(name => ({ name, strengths: strMap.get(`${group}|${sub}|${name}`) ?? [] })),
         }))
         .sort((a, b) => a.sub.localeCompare(b.sub, 'ko')),
     }))

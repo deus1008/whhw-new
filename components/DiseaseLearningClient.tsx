@@ -17,7 +17,7 @@ const FORM_COLOR: Record<string, { border: string; bg: string; fg: string }> = {
 };
 
 /* ── 타입 ── */
-type SubItem   = { sub: string; ingredients: string[] };
+type SubItem   = { sub: string; ingredients: { name: string; strengths: string[] }[] };
 type GroupItem = { group: string; subs: SubItem[] };
 
 type DrugItem = {
@@ -288,17 +288,6 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
     }
   }
 
-  // 4단계: 현재 로드된 약품에서 성분별 함량 목록(숫자 오름차순)
-  const strengthsByIngr = new Map<string, string[]>();
-  for (const d of drugs) {
-    const k = (d.ingredient_name ?? '').trim();
-    const st = (d.strength ?? '').trim();
-    if (!k || !st) continue;
-    if (!strengthsByIngr.has(k)) strengthsByIngr.set(k, []);
-    const arr = strengthsByIngr.get(k)!;
-    if (!arr.includes(st)) arr.push(st);
-  }
-  for (const arr of strengthsByIngr.values()) arr.sort(cmpStrength);
 
   /** 질환군 열기/닫기 — 열 때는 선택도 함께(닫아도 보고 있던 목록은 유지) */
   /**
@@ -453,8 +442,9 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                             <div style={{ marginLeft: '10px', borderLeft: '1.5px solid rgba(255,255,255,0.08)',
                               paddingLeft: '7px', marginTop: '1px', marginBottom: '3px',
                               display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                              {ingredients.map(ing => {
-                                const strengths = subActive ? (strengthsByIngr.get(ing) ?? []) : [];
+                              {ingredients.map(ingItem => {
+                                const ing = ingItem.name;
+                                const strengths = ingItem.strengths;   // DB 사전계산 (조회 없이)
                                 const ingOpen = openIngrs.has(ing);
                                 return (
                                   <div key={ing}>
