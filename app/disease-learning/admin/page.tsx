@@ -59,9 +59,9 @@ export default function DiseaseAdminPage() {
     <div style={{ maxWidth: '800px', margin: '2rem auto', padding: '0 1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
         <Link href="/disease-learning" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', textDecoration: 'none' }}>
-          ← 질환학습
+          ← 질환별의약품
         </Link>
-        <h1 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', margin: 0 }}>질환학습 데이터 관리</h1>
+        <h1 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', margin: 0 }}>질환별의약품 데이터 관리</h1>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

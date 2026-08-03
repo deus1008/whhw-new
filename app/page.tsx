@@ -163,8 +163,8 @@ const NAV_ITEMS: NavItem[] = [
   // ⑫-1 질환학습
   {
     href: '/disease-learning',
-    icon: '🔬',
-    label: '질환학습',
+    icon: '💊',
+    label: '질환별의약품',
     color: '#c4b5fd',
     bg:   'rgba(139,92,246,0.10)',
     bd:   'rgba(139,92,246,0.22)',

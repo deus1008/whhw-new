@@ -65,7 +65,7 @@ export default async function IngredientReviewPage() {
             padding: '0.4rem 0.9rem', borderRadius: '8px', textDecoration: 'none',
             background: 'rgba(147,197,253,0.12)', border: '1px solid rgba(147,197,253,0.28)',
             color: '#93c5fd', fontSize: '0.82rem', fontWeight: 600,
-          }}>질환학습</Link>
+          }}>질환별의약품</Link>
           <LogoutButton compact />
         </div>
 

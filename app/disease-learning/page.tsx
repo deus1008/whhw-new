@@ -97,7 +97,7 @@ export default async function DiseaseLearningPage() {
         style={{ maxWidth: '1100px', paddingTop: '2rem', paddingBottom: '2rem', alignSelf: 'flex-start' }}
       >
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem, 4vw, 1.8rem)' }}>
-          질환학습
+          질환별의약품
         </p>
         <div className="page-nav">
           <HomeButton />
