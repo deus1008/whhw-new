@@ -49,11 +49,18 @@ export function cmpStrength(a: string | null, b: string | null): number {
 
 export type DrugCore = Record<string, unknown>;
 
-/* ── 최초등재약가(오리지널) 산출 ────────────────────────────────────────
-   최초등재제품 = 규정상 동일제제군(성분·함량·제형·투여경로) 중 가장 먼저 등재된 제품.
-   등재일자는 어떤 공식 API에도 없어(약가마스터 파일 전용), 식약처가 지정한 대조약
-   (drug_reference = 오리지널)을 authoritative 신호로 사용한다. 대조약이 곧 최초등재제품.
-   → 동일제제군별 대조약(없으면 is_original) 제품의 상한금액 최고가 = 최초등재약가. */
+/* ── 최초등재약가(오리지널 조정 전 상한가) 산출 ─────────────────────────
+   규정(약제의 결정 및 조정 기준 별표1)상 최초등재약가 = 최초등재제품의 "조정 전"
+   (최초 등재 시점) 상한금액. 이는 과거 이력값으로 현재가 테이블(및 어떤 공식 API)에도
+   없다(HIRA dgamt는 코드별 현재가 1건만 반환 — 이력 없음).
+   [Phase 1] 급여이력 미적재 상태에서는 역산 추정:
+     제네릭 등재가 = 최초등재약가 × 53.55%(규정) 이므로,
+     추정 최초등재약가 = max( 대조약(오리지널) 현재가,  최고 제네릭 현재가 ÷ 0.5355 ).
+     ( 대조약 현재가는 원가의 하한, 제네릭 역산은 원가 복원 — 둘 중 큰 값 채택 )
+   [Phase 2] 대조약 급여이력 최초 등재가 적재 후 정확값으로 교체(estimated=false). */
+
+// 규정: 자료제출의약품(제네릭) 등재가 = 최초등재약가 × 53.55%
+const GENERIC_CEILING = 0.5355;
 
 // 대조약 목록의 품목명 정규화 키(용량 괄호·규격 접미어 제거 후 norm0)
 export const refKeyOf = (itemName: string): string =>
@@ -79,21 +86,30 @@ export async function loadReferenceKeys(
   return keys;
 }
 
-// 동일제제군별 최초등재약가(대조약/오리지널 상한금액 최고가) 맵
+// 동일제제군별 최초등재약가 추정 맵. price=추정 상한가, estimated=역산 추정 여부.
 export function computeOrigListPrices(
   drugs: Record<string, unknown>[],
   refKeys: Set<string>,
-): Map<string, number> {
-  const m = new Map<string, number>();
+): Map<string, { price: number; estimated: boolean }> {
+  // 동일제제군별로 대조약/오리지널 최고가(refMax)와 제네릭 최고가(genMax) 집계
+  const agg = new Map<string, { refMax: number; genMax: number }>();
   for (const d of drugs) {
-    const isRef = refKeys.has(refKeyOf(String(d.product_name ?? '')));
-    if (!isRef && !d.is_original) continue;
     const p = Number(d.max_price ?? 0);
     if (!(p > 0)) continue;
     const k = origGroupKey(d);
-    m.set(k, Math.max(m.get(k) ?? 0, p));
+    const a = agg.get(k) ?? { refMax: 0, genMax: 0 };
+    const isRef = refKeys.has(refKeyOf(String(d.product_name ?? ''))) || Boolean(d.is_original);
+    if (isRef) a.refMax = Math.max(a.refMax, p);
+    else       a.genMax = Math.max(a.genMax, p);
+    agg.set(k, a);
   }
-  return m;
+  const out = new Map<string, { price: number; estimated: boolean }>();
+  for (const [k, a] of agg) {
+    const est = a.genMax > 0 ? Math.round(a.genMax / GENERIC_CEILING) : 0;
+    const price = Math.max(a.refMax, est);
+    if (price > 0) out.set(k, { price, estimated: true }); // Phase 1: 전부 추정값
+  }
+  return out;
 }
 
 /* ── drugs 결정적 코어 ──────────────────────────────────────────────

@@ -38,7 +38,8 @@ type DrugItem = {
   atc_code: string | null;
   atc_name: string | null;
   max_price: number | null;
-  orig_list_price: number | null; // 최초등재약가(오리지널) — 동일제제군 대조약 상한금액
+  orig_list_price: number | null; // 최초등재약가(오리지널 조정 전 상한가). Phase1=역산 추정
+  orig_price_est: boolean;         // true=역산 추정값(급여이력 미적재), false=이력 기반 정확값
   reference_drug: string | null;
   permit_kind: string | null;
   approval_date: string | null;
@@ -840,9 +841,15 @@ function DrugRow({ drug: d, even, periods, maxPrice }: {
         </span>
       </td>
       <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}
-          title={d.orig_list_price != null ? '동일제제군(성분·함량·제형) 대조약(오리지널)의 상한금액' : undefined}>
+          title={d.orig_list_price != null
+            ? (d.orig_price_est
+                ? '최초등재제품의 조정 전 상한금액(추정). 급여이력 미적재로 제네릭 현재가÷53.55% 역산 추정값'
+                : '최초등재제품의 조정 전 상한금액(급여이력 기반)')
+            : undefined}>
         <span style={{ color: d.orig_list_price != null ? '#fcd34d' : 'rgba(255,255,255,0.2)', fontSize: '0.75rem' }}>
-          {d.orig_list_price != null ? fmtPrice(d.orig_list_price) : '-'}
+          {d.orig_list_price != null
+            ? (d.orig_price_est ? '≈' : '') + fmtPrice(d.orig_list_price)
+            : '-'}
         </span>
       </td>
       <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>

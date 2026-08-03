@@ -261,10 +261,12 @@ export async function GET(req: NextRequest) {
     const enriched: Record<string, unknown>[] = allDrugs.map((d: Record<string, unknown>) => {
       const ingrKey = ((d.ingredient_name as string | null) ?? '').trim();
       const computedRef = !d.is_original ? (origByIngr.get(ingrKey) ?? null) : null;
+      const og = origPriceByGrp.get(origGroupKey(d));
       return {
         ...d,
         reference_drug:  (d.reference_drug as string | null) ?? computedRef,
-        orig_list_price: origPriceByGrp.get(origGroupKey(d)) ?? null,
+        orig_list_price: og?.price ?? null,
+        orig_price_est:  og?.estimated ?? false,
         ubist_monthly:   ubistData.byCode.get(String(d.item_code ?? '')) ?? null,
         commission_rate: rateMap.get((d.product_name as string) ?? '') ?? null,
       };
