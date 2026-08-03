@@ -60,6 +60,8 @@ export default function EdiClient({ files, isAdmin }: Props) {
   const [selectedIds,  setSelectedIds]  = useState<Set<string>>(
     files[0] ? new Set([files[0].id]) : new Set()
   );
+  // 파일 선택 UI: true=전체 목록에서 선택, false=선택한 파일만 표시(다른 모듈과 동일 패턴)
+  const [pickMode,     setPickMode]     = useState(true);
   const [reports,      setReports]      = useState<EdiReport[]>([]);
   const [activeTab,    setActiveTab]    = useState(0);
   const [analyzing,    setAnalyzing]    = useState(false);
@@ -102,6 +104,11 @@ export default function EdiClient({ files, isAdmin }: Props) {
 
   if (files.length === 0) return <EmptyState errors={[]} />;
 
+  // 선택 완료 상태면 선택한 파일만, 아니면 전체 목록
+  const visibleFiles = (!pickMode && selectedIds.size > 0)
+    ? files.filter(f => selectedIds.has(f.id))
+    : files;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
       {(analyzing || isPending) && <LoadingOverlay />}
@@ -125,23 +132,39 @@ export default function EdiClient({ files, isAdmin }: Props) {
 
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>파일 선택</span>
-              {selectedIds.size > 0 && (
-                <span style={{ fontSize: '0.72rem', color: '#c4b5fd', fontWeight: 600 }}>{selectedIds.size}개 선택됨</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.3rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                {(!pickMode && selectedIds.size > 0) ? '선택한 파일' : '파일 선택'}
+                {selectedIds.size > 0 && (
+                  <span style={{ marginLeft: '0.5rem', color: '#c4b5fd', fontWeight: 600 }}>{selectedIds.size}개 선택됨</span>
+                )}
+              </span>
+              {(!pickMode && selectedIds.size > 0) ? (
+                <button
+                  onClick={() => { setSelectedIds(new Set()); setPickMode(true); setReports([]); setAnalyzeErr(''); }}
+                  style={{ padding: '0.28rem 0.7rem', borderRadius: 7, cursor: 'pointer', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: 'var(--text-muted)', fontSize: '0.74rem', fontFamily: 'inherit', fontWeight: 600 }}>
+                  ↺ 초기화
+                </button>
+              ) : (
+                <button
+                  onClick={() => setPickMode(false)}
+                  disabled={selectedIds.size === 0}
+                  style={{ padding: '0.28rem 0.7rem', borderRadius: 7, cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer', background: selectedIds.size === 0 ? 'rgba(168,85,247,0.06)' : 'rgba(168,85,247,0.16)', border: '1px solid rgba(168,85,247,0.35)', color: selectedIds.size === 0 ? 'rgba(196,181,253,0.4)' : '#c4b5fd', fontSize: '0.74rem', fontFamily: 'inherit', fontWeight: 600 }}>
+                  선택 완료 ({selectedIds.size})
+                </button>
               )}
             </div>
             <div style={{
               border: '1px solid rgba(255,255,255,0.12)', borderRadius: 9,
               background: 'rgba(255,255,255,0.03)',
-              maxHeight: files.length > 5 ? '12rem' : undefined,
-              overflowY: files.length > 5 ? 'auto' : undefined,
+              maxHeight: visibleFiles.length > 5 ? '12rem' : undefined,
+              overflowY: visibleFiles.length > 5 ? 'auto' : undefined,
             }}>
-              {files.map((f, i) => (
+              {visibleFiles.map((f, i) => (
                 <label key={f.id} style={{
                   display: 'flex', alignItems: 'center', gap: '0.6rem',
                   padding: '0.48rem 0.85rem', cursor: 'pointer',
-                  borderBottom: i < files.length - 1 ? '1px solid rgba(255,255,255,0.05)' : undefined,
+                  borderBottom: i < visibleFiles.length - 1 ? '1px solid rgba(255,255,255,0.05)' : undefined,
                   background: selectedIds.has(f.id) ? 'rgba(168,85,247,0.08)' : undefined,
                   transition: 'background 0.12s',
                 }}>
