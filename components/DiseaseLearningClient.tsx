@@ -227,42 +227,47 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   }, []);
 
   // ── 새로고침 시 조회 상태 유지(sessionStorage, 탭 단위) ──────────────────
-  const restoredRef = useRef(false);
+  //   "실제 [조회]로 확정된 화면(applied)"만 저장·복원한다. 대기 중인 트리 선택
+  //   (조회 전 성분·함량 클릭)은 저장하지 않으므로, 함량을 눌러도 자동 조회되지 않고
+  //   새로고침 시에도 마지막으로 조회한 화면만 되살아난다.
+  const skipFirstSave = useRef(true);
 
-  // 복원: 마운트 시 저장된 스냅샷이 있으면 선택·펼침·필터를 되살리고 결과를 재조회
+  // 복원: 마운트 시 스냅샷이 있으면 조회 화면을 되살리고 결과를 재조회
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY);
       if (raw) {
         const s = JSON.parse(raw);
-        if (s?.applied?.group && groups.some(g => g.group === s.applied.group)) {
-          setSelectedGroup(s.selectedGroup ?? s.applied.group);
-          setSelectedSub(s.selectedSub ?? null);
-          setSelectedIngr(s.selectedIngr ?? null);
-          setSelectedStrength(s.selectedStrength ?? null);
-          setOpenGroups(new Set<string>(s.openGroups ?? [s.applied.group]));
+        const a = s?.applied;
+        if (a?.group && groups.some(g => g.group === a.group)) {
+          setSelectedGroup(a.group);
+          setSelectedSub(a.sub ?? null);
+          setSelectedIngr(a.ingr ?? null);
+          setSelectedStrength(a.strength ?? null);
+          setOpenGroups(new Set<string>(s.openGroups ?? [a.group]));
           setOpenSubs(new Set<string>(s.openSubs ?? []));
           setOpenIngrs(new Set<string>(s.openIngrs ?? []));
           setFilter(s.filter ?? 'all');
           setSearch(s.search ?? '');
           setSort(s.sort ?? null);
-          setApplied(s.applied);
+          setApplied(a);
           setNeedsSearch(false);
-          fetchDrugs(s.applied.group, s.applied.sub ?? null);
+          fetchDrugs(a.group, a.sub ?? null);
         }
       }
     } catch { /* 손상된 스냅샷 무시 */ }
-    restoredRef.current = true;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 저장: 조회한 화면(applied)이 있을 때만 스냅샷 보존(결과 목록은 복원 시 재조회)
+  // 저장: 조회 확정(applied) + 뷰 설정(펼침·제형·검색·정렬)만 보존. 선택(selected*)은
+  //   applied 로부터 복원하므로 대기 선택은 저장하지 않는다. 첫 커밋은 건너뛰어
+  //   복원 전 초기값이 스냅샷을 덮어쓰지 않도록 한다.
   useEffect(() => {
-    if (!restoredRef.current) return;
+    if (skipFirstSave.current) { skipFirstSave.current = false; return; }
     try {
       if (applied) {
         sessionStorage.setItem(STORAGE_KEY, JSON.stringify({
-          selectedGroup, selectedSub, selectedIngr, selectedStrength, applied,
+          applied,
           openGroups: [...openGroups], openSubs: [...openSubs], openIngrs: [...openIngrs],
           filter, search, sort,
         }));
@@ -270,8 +275,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
         sessionStorage.removeItem(STORAGE_KEY);
       }
     } catch { /* 저장 실패 무시 */ }
-  }, [selectedGroup, selectedSub, selectedIngr, selectedStrength, applied,
-      openGroups, openSubs, openIngrs, filter, search, sort]);
+  }, [applied, openGroups, openSubs, openIngrs, filter, search, sort]);
 
   // 질환군/중분류가 바뀌면 자동 조회하지 않고 [조회] 대기 상태로 전환
   function selectGroup(g: GroupItem) {
