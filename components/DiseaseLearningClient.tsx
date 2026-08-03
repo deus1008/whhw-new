@@ -70,6 +70,7 @@ const DOSE_W  = 60;   // 함량
 
 /* 숫자 열 — 데이터 실폭에 맞춘 고정폭. 헤더 그룹화 + 좁은 좌우 패딩 기준 */
 const PRICE_W = 74;   // 약가(상한): 최대 "12,345원"
+const RATIO_W = 66;   // 약가산정율: 성분 그룹 내 최고가 대비 %
 const RATE_W  = 68;   // 수수료율:   최대 "100.0%"
 const UBIST_W = 58;   // 처방액 월별: 최대 6자리 + 콤마
 
@@ -90,7 +91,7 @@ function ubistColWidth(monthCount: number): number {
   return monthCount <= 1 ? 86 : UBIST_W;
 }
 function tableMinWidth(monthCount: number): number {
-  return PROD_W + DOSE_W + GUBUN_W + PRICE_W + RATE_W + monthCount * ubistColWidth(monthCount) + MFR_MIN * 2;
+  return PROD_W + DOSE_W + GUBUN_W + PRICE_W + RATIO_W + RATE_W + monthCount * ubistColWidth(monthCount) + MFR_MIN * 2;
 }
 
 /* 처방액 합계(정렬용) */
@@ -667,8 +668,10 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
     { label: '제품명', w: PROD_W }, { label: '함량', w: DOSE_W },
     { label: '판매사' }, { label: '제조사' },
     { label: '구분', w: GUBUN_W },
-    { label: '약가(상한)', w: PRICE_W, num: true }, { label: '수수료율', w: RATE_W, num: true },
+    { label: '약가(상한)', w: PRICE_W, num: true }, { label: '약가산정율', w: RATIO_W, num: true }, { label: '수수료율', w: RATE_W, num: true },
   ];
+  // 약가산정율 기준가 = 이 성분 그룹 내 최고 약가
+  const maxPrice = Math.max(0, ...items.map(d => d.max_price ?? 0));
   const periodHeaders = periods.map(fmtPeriod);
   const ubistOn = sort?.key === 'ubist';
 
@@ -774,7 +777,7 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
             </thead>
             <tbody>
               {items.map((d, i) => (
-                <DrugRow key={d.id} drug={d} even={i % 2 === 0} periods={periods} />
+                <DrugRow key={d.id} drug={d} even={i % 2 === 0} periods={periods} maxPrice={maxPrice} />
               ))}
             </tbody>
           </table>
@@ -785,9 +788,12 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
 }
 
 /* ── 의약품 테이블 행 ── */
-function DrugRow({ drug: d, even, periods }: {
-  drug: DrugItem; even: boolean; periods: string[];
+function DrugRow({ drug: d, even, periods, maxPrice }: {
+  drug: DrugItem; even: boolean; periods: string[]; maxPrice: number;
 }) {
+  const priceRatio = (d.max_price != null && maxPrice > 0)
+    ? Math.round((d.max_price / maxPrice) * 100)
+    : null;
   return (
     <tr style={{ background: even ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
       <td style={TD} title={d.product_name ?? undefined}>
@@ -838,6 +844,13 @@ function DrugRow({ drug: d, even, periods }: {
         <span style={{ color: d.max_price ? '#e2e8f0' : 'rgba(255,255,255,0.25)', fontSize: '0.75rem' }}>
           {fmtPrice(d.max_price)}
         </span>
+      </td>
+      <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+        {priceRatio != null ? (
+          <span style={{ color: priceRatio >= 100 ? '#6ee7b7' : 'rgba(255,255,255,0.6)', fontSize: '0.75rem', fontWeight: priceRatio >= 100 ? 700 : 400 }}>
+            {priceRatio}%
+          </span>
+        ) : <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.72rem' }}>-</span>}
       </td>
       <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
         {d.commission_rate != null ? (
