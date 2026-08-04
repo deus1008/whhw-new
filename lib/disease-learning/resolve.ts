@@ -6,7 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 export const norm0 = (s: string) => s.replace(/[\s.\-/,·]/g, '').toLowerCase();
 
 // 염·용량 토큰
-const SALTS = /\b(calcium|sodium|potassium|magnesium|hydrochloride|hcl|sulfate|sulphate|maleate|besylate|mesylate|dihydrate|trihydrate|monohydrate|hydrate|acetate|fumarate|succinate|tartrate|bitartrate|phosphate|hemihydrate|hydrobromide|nitrate|citrate|ethyl|ester)\b/gi;
+const SALTS = /\b(calcium|sodium|potassium|magnesium|hydrochloride|hcl|bisulfate|bisulphate|sulfate|sulphate|maleate|besylate|besilate|mesylate|napadisilate|camsylate|napsylate|edisylate|tosylate|oxalate|dihydrate|trihydrate|monohydrate|hydrate|acetate|fumarate|succinate|tartrate|bitartrate|phosphate|hemihydrate|hydrobromide|nitrate|citrate|ethyl|ester)\b/gi;
 
 // 영문 성분 시그니처: 염·용량 제거 후 핵심 성분 토큰 집합(정렬). 파트 내 의미 토큰 전부 보존.
 export const engSig = (ingr: string): string => {
@@ -171,6 +171,11 @@ export async function resolveDrugCore(
     if (!arr.includes(pn)) arr.push(pn);
   }
   for (const [ko, prods] of prodsByKo) {
+    // 성분명이 영문이면 시그니처를 직접 산출(브랜드 다수결 우회 — 복합제 브랜드와 동점되어
+    // 해석 실패하던 문제 방지). 예: clopidogrel, Sarpogrelate Hydrochloride.
+    const directSig = engSig(ko);
+    if (directSig) { sigByKo.set(ko, directSig); continue; }
+
     const seeds = [...new Set(prods.map(seedOf).filter(s => s.length >= 2))];
     if (!seeds.length) continue;
     const orFilter = seeds.map(s => `item_name.ilike.${s}%`).join(',');
