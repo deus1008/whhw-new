@@ -28,10 +28,18 @@ export const seedOf = (pn: string) =>
 
 // 함량: 활성성분(콤마 구분)별 대표 용량 1개. 괄호 밖 용량 우선(없으면 (as base Xmg)).
 const DOSE_RE = /([\d.]+)\s*(mg|mcg|g|iu|ml|㎎|㎍)/i;
+// 단위 정규화: g → mg(×1000), 전각 ㎎/㎍ → mg/mcg. (mcg·iu·ml 등은 유지)
+export function normDose(num: number, unit: string): string {
+  const u = unit.toLowerCase();
+  if (u === 'g')  return `${Number((num * 1000).toFixed(4))}mg`;
+  if (u === '㎎') return `${num}mg`;
+  if (u === '㎍') return `${num}mcg`;
+  return `${num}${u}`;
+}
 const doseOfPart = (part: string): string => {
   const outside = part.replace(/\([^)]*\)/g, ' ');
   const m = outside.match(DOSE_RE) ?? part.match(DOSE_RE);
-  return m ? `${Number(m[1])}${m[2].toLowerCase()}` : '';
+  return m ? normDose(Number(m[1]), m[2]) : '';
 };
 export const strengthOf = (eng: string): string =>
   eng.split(',').map(doseOfPart).filter(Boolean).join('/');
@@ -237,7 +245,7 @@ export async function resolveDrugCore(
   // 2-b) 영문 시그니처 미해석 성분 → 한글 성분명으로 item_name 직접 매칭 보강
   const doseSimple = (eng: string): string | null => {
     const m = eng.match(/([\d.]+)\s*(mg|mcg|g|iu|ml|㎎|㎍)/i);
-    return m ? `${Number(m[1])}${m[2].toLowerCase()}` : null;
+    return m ? normDose(Number(m[1]), m[2]) : null;
   };
   const unresolvedIngrs = uniqueIngrs.filter(ko => !sigByKo.has(ko));
   for (const ko of unresolvedIngrs) {
