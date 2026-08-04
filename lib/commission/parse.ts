@@ -9,6 +9,7 @@ export type CommissionRateRow = {
   source_file:  string;
   company_name: string;
   product_name: string | null;
+  insurance_code: string | null;  // 보험코드(청구코드) — 약품 item_code 정확 매칭용
   rate:         number;   // 저장 단위: % (예: 48.0)
 };
 
@@ -43,6 +44,7 @@ function toRate(v: unknown): number | null {
 const COMPANY_KW = ['제약사명','제약사','업체명','회사명','company','제조사','거래처명','행레이블','행 레이블'];
 const RATE_KW    = ['기본요율','기본오율','수수료율','수수료','요율','오율','rate','commission','비율'];
 const PRODUCT_KW = ['품목명','제품명','품명','제품','product','item'];
+const INSCODE_KW = ['보험코드','청구코드','약가코드','보험 코드','edi코드','ediコード'];
 
 function findColIdx(headerRow: unknown[], kws: string[]): number {
   for (let i = 0; i < headerRow.length; i++) {
@@ -94,6 +96,7 @@ export function parseCommissionBuffer(buffer: Buffer, fileName: string): ParseCo
   const companyIdx = findColIdx(headerRow, COMPANY_KW);
   const rateIdx    = findColIdx(headerRow, RATE_KW);
   const productIdx = findColIdx(headerRow, PRODUCT_KW);
+  const insCodeIdx = findColIdx(headerRow, INSCODE_KW);
 
   console.log(
     `[commission-parse] 파일:${fileName}, 헤더행:${headerRowIdx}`,
@@ -126,12 +129,16 @@ export function parseCommissionBuffer(buffer: Buffer, fileName: string): ParseCo
       ? String(row[productIdx] ?? '').trim() || null
       : null;
 
+    const insurance_code = insCodeIdx >= 0
+      ? (String(row[insCodeIdx] ?? '').trim().match(/\d{6,}/)?.[0] ?? null)
+      : null;
+
     // 동일 (company, product) 중복 제거
     const key = `${company}|${product ?? ''}`;
     if (seen.has(key)) continue;
     seen.add(key);
 
-    rows.push({ source_file: fileName, company_name: company, product_name: product, rate: rateVal });
+    rows.push({ source_file: fileName, company_name: company, product_name: product, insurance_code, rate: rateVal });
   }
 
   console.log(`[commission-parse] 유효행: ${rows.length}/${dataRows.length}`);

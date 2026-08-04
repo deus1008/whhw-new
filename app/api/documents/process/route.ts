@@ -222,16 +222,18 @@ export async function POST(request: Request) {
       // 동일 파일명 기준 삭제 → 다른 파일의 이력 보존
       await supabase.from('commission_rates').delete().eq('source_file', doc.filename);
       const CHUNK = 500;
-      let inserted = 0;
+      let inserted = 0; let firstErr = '';
       for (let i = 0; i < rows.length; i += CHUNK) {
         const chunk = rows.slice(i, i + CHUNK);
+        // (회사,제품) 유니크 제약 — 다른 파일과 겹치면 upsert 로 최신값 갱신(insert 는 충돌로 실패)
         const { error: insErr } = await supabase
           .from('commission_rates')
-          .insert(chunk);
-        if (insErr) console.warn(`[process:${documentId}] 수수료율 삽입 오류(chunk ${i}):`, insErr.message);
+          .upsert(chunk, { onConflict: 'company_name,product_name' });
+        if (insErr) { if (!firstErr) firstErr = insErr.message; console.warn(`[process:${documentId}] 수수료율 저장 오류(chunk ${i}):`, insErr.message); }
         else inserted += chunk.length;
       }
-      console.log(`[process:${documentId}] 수수료율 ${inserted}/${total}건 저장 완료 (전체 초기화 후 재적재)`);
+      console.log(`[process:${documentId}] 수수료율 ${inserted}/${total}건 저장 완료`);
+      if (inserted === 0 && firstErr) return fail(`수수료율 저장 실패: ${firstErr}`);
     }
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     return Response.json({ ok: true, inserted: rows.length });

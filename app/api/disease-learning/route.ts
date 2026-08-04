@@ -73,7 +73,7 @@ async function fetchUbistByCode(
 //   '군' 제거 후 접두 매칭(긴 키 우선) + 회사명 교차확인(동명이품 오매칭 방지).
 //   반환: product_name → rate
 async function fetchCommissionRates(
-  drugs: { product_name: string; company: string | null }[],
+  drugs: { product_name: string; company: string | null; item_code?: string | null }[],
 ): Promise<Map<string, number>> {
   // 수수료율(딜러) 문서를 최신순으로 조회
   const { data: docs } = await svc()
@@ -100,13 +100,20 @@ async function fetchCommissionRates(
 
   let q = svc()
     .from('commission_rates')
-    .select('company_name, product_name, rate');
+    .select('company_name, product_name, rate, insurance_code');
   if (sourceFile) q = q.eq('source_file', sourceFile);   // 매칭 파일 없으면 전체 로드(최후 폴백)
 
   const { data: rows } = await q;
   if (!rows?.length) return new Map();
 
   const norm = (s: string) => String(s ?? '').replace(/[\s.\-/,·()]/g, '').toLowerCase();
+
+  // 1순위: 보험코드(청구코드) → item_code 정확 매칭. 제품명·회사명 표기 차이와 무관.
+  const byCode = new Map<string, number>();
+  for (const r of rows) {
+    const code = String((r as { insurance_code?: string | null }).insurance_code ?? '').trim();
+    if (code) byCode.set(code, Number(r.rate ?? 0));
+  }
 
   // 제품군 규칙: '로스틴군' → 접두키 '로스틴' (긴 키부터 매칭)
   const rules = rows
@@ -129,18 +136,24 @@ async function fetchCommissionRates(
 
   const out = new Map<string, number>();
   for (const d of drugs) {
-    const pn = norm(d.product_name);
-    const cn = norm(d.company ?? '');
-    if (!pn) continue;
     let rate: number | null = null;
-    for (const r of rules) {
-      if (!pn.startsWith(r.key)) continue;
-      // 회사 정보가 양쪽에 있으면 일치할 때만 적용
-      if (r.company && cn && !(cn.includes(r.company) || r.company.includes(cn))) continue;
-      rate = r.rate;
-      break;
+    // 1순위: 보험코드 정확 매칭
+    const code = String(d.item_code ?? '').trim();
+    if (code) rate = byCode.get(code) ?? null;
+    // 2순위: 제품명 접두 매칭(+회사 교차확인), 3순위: 회사 단위
+    if (rate == null) {
+      const pn = norm(d.product_name);
+      const cn = norm(d.company ?? '');
+      if (pn) {
+        for (const r of rules) {
+          if (!pn.startsWith(r.key)) continue;
+          if (r.company && cn && !(cn.includes(r.company) || r.company.includes(cn))) continue;
+          rate = r.rate;
+          break;
+        }
+        if (rate == null && cn) rate = companyOnly.get(cn) ?? null;
+      }
     }
-    if (rate == null && cn) rate = companyOnly.get(cn) ?? null;
     if (rate != null) out.set(d.product_name, rate);
   }
   return out;
@@ -215,6 +228,7 @@ export async function GET(req: NextRequest) {
     const rateInput = allDrugs.map(d => ({
       product_name: (d.product_name as string) ?? '',
       company: ((d.distributor as string | null) ?? (d.manufacturer as string | null)) ?? null,
+      item_code: String(d.item_code ?? ''),
     }));
 
     // 병렬: Ubist 처방액 + 수수료율 + 제조사 보완
