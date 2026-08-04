@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
-import { resolveDrugCore, loadReferenceKeys, computeOrigListPrices, origGroupKey } from '@/lib/disease-learning/resolve';
+import { resolveDrugCore, loadReferenceKeys, computeOrigListPrices, origGroupKey, refKeyOf } from '@/lib/disease-learning/resolve';
 import { profileIsAdmin } from '@/lib/roles';
 // getEffectiveCompanyId 불필요 — Ubist는 시장 전체 데이터
 
@@ -269,6 +269,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // 대조약(식약처 지정 오리지널)은 오리지널로 확정.
+    //   큐레이션(disease_drugs)에 오리지널이 없어 price-DB 로만 등장하는 오리지널
+    //   (예: 엘리퀴스=아픽사반)이 제네릭으로 표시되던 문제를 대조약 기준으로 교정.
+    const refKeys = await loadReferenceKeys(svc());
+    for (const d of allDrugs) {
+      if (!d.is_original && refKeys.has(refKeyOf(String(d.product_name ?? '')))) d.is_original = true;
+    }
+
     // 성분명별 오리지널 제품명 → 제네릭의 대조약으로 사용
     const origByIngr = new Map<string, string>();
     for (const d of allDrugs) {
@@ -278,7 +286,6 @@ export async function GET(req: NextRequest) {
     }
 
     // 최초등재약가(오리지널) — 급여이력 정확값(disease_orig_price) 우선, 없으면 역산 추정
-    const refKeys = await loadReferenceKeys(svc());
     const origByCode = new Map<string, number>();
     {
       const codes = [...new Set(allDrugs.map(d => String(d.item_code ?? '')).filter(Boolean))];
