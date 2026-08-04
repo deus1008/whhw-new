@@ -269,12 +269,19 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 대조약(식약처 지정 오리지널)은 오리지널로 확정.
-    //   큐레이션(disease_drugs)에 오리지널이 없어 price-DB 로만 등장하는 오리지널
-    //   (예: 엘리퀴스=아픽사반)이 제네릭으로 표시되던 문제를 대조약 기준으로 교정.
+    // 대조약(식약처 지정 오리지널)은 오리지널로 확정 — 단, 해당 성분에 이미 오리지널이
+    //   있으면(큐레이션/휴리스틱) 승격을 생략한다.
+    //   큐레이션에 오리지널이 없어 price-DB 로만 등장하는 오리지널(예: 엘리퀴스=아픽사반)은
+    //   대조약으로 교정하되, 염변경 제품마다 대조약이 복수 지정된 경우(예: clopidogrel —
+    //   황산염 플라빅스 외 캄실산염·나파디실레이트·베실산염·레지네이트)에는 진짜 오리지널
+    //   1개만 유지되도록(과잉 승격 방지) 성분에 오리지널이 이미 있으면 건너뛴다.
     const refKeys = await loadReferenceKeys(svc());
+    const ingrHasOrig = new Set<string>();
+    for (const d of allDrugs) if (d.is_original && d.ingredient_name) ingrHasOrig.add(String(d.ingredient_name).trim());
     for (const d of allDrugs) {
-      if (!d.is_original && refKeys.has(refKeyOf(String(d.product_name ?? '')))) d.is_original = true;
+      if (d.is_original) continue;
+      if (ingrHasOrig.has(String(d.ingredient_name ?? '').trim())) continue;
+      if (refKeys.has(refKeyOf(String(d.product_name ?? '')))) d.is_original = true;
     }
 
     // 성분명별 오리지널 제품명 → 제네릭의 대조약으로 사용
