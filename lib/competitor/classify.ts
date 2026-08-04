@@ -2,11 +2,12 @@
 const VALID = new Set(['신제품출시', '정책변경', '이슈사항', '현장동향', '기타']);
 const BATCH = 25;
 
-export type Classified = { type: string; summary: string };
+export type Classified = { type: string; summary: string; relevant: boolean };
 
 export async function classifyTrends(items: { title: string; summary?: string | null }[]): Promise<Classified[]> {
   const key = process.env.ANTHROPIC_API_KEY;
-  const out: Classified[] = items.map(() => ({ type: '기타', summary: '' }));
+  // 기본 relevant=true — AI 미사용/실패 시 기사 유실 방지(보존 우선)
+  const out: Classified[] = items.map(() => ({ type: '기타', summary: '', relevant: true }));
   if (!key || items.length === 0) return out;
   for (let start = 0; start < items.length; start += BATCH) {
     const res = await classifyBatch(key, items.slice(start, start + BATCH));
@@ -16,12 +17,12 @@ export async function classifyTrends(items: { title: string; summary?: string | 
 }
 
 async function classifyBatch(key: string, items: { title: string; summary?: string | null }[]): Promise<Classified[]> {
-  const fallback: Classified[] = items.map(() => ({ type: '기타', summary: '' }));
+  const fallback: Classified[] = items.map(() => ({ type: '기타', summary: '', relevant: true }));
   const list = items
     .map((it, i) => `${i}. [제목] ${it.title}\n   [본문] ${it.summary ? it.summary.slice(0, 500) : '(없음)'}`)
     .join('\n');
   const prompt =
-    `다음은 제약회사 관련 뉴스 목록입니다(제목 + 본문발췌). 각 항목에 대해 두 가지를 작성하세요.\n\n` +
+    `다음은 제약회사 관련 뉴스 목록입니다(제목 + 본문발췌). 각 항목에 대해 세 가지를 작성하세요.\n\n` +
     `(1) type — 유형: 신제품출시 / 정책변경 / 이슈사항 / 현장동향 / 기타 중 하나\n` +
     `   신제품출시=신제품·신약 출시/발매/허가/개발, 정책변경=약가·급여·제도·규제 변화,\n` +
     `   이슈사항=소송·리콜·품절·인사·실적·계약·M&A 등, 현장동향=영업·유통·학술·행사\n\n` +
@@ -32,8 +33,14 @@ async function classifyBatch(key: string, items: { title: string; summary?: stri
     `   예) 제목이 "A사, B사와 고혈압 복합제 독점 계약"이면\n` +
     `       → summary는 "텔미사르탄·암로디핀·인다파미드 3성분 단일제형, FDA 1차 요법 승인, 국내 임상·허가·상업화 포함"\n` +
     `   본문에 제목 외 추가 정보가 없으면 빈 문자열("")로 두세요.\n\n` +
+    `(3) relevant — 이 기사가 해당 회사의 제약·의약품·CSO(판매대행)·헬스케어 "사업"과 실질적으로\n` +
+    `   관련되는지 true/false. 애매하면 true.\n` +
+    `   true(관련): 신약·신제품·품목, 임상·연구개발, 허가·심사, 약가·급여·제도, 계약·제휴·수주·\n` +
+    `     M&A·투자유치, 생산·설비·GMP·수출, 영업·유통·마케팅, 학술·행사, 사업 실적(매출·영업이익).\n` +
+    `   false(무관): 예술·문화·공연 후원, 기부·봉사·사회공헌·ESG 홍보성, 주가·주식 시세·등락·배당·\n` +
+    `     지분공시 등 자본시장 이슈(사업 실질과 무관), 스포츠 후원, 단순 인물 동정·수상, 부동산, 광고성 이벤트.\n\n` +
     `${list}\n\n` +
-    `JSON 배열로만 답하세요. 형식: [{"i":0,"type":"신제품출시","summary":"…"}]. 설명 없이 JSON만.`;
+    `JSON 배열로만 답하세요. 형식: [{"i":0,"type":"신제품출시","summary":"…","relevant":true}]. 설명 없이 JSON만.`;
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -48,13 +55,14 @@ async function classifyBatch(key: string, items: { title: string; summary?: stri
     if (!res.ok) return fallback;
     const data = await res.json();
     const text: string = data?.content?.[0]?.text ?? '';
-    const arr = JSON.parse(text.match(/\[[\s\S]*\]/)?.[0] ?? '[]') as { i: number; type: string; summary?: string }[];
+    const arr = JSON.parse(text.match(/\[[\s\S]*\]/)?.[0] ?? '[]') as { i: number; type: string; summary?: string; relevant?: boolean }[];
     const out = [...fallback];
     for (const o of arr) {
       if (typeof o.i !== 'number' || o.i < 0 || o.i >= out.length) continue;
       out[o.i] = {
         type: VALID.has(o.type) ? o.type : '기타',
         summary: (o.summary ?? '').toString().trim().slice(0, 120),
+        relevant: o.relevant !== false,   // 명시적 false 만 무관 처리(기본 보존)
       };
     }
     return out;

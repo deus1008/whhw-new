@@ -184,7 +184,7 @@ export async function crawlNow(): Promise<{ error?: string; message?: string }> 
   try {
     const r = await runCrawl(svc());
     revalidatePath('/competitor-intel');
-    return { message: `수집 완료 — ${r.sources.join('·')} × ${r.companies}개사, 신규 ${r.inserted}건(총 ${r.found}건 확인)` };
+    return { message: `수집 완료 — ${r.sources.join('·')} × ${r.companies}개사, 신규 ${r.inserted}건${r.filtered ? `, 사업무관 ${r.filtered}건 제외` : ''}(총 ${r.found}건 확인)` };
   } catch (e) {
     return { error: (e as Error).message };
   }

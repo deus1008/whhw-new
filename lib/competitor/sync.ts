@@ -5,7 +5,7 @@ import { classifyTrends } from './classify';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Svc = any;
 
-export async function runCrawl(svc: Svc): Promise<{ sources: string[]; companies: number; found: number; inserted: number }> {
+export async function runCrawl(svc: Svc): Promise<{ sources: string[]; companies: number; found: number; inserted: number; filtered: number }> {
   const [{ data: companies }, { data: sources }] = await Promise.all([
     svc.from('competitor_companies').select('name').eq('active', true),
     svc.from('media_sources').select('name').eq('active', true),
@@ -24,7 +24,7 @@ export async function runCrawl(svc: Svc): Promise<{ sources: string[]; companies
       } catch { /* 사이트 오류 스킵 */ }
     }
   }
-  if (cands.length === 0) return { sources: crawlSources, companies: coNames.length, found: 0, inserted: 0 };
+  if (cands.length === 0) return { sources: crawlSources, companies: coNames.length, found: 0, inserted: 0, filtered: 0 };
 
   // URL 기준 중복제거 (수집분 내)
   const byUrl = new Map<string, Cand>();
@@ -39,17 +39,24 @@ export async function runCrawl(svc: Svc): Promise<{ sources: string[]; companies
     for (const r of data ?? []) if (r.url) existing.add(r.url);
   }
   const fresh = uniq.filter((c) => !existing.has(c.url));
-  if (fresh.length === 0) return { sources: crawlSources, companies: coNames.length, found: uniq.length, inserted: 0 };
+  if (fresh.length === 0) return { sources: crawlSources, companies: coNames.length, found: uniq.length, inserted: 0, filtered: 0 };
 
-  // AI 유형 분류 + 키워드 요약(배치)
+  // AI 유형 분류 + 키워드 요약 + 사업 관련성 판단(배치)
   const cls = await classifyTrends(fresh.map((c) => ({ title: c.title, summary: c.summary })));
 
+  // 제약·의약품·CSO 사업과 무관한 기사(예술후원·주가변동 등) 제외
+  const kept = fresh
+    .map((c, i) => ({ c, cl: cls[i] }))
+    .filter(({ cl }) => cl?.relevant !== false);
+  const filtered = fresh.length - kept.length;
+  if (kept.length === 0) return { sources: crawlSources, companies: coNames.length, found: uniq.length, inserted: 0, filtered };
+
   const now = new Date().toISOString();
-  const rows = fresh.map((c, i) => ({
+  const rows = kept.map(({ c, cl }) => ({
     company_name: c.company,
-    trend_type:   cls[i]?.type || '기타',
+    trend_type:   cl?.type || '기타',
     title:        c.title,
-    summary:      cls[i]?.summary || c.summary || null,   // AI 키워드 요약 우선
+    summary:      cl?.summary || c.summary || null,   // AI 키워드 요약 우선
     content:      c.summary || null,                       // 원문 발췌는 상세(펼침)로 보존
     source_name:  c.source,
     url:          c.url,
@@ -67,5 +74,5 @@ export async function runCrawl(svc: Svc): Promise<{ sources: string[]; companies
     const { data, error } = await svc.from('competitor_trends').insert(chunk).select('id');
     if (!error) inserted += data?.length ?? chunk.length;
   }
-  return { sources: crawlSources, companies: coNames.length, found: uniq.length, inserted };
+  return { sources: crawlSources, companies: coNames.length, found: uniq.length, inserted, filtered };
 }
