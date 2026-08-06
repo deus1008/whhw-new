@@ -715,7 +715,7 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
     { label: '제품명', w: PROD_W }, { label: '함량', w: DOSE_W },
     { label: '판매사' }, { label: '제조사' },
     { label: '구분', w: GUBUN_W },
-    { label: '약가(상한)', w: PRICE_W, num: true }, { label: '최초등재약가', w: ORIG_W, num: true }, { label: '약가산정율', w: RATIO_W, num: true }, { label: '수수료율', w: RATE_W, num: true },
+    { label: '약가(상한)', w: PRICE_W, num: true }, { label: '기준가', w: ORIG_W, num: true }, { label: '약가산정율', w: RATIO_W, num: true }, { label: '수수료율', w: RATE_W, num: true },
   ];
   // 약가산정율 폴백 기준가 = 이 성분 그룹 내 최고 약가(최초등재약가 미상 시)
   const maxPrice = Math.max(0, ...items.map(d => d.max_price ?? 0));
