@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { saveTrend, deleteTrend, addCompany, removeCompany, restoreCompany, moveCompany, addSource, removeSource, crawlNow, type TrendInput } from '@/app/competitor-intel/actions';
+import { deleteTrend, addCompany, removeCompany, restoreCompany, moveCompany, addSource, removeSource, crawlNow } from '@/app/competitor-intel/actions';
 
 export type Company = { id: string; name: string; display_order: number };
 export type Source  = { id: string; name: string; base_url: string | null; display_order: number };
@@ -30,7 +30,6 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
   const [sel, setSel]       = useState<string>('ALL');
   const [typeF, setTypeF]   = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [editing, setEditing] = useState<TrendInput | null>(null);   // null = 폼 닫힘
   const [manageMedia, setManageMedia] = useState(false);
   const [showTrash, setShowTrash] = useState(false);
   const [pending, start] = useTransition();
@@ -70,21 +69,6 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
   function run(fn: () => Promise<{ error?: string }>, okMsg?: string) {
     start(async () => { const r = await fn(); if (r.error) setNotice('⚠ ' + r.error); else refresh(okMsg); });
   }
-
-  function openNew() {
-    setEditing({ company_name: sel !== 'ALL' ? sel : (companies[0]?.name ?? ''), trend_type: '기타', title: '', is_field: false, event_date: new Date().toISOString().slice(0, 10) });
-  }
-
-  // 폼 공용 props (상단 신규 폼 / 카드 위치 인라인 수정 폼 공유)
-  const formProps = {
-    companies, sources, pending,
-    onCancel: () => setEditing(null),
-    onSave: (v: TrendInput) => start(async () => {
-      const r = await saveTrend(v);
-      if (r.error) setNotice('⚠ ' + r.error);
-      else { setEditing(null); refresh('저장되었습니다.'); }
-    }),
-  };
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '1rem', alignItems: 'start' }}>
@@ -172,7 +156,6 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
             <button disabled={pending} onClick={() => start(async () => { setNotice('뉴스 수집 중…(최대 1~2분)'); const r = await crawlNow(); setNotice((r.error ? '⚠ ' + r.error : r.message) ?? ''); router.refresh(); })}
               style={ghostBtn} title="자동수집 매체에서 최신 기사 수집">🔄 뉴스 수집</button>
           )}
-          <button onClick={openNew} style={primaryBtn}>+ 동향 추가</button>
         </div>
 
         {/* 유형 필터 */}
@@ -181,13 +164,10 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
           {TYPES.map(t => <Chip key={t} active={typeF === t} color={TYPE_STYLE[t].c} onClick={() => setTypeF(typeF === t ? null : t)}>{t}</Chip>)}
         </div>
 
-        {/* 신규 추가 폼 — 상단 (기존 기사 수정은 해당 카드 위치에서 인라인으로 열림) */}
-        {editing && !editing.id && <TrendForm value={editing} {...formProps} />}
-
         {/* 타임라인 */}
         {groups.length === 0 ? (
           <div style={{ ...card, padding: '3rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-            <p style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>🗞️</p>등록된 동향이 없습니다. 우측 상단 &ldquo;+ 동향 추가&rdquo;로 기록하세요.
+            <p style={{ fontSize: '1.8rem', marginBottom: '0.5rem' }}>🗞️</p>수집된 동향이 없습니다.
           </div>
         ) : groups.map(([month, items]) => (
           <div key={month} style={{ marginBottom: '1.2rem' }}>
@@ -196,13 +176,9 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {items.map(t => (
-                editing?.id === t.id
-                  // 수정 중인 기사는 그 자리에서 폼으로 전환 (스크롤 불필요)
-                  ? <TrendForm key={t.id} value={editing} {...formProps} />
-                  : <TrendCard key={t.id} t={t} showCompany={sel === 'ALL'}
-                      canEdit={isAdmin || t.author_id === currentUserId}
-                      onEdit={() => setEditing({ id: t.id, company_name: t.company_name, trend_type: t.trend_type, title: t.title, summary: t.summary ?? '', content: t.content ?? '', source_name: t.source_name ?? '', url: t.url ?? '', event_date: t.event_date, is_field: t.is_field, supplement: t.supplement ?? '' })}
-                      onDelete={() => { if (confirm('삭제하시겠습니까?')) run(() => deleteTrend(t.id), '삭제되었습니다.'); }} />
+                <TrendCard key={t.id} t={t} showCompany={sel === 'ALL'}
+                  canDelete={isAdmin || t.author_id === currentUserId}
+                  onDelete={() => { if (confirm('삭제하시겠습니까?')) run(() => deleteTrend(t.id), '삭제되었습니다.'); }} />
               ))}
             </div>
           </div>
@@ -213,8 +189,8 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
 }
 
 /* ── 동향 카드 ── */
-function TrendCard({ t, showCompany, canEdit, onEdit, onDelete }: {
-  t: Trend; showCompany: boolean; canEdit: boolean; onEdit: () => void; onDelete: () => void;
+function TrendCard({ t, showCompany, canDelete, onDelete }: {
+  t: Trend; showCompany: boolean; canDelete: boolean; onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ts = TYPE_STYLE[t.trend_type] ?? TYPE_STYLE['기타'];
@@ -227,10 +203,7 @@ function TrendCard({ t, showCompany, canEdit, onEdit, onDelete }: {
         {t.crawled && <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)' }}>자동수집</span>}
         {showCompany && <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#93c5fd' }}>{t.company_name}</span>}
         <div style={{ flex: 1 }} />
-        {canEdit && <>
-          <button onClick={onEdit} style={miniBtn}>수정</button>
-          <button onClick={onDelete} style={{ ...miniBtn, color: '#fca5a5' }}>삭제</button>
-        </>}
+        {canDelete && <button onClick={onDelete} style={{ ...miniBtn, color: '#fca5a5' }}>삭제</button>}
       </div>
       <div onClick={() => (t.content || t.supplement) && setOpen(o => !o)} style={{ cursor: (t.content || t.supplement) ? 'pointer' : 'default', marginTop: '0.35rem' }}>
         <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{t.title}</p>
@@ -247,55 +220,6 @@ function TrendCard({ t, showCompany, canEdit, onEdit, onDelete }: {
         {t.source_name && <span>📰 {t.source_name}</span>}
         {t.url && <a href={t.url} target="_blank" rel="noreferrer" style={{ color: '#93c5fd', textDecoration: 'none' }}>기사 링크 ↗</a>}
         {t.author_name && <span>✍ {t.author_name}</span>}
-      </div>
-    </div>
-  );
-}
-
-/* ── 추가/수정 폼 ── */
-function TrendForm({ value, companies, sources, pending, onSave, onCancel }: {
-  value: TrendInput; companies: Company[]; sources: Source[]; pending: boolean;
-  onSave: (v: TrendInput) => void; onCancel: () => void;
-}) {
-  const [v, setV] = useState<TrendInput>(value);
-  const set = (patch: Partial<TrendInput>) => setV(p => ({ ...p, ...patch }));
-  return (
-    <div style={{ ...card, padding: '0.9rem 1rem', marginBottom: '0.9rem', border: '1px solid rgba(99,102,241,0.3)' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.5rem', marginBottom: '0.5rem' }}>
-        <label style={lbl}>회사
-          <select value={v.company_name} onChange={e => set({ company_name: e.target.value })} style={inp}>
-            {companies.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-          </select>
-        </label>
-        <label style={lbl}>유형
-          <select value={v.trend_type} onChange={e => set({ trend_type: e.target.value })} style={inp}>
-            {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </label>
-        <label style={lbl}>일자
-          <input type="date" value={v.event_date ?? ''} onChange={e => set({ event_date: e.target.value })} style={inp} />
-        </label>
-        <label style={{ ...lbl, flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: '1.1rem' }}>
-          <input type="checkbox" checked={!!v.is_field} onChange={e => set({ is_field: e.target.checked })} />
-          현장청취(지역장)
-        </label>
-      </div>
-      {!v.is_field && (
-        <label style={{ ...lbl, marginBottom: '0.5rem' }}>매체
-          <select value={v.source_name ?? ''} onChange={e => set({ source_name: e.target.value })} style={inp}>
-            <option value="">(선택)</option>
-            {sources.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-          </select>
-        </label>
-      )}
-      <input value={v.title} onChange={e => set({ title: e.target.value })} placeholder="제목 *" style={{ ...inp, width: '100%', marginBottom: '0.5rem', fontWeight: 600 }} />
-      <input value={v.summary ?? ''} onChange={e => set({ summary: e.target.value })} placeholder="핵심 요약" style={{ ...inp, width: '100%', marginBottom: '0.5rem' }} />
-      <textarea value={v.content ?? ''} onChange={e => set({ content: e.target.value })} placeholder="상세 내용" rows={3} style={{ ...inp, width: '100%', marginBottom: '0.5rem', resize: 'vertical' }} />
-      {!v.is_field && <input value={v.url ?? ''} onChange={e => set({ url: e.target.value })} placeholder="기사 URL" style={{ ...inp, width: '100%', marginBottom: '0.5rem' }} />}
-      <textarea value={v.supplement ?? ''} onChange={e => set({ supplement: e.target.value })} placeholder="보완내용 (기사에서 확인 못한 추가 파악 내용)" rows={2} style={{ ...inp, width: '100%', marginBottom: '0.6rem', resize: 'vertical' }} />
-      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-        <button onClick={onCancel} style={ghostBtn}>취소</button>
-        <button onClick={() => onSave(v)} disabled={pending || !v.title.trim()} style={primaryBtn}>{pending ? '저장 중…' : '저장'}</button>
       </div>
     </div>
   );
@@ -337,7 +261,4 @@ const sideBtn = (active: boolean): React.CSSProperties => ({
 const xBtn: React.CSSProperties = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: '0.7rem', padding: '0 0.2rem', minHeight: 22, flexShrink: 0 };
 const ordBtn: React.CSSProperties = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '0.6rem', padding: '0 2px', lineHeight: 1, fontFamily: 'inherit', flexShrink: 0, minHeight: 22 };
 const miniBtn: React.CSSProperties = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '0.7rem', padding: '0.12rem 0.5rem', fontFamily: 'inherit' };
-const primaryBtn: React.CSSProperties = { padding: '0.42rem 1rem', borderRadius: 8, background: 'rgba(59,130,246,0.9)', border: 'none', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' };
 const ghostBtn: React.CSSProperties = { padding: '0.42rem 1rem', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' };
-const lbl: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 3, fontSize: '0.72rem', color: 'rgba(255,255,255,0.5)' };
-const inp: React.CSSProperties = { padding: '0.4rem 0.6rem', borderRadius: 7, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' };

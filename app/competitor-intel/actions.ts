@@ -20,60 +20,7 @@ async function requireUser() {
   return { user, profile, isAdmin: profileIsAdmin(profile), name };
 }
 
-export type TrendInput = {
-  id?: string;
-  company_name: string;
-  trend_type: string;
-  title: string;
-  summary?: string;
-  content?: string;
-  source_name?: string;
-  url?: string;
-  event_date?: string | null;
-  is_field?: boolean;
-  supplement?: string;
-};
-
-/** 동향 항목 추가/수정 — 승인된 전 사용자 */
-export async function saveTrend(input: TrendInput): Promise<{ error?: string; id?: string }> {
-  const auth = await requireUser();
-  if ('error' in auth) return { error: auth.error };
-  if (!input.company_name?.trim() || !input.title?.trim()) return { error: '회사명과 제목은 필수입니다.' };
-
-  const s = svc();
-  const row = {
-    company_name: input.company_name.trim(),
-    trend_type:   input.trend_type || '기타',
-    title:        input.title.trim(),
-    summary:      input.summary?.trim() || null,
-    content:      input.content?.trim() || null,
-    source_name:  input.is_field ? '현장청취' : (input.source_name?.trim() || null),
-    url:          input.url?.trim() || null,
-    event_date:   input.event_date || null,
-    is_field:     !!input.is_field,
-    supplement:   input.supplement?.trim() || null,
-    updated_at:   new Date().toISOString(),
-  };
-
-  if (input.id) {
-    // 작성자 또는 관리자만 수정
-    const { data: existing } = await s.from('competitor_trends').select('author_id').eq('id', input.id).single();
-    if (existing && existing.author_id !== auth.user.id && !auth.isAdmin) return { error: '작성자 또는 관리자만 수정할 수 있습니다.' };
-    const { error } = await s.from('competitor_trends').update(row).eq('id', input.id);
-    if (error) return { error: error.message };
-    revalidatePath('/competitor-intel');
-    return { id: input.id };
-  }
-
-  const { data, error } = await s.from('competitor_trends')
-    .insert({ ...row, author_id: auth.user.id, author_name: auth.name || null })
-    .select('id').single();
-  if (error) return { error: error.message };
-  revalidatePath('/competitor-intel');
-  return { id: data?.id as string };
-}
-
-/** 동향 삭제 — 작성자 또는 관리자 */
+/** 동향 삭제 — 작성자 또는 관리자 (자동수집 기사 정리용) */
 export async function deleteTrend(id: string): Promise<{ error?: string }> {
   const auth = await requireUser();
   if ('error' in auth) return { error: auth.error };
