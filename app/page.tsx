@@ -604,7 +604,7 @@ export default function Home() {
           display: 'flex', justifyContent: 'center', gap: '0.75rem',
           flexWrap: 'wrap', margin: '1.4rem 0 0',
         }}>
-          {orderedItems.map(({ href, icon, label, color, bg, bd, external, action }) => {
+          {orderedItems.map(({ href, icon, label, color, bg, bd, external, action }, i) => {
             const badge =
               (label === '오류신고'   && userErrorBadge > 0) ? userErrorBadge :
               (label === '오류신고함' && errorBadge > 0) ? errorBadge :
@@ -634,11 +634,16 @@ export default function Home() {
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.45rem',
                   padding: '1rem 1.1rem',
                   borderRadius: '16px',
-                  background: isTarget ? 'rgba(99,102,241,0.25)' : bg,
-                  border: isTarget
-                    ? '2px dashed rgba(99,102,241,0.8)'
+                  // 편집 모드(흔들리는) 아이콘은 배경색과 뚜렷이 구분되는 톤으로 — 편집 중임을 명확히
+                  background: isTarget
+                    ? 'rgba(99,102,241,0.30)'
                     : editMode
-                      ? `1px dashed ${bd}`
+                      ? 'rgba(129,140,248,0.22)'
+                      : bg,
+                  border: isTarget
+                    ? '2px dashed rgba(99,102,241,0.9)'
+                    : editMode
+                      ? '1px dashed rgba(165,180,252,0.6)'
                       : `1px solid ${bd}`,
                   minWidth: '68px',
                   minHeight: '80px',
@@ -656,7 +661,9 @@ export default function Home() {
                   boxShadow: isDragging ? '0 12px 28px rgba(0,0,0,0.45)' : undefined,
                   zIndex: isDragging ? 5 : undefined,
                   opacity: isTarget ? 0.6 : 1,
-                  animation: editMode && !isDragging ? 'navwiggle 0.4s ease-in-out infinite' : undefined,
+                  animation: editMode && !isDragging ? 'navwiggle 0.32s ease-in-out infinite' : undefined,
+                  // 아이콘마다 위상 살짝 다르게 → 자연스러운(기계적이지 않은) 흔들림
+                  animationDelay: editMode && !isDragging ? `${(i % 4) * 0.05}s` : undefined,
                 }}
                 onMouseEnter={e => {
                   if (editMode) return;
