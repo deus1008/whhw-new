@@ -386,6 +386,13 @@ select.auth-input { background-color: #1e293b; }
 /* ── Spinner ───────────────────────────────────────────── */
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* 홈 아이콘 편집 모드 — 네이티브(갤럭시/아이폰) 지글(wiggle) 효과 */
+@keyframes navwiggle {
+  0%   { transform: rotate(-1.6deg); }
+  50%  { transform: rotate(1.6deg); }
+  100% { transform: rotate(-1.6deg); }
+}
+
 .spinner {
   width: 16px;
   height: 16px;

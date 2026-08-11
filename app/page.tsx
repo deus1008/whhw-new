@@ -451,30 +451,63 @@ export default function Home() {
     localStorage.setItem('whhw-nav-order', JSON.stringify(labels));
   }
 
-  // 아이콘 재배치 — Pointer 이벤트(마우스+터치 통합). HTML5 드래그는 모바일 터치 미지원이라 사용 안 함.
-  const dragRef   = useRef<string | null>(null);
-  const targetRef = useRef<string | null>(null);
+  // 아이콘 재배치 — 갤럭시/아이폰 홈화면처럼 "길게 누르면(long-press) 아이콘이 들려서 드래그".
+  //   Pointer 이벤트(마우스+터치 통합). 편집 모드 밖: 롱프레스로 진입+그랩. 편집 모드 안: 즉시 드래그.
+  const dragRef        = useRef<string | null>(null);
+  const targetRef      = useRef<string | null>(null);
+  const pressTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pressStartRef  = useRef<{ x: number; y: number; id: number; el: HTMLElement } | null>(null);
+  const dragActiveRef  = useRef(false);
+  const suppressClick  = useRef(false);
+  const LONG_PRESS_MS  = 450;
+  const MOVE_CANCEL_PX = 10;
+
+  function clearPress() {
+    if (pressTimerRef.current) { clearTimeout(pressTimerRef.current); pressTimerRef.current = null; }
+  }
+
+  function activateDrag(label: string, el: HTMLElement, pid: number) {
+    dragActiveRef.current = true;
+    suppressClick.current = true;
+    dragRef.current = label; targetRef.current = null;
+    setEditMode(true);
+    setDragging(label); setDragTarget(null);
+    try { el.setPointerCapture(pid); } catch {}
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(25);
+  }
 
   function onTilePointerDown(e: React.PointerEvent, label: string) {
-    if (!editMode) return;
-    dragRef.current = label; targetRef.current = null;
-    setDragging(label); setDragTarget(null);
-    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+    const el = e.currentTarget as HTMLElement;
+    pressStartRef.current = { x: e.clientX, y: e.clientY, id: e.pointerId, el };
+    dragActiveRef.current = false;
+    clearPress();
+    if (editMode) {
+      activateDrag(label, el, e.pointerId);            // 이미 편집 모드 → 바로 그랩
+    } else {
+      pressTimerRef.current = setTimeout(() => activateDrag(label, el, e.pointerId), LONG_PRESS_MS);
+    }
   }
 
   function onTilePointerMove(e: React.PointerEvent) {
-    if (!editMode || !dragRef.current) return;
-    // 캡처된 포인터 좌표 아래의 타일을 찾아 대상으로 지정(elementFromPoint 는 캡처와 무관하게 실제 히트테스트)
+    if (!dragActiveRef.current) {
+      // 활성 전: 임계 이상 움직이면 롱프레스 취소(스크롤 등 정상 동작 허용)
+      const s = pressStartRef.current;
+      if (s && (Math.abs(e.clientX - s.x) > MOVE_CANCEL_PX || Math.abs(e.clientY - s.y) > MOVE_CANCEL_PX)) clearPress();
+      return;
+    }
+    e.preventDefault();
+    // 좌표 아래 타일 탐지(elementFromPoint 는 포인터 캡처와 무관하게 실제 히트테스트)
     const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
-    const tile = under?.closest('[data-navlabel]') as HTMLElement | null;
+    const tile  = under?.closest('[data-navlabel]') as HTMLElement | null;
     const label = tile?.getAttribute('data-navlabel') ?? null;
     const t = (label && label !== dragRef.current) ? label : null;
     targetRef.current = t;
     setDragTarget(t);
   }
 
-  function onTilePointerUp() {
-    if (!editMode) return;
+  function onTilePointerEnd() {
+    clearPress();
+    if (!dragActiveRef.current) return;
     const from = dragRef.current, to = targetRef.current;
     if (from && to && from !== to) {
       const fi = orderedItems.findIndex(i => i.label === from);
@@ -486,6 +519,7 @@ export default function Home() {
         saveOrder(next);
       }
     }
+    dragActiveRef.current = false;
     dragRef.current = null; targetRef.current = null;
     setDragging(null); setDragTarget(null);
   }
@@ -582,8 +616,10 @@ export default function Home() {
                 data-navlabel={label}
                 onPointerDown={e => onTilePointerDown(e, label)}
                 onPointerMove={onTilePointerMove}
-                onPointerUp={onTilePointerUp}
+                onPointerUp={onTilePointerEnd}
+                onPointerCancel={onTilePointerEnd}
                 onClick={() => {
+                  if (suppressClick.current) { suppressClick.current = false; return; }
                   if (editMode) return;
                   if (action === 'error-modal') {
                     if (!isLoggedIn) { showToast('로그인이 필요한 페이지입니다.\n우측 상단의 로그인 버튼을 눌러주세요.'); return; }
@@ -606,12 +642,17 @@ export default function Home() {
                   minWidth: '68px',
                   minHeight: '80px',
                   cursor: editMode ? 'grab' : 'pointer',
-                  transition: 'transform 0.15s, box-shadow 0.15s, opacity 0.15s',
+                  transition: 'transform 0.12s, box-shadow 0.15s, opacity 0.15s',
                   fontFamily: 'inherit',
-                  opacity: isDragging ? 0.35 : 1,
                   userSelect: 'none',
                   // 편집 모드에선 터치 드래그가 스크롤로 소비되지 않도록 차단
                   touchAction: editMode ? 'none' : undefined,
+                  // 잡은 아이콘은 "들린" 느낌(확대+그림자), 편집 모드 나머지는 살짝 흔들림(네이티브 지글)
+                  transform: isDragging ? 'scale(1.15)' : undefined,
+                  boxShadow: isDragging ? '0 12px 28px rgba(0,0,0,0.45)' : undefined,
+                  zIndex: isDragging ? 5 : undefined,
+                  opacity: isTarget ? 0.6 : 1,
+                  animation: editMode && !isDragging ? 'navwiggle 0.4s ease-in-out infinite' : undefined,
                 }}
                 onMouseEnter={e => {
                   if (editMode) return;
