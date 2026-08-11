@@ -645,7 +645,10 @@ export default function Home() {
                   cursor: editMode ? 'grab' : 'pointer',
                   transition: 'transform 0.12s, box-shadow 0.15s, opacity 0.15s',
                   fontFamily: 'inherit',
+                  // 모바일 롱프레스 시 텍스트 선택/복사 콜아웃 방지
                   userSelect: 'none',
+                  WebkitUserSelect: 'none',
+                  WebkitTouchCallout: 'none',
                   // 편집 모드에선 터치 드래그가 스크롤로 소비되지 않도록 차단
                   touchAction: editMode ? 'none' : undefined,
                   // 잡은 아이콘은 "들린" 느낌(확대+그림자), 편집 모드 나머지는 살짝 흔들림(네이티브 지글)
