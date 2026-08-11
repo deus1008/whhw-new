@@ -451,6 +451,19 @@ export default function Home() {
     localStorage.setItem('whhw-nav-order', JSON.stringify(labels));
   }
 
+  /** fromLabel 아이콘을 toLabel 위치로 이동 */
+  function moveItem(fromLabel: string, toLabel: string) {
+    if (fromLabel === toLabel) return;
+    const from = orderedItems.findIndex(i => i.label === fromLabel);
+    const to   = orderedItems.findIndex(i => i.label === toLabel);
+    if (from < 0 || to < 0) return;
+    const next = [...orderedItems];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    saveOrder(next);
+  }
+
+  // ── 데스크톱: HTML5 Drag & Drop ──
   function onDragStart(label: string) { setDragging(label); }
   function onDragEnd()                { setDragging(null); setDragTarget(null); }
 
@@ -460,13 +473,31 @@ export default function Home() {
   }
 
   function onDrop(toLabel: string) {
-    if (!dragging || dragging === toLabel) { setDragging(null); setDragTarget(null); return; }
-    const from = orderedItems.findIndex(i => i.label === dragging);
-    const to   = orderedItems.findIndex(i => i.label === toLabel);
-    const next = [...orderedItems];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-    saveOrder(next);
+    if (dragging) moveItem(dragging, toLabel);
+    setDragging(null);
+    setDragTarget(null);
+  }
+
+  // ── 모바일: 터치 기반 드래그 (HTML5 DnD는 터치 미지원) ──
+  function onTouchStart(label: string) {
+    if (!editMode) return;
+    setDragging(label);
+    setDragTarget(null);
+  }
+
+  function onTouchMove(e: React.TouchEvent) {
+    if (!editMode || !dragging) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const target = el?.closest('[data-nav-label]') as HTMLElement | null;
+    const label = target?.getAttribute('data-nav-label') ?? null;
+    setDragTarget(label && label !== dragging ? label : null);
+  }
+
+  function onTouchEnd() {
+    if (!editMode) return;
+    if (dragging && dragTarget) moveItem(dragging, dragTarget);
     setDragging(null);
     setDragTarget(null);
   }
@@ -560,11 +591,16 @@ export default function Home() {
             return (
               <button
                 key={label}
+                data-nav-label={label}
                 draggable={editMode}
                 onDragStart={() => onDragStart(label)}
                 onDragEnd={onDragEnd}
                 onDragOver={e => editMode && onDragOver(e, label)}
                 onDrop={() => editMode && onDrop(label)}
+                onTouchStart={() => onTouchStart(label)}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
+                onTouchCancel={onTouchEnd}
                 onClick={() => {
                   if (editMode) return;
                   if (action === 'error-modal') {
@@ -592,6 +628,9 @@ export default function Home() {
                   fontFamily: 'inherit',
                   opacity: isDragging ? 0.35 : 1,
                   userSelect: 'none',
+                  WebkitUserSelect: 'none',
+                  // 편집 모드에서 터치 드래그 시 브라우저 스크롤/제스처 방지
+                  touchAction: editMode ? 'none' : 'auto',
                 }}
                 onMouseEnter={e => {
                   if (editMode) return;
