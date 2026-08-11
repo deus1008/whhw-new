@@ -477,6 +477,7 @@ export default function Home() {
   }
 
   function onTilePointerDown(e: React.PointerEvent, label: string) {
+    if (!isLoggedIn) return;   // 재배치는 로그인 사용자만(편집 버튼과 조건 일치 — 편집 모드 이탈 불가 방지)
     const el = e.currentTarget as HTMLElement;
     pressStartRef.current = { x: e.clientX, y: e.clientY, id: e.pointerId, el };
     dragActiveRef.current = false;
