@@ -451,24 +451,43 @@ export default function Home() {
     localStorage.setItem('whhw-nav-order', JSON.stringify(labels));
   }
 
-  function onDragStart(label: string) { setDragging(label); }
-  function onDragEnd()                { setDragging(null); setDragTarget(null); }
+  // 아이콘 재배치 — Pointer 이벤트(마우스+터치 통합). HTML5 드래그는 모바일 터치 미지원이라 사용 안 함.
+  const dragRef   = useRef<string | null>(null);
+  const targetRef = useRef<string | null>(null);
 
-  function onDragOver(e: React.DragEvent, label: string) {
-    e.preventDefault();
-    if (label !== dragging) setDragTarget(label);
+  function onTilePointerDown(e: React.PointerEvent, label: string) {
+    if (!editMode) return;
+    dragRef.current = label; targetRef.current = null;
+    setDragging(label); setDragTarget(null);
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
   }
 
-  function onDrop(toLabel: string) {
-    if (!dragging || dragging === toLabel) { setDragging(null); setDragTarget(null); return; }
-    const from = orderedItems.findIndex(i => i.label === dragging);
-    const to   = orderedItems.findIndex(i => i.label === toLabel);
-    const next = [...orderedItems];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-    saveOrder(next);
-    setDragging(null);
-    setDragTarget(null);
+  function onTilePointerMove(e: React.PointerEvent) {
+    if (!editMode || !dragRef.current) return;
+    // 캡처된 포인터 좌표 아래의 타일을 찾아 대상으로 지정(elementFromPoint 는 캡처와 무관하게 실제 히트테스트)
+    const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+    const tile = under?.closest('[data-navlabel]') as HTMLElement | null;
+    const label = tile?.getAttribute('data-navlabel') ?? null;
+    const t = (label && label !== dragRef.current) ? label : null;
+    targetRef.current = t;
+    setDragTarget(t);
+  }
+
+  function onTilePointerUp() {
+    if (!editMode) return;
+    const from = dragRef.current, to = targetRef.current;
+    if (from && to && from !== to) {
+      const fi = orderedItems.findIndex(i => i.label === from);
+      const ti = orderedItems.findIndex(i => i.label === to);
+      if (fi >= 0 && ti >= 0) {
+        const next = [...orderedItems];
+        const [moved] = next.splice(fi, 1);
+        next.splice(ti, 0, moved);
+        saveOrder(next);
+      }
+    }
+    dragRef.current = null; targetRef.current = null;
+    setDragging(null); setDragTarget(null);
   }
 
   function showToast(msg: string) {
@@ -560,11 +579,10 @@ export default function Home() {
             return (
               <button
                 key={label}
-                draggable={editMode}
-                onDragStart={() => onDragStart(label)}
-                onDragEnd={onDragEnd}
-                onDragOver={e => editMode && onDragOver(e, label)}
-                onDrop={() => editMode && onDrop(label)}
+                data-navlabel={label}
+                onPointerDown={e => onTilePointerDown(e, label)}
+                onPointerMove={onTilePointerMove}
+                onPointerUp={onTilePointerUp}
                 onClick={() => {
                   if (editMode) return;
                   if (action === 'error-modal') {
@@ -592,6 +610,8 @@ export default function Home() {
                   fontFamily: 'inherit',
                   opacity: isDragging ? 0.35 : 1,
                   userSelect: 'none',
+                  // 편집 모드에선 터치 드래그가 스크롤로 소비되지 않도록 차단
+                  touchAction: editMode ? 'none' : undefined,
                 }}
                 onMouseEnter={e => {
                   if (editMode) return;
