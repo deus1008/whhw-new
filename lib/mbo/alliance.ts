@@ -95,6 +95,15 @@ async function loadAgg(svc: Svc, managers: string[], companyId: string | null, c
   return (data ?? []) as AggRow[];
 }
 
+// 전체 스코프(6인 합산) — 사전집계 뷰 전용 RPC(담당자 차원 없음).
+async function loadAggAll(svc: Svc, companyId: string | null, curYms: string[], prevYms: string[]): Promise<AggRow[]> {
+  const { data, error } = await svc.rpc('get_alliance_mbo_agg_all', {
+    p_company: companyId, p_cur_yms: curYms, p_prev_yms: prevYms,
+  });
+  if (error) throw error;
+  return (data ?? []) as AggRow[];
+}
+
 async function fetchContractCounts(svc: Svc, managers: string[], companyId: string | null, yms: string[]): Promise<Map<string, number>> {
   const cnt = new Map<string, number>();
   let from = 0; const P = 1000;
@@ -152,7 +161,9 @@ export async function deriveAllianceMbo(
     if (cache.has(scope)) return cache.get(scope)!;
     const managers = scope === 'all' ? ALLIANCE_REPS : [memberName];
     const [rows, nc] = await Promise.all([
-      loadAgg(svc, managers, companyId, curYms, prevYms),
+      scope === 'all'
+        ? loadAggAll(svc, companyId, curYms, prevYms)
+        : loadAgg(svc, managers, companyId, curYms, prevYms),
       fetchContractCounts(svc, managers, companyId, allYm),
     ]);
     const byI = new Map(rows.map(r => [Number(r.i), r]));
