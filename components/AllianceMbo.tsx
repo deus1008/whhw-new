@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { getAllianceMbo, setAllianceTargetGrowth } from '@/app/mbo/actions';
+import { useState } from 'react';
 import type { AllianceIndicator } from '@/lib/mbo/alliance';
 
 /* fyMonth(1~12) → 월 라벨(4월~3월) */
@@ -14,91 +13,47 @@ function rateRgb(r: number)   { return r >= 95 ? '96,165,250' : r >= 85 ? '251,1
 function rateLabel(r: number) { return r >= 95 ? '순조' : r >= 85 ? '주의' : '미흡'; }
 
 export default function AllianceMbo({
-  memberId, memberName, fyYear, companyId, canEdit, onToast,
+  memberName, fyYear, target, inds, loading, onSearch,
 }: {
-  memberId: string; memberName: string; fyYear: number; companyId: string | null;
-  canEdit: boolean; onToast: (m: string) => void;
+  memberName: string; fyYear: number; target: number;
+  inds: AllianceIndicator[] | null; loading: boolean; onSearch: () => void;
 }) {
-  const [inds, setInds]     = useState<AllianceIndicator[]>([]);
-  const [target, setTarget] = useState(0);
-  const [loading, setLoad]  = useState(false);
-
-  const load = useCallback(async () => {
-    setLoad(true);
-    try {
-      const r = await getAllianceMbo(memberId, memberName, fyYear, companyId);
-      setInds(r.indicators); setTarget(r.targetGrowth);
-    } catch (e) { console.error('[alliance-mbo]', e); }
-    finally { setLoad(false); }
-  }, [memberId, memberName, fyYear, companyId]);
-
-  useEffect(() => { load(); }, [load]);
+  // 미검색 상태
+  if (inds === null && !loading) {
+    return (
+      <div style={{ padding: '2.2rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <p style={{ fontSize: '1.6rem', margin: 0 }}>🔍</p>
+        <p style={{ fontSize: '0.86rem', margin: '0.5rem 0 0.9rem' }}>
+          <b style={{ color: '#a5b4fc' }}>{memberName}</b> · FY{fyYear} · 목표성장율 <b style={{ color: '#fbbf24' }}>{nf(target)}%</b>
+        </p>
+        <button onClick={onSearch}
+          style={{ padding: '0.45rem 1.3rem', borderRadius: 9, border: 'none', cursor: 'pointer',
+            background: 'linear-gradient(135deg,#3b82f6,#6366f1)', color: '#fff', fontSize: '0.85rem', fontWeight: 700, fontFamily: 'inherit' }}>
+          🔍 검색하여 지표 산출
+        </button>
+      </div>
+    );
+  }
+  if (loading && inds === null) {
+    return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>불러오는 중…</div>;
+  }
+  if (!inds || inds.length === 0) {
+    return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>산출할 데이터가 없습니다.</div>;
+  }
 
   const valueInds  = inds.filter(i => i.mode === 'value');
   const growthInds = inds.filter(i => i.mode === 'growth');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      {/* 상단 — 목표성장율 일괄 입력 */}
-      <TargetGrowthBar
-        memberName={memberName} fyYear={fyYear} target={target} canEdit={canEdit}
-        onSave={async (pct) => {
-          const r = await setAllianceTargetGrowth(memberId, fyYear, pct);
-          if (r.error) onToast('⚠ ' + r.error);
-          else { onToast('✓ 목표성장율이 저장되었습니다.'); load(); }
-        }} />
-
-      {loading && inds.length === 0 ? (
-        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>불러오는 중…</div>
-      ) : inds.length === 0 ? (
-        <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>산출할 데이터가 없습니다.</div>
-      ) : (
-        <>
-          <Section
-            title="실적 지표"
-            desc={`목표 = 전년 동월 실적 × (1 + 목표성장율 ${nf(target)}%)`}
-            inds={valueInds} />
-          <Section
-            title="성장율 지표"
-            desc={`목표 = 목표성장율 ${nf(target)}% · 실적 = 실제 달성 성장율(당기 vs 전년, 입력월 기준) · 거래처·처방처별은 동일 대상 기준`}
-            inds={growthInds} />
-        </>
-      )}
-    </div>
-  );
-}
-
-function TargetGrowthBar({ memberName, fyYear, target, canEdit, onSave }: {
-  memberName: string; fyYear: number; target: number; canEdit: boolean; onSave: (pct: number) => void;
-}) {
-  const [val, setVal] = useState(String(target));
-  useEffect(() => { setVal(String(target)); }, [target]);
-  const commit = () => {
-    const n = Number(val.replace(/[, %]/g, ''));
-    if (isNaN(n) || n === target) { setVal(String(target)); return; }
-    onSave(Math.round(n * 100) / 100);
-  };
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: '0.7rem', flexWrap: 'wrap',
-      background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.25)',
-      borderRadius: 12, padding: '0.75rem 0.95rem',
-    }}>
-      <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fbbf24' }}>FY{fyYear} 목표성장율</span>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <input value={val} disabled={!canEdit}
-          onChange={e => setVal(e.target.value)}
-          onBlur={commit}
-          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-          style={{ width: 68, textAlign: 'right', padding: '0.3rem 0.5rem', borderRadius: 7,
-            background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.4)',
-            color: '#fbbf24', fontSize: '0.95rem', fontWeight: 700, outline: 'none', fontFamily: 'inherit' }} />
-        <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fbbf24' }}>%</span>
-      </label>
-      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-        <b style={{ color: '#a5b4fc' }}>{memberName}</b>의 모든 지표에 일괄 적용 · 실적은 정산·계약 DB 자동 산출(선택 위탁사 기준)
-        {!canEdit && ' · (관리자만 수정 가능)'}
-      </span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', opacity: loading ? 0.55 : 1, transition: 'opacity .15s' }}>
+      <Section
+        title="실적 지표"
+        desc={`목표 = 전년 동월 실적 × (1 + 목표성장율 ${nf(target)}%) · 실적은 정산·계약 DB 자동 산출`}
+        inds={valueInds} />
+      <Section
+        title="성장율 지표"
+        desc={`목표 = 목표성장율 ${nf(target)}% · 실적 = 실제 달성 성장율(당기 vs 전년, 입력월 기준) · 거래처·처방처별은 동일 대상 기준`}
+        inds={growthInds} />
     </div>
   );
 }

@@ -680,6 +680,19 @@ export async function getAllianceMbo(
   return { targetGrowth, indicators };
 }
 
+/** 목표성장율(%)만 조회 — 검색 전 상단 표시용(경량). */
+export async function getAllianceTargetGrowth(memberId: string, fyYear: number): Promise<number> {
+  const sb = serviceClient();
+  const { data } = await sb
+    .from('mbo_alliance_growth')
+    .select('growth_pct')
+    .eq('member_id', memberId)
+    .eq('fy_year', fyYear)
+    .eq('indicator', TARGET_GROWTH_KEY)
+    .maybeSingle();
+  return Number((data as { growth_pct: number } | null)?.growth_pct ?? 0);
+}
+
 /** 목표성장율(%) 저장 — 해당 멤버·회계연도의 전 지표에 일괄 적용. */
 export async function setAllianceTargetGrowth(
   memberId: string,

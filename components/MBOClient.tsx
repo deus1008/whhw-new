@@ -15,8 +15,12 @@ import {
   reorderMboTargets,
   copyMboTargets,
   importEtcTargetsFromDoc,
+  getAllianceMbo,
+  getAllianceTargetGrowth,
+  setAllianceTargetGrowth,
 } from '@/app/mbo/actions';
 import type { MonthlyActual } from '@/app/mbo/actions';
+import type { AllianceIndicator } from '@/lib/mbo/alliance';
 import AllianceMbo from '@/components/AllianceMbo';
 
 /* ── 회계연도(FY) 유틸
@@ -222,6 +226,43 @@ export default function MBOClient({
   // 얼라이언스 직원(멤버 목록 = company_id 없는 직원) → 지표 DB 자동 산출 화면
   const isAlliance = members.some(m => m.id === selectedId);
 
+  /* ── 얼라이언스: 목표성장율(상단 표시) + 검색 게이트 ── */
+  const [allTarget,   setAllTarget]   = useState(0);
+  const [allInds,     setAllInds]     = useState<AllianceIndicator[] | null>(null); // null = 미검색
+  const [allLoading,  setAllLoading]  = useState(false);
+  const allCanEdit = isAdmin || selectedId === currentUserId;
+
+  // 멤버·회계연도 변경 시: 목표성장율만 경량 로드, 기존 검색결과는 숨김
+  useEffect(() => {
+    if (!isAlliance) return;
+    setAllInds(null);
+    let alive = true;
+    getAllianceTargetGrowth(selectedId, fyYear)
+      .then(t => { if (alive) setAllTarget(t); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [isAlliance, selectedId, fyYear]);
+
+  const runAllianceSearch = useCallback(async () => {
+    setAllLoading(true);
+    try {
+      const r = await getAllianceMbo(selectedId, selectedName, fyYear, companyId);
+      setAllTarget(r.targetGrowth);
+      setAllInds(r.indicators);
+    } catch (e) {
+      console.error('[alliance-mbo]', e);
+      showToast('⚠ 산출 중 오류가 발생했습니다.');
+    } finally { setAllLoading(false); }
+  }, [selectedId, selectedName, fyYear, companyId]);
+
+  async function saveAllianceTarget(pct: number) {
+    const r = await setAllianceTargetGrowth(selectedId, fyYear, pct);
+    if (r.error) { showToast('⚠ ' + r.error); return; }
+    setAllTarget(pct);
+    showToast('✓ 목표성장율이 저장되었습니다.');
+    if (allInds !== null) runAllianceSearch(); // 이미 검색했으면 즉시 반영
+  }
+
   /* ── 달성률 전체 평균 (숫자 항목만) — 월별 데이터가 있으면 누적목표 기준 ── */
   const rateOf = (t: MboTarget): number | null => {
     const mm = monthlyMap[t.id] ?? [];
@@ -256,9 +297,20 @@ export default function MBOClient({
           />
         </div>
 
-        {/* 컨트롤 행 */}
+        {/* 컨트롤 행 — 얼라이언스: [사업기] [목표성장율] [이름] [검색] */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', alignItems: 'center' }}>
-          {/* 지역장 선택 (admin) */}
+          {/* 회계연도(사업기) — 항상 최좌측 */}
+          <select value={fyYear} onChange={e => setFyYear(Number(e.target.value))} style={selectStyle}>
+            {FY_YEARS.map(y => <option key={y} value={y}>FY{y}</option>)}
+          </select>
+
+          {isAlliance && (
+            <TargetGrowthInput
+              fyYear={fyYear} value={allTarget} canEdit={allCanEdit} onSave={saveAllianceTarget}
+            />
+          )}
+
+          {/* 담당자 선택 (admin) */}
           {isAdmin && (
             <select
               value={selectedId}
@@ -271,10 +323,19 @@ export default function MBOClient({
             </select>
           )}
 
-          {/* 회계연도 */}
-          <select value={fyYear} onChange={e => setFyYear(Number(e.target.value))} style={selectStyle}>
-            {FY_YEARS.map(y => <option key={y} value={y}>FY{y}</option>)}
-          </select>
+          {isAlliance && (
+            <button
+              onClick={runAllianceSearch}
+              disabled={allLoading}
+              style={{
+                padding: '0.4rem 1.1rem', borderRadius: 8, cursor: allLoading ? 'not-allowed' : 'pointer',
+                background: allLoading ? 'rgba(96,165,250,0.25)' : 'linear-gradient(135deg,#3b82f6,#6366f1)',
+                border: 'none', color: '#fff', fontSize: '0.82rem', fontFamily: 'inherit', fontWeight: 700, whiteSpace: 'nowrap',
+              }}
+            >
+              {allLoading ? '⏳ 산출 중…' : '🔍 검색'}
+            </button>
+          )}
 
           {/* 목표 복사 (admin, 멤버 2명 이상) — 수동 목표 전용 */}
           {isAdmin && !isAlliance && members.length > 1 && (
@@ -314,12 +375,12 @@ export default function MBOClient({
         )}
       </div>
 
-      {/* ── 얼라이언스 자동 MBO (지표 DB 산출) ── */}
+      {/* ── 얼라이언스 자동 MBO (지표 DB 산출) — 검색 시 표시 ── */}
       {isAlliance ? (
         <div style={cardStyle}>
           <AllianceMbo
-            memberId={selectedId} memberName={selectedName} fyYear={fyYear} companyId={companyId}
-            canEdit={isAdmin || selectedId === currentUserId} onToast={showToast}
+            memberName={selectedName} fyYear={fyYear} target={allTarget}
+            inds={allInds} loading={allLoading} onSearch={runAllianceSearch}
           />
         </div>
       ) : (<>
@@ -1047,6 +1108,36 @@ function MonthlyGrid({
 /* ════════════════════════════════════════════
    목표 복사 패널
 ════════════════════════════════════════════ */
+/* 상단 목표성장율 입력(얼라이언스) */
+function TargetGrowthInput({ fyYear, value, canEdit, onSave }: {
+  fyYear: number; value: number; canEdit: boolean; onSave: (pct: number) => void;
+}) {
+  const [val, setVal] = useState(String(value));
+  useEffect(() => { setVal(String(value)); }, [value]);
+  const commit = () => {
+    const n = Number(val.replace(/[, %]/g, ''));
+    if (isNaN(n) || n === value) { setVal(String(value)); return; }
+    onSave(Math.round(n * 100) / 100);
+  };
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)',
+      borderRadius: 8, padding: '0.24rem 0.6rem',
+    }}>
+      <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#fbbf24', whiteSpace: 'nowrap' }}>FY{fyYear} 목표성장율</span>
+      <input value={val} disabled={!canEdit}
+        onChange={e => setVal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        style={{ width: 52, textAlign: 'right', padding: '0.18rem 0.35rem', borderRadius: 6,
+          background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.4)',
+          color: '#fbbf24', fontSize: '0.85rem', fontWeight: 700, outline: 'none', fontFamily: 'inherit' }} />
+      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fbbf24' }}>%</span>
+    </span>
+  );
+}
+
 function CopyPanel({
   fromUserId, fromEmail, fyYear, members, companyId, onCopied, onToast,
 }: {
