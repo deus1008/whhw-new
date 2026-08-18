@@ -276,8 +276,8 @@ export default function MBOClient({
             {FY_YEARS.map(y => <option key={y} value={y}>FY{y}</option>)}
           </select>
 
-          {/* 목표 복사 (admin, 멤버 2명 이상) */}
-          {isAdmin && members.length > 1 && (
+          {/* 목표 복사 (admin, 멤버 2명 이상) — 수동 목표 전용 */}
+          {isAdmin && !isAlliance && members.length > 1 && (
             <CopyPanel
               fromUserId={selectedId}
               fromEmail={selectedName}
@@ -289,8 +289,8 @@ export default function MBOClient({
             />
           )}
 
-          {/* ETC목표 가져오기 (admin) */}
-          {isAdmin && (
+          {/* ETC목표 가져오기 (admin) — 수동 목표 전용 */}
+          {isAdmin && !isAlliance && (
             <button
               onClick={handleImportEtc}
               disabled={importing}

@@ -658,35 +658,39 @@ export async function updateMboActual(
 ════════════════════════════════════════════ */
 
 /** 얼라이언스 직원의 지표별 월별 목표·실적 산출. 목표 = 전년 실적 × (1+성장율). */
+/** 목표성장율(%) 저장 키 — 지표 일괄 적용. */
+const TARGET_GROWTH_KEY = '__target';
+
 export async function getAllianceMbo(
   memberId: string,
   memberName: string,
   fyYear: number,
   companyId: string | null,
-): Promise<AllianceIndicator[]> {
+): Promise<{ targetGrowth: number; indicators: AllianceIndicator[] }> {
   const sb = serviceClient();
   const { data } = await sb
     .from('mbo_alliance_growth')
-    .select('indicator, growth_pct')
+    .select('growth_pct')
     .eq('member_id', memberId)
-    .eq('fy_year', fyYear);
-  const growthMap: Record<string, number> = {};
-  for (const r of data ?? []) growthMap[String((r as { indicator: string }).indicator)] = Number((r as { growth_pct: number }).growth_pct ?? 0);
-  return deriveAllianceMbo(sb, memberName, fyYear, companyId, growthMap);
+    .eq('fy_year', fyYear)
+    .eq('indicator', TARGET_GROWTH_KEY)
+    .maybeSingle();
+  const targetGrowth = Number((data as { growth_pct: number } | null)?.growth_pct ?? 0);
+  const indicators = await deriveAllianceMbo(sb, memberName, fyYear, companyId, targetGrowth);
+  return { targetGrowth, indicators };
 }
 
-/** 지표별 평균 성장율(%) 저장. */
-export async function setAllianceGrowth(
+/** 목표성장율(%) 저장 — 해당 멤버·회계연도의 전 지표에 일괄 적용. */
+export async function setAllianceTargetGrowth(
   memberId: string,
   fyYear: number,
-  indicator: string,
   growthPct: number,
 ): Promise<{ error?: string }> {
   const auth = await getRole();
   if (!auth) return { error: '로그인이 필요합니다.' };
   const sb = serviceClient();
   const { error } = await sb.from('mbo_alliance_growth').upsert(
-    { member_id: memberId, fy_year: fyYear, indicator, growth_pct: growthPct, updated_at: new Date().toISOString() },
+    { member_id: memberId, fy_year: fyYear, indicator: TARGET_GROWTH_KEY, growth_pct: growthPct, updated_at: new Date().toISOString() },
     { onConflict: 'member_id,fy_year,indicator' },
   );
   if (error) return { error: error.message };
