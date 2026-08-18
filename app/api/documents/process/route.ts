@@ -298,6 +298,9 @@ export async function POST(request: Request) {
     // 대시보드 집계 캐시 무효화 + /weekly 재검증
     await invalidateDashboardCache(supabase, docCompanyId);
     revalidatePath('/weekly');
+    // 얼라이언스 MBO 월별 롤업 갱신(정산 원장 변경 반영)
+    const { error: rollupErr } = await supabase.rpc('refresh_alliance_rollup');
+    if (rollupErr) console.warn(`[process:${documentId}] 롤업 갱신 실패(무시): ${rollupErr.message}`);
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     return Response.json({ ok: true, inserted: rows.length, total });
   }

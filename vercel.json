@@ -39,6 +39,10 @@
       "schedule": "0 15 * * *"
     },
     {
+      "path": "/api/cron/refresh-alliance-rollup",
+      "schedule": "40 16 * * *"
+    },
+    {
       "path": "/api/cron/warm-dashboard",
       "schedule": "*/20 * * * *"
     },
