@@ -4,6 +4,9 @@
       "memory": 2048,
       "maxDuration": 300
     },
+    "app/mbo/page": {
+      "maxDuration": 60
+    },
     "app/api/documents/process/route.ts": {
       "memory": 2048,
       "maxDuration": 300

@@ -80,20 +80,19 @@ function fyMonths(fyYear: number): { fm: number; ym: string }[] {
   });
 }
 
-async function fetchSettle(svc: Svc, managers: string[], companyId: string | null, yms: string[]) {
-  const rows: { prescription_month: string; prescription_amount: number; settlement_amount: number; hospital_name: string | null; cso_name: string | null }[] = [];
-  let from = 0; const P = 1000;
-  while (true) {
-    let q = svc.from('commission_settlements')
-      .select('prescription_month, prescription_amount, settlement_amount, hospital_name, cso_name')
-      .in('manager', managers).in('prescription_month', yms).range(from, from + P - 1);
-    if (companyId) q = q.eq('company_id', companyId);
-    const { data } = await q;
-    if (!data?.length) break;
-    rows.push(...(data as typeof rows));
-    if (data.length < P) break; from += P;
-  }
-  return rows;
+/* 정산 원장 월별 집계 — DB(RPC)에서 수행. 12개월 원자료(당기·전년 + same-store) 반환. */
+export type AggRow = {
+  i: number; cur_ym: string; prev_ym: string;
+  presc: number; settle: number; hosp_cnt: number; cso_cnt: number;
+  prev_presc: number; prev_settle: number; prev_hosp_cnt: number; prev_cso_cnt: number;
+  ss_cso_cur: number; ss_cso_prev: number; ss_hosp_cur: number; ss_hosp_prev: number;
+};
+async function loadAgg(svc: Svc, managers: string[], companyId: string | null, curYms: string[], prevYms: string[]): Promise<AggRow[]> {
+  const { data, error } = await svc.rpc('get_alliance_mbo_agg', {
+    p_managers: managers, p_company: companyId, p_cur_yms: curYms, p_prev_yms: prevYms,
+  });
+  if (error) throw error;
+  return (data ?? []) as AggRow[];
 }
 
 async function fetchContractCounts(svc: Svc, managers: string[], companyId: string | null, yms: string[]): Promise<Map<string, number>> {
@@ -113,56 +112,27 @@ async function fetchContractCounts(svc: Svc, managers: string[], companyId: stri
   return cnt;
 }
 
-/* ym별 지표값 집계 */
-type YmAgg = {
-  presc: number; settle: number;
-  hosp: Set<string>; cso: Set<string>;
-  csoPresc: Map<string, number>; hospPresc: Map<string, number>; // 원(won) 단위 처방액
-};
-function aggregate(rows: Awaited<ReturnType<typeof fetchSettle>>): Map<string, YmAgg> {
-  const m = new Map<string, YmAgg>();
-  for (const r of rows) {
-    const ym = r.prescription_month; if (!ym) continue;
-    let a = m.get(ym);
-    if (!a) { a = { presc: 0, settle: 0, hosp: new Set(), cso: new Set(), csoPresc: new Map(), hospPresc: new Map() }; m.set(ym, a); }
-    const amt = Number(r.prescription_amount ?? 0);
-    a.presc  += amt;
-    a.settle += Number(r.settlement_amount ?? 0);
-    if (r.hospital_name) { a.hosp.add(r.hospital_name); a.hospPresc.set(r.hospital_name, (a.hospPresc.get(r.hospital_name) ?? 0) + amt); }
-    if (r.cso_name)      { a.cso.add(r.cso_name);      a.csoPresc.set(r.cso_name,      (a.csoPresc.get(r.cso_name) ?? 0) + amt); }
-  }
-  return m;
-}
-
 const MILLION = 1_000_000;
-function indValue(indKey: IndKey, agg: YmAgg | undefined, nc: number): number {
-  switch (indKey) {
-    case 'prescription': return Math.round((agg?.presc ?? 0) / MILLION);
-    case 'settlement':   return Math.round((agg?.settle ?? 0) / MILLION);
-    case 'hospital_cnt': return agg?.hosp.size ?? 0;
-    case 'cso_cnt':      return agg?.cso.size ?? 0;
-    case 'new_contract': return nc;
-  }
-}
+const rMil = (won: number) => Math.round(Number(won ?? 0) / MILLION);
 
-/* 동일 대상(전·당기 모두 존재)의 처방액 합(백만원) */
-function sameStore(cur?: Map<string, number>, prev?: Map<string, number>): { cur: number; prev: number } {
-  if (!cur || !prev) return { cur: 0, prev: 0 };
-  let c = 0, p = 0;
-  for (const [k, pv] of prev) {
-    const cv = cur.get(k);
-    if (cv !== undefined) { c += cv; p += pv; }
+/* value 지표의 당기·전년 값 */
+function valueOf(indKey: IndKey, row: AggRow, curNc: number, prevNc: number): { cur: number; prev: number } {
+  switch (indKey) {
+    case 'prescription': return { cur: rMil(row.presc),   prev: rMil(row.prev_presc) };
+    case 'settlement':   return { cur: rMil(row.settle),  prev: rMil(row.prev_settle) };
+    case 'hospital_cnt': return { cur: Number(row.hosp_cnt), prev: Number(row.prev_hosp_cnt) };
+    case 'cso_cnt':      return { cur: Number(row.cso_cnt),  prev: Number(row.prev_cso_cnt) };
+    case 'new_contract': return { cur: curNc, prev: prevNc };
   }
-  return { cur: Math.round(c / MILLION), prev: Math.round(p / MILLION) };
 }
 
 /* growth 지표의 당기·전년 원자료 */
-function growthRaw(key: GrowthKey, cur: YmAgg | undefined, prev: YmAgg | undefined): { cur: number; prev: number } {
+function growthOf(key: GrowthKey, row: AggRow): { cur: number; prev: number } {
   switch (key) {
-    case 'presc_growth':      return { cur: Math.round((cur?.presc ?? 0) / MILLION), prev: Math.round((prev?.presc ?? 0) / MILLION) };
-    case 'hosp_growth':       return { cur: cur?.hosp.size ?? 0, prev: prev?.hosp.size ?? 0 };
-    case 'presc_growth_cso':  return sameStore(cur?.csoPresc,  prev?.csoPresc);
-    case 'presc_growth_hosp': return sameStore(cur?.hospPresc, prev?.hospPresc);
+    case 'presc_growth':      return { cur: rMil(row.presc),        prev: rMil(row.prev_presc) };
+    case 'hosp_growth':       return { cur: Number(row.hosp_cnt),   prev: Number(row.prev_hosp_cnt) };
+    case 'presc_growth_cso':  return { cur: rMil(row.ss_cso_cur),   prev: rMil(row.ss_cso_prev) };
+    case 'presc_growth_hosp': return { cur: rMil(row.ss_hosp_cur),  prev: rMil(row.ss_hosp_prev) };
   }
 }
 
@@ -173,41 +143,42 @@ export async function deriveAllianceMbo(
 ): Promise<AllianceIndicator[]> {
   const inds = indicatorsForMember(memberName);
   const curM = fyMonths(fyYear), prevM = fyMonths(fyYear - 1);
-  const allYm = [...curM, ...prevM].map(x => x.ym);
+  const curYms = curM.map(x => x.ym), prevYms = prevM.map(x => x.ym);
+  const allYm = [...curYms, ...prevYms];
 
-  // 스코프별 데이터 1회 로드(캐시)
-  const cache = new Map<Scope, { agg: Map<string, YmAgg>; nc: Map<string, number> }>();
+  // 스코프별 데이터 1회 로드(캐시) — RPC 집계 + 신규계약 건수.
+  const cache = new Map<Scope, { rows: AggRow[]; nc: Map<string, number> }>();
   const loadScope = async (scope: Scope) => {
     if (cache.has(scope)) return cache.get(scope)!;
     const managers = scope === 'all' ? ALLIANCE_REPS : [memberName];
     const [rows, nc] = await Promise.all([
-      fetchSettle(svc, managers, companyId, allYm),
+      loadAgg(svc, managers, companyId, curYms, prevYms),
       fetchContractCounts(svc, managers, companyId, allYm),
     ]);
-    const v = { agg: aggregate(rows), nc }; cache.set(scope, v); return v;
+    const byI = new Map(rows.map(r => [Number(r.i), r]));
+    const zero: AggRow = { i: 0, cur_ym: '', prev_ym: '', presc: 0, settle: 0, hosp_cnt: 0, cso_cnt: 0, prev_presc: 0, prev_settle: 0, prev_hosp_cnt: 0, prev_cso_cnt: 0, ss_cso_cur: 0, ss_cso_prev: 0, ss_hosp_cur: 0, ss_hosp_prev: 0 };
+    const ordered = curM.map((_, idx) => byI.get(idx + 1) ?? zero);
+    const v = { rows: ordered, nc }; cache.set(scope, v); return v;
   };
 
   const out: AllianceIndicator[] = [];
   for (const ind of inds) {
-    const { agg, nc } = await loadScope(ind.scope);
+    const { rows, nc } = await loadScope(ind.scope);
 
-    let months: MonthCell[];
-    if (ind.mode === 'value') {
-      months = curM.map(({ fm, ym }, i) => {
-        const actual = indValue(ind.indKey as IndKey, agg.get(ym), nc.get(ym) ?? 0);
-        const prevYm = prevM[i].ym;
-        const prevActual = indValue(ind.indKey as IndKey, agg.get(prevYm), nc.get(prevYm) ?? 0);
-        const target = Math.round(prevActual * (1 + targetGrowth / 100));
-        return { fyMonth: fm, target, actual };
-      });
-    } else {
-      months = curM.map(({ fm, ym }, i) => {
-        const { cur, prev } = growthRaw(ind.indKey as GrowthKey, agg.get(ym), agg.get(prevM[i].ym));
-        // 실적 입력월(당기>0 & 전년>0)만 성장율 산출 — 미도래·무기저월은 제외.
-        const actual = cur > 0 && prev > 0 ? Math.round(((cur - prev) / prev) * 1000) / 10 : null;
-        return { fyMonth: fm, target: targetGrowth, actual, curRaw: cur, prevRaw: prev };
-      });
-    }
+    const months: MonthCell[] = curM.map(({ fm, ym }, i) => {
+      const row = rows[i];
+      const prevYm = prevM[i].ym;
+      if (ind.mode === 'value') {
+        const { cur, prev } = valueOf(ind.indKey as IndKey, row, nc.get(ym) ?? 0, nc.get(prevYm) ?? 0);
+        const target = Math.round(prev * (1 + targetGrowth / 100));
+        return { fyMonth: fm, target, actual: cur };
+      }
+      const { cur, prev } = growthOf(ind.indKey as GrowthKey, row);
+      // 실적 입력월(당기>0 & 전년>0)만 성장율 산출 — 미도래·무기저월은 제외.
+      const actual = cur > 0 && prev > 0 ? Math.round(((cur - prev) / prev) * 1000) / 10 : null;
+      return { fyMonth: fm, target: targetGrowth, actual, curRaw: cur, prevRaw: prev };
+    });
+
     out.push({ storeKey: ind.storeKey, indKey: ind.indKey, mode: ind.mode, label: ind.label, unit: ind.unit, scope: ind.scope, growthPct: targetGrowth, months });
   }
   return out;
