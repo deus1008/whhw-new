@@ -259,6 +259,8 @@ BEGIN
 END $$;
 
 -- 전체 스코프 RPC — KPI 뷰에서 12개월만 SELECT(셀프조인 없음).
+--   당월 실적·same-store = cur_ym 행. 전년 실적(목표 산출용) = prev_ym 행의 당월 실적.
+--   → 아직 실적이 없는 미도래월(예: 7~3월)도 전년월 행에서 전년값을 가져와 목표 표기.
 CREATE OR REPLACE FUNCTION public.get_alliance_mbo_agg_all(
   p_company  uuid,
   p_cur_yms  text[],
@@ -271,12 +273,10 @@ AS $$
     SELECT i, cy AS cur_ym, py AS prev_ym
     FROM unnest(p_cur_yms, p_prev_yms) WITH ORDINALITY AS t(cy, py, i)
   ),
-  k AS (
+  agg AS (
     SELECT ym,
       SUM(presc) AS presc, SUM(settle) AS settle,
       SUM(hosp_cnt) AS hosp_cnt, SUM(cso_cnt) AS cso_cnt,
-      SUM(prev_presc) AS prev_presc, SUM(prev_settle) AS prev_settle,
-      SUM(prev_hosp_cnt) AS prev_hosp_cnt, SUM(prev_cso_cnt) AS prev_cso_cnt,
       SUM(ss_cso_cur) AS ss_cso_cur, SUM(ss_cso_prev) AS ss_cso_prev,
       SUM(ss_hosp_cur) AS ss_hosp_cur, SUM(ss_hosp_prev) AS ss_hosp_prev
     FROM mv_alliance_all_kpi
@@ -285,12 +285,14 @@ AS $$
   )
   SELECT COALESCE(jsonb_agg(jsonb_build_object(
     'i', u.i, 'cur_ym', u.cur_ym, 'prev_ym', u.prev_ym,
-    'presc', COALESCE(k.presc,0), 'settle', COALESCE(k.settle,0),
-    'hosp_cnt', COALESCE(k.hosp_cnt,0), 'cso_cnt', COALESCE(k.cso_cnt,0),
-    'prev_presc', COALESCE(k.prev_presc,0), 'prev_settle', COALESCE(k.prev_settle,0),
-    'prev_hosp_cnt', COALESCE(k.prev_hosp_cnt,0), 'prev_cso_cnt', COALESCE(k.prev_cso_cnt,0),
-    'ss_cso_cur', COALESCE(k.ss_cso_cur,0), 'ss_cso_prev', COALESCE(k.ss_cso_prev,0),
-    'ss_hosp_cur', COALESCE(k.ss_hosp_cur,0), 'ss_hosp_prev', COALESCE(k.ss_hosp_prev,0)
+    'presc', COALESCE(c.presc,0), 'settle', COALESCE(c.settle,0),
+    'hosp_cnt', COALESCE(c.hosp_cnt,0), 'cso_cnt', COALESCE(c.cso_cnt,0),
+    'prev_presc', COALESCE(p.presc,0), 'prev_settle', COALESCE(p.settle,0),
+    'prev_hosp_cnt', COALESCE(p.hosp_cnt,0), 'prev_cso_cnt', COALESCE(p.cso_cnt,0),
+    'ss_cso_cur', COALESCE(c.ss_cso_cur,0), 'ss_cso_prev', COALESCE(c.ss_cso_prev,0),
+    'ss_hosp_cur', COALESCE(c.ss_hosp_cur,0), 'ss_hosp_prev', COALESCE(c.ss_hosp_prev,0)
   ) ORDER BY u.i), '[]'::jsonb)
-  FROM u LEFT JOIN k ON k.ym = u.cur_ym;
+  FROM u
+  LEFT JOIN agg c ON c.ym = u.cur_ym
+  LEFT JOIN agg p ON p.ym = u.prev_ym;
 $$;
