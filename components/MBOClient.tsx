@@ -17,6 +17,7 @@ import {
   importEtcTargetsFromDoc,
 } from '@/app/mbo/actions';
 import type { MonthlyActual } from '@/app/mbo/actions';
+import AllianceMbo from '@/components/AllianceMbo';
 
 /* ── 회계연도(FY) 유틸
    FY2026 = 2026-04-01 ~ 2027-03-31
@@ -218,6 +219,8 @@ export default function MBOClient({
 
   /* ── 연간 요약: 월별 항목 합산 ── */
   const selectedName = members.find(m => m.id === selectedId)?.name ?? currentUserEmail;
+  // 얼라이언스 직원(멤버 목록 = company_id 없는 직원) → 지표 DB 자동 산출 화면
+  const isAlliance = members.some(m => m.id === selectedId);
 
   /* ── 달성률 전체 평균 (숫자 항목만) — 월별 데이터가 있으면 누적목표 기준 ── */
   const rateOf = (t: MboTarget): number | null => {
@@ -311,6 +314,15 @@ export default function MBOClient({
         )}
       </div>
 
+      {/* ── 얼라이언스 자동 MBO (지표 DB 산출) ── */}
+      {isAlliance ? (
+        <div style={cardStyle}>
+          <AllianceMbo
+            memberId={selectedId} memberName={selectedName} fyYear={fyYear} companyId={companyId}
+            canEdit={isAdmin || selectedId === currentUserId} onToast={showToast}
+          />
+        </div>
+      ) : (<>
       {/* ── 목표 테이블 ── */}
       <div style={cardStyle}>
         {loading ? (
@@ -376,6 +388,7 @@ export default function MBOClient({
           onToast={showToast}
         />
       )}
+      </>)}
 
       {/* ── 토스트 ── */}
       {toast && (

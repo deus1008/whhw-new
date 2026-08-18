@@ -4,6 +4,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { getRoles } from '@/lib/roles';
+import { deriveAllianceMbo, type AllianceIndicator } from '@/lib/mbo/alliance';
 import * as XLSX from 'xlsx';
 
 export type MboTarget = {
@@ -647,6 +648,47 @@ export async function updateMboActual(
     .update({ actual_value: actualValue, note, updated_at: new Date().toISOString() })
     .eq('id', id);
 
+  if (error) return { error: error.message };
+  revalidatePath('/mbo');
+  return {};
+}
+
+/* ════════════════════════════════════════════
+   얼라이언스 MBO 자동 산출 (지표 DB 기반 + 성장율 목표)
+════════════════════════════════════════════ */
+
+/** 얼라이언스 직원의 지표별 월별 목표·실적 산출. 목표 = 전년 실적 × (1+성장율). */
+export async function getAllianceMbo(
+  memberId: string,
+  memberName: string,
+  fyYear: number,
+  companyId: string | null,
+): Promise<AllianceIndicator[]> {
+  const sb = serviceClient();
+  const { data } = await sb
+    .from('mbo_alliance_growth')
+    .select('indicator, growth_pct')
+    .eq('member_id', memberId)
+    .eq('fy_year', fyYear);
+  const growthMap: Record<string, number> = {};
+  for (const r of data ?? []) growthMap[String((r as { indicator: string }).indicator)] = Number((r as { growth_pct: number }).growth_pct ?? 0);
+  return deriveAllianceMbo(sb, memberName, fyYear, companyId, growthMap);
+}
+
+/** 지표별 평균 성장율(%) 저장. */
+export async function setAllianceGrowth(
+  memberId: string,
+  fyYear: number,
+  indicator: string,
+  growthPct: number,
+): Promise<{ error?: string }> {
+  const auth = await getRole();
+  if (!auth) return { error: '로그인이 필요합니다.' };
+  const sb = serviceClient();
+  const { error } = await sb.from('mbo_alliance_growth').upsert(
+    { member_id: memberId, fy_year: fyYear, indicator, growth_pct: growthPct, updated_at: new Date().toISOString() },
+    { onConflict: 'member_id,fy_year,indicator' },
+  );
   if (error) return { error: error.message };
   revalidatePath('/mbo');
   return {};
