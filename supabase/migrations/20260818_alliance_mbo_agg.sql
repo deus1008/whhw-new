@@ -195,3 +195,102 @@ AS $$
   LEFT JOIN ss  ssc ON ssc.i = m.i AND ssc.kind = 'c'
   LEFT JOIN ss  ssh ON ssh.i = m.i AND ssh.kind = 'h';
 $$;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 전체 스코프 월별 KPI 완전 축약 — same-store·카운트를 갱신 시점에 사전계산.
+--   조회 RPC가 셀프조인 없이 24행만 SELECT → <1s. 전월/전년 매칭은 달력 기준.
+CREATE MATERIALIZED VIEW IF NOT EXISTS public.mv_alliance_all_kpi AS
+WITH mon AS (
+  SELECT company_id, ym, presc, settle FROM public.mv_alliance_all_month
+),
+cnts AS (
+  SELECT company_id, ym,
+         COUNT(*) FILTER (WHERE kind = 'h') AS hosp_cnt,
+         COUNT(*) FILTER (WHERE kind = 'c') AS cso_cnt
+  FROM public.mv_alliance_all_entity_month
+  GROUP BY company_id, ym
+),
+pairs AS (
+  SELECT company_id, ym AS cur_ym,
+         to_char(to_date(ym || '-01', 'YYYY-MM-DD') - interval '1 year', 'YYYY-MM') AS prev_ym
+  FROM mon
+),
+ss AS (
+  SELECT pr.company_id, pr.cur_ym,
+         SUM(c.presc) FILTER (WHERE c.kind = 'c') AS ss_cso_cur,
+         SUM(p.presc) FILTER (WHERE c.kind = 'c') AS ss_cso_prev,
+         SUM(c.presc) FILTER (WHERE c.kind = 'h') AS ss_hosp_cur,
+         SUM(p.presc) FILTER (WHERE c.kind = 'h') AS ss_hosp_prev
+  FROM pairs pr
+  JOIN public.mv_alliance_all_entity_month c
+    ON c.company_id = pr.company_id AND c.ym = pr.cur_ym
+  JOIN public.mv_alliance_all_entity_month p
+    ON p.company_id = pr.company_id AND p.ym = pr.prev_ym AND p.kind = c.kind AND p.entity = c.entity
+  GROUP BY pr.company_id, pr.cur_ym
+)
+SELECT
+  pr.company_id, pr.cur_ym AS ym, pr.prev_ym,
+  COALESCE(cm.presc, 0)   AS presc,   COALESCE(cm.settle, 0)   AS settle,
+  COALESCE(cc.hosp_cnt,0) AS hosp_cnt, COALESCE(cc.cso_cnt, 0) AS cso_cnt,
+  COALESCE(pm.presc, 0)   AS prev_presc, COALESCE(pm.settle, 0) AS prev_settle,
+  COALESCE(pc.hosp_cnt,0) AS prev_hosp_cnt, COALESCE(pc.cso_cnt,0) AS prev_cso_cnt,
+  COALESCE(ss.ss_cso_cur, 0)  AS ss_cso_cur,  COALESCE(ss.ss_cso_prev, 0)  AS ss_cso_prev,
+  COALESCE(ss.ss_hosp_cur, 0) AS ss_hosp_cur, COALESCE(ss.ss_hosp_prev, 0) AS ss_hosp_prev
+FROM pairs pr
+LEFT JOIN mon  cm ON cm.company_id = pr.company_id AND cm.ym = pr.cur_ym
+LEFT JOIN mon  pm ON pm.company_id = pr.company_id AND pm.ym = pr.prev_ym
+LEFT JOIN cnts cc ON cc.company_id = pr.company_id AND cc.ym = pr.cur_ym
+LEFT JOIN cnts pc ON pc.company_id = pr.company_id AND pc.ym = pr.prev_ym
+LEFT JOIN ss       ON ss.company_id = pr.company_id AND ss.cur_ym = pr.cur_ym;
+CREATE INDEX IF NOT EXISTS idx_mv_aak_ym ON public.mv_alliance_all_kpi (ym);
+
+REVOKE ALL ON public.mv_alliance_all_kpi FROM anon, authenticated;
+GRANT SELECT ON public.mv_alliance_all_kpi TO service_role;
+
+-- 갱신 함수 — 개인별 → 전체 → KPI(의존순서).
+CREATE OR REPLACE FUNCTION public.refresh_alliance_rollup() RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  REFRESH MATERIALIZED VIEW public.mv_alliance_month;
+  REFRESH MATERIALIZED VIEW public.mv_alliance_entity_month;
+  REFRESH MATERIALIZED VIEW public.mv_alliance_all_month;
+  REFRESH MATERIALIZED VIEW public.mv_alliance_all_entity_month;
+  REFRESH MATERIALIZED VIEW public.mv_alliance_all_kpi;
+END $$;
+
+-- 전체 스코프 RPC — KPI 뷰에서 12개월만 SELECT(셀프조인 없음).
+CREATE OR REPLACE FUNCTION public.get_alliance_mbo_agg_all(
+  p_company  uuid,
+  p_cur_yms  text[],
+  p_prev_yms text[]
+) RETURNS jsonb
+LANGUAGE sql
+STABLE
+AS $$
+  WITH u AS (
+    SELECT i, cy AS cur_ym, py AS prev_ym
+    FROM unnest(p_cur_yms, p_prev_yms) WITH ORDINALITY AS t(cy, py, i)
+  ),
+  k AS (
+    SELECT ym,
+      SUM(presc) AS presc, SUM(settle) AS settle,
+      SUM(hosp_cnt) AS hosp_cnt, SUM(cso_cnt) AS cso_cnt,
+      SUM(prev_presc) AS prev_presc, SUM(prev_settle) AS prev_settle,
+      SUM(prev_hosp_cnt) AS prev_hosp_cnt, SUM(prev_cso_cnt) AS prev_cso_cnt,
+      SUM(ss_cso_cur) AS ss_cso_cur, SUM(ss_cso_prev) AS ss_cso_prev,
+      SUM(ss_hosp_cur) AS ss_hosp_cur, SUM(ss_hosp_prev) AS ss_hosp_prev
+    FROM mv_alliance_all_kpi
+    WHERE (p_company IS NULL OR company_id = p_company)
+    GROUP BY ym
+  )
+  SELECT COALESCE(jsonb_agg(jsonb_build_object(
+    'i', u.i, 'cur_ym', u.cur_ym, 'prev_ym', u.prev_ym,
+    'presc', COALESCE(k.presc,0), 'settle', COALESCE(k.settle,0),
+    'hosp_cnt', COALESCE(k.hosp_cnt,0), 'cso_cnt', COALESCE(k.cso_cnt,0),
+    'prev_presc', COALESCE(k.prev_presc,0), 'prev_settle', COALESCE(k.prev_settle,0),
+    'prev_hosp_cnt', COALESCE(k.prev_hosp_cnt,0), 'prev_cso_cnt', COALESCE(k.prev_cso_cnt,0),
+    'ss_cso_cur', COALESCE(k.ss_cso_cur,0), 'ss_cso_prev', COALESCE(k.ss_cso_prev,0),
+    'ss_hosp_cur', COALESCE(k.ss_hosp_cur,0), 'ss_hosp_prev', COALESCE(k.ss_hosp_prev,0)
+  ) ORDER BY u.i), '[]'::jsonb)
+  FROM u LEFT JOIN k ON k.ym = u.cur_ym;
+$$;
