@@ -76,6 +76,26 @@ function calcRate(actual: string, target: string): number | null {
   return Math.round((a / t) * 100);
 }
 
+/* 누적 기준 — 실적이 입력된 월의 목표만 누적(누적목표) + 실적 누적.
+   달성률을 "실적 입력 월까지의 누적목표 대비"로 산정하기 위함. isAvg(%)는 평균.
+   유효 월(목표·실적 모두 입력)이 없으면 null. */
+function cumTargetActual(
+  rows: { target: string; actual: string }[],
+  isAvg: boolean,
+): { target: number; actual: number } | null {
+  let t = 0, a = 0, n = 0;
+  for (const r of rows) {
+    const av = String(r.actual ?? '').trim();
+    const tv = String(r.target ?? '').trim();
+    if (av !== '' && !isNaN(Number(av)) && tv !== '' && !isNaN(Number(tv))) {
+      t += Number(tv); a += Number(av); n++;
+    }
+  }
+  if (n === 0) return null;
+  return isAvg ? { target: t / n, actual: a / n } : { target: t, actual: a };
+}
+const numFmt = (n: number) => (Math.round(n * 100) / 100).toLocaleString();
+
 
 /* ════════════════════════════════════════════
    메인 컴포넌트
@@ -199,11 +219,16 @@ export default function MBOClient({
   /* ── 연간 요약: 월별 항목 합산 ── */
   const selectedName = members.find(m => m.id === selectedId)?.name ?? currentUserEmail;
 
-  /* ── 달성률 전체 평균 (숫자 항목만) ── */
-  const numericTargets = targets.filter(t => calcRate(t.actual_value, t.target_value) !== null);
+  /* ── 달성률 전체 평균 (숫자 항목만) — 월별 데이터가 있으면 누적목표 기준 ── */
+  const rateOf = (t: MboTarget): number | null => {
+    const mm = monthlyMap[t.id] ?? [];
+    const c = cumTargetActual(mm.map(m => ({ target: m.target_value, actual: m.actual_value })), (t.unit ?? '').trim() === '%');
+    if (c) return c.target > 0 ? Math.round((c.actual / c.target) * 100) : null;
+    return calcRate(t.actual_value, t.target_value);
+  };
+  const numericTargets = targets.filter(t => rateOf(t) !== null);
   const avgRate = numericTargets.length === 0 ? null : Math.round(
-    numericTargets.reduce((sum, t) => sum + calcRate(t.actual_value, t.target_value)!, 0)
-    / numericTargets.length
+    numericTargets.reduce((sum, t) => sum + rateOf(t)!, 0) / numericTargets.length
   );
 
   return (
@@ -437,7 +462,16 @@ function TargetRow({
   const [actualVal,  setActualVal]  = useState(target.actual_value);
   const [actualNote, setActualNote] = useState(target.note ?? '');
 
-  const rate = calcRate(target.actual_value, target.target_value);
+  // 달성률·목표·실적을 "실적 입력 월까지의 누적목표 대비"로. 월별 데이터가 있으면 누적 기준,
+  //   없으면(직접 입력형) 기존 저장값 기준.
+  const isAvgRow = (target.unit ?? '').trim() === '%';
+  const cum = cumTargetActual(
+    monthlyActuals.map(m => ({ target: m.target_value, actual: m.actual_value })),
+    isAvgRow,
+  );
+  const rate = cum
+    ? (cum.target > 0 ? Math.round((cum.actual / cum.target) * 100) : null)
+    : calcRate(target.actual_value, target.target_value);
 
   function handleSaveEdit() {
     startTransition(async () => {
@@ -538,12 +572,17 @@ function TargetRow({
           {target.unit || '-'}
         </td>
         <td style={tdStyle}>
-          {fmtVal(target.target_value)}
+          {cum ? (
+            <span>
+              {numFmt(cum.target)}
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', marginLeft: 4 }}>/ {fmtVal(target.target_value)}</span>
+            </span>
+          ) : fmtVal(target.target_value)}
         </td>
         <td style={{ ...tdStyle }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
             <span style={{ fontWeight: 600, color: rate !== null ? rateColor(rate) : 'var(--text-primary)' }}>
-              {fmtVal(target.actual_value)}
+              {cum ? numFmt(cum.actual) : fmtVal(target.actual_value)}
             </span>
             {/* 직접 입력 버튼 (월별 없을 때) */}
             {!isAnnual && (
@@ -881,9 +920,13 @@ function MonthlyGrid({
     return isAvg ? Math.round((total / nums.length) * 100) / 100 : total;
   };
 
-  const tSum  = aggregateOf(tVals);
-  const aSum  = aggregateOf(aVals);
-  const tRate = tSum !== null && aSum !== null && tSum > 0 ? Math.round((aSum / tSum) * 100) : null;
+  const tSum  = aggregateOf(tVals);   // 연간(전체 월) 목표 합계 — 참고용
+  const aSum  = aggregateOf(aVals);   // 실적 합계(입력된 월)
+  // 달성률·목표 기준 = "실적 입력 월까지의 누적목표". 합계형은 실적 있는 월의 목표만 합산.
+  const cumRows = Array.from({ length: 12 }, (_, i) => ({ target: tVals[i + 1] ?? '', actual: aVals[i + 1] ?? '' }));
+  const cum = cumTargetActual(cumRows, isAvg);
+  const cumTarget = cum ? cum.target : null;   // 누적목표(합계형) / 누적평균(%)
+  const tRate = cumTarget !== null && aSum !== null && cumTarget > 0 ? Math.round((aSum / cumTarget) * 100) : null;
 
   const cellStyle = (val: string): React.CSSProperties => ({
     ...inlineInputStyle,
@@ -898,9 +941,12 @@ function MonthlyGrid({
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
         <span style={{ fontSize: '0.73rem', fontWeight: 700, color: '#a5b4fc' }}>📅 월별 목표·실적</span>
-        {tSum !== null && (
+        {cumTarget !== null && (
           <span style={{ fontSize: '0.72rem', color: '#fbbf24', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)' }}>
-            목표 {isAvg ? '평균' : '합계'} {tSum.toLocaleString()}{unit ? ` ${unit}` : ''}
+            목표 {isAvg ? '평균' : '누적'} {numFmt(cumTarget)}{unit ? ` ${unit}` : ''}
+            {!isAvg && tSum !== null && (
+              <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>· 연간 {tSum.toLocaleString()}</span>
+            )}
           </span>
         )}
         {aSum !== null && (
