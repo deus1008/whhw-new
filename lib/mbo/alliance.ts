@@ -186,7 +186,14 @@ export async function deriveAllianceMbo(
       const prevYm = prevM[i].ym;
       if (ind.mode === 'value') {
         const { cur, prev } = valueOf(ind.indKey as IndKey, row, nc.get(ym) ?? 0, nc.get(prevYm) ?? 0);
-        const target = Math.round(prev * (1 + targetGrowth / 100));
+        let target: number;
+        if (ind.indKey === 'settlement') {
+          // 정산액 목표 = 처방액 목표 × 목표수수료율. (정산 원장 전년값 공백과 무관)
+          const prescTarget = Math.round(rMil(row.prev_presc) * (1 + targetGrowth / 100));
+          target = Math.round((prescTarget * commTarget) / 100);
+        } else {
+          target = Math.round(prev * (1 + targetGrowth / 100));
+        }
         return { fyMonth: fm, target, actual: cur };
       }
       if (ind.mode === 'rate') {
