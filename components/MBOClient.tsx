@@ -120,7 +120,12 @@ export default function MBOClient({
   companyId:         string | null;
 }) {
   const [fyYear,      setFyYear]     = useState(CUR_FY_YEAR);
-  const [selectedId,  setSelectedId] = useState(currentUserId);
+  // 관리자는 본인이 멤버 목록(얼라이언스)에 없으므로 첫 멤버를 기본 선택 → 개선(얼라이언스) 화면 노출.
+  // 비관리자는 본인 MBO 유지(일반 직원이 타인 화면을 보지 않도록).
+  const initialSelected = (!isAdmin || members.some(m => m.id === currentUserId))
+    ? currentUserId
+    : (members[0]?.id ?? currentUserId);
+  const [selectedId,  setSelectedId] = useState(initialSelected);
   const [targets,     setTargets]    = useState<MboTarget[]>([]);
   const [monthlyMap,  setMonthlyMap] = useState<Record<string, MonthlyActual[]>>({});
   const [statusColor, setStatusColor] = useState<string | null>(null);
