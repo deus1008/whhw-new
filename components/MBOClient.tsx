@@ -16,8 +16,9 @@ import {
   copyMboTargets,
   importEtcTargetsFromDoc,
   getAllianceMbo,
-  getAllianceTargetGrowth,
+  getAllianceTargets,
   setAllianceTargetGrowth,
+  setAllianceCommTarget,
 } from '@/app/mbo/actions';
 import type { MonthlyActual } from '@/app/mbo/actions';
 import type { AllianceIndicator } from '@/lib/mbo/alliance';
@@ -226,19 +227,20 @@ export default function MBOClient({
   // 얼라이언스 직원(멤버 목록 = company_id 없는 직원) → 지표 DB 자동 산출 화면
   const isAlliance = members.some(m => m.id === selectedId);
 
-  /* ── 얼라이언스: 목표성장율(상단 표시) + 검색 게이트 ── */
+  /* ── 얼라이언스: 목표성장율·목표수수료율(상단 표시) + 검색 게이트 ── */
   const [allTarget,   setAllTarget]   = useState(0);
+  const [allComm,     setAllComm]     = useState(0);
   const [allInds,     setAllInds]     = useState<AllianceIndicator[] | null>(null); // null = 미검색
   const [allLoading,  setAllLoading]  = useState(false);
   const allCanEdit = isAdmin || selectedId === currentUserId;
 
-  // 멤버·회계연도 변경 시: 목표성장율만 경량 로드, 기존 검색결과는 숨김
+  // 멤버·회계연도 변경 시: 목표값만 경량 로드, 기존 검색결과는 숨김
   useEffect(() => {
     if (!isAlliance) return;
     setAllInds(null);
     let alive = true;
-    getAllianceTargetGrowth(selectedId, fyYear)
-      .then(t => { if (alive) setAllTarget(t); })
+    getAllianceTargets(selectedId, fyYear)
+      .then(t => { if (alive) { setAllTarget(t.growth); setAllComm(t.comm); } })
       .catch(() => {});
     return () => { alive = false; };
   }, [isAlliance, selectedId, fyYear]);
@@ -248,6 +250,7 @@ export default function MBOClient({
     try {
       const r = await getAllianceMbo(selectedId, selectedName, fyYear, companyId);
       setAllTarget(r.targetGrowth);
+      setAllComm(r.commTarget);
       setAllInds(r.indicators);
     } catch (e) {
       console.error('[alliance-mbo]', e);
@@ -260,7 +263,15 @@ export default function MBOClient({
     if (r.error) { showToast('⚠ ' + r.error); return; }
     setAllTarget(pct);
     showToast('✓ 목표성장율이 저장되었습니다.');
-    if (allInds !== null) runAllianceSearch(); // 이미 검색했으면 즉시 반영
+    if (allInds !== null) runAllianceSearch();
+  }
+
+  async function saveAllianceComm(pct: number) {
+    const r = await setAllianceCommTarget(selectedId, fyYear, pct);
+    if (r.error) { showToast('⚠ ' + r.error); return; }
+    setAllComm(pct);
+    showToast('✓ 목표수수료율이 저장되었습니다.');
+    if (allInds !== null) runAllianceSearch();
   }
 
   /* ── 달성률 전체 평균 (숫자 항목만) — 월별 데이터가 있으면 누적목표 기준 ── */
@@ -305,8 +316,13 @@ export default function MBOClient({
           </select>
 
           {isAlliance && (
-            <TargetGrowthInput
-              fyYear={fyYear} value={allTarget} canEdit={allCanEdit} onSave={saveAllianceTarget}
+            <TargetPctInput
+              label="목표성장율" tone="growth" value={allTarget} canEdit={allCanEdit} onSave={saveAllianceTarget}
+            />
+          )}
+          {isAlliance && (
+            <TargetPctInput
+              label="목표수수료율" tone="comm" value={allComm} canEdit={allCanEdit} onSave={saveAllianceComm}
             />
           )}
 
@@ -379,7 +395,7 @@ export default function MBOClient({
       {isAlliance ? (
         <div style={cardStyle}>
           <AllianceMbo
-            memberName={selectedName} fyYear={fyYear} target={allTarget}
+            memberName={selectedName} fyYear={fyYear} target={allTarget} commTarget={allComm}
             inds={allInds} loading={allLoading} onSearch={runAllianceSearch}
           />
         </div>
@@ -1108,9 +1124,9 @@ function MonthlyGrid({
 /* ════════════════════════════════════════════
    목표 복사 패널
 ════════════════════════════════════════════ */
-/* 상단 목표성장율 입력(얼라이언스) */
-function TargetGrowthInput({ fyYear, value, canEdit, onSave }: {
-  fyYear: number; value: number; canEdit: boolean; onSave: (pct: number) => void;
+/* 상단 목표율 입력(얼라이언스) — 목표성장율 / 목표수수료율 */
+function TargetPctInput({ label, tone, value, canEdit, onSave }: {
+  label: string; tone: 'growth' | 'comm'; value: number; canEdit: boolean; onSave: (pct: number) => void;
 }) {
   const [val, setVal] = useState(String(value));
   useEffect(() => { setVal(String(value)); }, [value]);
@@ -1119,21 +1135,23 @@ function TargetGrowthInput({ fyYear, value, canEdit, onSave }: {
     if (isNaN(n) || n === value) { setVal(String(value)); return; }
     onSave(Math.round(n * 100) / 100);
   };
+  const rgb = tone === 'comm' ? '52,211,153' : '251,191,36'; // 수수료율=민트, 성장율=앰버
+  const col = tone === 'comm' ? '#34d399' : '#fbbf24';
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
-      background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.3)',
+      background: `rgba(${rgb},0.08)`, border: `1px solid rgba(${rgb},0.3)`,
       borderRadius: 8, padding: '0.24rem 0.6rem',
     }}>
-      <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#fbbf24', whiteSpace: 'nowrap' }}>FY{fyYear} 목표성장율</span>
+      <span style={{ fontSize: '0.76rem', fontWeight: 700, color: col, whiteSpace: 'nowrap' }}>{label}</span>
       <input value={val} disabled={!canEdit}
         onChange={e => setVal(e.target.value)}
         onBlur={commit}
         onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
         style={{ width: 52, textAlign: 'right', padding: '0.18rem 0.35rem', borderRadius: 6,
-          background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.4)',
-          color: '#fbbf24', fontSize: '0.85rem', fontWeight: 700, outline: 'none', fontFamily: 'inherit' }} />
-      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fbbf24' }}>%</span>
+          background: `rgba(${rgb},0.12)`, border: `1px solid rgba(${rgb},0.4)`,
+          color: col, fontSize: '0.85rem', fontWeight: 700, outline: 'none', fontFamily: 'inherit' }} />
+      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: col }}>%</span>
     </span>
   );
 }

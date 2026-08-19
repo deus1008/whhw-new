@@ -17,7 +17,7 @@ export const DUAL_MEMBERS     = ['박동수'];          // 본인 지역 + 전�
 
 export type IndKey    = 'prescription' | 'settlement' | 'new_contract' | 'hospital_cnt' | 'cso_cnt';
 export type GrowthKey = 'presc_growth' | 'hosp_growth' | 'presc_growth_cso' | 'presc_growth_hosp';
-export type IndMode   = 'value' | 'growth';
+export type IndMode   = 'value' | 'growth' | 'rate';
 
 type IndSpec = { indKey: string; mode: IndMode; label: string; unit: string };
 
@@ -28,13 +28,17 @@ const VALUE_DEFS: IndSpec[] = [
   { indKey: 'hospital_cnt', mode: 'value', label: '처방처 수',      unit: '개' },
   { indKey: 'cso_cnt',      mode: 'value', label: '관리 CSO 수',    unit: '개' },
 ];
+// 수수료율 = 수수료정산액 / 처방액 (낮을수록 우수 — 목표수수료율 대비 관리).
+const RATE_DEFS: IndSpec[] = [
+  { indKey: 'comm_rate', mode: 'rate', label: '수수료율(처방액 대비 정산액)', unit: '%' },
+];
 const GROWTH_DEFS: IndSpec[] = [
   { indKey: 'presc_growth',      mode: 'growth', label: '처방액 성장율',                unit: '%' },
   { indKey: 'hosp_growth',       mode: 'growth', label: '처방처수 증가율',              unit: '%' },
   { indKey: 'presc_growth_cso',  mode: 'growth', label: '거래처별 처방액 성장율(동일거래처)', unit: '%' },
   { indKey: 'presc_growth_hosp', mode: 'growth', label: '처방처별 처방액 성장율(동일처방처)', unit: '%' },
 ];
-const ALL_DEFS: IndSpec[] = [...VALUE_DEFS, ...GROWTH_DEFS];
+const ALL_DEFS: IndSpec[] = [...VALUE_DEFS, ...RATE_DEFS, ...GROWTH_DEFS];
 
 // 하위호환용(기존 참조) — value 지표 정의.
 export const IND_DEFS = VALUE_DEFS.map(d => ({ key: d.indKey as IndKey, label: d.label, unit: d.unit }));
@@ -145,10 +149,11 @@ function growthOf(key: GrowthKey, row: AggRow): { cur: number; prev: number } {
   }
 }
 
-/* 멤버의 얼라이언스 MBO 산출. targetGrowth: 목표성장율(%) — 전 지표 일괄 적용. */
+/* 멤버의 얼라이언스 MBO 산출.
+   targetGrowth: 목표성장율(%) — value·growth 지표 일괄. commTarget: 목표수수료율(%). */
 export async function deriveAllianceMbo(
   svc: Svc, memberName: string, fyYear: number, companyId: string | null,
-  targetGrowth: number,
+  targetGrowth: number, commTarget: number,
 ): Promise<AllianceIndicator[]> {
   const inds = indicatorsForMember(memberName);
   const curM = fyMonths(fyYear), prevM = fyMonths(fyYear - 1);
@@ -184,13 +189,20 @@ export async function deriveAllianceMbo(
         const target = Math.round(prev * (1 + targetGrowth / 100));
         return { fyMonth: fm, target, actual: cur };
       }
+      if (ind.mode === 'rate') {
+        // 수수료율 = 정산액 / 처방액 (%). 정산 완료월(둘 다 >0)만 산출. 낮을수록 우수.
+        const presc = rMil(row.presc), settle = rMil(row.settle);
+        const actual = presc > 0 && settle > 0 ? Math.round((settle / presc) * 1000) / 10 : null;
+        return { fyMonth: fm, target: commTarget, actual, curRaw: settle, prevRaw: presc };
+      }
       const { cur, prev } = growthOf(ind.indKey as GrowthKey, row);
       // 실적 입력월(당기>0 & 전년>0)만 성장율 산출 — 미도래·무기저월은 제외.
       const actual = cur > 0 && prev > 0 ? Math.round(((cur - prev) / prev) * 1000) / 10 : null;
       return { fyMonth: fm, target: targetGrowth, actual, curRaw: cur, prevRaw: prev };
     });
 
-    out.push({ storeKey: ind.storeKey, indKey: ind.indKey, mode: ind.mode, label: ind.label, unit: ind.unit, scope: ind.scope, growthPct: targetGrowth, months });
+    const gp = ind.mode === 'rate' ? commTarget : targetGrowth;
+    out.push({ storeKey: ind.storeKey, indKey: ind.indKey, mode: ind.mode, label: ind.label, unit: ind.unit, scope: ind.scope, growthPct: gp, months });
   }
   return out;
 }

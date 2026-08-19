@@ -658,55 +658,62 @@ export async function updateMboActual(
 ════════════════════════════════════════════ */
 
 /** 얼라이언스 직원의 지표별 월별 목표·실적 산출. 목표 = 전년 실적 × (1+성장율). */
-/** 목표성장율(%) 저장 키 — 지표 일괄 적용. */
+/** 저장 키 — 목표성장율 / 목표수수료율(둘 다 mbo_alliance_growth.growth_pct 재사용). */
 const TARGET_GROWTH_KEY = '__target';
+const COMM_TARGET_KEY   = '__comm_target';
+
+async function readTargets(sb: ReturnType<typeof serviceClient>, memberId: string, fyYear: number): Promise<{ growth: number; comm: number }> {
+  const { data } = await sb
+    .from('mbo_alliance_growth')
+    .select('indicator, growth_pct')
+    .eq('member_id', memberId)
+    .eq('fy_year', fyYear)
+    .in('indicator', [TARGET_GROWTH_KEY, COMM_TARGET_KEY]);
+  let growth = 0, comm = 0;
+  for (const r of data ?? []) {
+    const v = Number((r as { growth_pct: number }).growth_pct ?? 0);
+    if ((r as { indicator: string }).indicator === TARGET_GROWTH_KEY) growth = v;
+    else if ((r as { indicator: string }).indicator === COMM_TARGET_KEY) comm = v;
+  }
+  return { growth, comm };
+}
 
 export async function getAllianceMbo(
   memberId: string,
   memberName: string,
   fyYear: number,
   companyId: string | null,
-): Promise<{ targetGrowth: number; indicators: AllianceIndicator[] }> {
+): Promise<{ targetGrowth: number; commTarget: number; indicators: AllianceIndicator[] }> {
   const sb = serviceClient();
-  const { data } = await sb
-    .from('mbo_alliance_growth')
-    .select('growth_pct')
-    .eq('member_id', memberId)
-    .eq('fy_year', fyYear)
-    .eq('indicator', TARGET_GROWTH_KEY)
-    .maybeSingle();
-  const targetGrowth = Number((data as { growth_pct: number } | null)?.growth_pct ?? 0);
-  const indicators = await deriveAllianceMbo(sb, memberName, fyYear, companyId, targetGrowth);
-  return { targetGrowth, indicators };
+  const { growth, comm } = await readTargets(sb, memberId, fyYear);
+  const indicators = await deriveAllianceMbo(sb, memberName, fyYear, companyId, growth, comm);
+  return { targetGrowth: growth, commTarget: comm, indicators };
 }
 
-/** 목표성장율(%)만 조회 — 검색 전 상단 표시용(경량). */
-export async function getAllianceTargetGrowth(memberId: string, fyYear: number): Promise<number> {
-  const sb = serviceClient();
-  const { data } = await sb
-    .from('mbo_alliance_growth')
-    .select('growth_pct')
-    .eq('member_id', memberId)
-    .eq('fy_year', fyYear)
-    .eq('indicator', TARGET_GROWTH_KEY)
-    .maybeSingle();
-  return Number((data as { growth_pct: number } | null)?.growth_pct ?? 0);
+/** 목표성장율·목표수수료율(%)만 조회 — 검색 전 상단 표시용(경량). */
+export async function getAllianceTargets(memberId: string, fyYear: number): Promise<{ growth: number; comm: number }> {
+  return readTargets(serviceClient(), memberId, fyYear);
 }
 
-/** 목표성장율(%) 저장 — 해당 멤버·회계연도의 전 지표에 일괄 적용. */
-export async function setAllianceTargetGrowth(
-  memberId: string,
-  fyYear: number,
-  growthPct: number,
-): Promise<{ error?: string }> {
+async function upsertTarget(memberId: string, fyYear: number, indicator: string, pct: number): Promise<{ error?: string }> {
   const auth = await getRole();
   if (!auth) return { error: '로그인이 필요합니다.' };
   const sb = serviceClient();
   const { error } = await sb.from('mbo_alliance_growth').upsert(
-    { member_id: memberId, fy_year: fyYear, indicator: TARGET_GROWTH_KEY, growth_pct: growthPct, updated_at: new Date().toISOString() },
+    { member_id: memberId, fy_year: fyYear, indicator, growth_pct: pct, updated_at: new Date().toISOString() },
     { onConflict: 'member_id,fy_year,indicator' },
   );
   if (error) return { error: error.message };
   revalidatePath('/mbo');
   return {};
+}
+
+/** 목표성장율(%) 저장 — value·growth 지표 일괄 적용. */
+export async function setAllianceTargetGrowth(memberId: string, fyYear: number, growthPct: number): Promise<{ error?: string }> {
+  return upsertTarget(memberId, fyYear, TARGET_GROWTH_KEY, growthPct);
+}
+
+/** 목표수수료율(%) 저장. */
+export async function setAllianceCommTarget(memberId: string, fyYear: number, commPct: number): Promise<{ error?: string }> {
+  return upsertTarget(memberId, fyYear, COMM_TARGET_KEY, commPct);
 }
