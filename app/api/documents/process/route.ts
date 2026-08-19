@@ -462,6 +462,9 @@ export async function POST(request: Request) {
     const parseResult = parseEdiBuffer(buffer, doc.filename, doc.file_type);
     if ('error' in parseResult) return fail(`EDI 파싱 실패: ${parseResult.error}`);
     await syncEdiToDb(supabase, parseResult.rows, parseResult.data, doc.filename, docCompanyId);
+    // 얼라이언스 MBO 처방 지표는 EDI(trend_prescriptions) 기반 → 롤업 갱신
+    const { error: rollupErr } = await supabase.rpc('refresh_alliance_rollup');
+    if (rollupErr) console.warn(`[process:${documentId}] 롤업 갱신 실패(무시): ${rollupErr.message}`);
     await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
     revalidatePath('/edi');
     revalidatePath('/weekly');
