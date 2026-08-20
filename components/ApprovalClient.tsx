@@ -648,6 +648,13 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
                   color="#f87171"
                 />
                 <SummaryCard
+                  label="최다 집중 성분"
+                  value={combined.meta.topIngredientTotalCount ? fmtNum(combined.meta.topIngredientTotalCount) : '-'}
+                  unit={combined.meta.topIngredientTotalCount ? '건' : undefined}
+                  sub={combined.meta.topIngredientName || '괄호 성분 없음'}
+                  color="#a78bfa"
+                />
+                <SummaryCard
                   label="최다 허가 회사"
                   value={combined.companyBreakdown[0] ? fmtNum(combined.companyBreakdown[0].count) : '-'}
                   unit={combined.companyBreakdown[0] ? '품목' : undefined}
@@ -708,6 +715,15 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
                   unit="품목"
                   sub={displayData.meta.cancelledCount > 0 ? '취소일자 기재 건' : '취소 없음'}
                   color="#f87171"
+                />
+                <SummaryCard
+                  label="최다 집중 성분"
+                  value={displayData.meta.topIngredientTotalCount ? fmtNum(displayData.meta.topIngredientTotalCount) : '-'}
+                  unit={displayData.meta.topIngredientTotalCount ? '품목' : undefined}
+                  sub={displayData.meta.topIngredientName
+                    ? `${displayData.meta.topIngredientName}${displayData.meta.topIngredientCompanyCount > 0 ? ` (${fmtNum(displayData.meta.topIngredientCompanyCount)}개사)` : ''}`
+                    : '괄호 성분 없음'}
+                  color="#a78bfa"
                 />
                 <SummaryCard
                   label="최다 허가 회사"

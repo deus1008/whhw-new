@@ -98,6 +98,19 @@ function formatDate(v: string | number | boolean | null | undefined): string {
 
 const MONTH_RE = /^\d{4}-\d{2}/;
 
+/* 제품명 괄호 안 텍스트 = 성분명. 뒤쪽 부가괄호(수출용·1회용 등)는 건너뛰고 실제 성분 괄호 사용. 없으면 ''. */
+const NON_INGREDIENT = /^((수출|내수|국내|병원|조제|약국)용?|[1일]?회용|수출명.*|밀리그램|그램|mg|g)$/i;
+function extractIngredient(product: string): string {
+  if (!product) return '';
+  const groups = product.match(/[(（]([^()（）]*)[)）]/g);
+  if (!groups) return '';
+  for (let i = groups.length - 1; i >= 0; i--) {
+    const inner = groups[i].replace(/^[(（]/, '').replace(/[)）]$/, '').trim();
+    if (inner && !NON_INGREDIENT.test(inner)) return inner;
+  }
+  return '';
+}
+
 function mergeBreakdowns(lists: { name: string; count: number }[][]): { name: string; count: number }[] {
   const map = new Map<string, number>();
   for (const list of lists)
@@ -107,7 +120,7 @@ function mergeBreakdowns(lists: { name: string; count: number }[][]): { name: st
 }
 
 /* ── 파일 → 행 추출(허가일자·취소일자 등) ── */
-type RawRow = { company: string; product: string; approvalDate: string; cancelDate: string; approvalType: string; rxType: string };
+type RawRow = { company: string; product: string; ingredient: string; approvalDate: string; cancelDate: string; approvalType: string; rxType: string };
 
 function parseRawRows(wb: XLSX.WorkBook): { rows: RawRow[]; warnings: string[] } {
   const warnings: string[] = [];
@@ -130,14 +143,18 @@ function parseRawRows(wb: XLSX.WorkBook): { rows: RawRow[]; warnings: string[] }
   const rxCol      = findCol(headers, ['전문일반', '전문/일반', '전문의약품']);
   if (!apprCol) warnings.push('허가일자 컬럼을 자동 인식하지 못했습니다.');
 
-  const rows = raw.map(r => ({
-    company:      companyCol ? stripCompanyAffix(str(r[companyCol])) : '',
-    product:      productCol ? str(r[productCol]) : '',
-    approvalDate: apprCol    ? formatDate(r[apprCol]) : '',
-    cancelDate:   cancelCol  ? formatDate(r[cancelCol]) : '',
-    approvalType: typeCol    ? (str(r[typeCol]) || '기타') : '기타',
-    rxType:       rxCol      ? str(r[rxCol]) : '',
-  })).filter(r => r.company || r.product);
+  const rows = raw.map(r => {
+    const product = productCol ? str(r[productCol]) : '';
+    return {
+      company:      companyCol ? stripCompanyAffix(str(r[companyCol])) : '',
+      product,
+      ingredient:   extractIngredient(product),   // 제품명 괄호 안 텍스트
+      approvalDate: apprCol    ? formatDate(r[apprCol]) : '',
+      cancelDate:   cancelCol  ? formatDate(r[cancelCol]) : '',
+      approvalType: typeCol    ? (str(r[typeCol]) || '기타') : '기타',
+      rxType:       rxCol      ? str(r[rxCol]) : '',
+    };
+  }).filter(r => r.company || r.product);
 
   return { rows, warnings };
 }
@@ -150,16 +167,38 @@ function buildPeriod(month: string, rows: RawRow[]): PeriodResult {
   const companyMap = new Map<string, number>();
   const typeMap    = new Map<string, number>();
   const rxMap      = new Map<string, number>();
+  const ingCountMap   = new Map<string, number>();
+  const ingCompanyMap = new Map<string, Set<string>>();
   for (const r of active) {
     if (r.company) companyMap.set(r.company, (companyMap.get(r.company) ?? 0) + 1);
     typeMap.set(r.approvalType || '기타', (typeMap.get(r.approvalType || '기타') ?? 0) + 1);
     if (r.rxType) rxMap.set(r.rxType, (rxMap.get(r.rxType) ?? 0) + 1);
+    if (r.ingredient) {
+      ingCountMap.set(r.ingredient, (ingCountMap.get(r.ingredient) ?? 0) + 1);
+      if (r.company) {
+        if (!ingCompanyMap.has(r.ingredient)) ingCompanyMap.set(r.ingredient, new Set());
+        ingCompanyMap.get(r.ingredient)!.add(r.company);
+      }
+    }
   }
   const toArr = (m: Map<string, number>) => Array.from(m.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
 
+  // 최다 집중 성분(회사 수 기준)
+  let topIngredientName = '', topIngredientCompanyCount = 0, topIngredientTotalCount = 0;
+  for (const [name, companies] of ingCompanyMap.entries()) {
+    if (companies.size > topIngredientCompanyCount) {
+      topIngredientCompanyCount = companies.size; topIngredientName = name;
+      topIngredientTotalCount = ingCountMap.get(name) ?? 0;
+    }
+  }
+  if (!topIngredientName && ingCountMap.size > 0) {
+    let mx = 0;
+    for (const [n, c] of ingCountMap.entries()) if (c > mx) { mx = c; topIngredientName = n; topIngredientTotalCount = c; }
+  }
+
   const companyBreakdown = toArr(companyMap);
   const drilldownRows: DrilldownRow[] = active.map(r => ({
-    company: r.company, ingredient: '', product: r.product, approvalDate: r.approvalDate,
+    company: r.company, ingredient: r.ingredient, product: r.product, approvalDate: r.approvalDate,
     approvalType: r.approvalType, rxType: r.rxType, cancelled: false, cancelDate: '',
   })).filter(r => r.company || r.product);
 
@@ -169,14 +208,15 @@ function buildPeriod(month: string, rows: RawRow[]): PeriodResult {
       totalCount: active.length,
       approvedCount: rows.length,
       cancelledCount: cancelled.length,
-      uniqueIngredients: 0,
-      topIngredientName: '', topIngredientCompanyCount: 0, topIngredientTotalCount: 0,
+      uniqueIngredients: ingCountMap.size,
+      topIngredientName, topIngredientCompanyCount, topIngredientTotalCount,
       pipelineCount: 0,
     },
     companyBreakdown,
     approvalTypeBreakdown: toArr(typeMap),
     rxTypeBreakdown:       toArr(rxMap),
-    topIngredients: [], cumulativeIngredients: [],
+    topIngredients: toArr(ingCountMap).slice(0, 10),
+    cumulativeIngredients: [],
     drilldownRows, pipeline: [], warnings: [],
   };
 }
@@ -193,15 +233,19 @@ function computeCombined(periods: PeriodResult[]): CombinedData {
   const approvedCount  = periods.reduce((s, p) => s + p.meta.approvedCount, 0);
   const cancelledCount = periods.reduce((s, p) => s + p.meta.cancelledCount, 0);
 
+  const allIngredients = mergeBreakdowns(periods.map(p => p.topIngredients));
+  const topIngredients = allIngredients.slice(0, 10);
+  const topIng = allIngredients[0];
+
   return {
     meta: {
       totalCount, approvedCount, cancelledCount,
-      uniqueIngredients: 0,
-      topIngredientName: '', topIngredientCompanyCount: 0, topIngredientTotalCount: 0,
+      uniqueIngredients: allIngredients.length,
+      topIngredientName: topIng?.name ?? '', topIngredientCompanyCount: 0, topIngredientTotalCount: topIng?.count ?? 0,
       pipelineCount: 0, periodCount: periods.length,
     },
     drilldownRows: periods.flatMap(p => p.drilldownRows),
-    companyBreakdown, approvalTypeBreakdown, rxTypeBreakdown, topIngredients: [], monthlyTrend, pipeline: [],
+    companyBreakdown, approvalTypeBreakdown, rxTypeBreakdown, topIngredients, monthlyTrend, pipeline: [],
   };
 }
 
