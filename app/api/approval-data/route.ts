@@ -13,17 +13,23 @@ type SheetRow = Record<string, string | number | boolean | null>;
 
 export type DrilldownRow = {
   company: string;
-  ingredient: string;
+  ingredient: string;     // 품목허가공고엔 성분 컬럼이 없어 '' (하위호환)
   product: string;
   approvalDate: string;
+  approvalType?: string;
+  rxType?: string;
+  cancelled?: boolean;
+  cancelDate?: string;
 };
 
 export type PeriodResult = {
   id: string;
   filename: string;
-  period: string; // "YYYY-MM"
+  period: string; // "YYYY-MM" (허가일자 기준 허가월)
   meta: {
-    totalCount: number;
+    totalCount: number;        // 유효 허가(취소 제외)
+    approvedCount: number;     // 전체 허가(취소 포함)
+    cancelledCount: number;    // 취소 건수
     uniqueIngredients: number;
     topIngredientName: string;
     topIngredientCompanyCount: number;
@@ -32,6 +38,7 @@ export type PeriodResult = {
   };
   companyBreakdown:      { name: string; count: number }[];
   approvalTypeBreakdown: { name: string; count: number }[];
+  rxTypeBreakdown:       { name: string; count: number }[];
   topIngredients:        { name: string; count: number }[];
   cumulativeIngredients: { name: string; count: number }[];
   drilldownRows:         DrilldownRow[];
@@ -42,6 +49,8 @@ export type PeriodResult = {
 export type CombinedData = {
   meta: {
     totalCount: number;
+    approvedCount: number;
+    cancelledCount: number;
     uniqueIngredients: number;
     topIngredientName: string;
     topIngredientCompanyCount: number;
@@ -51,8 +60,9 @@ export type CombinedData = {
   };
   companyBreakdown:      { name: string; count: number }[];
   approvalTypeBreakdown: { name: string; count: number }[];
+  rxTypeBreakdown:       { name: string; count: number }[];
   topIngredients:        { name: string; count: number }[];
-  monthlyTrend:          { period: string; filename: string; count: number }[];
+  monthlyTrend:          { period: string; filename: string; count: number; approved: number; cancelled: number }[];
   drilldownRows:         DrilldownRow[];
   pipeline: { disease: string; ingredient: string; ownStatus: string; thisMonth: string }[];
 };
@@ -79,195 +89,119 @@ function formatDate(v: string | number | boolean | null | undefined): string {
   }
   const s = String(v).trim();
   if (!s) return '';
-  const m1 = s.match(/^(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+  const m1 = s.match(/^(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
   if (m1) return `${m1[1]}-${m1[2].padStart(2,'0')}-${m1[3].padStart(2,'0')}`;
   const m2 = s.match(/^(\d{4})(\d{2})(\d{2})$/);
   if (m2) return `${m2[1]}-${m2[2]}-${m2[3]}`;
   return s;
 }
 
-function extractPeriodKey(filename: string): string {
-  const m1 = filename.match(/(\d{4})년?\s*(\d{1,2})월/);
-  if (m1) return `${m1[1]}-${m1[2].padStart(2, '0')}`;
-  const m2 = filename.match(/(\d{4})[.\-](\d{2})/);
-  if (m2) return `${m2[1]}-${m2[2]}`;
-  const m3 = filename.match(/_(\d{2})\.(\d{2})/);
-  if (m3) return `20${m3[1]}-${m3[2]}`;
-  return '';
-}
+const MONTH_RE = /^\d{4}-\d{2}/;
 
-function mergeBreakdowns(
-  lists: { name: string; count: number }[][],
-): { name: string; count: number }[] {
+function mergeBreakdowns(lists: { name: string; count: number }[][]): { name: string; count: number }[] {
   const map = new Map<string, number>();
   for (const list of lists)
     for (const item of list)
       map.set(item.name, (map.get(item.name) ?? 0) + item.count);
-  return Array.from(map.entries())
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count);
+  return Array.from(map.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
 }
 
-/* ── 단일 파일 파싱 ── */
-function parseFile(wb: XLSX.WorkBook): Omit<PeriodResult, 'id' | 'filename' | 'period'> {
+/* ── 파일 → 행 추출(허가일자·취소일자 등) ── */
+type RawRow = { company: string; product: string; approvalDate: string; cancelDate: string; approvalType: string; rxType: string };
+
+function parseRawRows(wb: XLSX.WorkBook): { rows: RawRow[]; warnings: string[] } {
   const warnings: string[] = [];
   const sheetNames = wb.SheetNames;
-
-  const mainPriority = ['허가현황', '데이터', '전체', '목록', '내역', '허가'];
-  let mainSheetName = sheetNames[0] ?? '';
-  for (const kw of mainPriority) {
+  let mainSheet = sheetNames[0] ?? '';
+  for (const kw of ['허가', '공고', '품목', '데이터', '목록', '내역']) {
     const f = sheetNames.find(s => s.includes(kw));
-    if (f) { mainSheetName = f; break; }
+    if (f) { mainSheet = f; break; }
   }
+  const ws = wb.Sheets[mainSheet];
+  const raw: SheetRow[] = ws ? XLSX.utils.sheet_to_json<SheetRow>(ws, { defval: null }) : [];
+  if (raw.length === 0) { warnings.push(`'${mainSheet}' 시트에 데이터가 없습니다.`); return { rows: [], warnings }; }
 
-  const mainWs = wb.Sheets[mainSheetName];
-  const rows: SheetRow[] = mainWs
-    ? XLSX.utils.sheet_to_json<SheetRow>(mainWs, { defval: null })
-    : [];
+  const headers = Object.keys(raw[0]);
+  const productCol = findCol(headers, ['제품명', '품목명', '품명', '의약품명', '품목']);
+  const companyCol = findCol(headers, ['업체명', '회사명', '제약사', '제조사', '허가업체']);
+  const apprCol    = findCol(headers, ['허가일자', '허가일', '승인일', '허가연월일', '공고일']);
+  const cancelCol  = findCol(headers, ['취소일자', '취소일', '취하일자', '취하일']);
+  const typeCol    = findCol(headers, ['허가심사유형', '허가유형', '허가구분', '심사유형', '유형']);
+  const rxCol      = findCol(headers, ['전문일반', '전문/일반', '전문의약품']);
+  if (!apprCol) warnings.push('허가일자 컬럼을 자동 인식하지 못했습니다.');
 
-  if (rows.length === 0) warnings.push(`'${mainSheetName}' 시트에 데이터가 없습니다.`);
+  const rows = raw.map(r => ({
+    company:      companyCol ? stripCompanyAffix(str(r[companyCol])) : '',
+    product:      productCol ? str(r[productCol]) : '',
+    approvalDate: apprCol    ? formatDate(r[apprCol]) : '',
+    cancelDate:   cancelCol  ? formatDate(r[cancelCol]) : '',
+    approvalType: typeCol    ? (str(r[typeCol]) || '기타') : '기타',
+    rxType:       rxCol      ? str(r[rxCol]) : '',
+  })).filter(r => r.company || r.product);
 
-  const headers = rows.length > 0 ? Object.keys(rows[0]) : [];
-  const ingredientCol   = findCol(headers, ['성분명', '성분']);
-  const approvalTypeCol = findCol(headers, ['허가유형', '허가구분', '허가종류', '유형']);
-  const companyCol      = findCol(headers, ['회사명', '업체명', '제약사', '허가업체', '제조사']);
-  const productCol      = findCol(headers, ['품목명', '제품명', '품명', '의약품명', '품목']);
-  const approvalDateCol = findCol(headers, ['허가일', '허가일자', '승인일', '허가연월일', '허가연월']);
+  return { rows, warnings };
+}
 
-  const approvalTypeMap    = new Map<string, number>();
-  const ingredientCountMap = new Map<string, number>();
-  const ingredientCompanyMap = new Map<string, Set<string>>();
-  const companyMap         = new Map<string, number>();
+/* ── 허가월(허가일자 기준) 단위 집계 ── */
+function buildPeriod(month: string, rows: RawRow[]): PeriodResult {
+  const active    = rows.filter(r => !r.cancelDate);
+  const cancelled = rows.filter(r =>  r.cancelDate);
 
-  for (const row of rows) {
-    const approvalType = approvalTypeCol ? str(row[approvalTypeCol]) || '기타' : '기타';
-    const ingredient   = ingredientCol   ? str(row[ingredientCol]) : '';
-    const company      = companyCol      ? stripCompanyAffix(str(row[companyCol])) : '';
-
-    approvalTypeMap.set(approvalType, (approvalTypeMap.get(approvalType) ?? 0) + 1);
-
-    if (ingredient) {
-      ingredientCountMap.set(ingredient, (ingredientCountMap.get(ingredient) ?? 0) + 1);
-      if (company) {
-        if (!ingredientCompanyMap.has(ingredient)) ingredientCompanyMap.set(ingredient, new Set());
-        ingredientCompanyMap.get(ingredient)!.add(company);
-      }
-    }
-    if (company) companyMap.set(company, (companyMap.get(company) ?? 0) + 1);
+  const companyMap = new Map<string, number>();
+  const typeMap    = new Map<string, number>();
+  const rxMap      = new Map<string, number>();
+  for (const r of active) {
+    if (r.company) companyMap.set(r.company, (companyMap.get(r.company) ?? 0) + 1);
+    typeMap.set(r.approvalType || '기타', (typeMap.get(r.approvalType || '기타') ?? 0) + 1);
+    if (r.rxType) rxMap.set(r.rxType, (rxMap.get(r.rxType) ?? 0) + 1);
   }
+  const toArr = (m: Map<string, number>) => Array.from(m.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
 
-  const totalCount = rows.length;
-
-  // 최다 집중 성분 (회사 수 기준)
-  let topIngredientName = '', topIngredientCompanyCount = 0, topIngredientTotalCount = 0;
-  for (const [name, companies] of ingredientCompanyMap.entries()) {
-    if (companies.size > topIngredientCompanyCount) {
-      topIngredientCompanyCount = companies.size;
-      topIngredientName = name;
-      topIngredientTotalCount = ingredientCountMap.get(name) ?? 0;
-    }
-  }
-  if (!topIngredientName && ingredientCountMap.size > 0) {
-    let mx = 0;
-    for (const [name, cnt] of ingredientCountMap.entries()) {
-      if (cnt > mx) { mx = cnt; topIngredientName = name; topIngredientTotalCount = cnt; }
-    }
-  }
-
-  const companyBreakdown = Array.from(companyMap.entries())
-    .map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-  const approvalTypeBreakdown = Array.from(approvalTypeMap.entries())
-    .map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-  const topIngredients = Array.from(ingredientCountMap.entries())
-    .map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 10);
-
-  const drilldownRows: DrilldownRow[] = rows.map(row => ({
-    company:      companyCol      ? stripCompanyAffix(str(row[companyCol])) : '',
-    ingredient:   ingredientCol   ? str(row[ingredientCol])           : '',
-    product:      productCol      ? str(row[productCol])              : '',
-    approvalDate: approvalDateCol ? formatDate(row[approvalDateCol])  : '',
-  })).filter(r => r.company || r.ingredient || r.product);
-
-  // 누계 시트
-  let cumulativeIngredients: { name: string; count: number }[] = [];
-  for (const kw of ['누계', '분기', '집계', '3월', '4월', '5월']) {
-    const f = sheetNames.find(s => s !== mainSheetName && s.includes(kw));
-    if (f && wb.Sheets[f]) {
-      const cumRows = XLSX.utils.sheet_to_json<SheetRow>(wb.Sheets[f], { defval: null });
-      const ch = cumRows.length > 0 ? Object.keys(cumRows[0]) : [];
-      const nameCol  = findCol(ch, ['성분명', '성분']);
-      const countCol = findCol(ch, ['누계', '건수', '허가수', '합계', '품목수', 'count']);
-      if (nameCol && countCol) {
-        cumulativeIngredients = cumRows
-          .map(r => ({ name: str(r[nameCol]), count: Number(r[countCol] ?? 0) }))
-          .filter(r => r.name && r.count > 0)
-          .sort((a, b) => b.count - a.count).slice(0, 5);
-        break;
-      }
-    }
-  }
-  if (cumulativeIngredients.length === 0) cumulativeIngredients = topIngredients;
-
-  // 파이프라인 시트
-  let pipeline: PeriodResult['pipeline'] = [];
-  for (const kw of ['파이프라인', 'pipeline', '자사', '포트폴리오', '현황']) {
-    const f = sheetNames.find(s => s !== mainSheetName && s.includes(kw));
-    if (f && wb.Sheets[f]) {
-      const pRows = XLSX.utils.sheet_to_json<SheetRow>(wb.Sheets[f], { defval: null });
-      const ph = pRows.length > 0 ? Object.keys(pRows[0]) : [];
-      const dc = findCol(ph, ['질환군', '질환분류', '질환']);
-      const ic = findCol(ph, ['성분명', '성분']);
-      const oc = findCol(ph, ['자사현황', '자사', '현황', '보유현황']);
-      const mc = findCol(ph, ['이달', '동향', '6월', '7월', '최근', '월동향']);
-      if (dc || ic) {
-        pipeline = pRows.map(r => ({
-          disease:   dc ? str(r[dc]) : '',
-          ingredient: ic ? str(r[ic]) : '',
-          ownStatus: oc ? str(r[oc]) : '',
-          thisMonth: mc ? str(r[mc]) : '',
-        })).filter(r => r.disease || r.ingredient);
-        break;
-      }
-    }
-  }
+  const companyBreakdown = toArr(companyMap);
+  const drilldownRows: DrilldownRow[] = active.map(r => ({
+    company: r.company, ingredient: '', product: r.product, approvalDate: r.approvalDate,
+    approvalType: r.approvalType, rxType: r.rxType, cancelled: false, cancelDate: '',
+  })).filter(r => r.company || r.product);
 
   return {
+    id: month, filename: '', period: month,
     meta: {
-      totalCount, uniqueIngredients: ingredientCountMap.size,
-      topIngredientName, topIngredientCompanyCount, topIngredientTotalCount,
-      pipelineCount: pipeline.length,
+      totalCount: active.length,
+      approvedCount: rows.length,
+      cancelledCount: cancelled.length,
+      uniqueIngredients: 0,
+      topIngredientName: '', topIngredientCompanyCount: 0, topIngredientTotalCount: 0,
+      pipelineCount: 0,
     },
-    companyBreakdown, approvalTypeBreakdown, topIngredients, cumulativeIngredients, drilldownRows, pipeline, warnings,
+    companyBreakdown,
+    approvalTypeBreakdown: toArr(typeMap),
+    rxTypeBreakdown:       toArr(rxMap),
+    topIngredients: [], cumulativeIngredients: [],
+    drilldownRows, pipeline: [], warnings: [],
   };
 }
 
-/* ── 통합 집계 ── */
 function computeCombined(periods: PeriodResult[]): CombinedData {
   const companyBreakdown      = mergeBreakdowns(periods.map(p => p.companyBreakdown));
   const approvalTypeBreakdown = mergeBreakdowns(periods.map(p => p.approvalTypeBreakdown));
-  const topIngredients        = mergeBreakdowns(periods.map(p => p.topIngredients)).slice(0, 10);
-  const monthlyTrend          = periods.map(p => ({ period: p.period, filename: p.filename, count: p.meta.totalCount }));
-
-  // 파이프라인: 가장 최근 달 기준
-  const withPipeline = [...periods].reverse().find(p => p.pipeline.length > 0);
-  const pipeline = withPipeline?.pipeline ?? [];
-
+  const rxTypeBreakdown       = mergeBreakdowns(periods.map(p => p.rxTypeBreakdown));
+  const monthlyTrend = periods.map(p => ({
+    period: p.period, filename: '',
+    count: p.meta.totalCount, approved: p.meta.approvedCount, cancelled: p.meta.cancelledCount,
+  }));
   const totalCount     = periods.reduce((s, p) => s + p.meta.totalCount, 0);
-  const allIngredients = mergeBreakdowns(periods.map(p => p.topIngredients));
-  const topIng         = allIngredients[0];
+  const approvedCount  = periods.reduce((s, p) => s + p.meta.approvedCount, 0);
+  const cancelledCount = periods.reduce((s, p) => s + p.meta.cancelledCount, 0);
 
   return {
     meta: {
-      totalCount,
-      uniqueIngredients: allIngredients.length,
-      topIngredientName: topIng?.name ?? '',
-      topIngredientCompanyCount: 0,
-      topIngredientTotalCount: topIng?.count ?? 0,
-      pipelineCount: pipeline.length,
-      periodCount: periods.length,
+      totalCount, approvedCount, cancelledCount,
+      uniqueIngredients: 0,
+      topIngredientName: '', topIngredientCompanyCount: 0, topIngredientTotalCount: 0,
+      pipelineCount: 0, periodCount: periods.length,
     },
     drilldownRows: periods.flatMap(p => p.drilldownRows),
-    companyBreakdown, approvalTypeBreakdown, topIngredients, monthlyTrend, pipeline,
+    companyBreakdown, approvalTypeBreakdown, rxTypeBreakdown, topIngredients: [], monthlyTrend, pipeline: [],
   };
 }
 
@@ -285,48 +219,62 @@ export async function GET(request: NextRequest) {
 
   const idsParam = request.nextUrl.searchParams.get('ids');
   if (!idsParam) return NextResponse.json({ error: 'Missing ids param' }, { status: 400 });
-
   const ids = idsParam.split(',').map(s => s.trim()).filter(Boolean);
   if (ids.length === 0) return NextResponse.json({ error: 'No valid IDs' }, { status: 400 });
 
   const isAdmin   = profileIsAdmin(profile);
   const companyId = await getEffectiveCompanyId((profile.company_id as string) ?? null, isAdmin);
 
-  const db = createSvc(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+  const db = createSvc(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-  const settled = await Promise.allSettled(ids.map(async (id): Promise<PeriodResult> => {
+  // 모든 파일 행 수집
+  const settled = await Promise.allSettled(ids.map(async (id): Promise<RawRow[]> => {
     const { data: doc, error: docErr } = await db
-      .from('documents')
-      .select('storage_path, company_id, filename')
-      .eq('id', id)
-      .single();
-
+      .from('documents').select('storage_path, company_id, filename').eq('id', id).single();
     if (docErr || !doc) throw new Error(`Document ${id} not found`);
-    if (companyId && doc.company_id && doc.company_id !== companyId)
-      throw new Error(`Forbidden: ${id}`);
-
-    const { data: fileData, error: dlErr } = await db.storage
-      .from('documents').download(doc.storage_path as string);
+    if (companyId && doc.company_id && doc.company_id !== companyId) throw new Error(`Forbidden: ${id}`);
+    const { data: fileData, error: dlErr } = await db.storage.from('documents').download(doc.storage_path as string);
     if (dlErr || !fileData) throw new Error(`Download failed: ${id}`);
-
-    const uint8Array = new Uint8Array(await fileData.arrayBuffer());
-    const wb = XLSX.read(uint8Array, { type: 'array' });
-    const parsed = parseFile(wb);
-    const period = extractPeriodKey(doc.filename as string);
-
-    return { id, filename: doc.filename as string, period, ...parsed };
+    const wb = XLSX.read(new Uint8Array(await fileData.arrayBuffer()), { type: 'array' });
+    return parseRawRows(wb).rows;
   }));
 
-  const periods = settled
-    .filter((r): r is PromiseFulfilledResult<PeriodResult> => r.status === 'fulfilled')
-    .map(r => r.value)
-    .sort((a, b) => a.period.localeCompare(b.period));
-
   const failedCount = settled.filter(r => r.status === 'rejected').length;
-  const combined    = computeCombined(periods);
 
-  return NextResponse.json({ periods, combined, failedCount });
+  // 파일 간 중복 제거(제품·업체·허가일자). 취소 정보가 있는 행 우선.
+  const seen = new Map<string, RawRow>();
+  for (const s of settled) {
+    if (s.status !== 'fulfilled') continue;
+    for (const row of s.value) {
+      const key = `${row.product}||${row.company}||${row.approvalDate}`;
+      const ex = seen.get(key);
+      if (!ex || (!ex.cancelDate && row.cancelDate)) seen.set(key, row);
+    }
+  }
+
+  // 허가월(허가일자 기준)로 그룹
+  const byMonth = new Map<string, RawRow[]>();
+  let undated = 0;
+  for (const row of seen.values()) {
+    const m = MONTH_RE.test(row.approvalDate) ? row.approvalDate.slice(0, 7) : '';
+    if (!m) { undated++; continue; }
+    if (!byMonth.has(m)) byMonth.set(m, []);
+    byMonth.get(m)!.push(row);
+  }
+
+  // 품목허가 이력이 수십 년에 걸쳐 있어, 최근 N개월(허가일자 기준)만 표시.
+  const MONTHS_WINDOW = 36;
+  const allMonths = [...byMonth.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  const windowMonths = allMonths.slice(-MONTHS_WINDOW);
+  const totalMonths = allMonths.length;
+  const periods = windowMonths.map(([month, rows]) => buildPeriod(month, rows));
+
+  if (periods.length > 0) {
+    if (undated > 0) periods[periods.length - 1].warnings.push(`허가일자 미기재 ${undated}건은 허가월 분류에서 제외됨`);
+    if (totalMonths > MONTHS_WINDOW) periods[0].warnings.push(`허가일자 기준 최근 ${MONTHS_WINDOW}개월만 표시(전체 ${totalMonths}개월 중)`);
+  }
+
+  const combined = computeCombined(periods);
+
+  return NextResponse.json({ periods, combined, failedCount, totalMonths, windowMonths: MONTHS_WINDOW });
 }

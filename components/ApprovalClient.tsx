@@ -464,8 +464,9 @@ function MonthlyTrend({ trend }: { trend: CombinedData['monthlyTrend'] }) {
                   borderRadius: '4px', transition: 'width 0.5s ease',
                 }} />
               </div>
-              <span style={{ fontSize: '0.75rem', color: '#7eb3ff', minWidth: '52px', textAlign: 'right', flexShrink: 0 }}>
+              <span style={{ fontSize: '0.75rem', color: '#7eb3ff', minWidth: '92px', textAlign: 'right', flexShrink: 0 }}>
                 {fmtNum(item.count)}품목
+                {item.cancelled > 0 && <span style={{ color: '#f87171', marginLeft: 4 }}>취소{fmtNum(item.cancelled)}</span>}
               </span>
             </div>
           );
@@ -635,16 +636,16 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                 <SummaryCard
-                  label="총 허가 품목 (합산)" value={fmtNum(combined.meta.totalCount)} unit="품목"
-                  sub={`${fmtNum(combined.meta.uniqueIngredients)}개 성분 · ${fmtNum(combined.companyBreakdown.length)}개사`}
+                  label="유효 허가 품목 (합산)" value={fmtNum(combined.meta.totalCount)} unit="품목"
+                  sub={`전체 허가 ${fmtNum(combined.meta.approvedCount)} · ${fmtNum(combined.companyBreakdown.length)}개사`}
                   color="#7eb3ff"
                 />
                 <SummaryCard
-                  label="최다 집중 성분"
-                  value={combined.meta.topIngredientTotalCount ? fmtNum(combined.meta.topIngredientTotalCount) : '-'}
-                  unit={combined.meta.topIngredientTotalCount ? '건' : undefined}
-                  sub={combined.meta.topIngredientName || '성분명 컬럼 미탐지'}
-                  color="#a78bfa"
+                  label="허가 후 취소"
+                  value={fmtNum(combined.meta.cancelledCount)}
+                  unit="품목"
+                  sub={combined.meta.cancelledCount > 0 ? '취소일자 기재 건' : '취소 없음'}
+                  color="#f87171"
                 />
                 <SummaryCard
                   label="최다 허가 회사"
@@ -663,13 +664,15 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
                 drilldownRows={combined.drilldownRows}
               />
 
-              <DrilldownIngredientTable
-                title={`성분별 허가현황 TOP 10 (${allData.periods.length}개월 합산)`}
-                rows={combined.topIngredients}
-                drilldownRows={combined.drilldownRows}
-              />
+              {combined.topIngredients.length > 0 && (
+                <DrilldownIngredientTable
+                  title={`성분별 허가현황 TOP 10 (${allData.periods.length}개월 합산)`}
+                  rows={combined.topIngredients}
+                  drilldownRows={combined.drilldownRows}
+                />
+              )}
 
-              <ApprovalTypeTable title="허가유형별 분포 (누적)" rows={combined.approvalTypeBreakdown} />
+              <ApprovalTypeTable title="허가심사유형별 분포 (누적)" rows={combined.approvalTypeBreakdown} />
 
               {combined.pipeline.length > 0 && (
                 <PipelineTable
@@ -695,18 +698,16 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                 <SummaryCard
-                  label="총 허가 품목" value={fmtNum(displayData.meta.totalCount)} unit="품목"
-                  sub={`${fmtNum(displayData.meta.uniqueIngredients)}개 성분 · ${fmtNum(displayData.companyBreakdown.length)}개사`}
+                  label="유효 허가 품목" value={fmtNum(displayData.meta.totalCount)} unit="품목"
+                  sub={`전체 허가 ${fmtNum(displayData.meta.approvedCount)} · ${fmtNum(displayData.companyBreakdown.length)}개사`}
                   color="#7eb3ff"
                 />
                 <SummaryCard
-                  label="최다 집중 성분"
-                  value={displayData.meta.topIngredientTotalCount ? fmtNum(displayData.meta.topIngredientTotalCount) : '-'}
-                  unit={displayData.meta.topIngredientTotalCount ? '품목' : undefined}
-                  sub={displayData.meta.topIngredientName
-                    ? `${displayData.meta.topIngredientName}${displayData.meta.topIngredientCompanyCount > 0 ? ` (${fmtNum(displayData.meta.topIngredientCompanyCount)}개사)` : ''}`
-                    : '성분명 컬럼 미탐지'}
-                  color="#a78bfa"
+                  label="허가 후 취소"
+                  value={fmtNum(displayData.meta.cancelledCount)}
+                  unit="품목"
+                  sub={displayData.meta.cancelledCount > 0 ? '취소일자 기재 건' : '취소 없음'}
+                  color="#f87171"
                 />
                 <SummaryCard
                   label="최다 허가 회사"
@@ -723,15 +724,19 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
                 drilldownRows={displayData.drilldownRows}
               />
 
-              <DrilldownIngredientTable
-                title="성분별 허가현황 TOP 10"
-                rows={displayData.cumulativeIngredients.length > 0 ? displayData.cumulativeIngredients : displayData.topIngredients}
-                drilldownRows={displayData.drilldownRows}
-              />
+              {(displayData.topIngredients.length > 0 || displayData.cumulativeIngredients.length > 0) && (
+                <DrilldownIngredientTable
+                  title="성분별 허가현황 TOP 10"
+                  rows={displayData.cumulativeIngredients.length > 0 ? displayData.cumulativeIngredients : displayData.topIngredients}
+                  drilldownRows={displayData.drilldownRows}
+                />
+              )}
 
-              <ApprovalTypeTable title="허가유형별 분포" rows={displayData.approvalTypeBreakdown} />
+              <ApprovalTypeTable title="허가심사유형별 분포" rows={displayData.approvalTypeBreakdown} />
 
-              <PipelineTable rows={displayData.pipeline} periodLabel={formatPeriod(displayData.period)} />
+              {displayData.pipeline.length > 0 && (
+                <PipelineTable rows={displayData.pipeline} periodLabel={formatPeriod(displayData.period)} />
+              )}
 
               {displayData.meta.totalCount === 0 && displayData.pipeline.length === 0 && (
                 <div style={{ ...CARD, textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', fontSize: '0.85rem' }}>
