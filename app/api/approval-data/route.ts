@@ -161,13 +161,31 @@ export async function GET(request: NextRequest) {
   }
 
   // 무괄호 성분 보완: 괄호에서 얻은 성분 사전으로 제품명 부분매칭(실제 성분만 채움, 브랜드 오매칭 방지).
-  const dict = [...new Set(
-    [...seen.values()].map(r => r.ingredient).filter(x => x && x.length >= 4 && !x.includes(',')),
-  )].sort((a, b) => b.length - a.length);
+  //   제품명은 기본 성분명(암로디핀)을, 사전은 염 형태(암로디핀베실산염)를 담는 경우가 있어
+  //   염·수화물을 뗀 기본형도 사전에 추가.
+  const SALT = /(염산염|브롬화수소산염|황산염|질산염|인산염|말레산염|푸마르산염|타르타르산염|시트르산염|구연산염|숙신산염|베실산염|캄실산염|메실산염|토실산염|에실산염|아세트산염|아스파르트산염|글루콘산염|락트산염|살리실산염|프로피오네이트|칼슘|나트륨|칼륨|마그네슘|삼수화물|이수화물|일수화물|무수물|수화물)/g;
+  const dictSet = new Set<string>();
+  for (const ing of new Set([...seen.values()].map(r => r.ingredient).filter(x => x && !x.includes(',')))) {
+    if (ing.length >= 4) dictSet.add(ing);
+    const base = ing.replace(SALT, '').trim();
+    if (base.length >= 4 && base !== ing) dictSet.add(base);
+  }
+  const dict = [...dictSet].sort((a, b) => b.length - a.length);
   for (const r of seen.values()) {
     if (r.ingredient) continue;
     const np = r.product.replace(/\s+/g, '');
-    for (const d of dict) { if (np.includes(d)) { r.ingredient = d; break; } }
+    // 제품명에 등장하는 사전 성분들을 모두(비겹침) 찾아 결합(복합제 대응).
+    const hits: { start: number; len: number; name: string }[] = [];
+    for (const d of dict) {
+      let idx = np.indexOf(d);
+      while (idx >= 0) { hits.push({ start: idx, len: d.length, name: d }); idx = np.indexOf(d, idx + 1); }
+    }
+    if (!hits.length) continue;
+    hits.sort((a, b) => a.start - b.start || b.len - a.len);
+    const picked: string[] = [];
+    let cover = -1;
+    for (const h of hits) if (h.start >= cover) { picked.push(h.name); cover = h.start + h.len; }
+    if (picked.length) r.ingredient = picked.join(',');
   }
 
   // 허가일자 → 허가월. 이력이 수십 년이므로 최근 N개월만.
