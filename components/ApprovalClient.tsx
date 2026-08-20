@@ -113,8 +113,7 @@ function Chevron({ open }: { open: boolean }) {
 /* ── 회사별 허가현황 드릴다운 테이블 ──
    Level 1: 회사명  →  Level 2: 성분명  →  Level 3: 품목명 + Level 4: 허가일
 */
-function DrilldownCompanyTable({ rows, drilldownRows, title }: {
-  rows: { name: string; count: number }[];
+function DrilldownCompanyTable({ drilldownRows, title }: {
   drilldownRows: DrilldownRow[];
   title: string;
 }) {
@@ -135,6 +134,14 @@ function DrilldownCompanyTable({ rows, drilldownRows, title }: {
     return map;
   }, [drilldownRows]);
 
+  // 회사 랭킹: 성분수(distinct) 내림차순, 동수면 품목수.
+  const rows = useMemo(() =>
+    [...tree.entries()].map(([name, ingMap]) => {
+      let products = 0; for (const arr of ingMap.values()) products += arr.length;
+      return { name, count: ingMap.size, products };
+    }).sort((a, b) => b.count - a.count || b.products - a.products),
+  [tree]);
+
   const maxCount = Math.max(...rows.map(r => r.count), 1);
 
   return (
@@ -146,8 +153,8 @@ function DrilldownCompanyTable({ rows, drilldownRows, title }: {
             <tr>
               <th style={{ ...TH, width: '2.2rem', textAlign: 'center' }}>순위</th>
               <th style={TH}>회사명 / 성분 / 품목</th>
-              <th style={{ ...TH, width: '28%' }}>비율</th>
-              <th style={{ ...TH, textAlign: 'right', minWidth: '90px' }}>허가일 / 수량</th>
+              <th style={{ ...TH, width: '28%' }}>성분수 비율</th>
+              <th style={{ ...TH, textAlign: 'right', minWidth: '110px' }}>성분수 / 품목수</th>
             </tr>
           </thead>
           <tbody>
@@ -188,8 +195,9 @@ function DrilldownCompanyTable({ rows, drilldownRows, title }: {
                         }} />
                       </div>
                     </td>
-                    <td style={{ ...TD, textAlign: 'right', color: i === 0 ? '#f87171' : i < 3 ? '#7eb3ff' : 'var(--text-primary)', fontWeight: i < 3 ? 600 : 400 }}>
-                      {fmtNum(row.count)}품목
+                    <td style={{ ...TD, textAlign: 'right', color: i === 0 ? '#f87171' : i < 3 ? '#7eb3ff' : 'var(--text-primary)', fontWeight: i < 3 ? 600 : 400, whiteSpace: 'nowrap' }}>
+                      {fmtNum(row.count)}성분
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> · {fmtNum(row.products)}품목</span>
                     </td>
                   </tr>
 
@@ -737,8 +745,7 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
           <MonthlyTrend trend={viewData.monthlyTrend} />
 
           <DrilldownCompanyTable
-            title={`회사별 허가현황 (${viewData.meta.monthCount}개월)`}
-            rows={viewData.companyBreakdown}
+            title={`회사별 허가현황 (성분수 순, ${viewData.meta.monthCount}개월)`}
             drilldownRows={viewData.drilldownRows}
           />
 
