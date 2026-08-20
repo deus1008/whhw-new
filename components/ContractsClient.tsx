@@ -9,6 +9,7 @@ export type ContractRow = {
   id:              string;
   manager:         string;
   company_name:    string;
+  contract_type:   string | null;   // 신규계약 | 기존처변경
   contract_start:  string;
   contract_end:    string | null;
   auto_renewal:    boolean;
@@ -28,8 +29,11 @@ export type ContractRow = {
 const EVIDENCE_DEFAULT = '전산자료 또는 객관적으로 양사가 인정하는 자료 (수기자료 인정 불가)';
 const DETAILS_DEFAULT  = '당사의 판매대행 계약서 및 부대약정서에 준함';
 
+const CONTRACT_TYPES = ['신규계약', '기존처변경'] as const;
+
 const EMPTY: ContractInput = {
   manager: '', company_name: '',
+  contract_type: '신규계약',
   contract_start: '', contract_end: '',
   auto_renewal: true,
   evidence: EVIDENCE_DEFAULT,
@@ -48,7 +52,7 @@ function fmtDate(d: string | null): string {
 
 /* ── CSV 다운로드 (엑셀 한글 호환: UTF-8 BOM) ── */
 const CSV_HEADERS = [
-  '업체명', '담당자', '계약시작', '계약종료', '자동갱신',
+  '업체명', '유형', '담당자', '계약시작', '계약종료', '자동갱신',
   '처방예상월', '처방예상액', '연락처명', '전화', '이메일',
   '주요병원·품목', '증빙자료', '세부내역', '비고', '등록일',
 ];
@@ -190,6 +194,29 @@ function ContractForm({
             onChange={e => set('company_name', e.target.value)} placeholder="거래처명" />
         </Field>
 
+        {/* 유형분류 */}
+        <Field label="유형분류 *">
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {CONTRACT_TYPES.map(t => {
+              const on = (form.contract_type || '신규계약') === t;
+              const amber = t === '기존처변경';
+              const rgb = amber ? '251,191,36' : '96,165,250';
+              return (
+                <button key={t} type="button" onClick={() => set('contract_type', t)}
+                  style={{
+                    flex: 1, padding: '0.5rem', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
+                    fontSize: '0.82rem', fontWeight: 700,
+                    background: on ? `rgba(${rgb},0.18)` : 'rgba(255,255,255,0.04)',
+                    border: on ? `1px solid rgba(${rgb},0.6)` : '1px solid rgba(255,255,255,0.12)',
+                    color: on ? (amber ? '#fbbf24' : '#60a5fa') : 'var(--text-muted)',
+                  }}>
+                  {t === '신규계약' ? '🆕 신규계약' : '🔁 기존처변경'}
+                </button>
+              );
+            })}
+          </div>
+        </Field>
+
         {/* 3. 계약기간 */}
         <div style={{ marginBottom: '0.75rem' }}>
           <label style={LABEL_STYLE}>3. 계약기간 *</label>
@@ -316,6 +343,7 @@ function ContractTr({
           <span style={{ marginRight: 5, fontSize: '0.6rem', opacity: 0.6 }}>{open ? '▼' : '▶'}</span>
           <span style={{ fontWeight: 700, color: '#fff' }}>{c.company_name}</span>
         </td>
+        <td style={{ ...cellTd, whiteSpace: 'nowrap' }}><TypeBadge type={c.contract_type} /></td>
         <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>{c.manager}</td>
         <td style={{ ...cellTd, color: '#a8c4ff', whiteSpace: 'nowrap' }}>{period}</td>
         <td style={{ ...cellTd, maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={contact}>{contact || '-'}</td>
@@ -347,6 +375,18 @@ function ContractTr({
         </tr>
       )}
     </>
+  );
+}
+
+function TypeBadge({ type }: { type: string | null }) {
+  const isChange = type === '기존처변경';
+  const rgb = isChange ? '251,191,36' : '96,165,250';
+  const col = isChange ? '#fbbf24' : '#60a5fa';
+  return (
+    <span style={{
+      fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap', padding: '0.12rem 0.45rem', borderRadius: 5,
+      background: `rgba(${rgb},0.12)`, border: `1px solid rgba(${rgb},0.3)`, color: col,
+    }}>{isChange ? '기존처변경' : '신규계약'}</span>
   );
 }
 
@@ -436,6 +476,7 @@ export default function ContractsClient({
     return {
       manager:         c.manager,
       company_name:    c.company_name,
+      contract_type:   c.contract_type ?? '신규계약',
       contract_start:  c.contract_start,
       contract_end:    c.contract_end ?? '',
       auto_renewal:    c.auto_renewal,
@@ -533,13 +574,14 @@ export default function ContractsClient({
         </div>
       ) : (() => {
         const showActions = isAdmin || filtered.some(c => c.user_id === userId);
-        const colCount = 6 + (showActions ? 1 : 0);
+        const colCount = 7 + (showActions ? 1 : 0);
         return (
           <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
             <table style={{ width: '100%', minWidth: showActions ? 880 : 760, borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   <th style={cellTh}>업체명</th>
+                  <th style={cellTh}>유형</th>
                   <th style={cellTh}>담당자</th>
                   <th style={cellTh}>계약기간</th>
                   <th style={cellTh}>연락처</th>

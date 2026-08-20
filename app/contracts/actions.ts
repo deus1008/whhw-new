@@ -2,12 +2,22 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
 import { getEffectiveCompanyId } from '@/lib/active-company';
+
+/** 서비스 롤 클라이언트 — 관리자 수정·삭제 시 RLS 우회(권한은 getAuthorized 로 이미 검증). */
+function serviceClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 export type ContractInput = {
   manager:         string;
   company_name:    string;
+  contract_type:   string;   // 신규계약 | 기존처변경
   contract_start:  string;
   contract_end:    string;
   auto_renewal:    boolean;
@@ -39,6 +49,7 @@ function clean(input: ContractInput) {
   return {
     manager:         input.manager.trim(),
     company_name:    input.company_name.trim(),
+    contract_type:   input.contract_type === '기존처변경' ? '기존처변경' : '신규계약',
     contract_start:  input.contract_start,
     contract_end:    input.contract_end  || null,
     auto_renewal:    input.auto_renewal,
@@ -74,13 +85,15 @@ export async function updateContract(id: string, input: ContractInput): Promise<
   const auth = await getAuthorized();
   if (auth.error || !auth.supabase) return { error: auth.error };
 
+  // 관리자: 모든 계약 수정(서비스 롤로 RLS 우회). 그 외: 본인 계약만.
+  const db = auth.isAdmin ? serviceClient() : auth.supabase;
   if (!auth.isAdmin) {
     const { data: row } = await auth.supabase
       .from('new_contracts').select('user_id').eq('id', id).single();
     if (!row || row.user_id !== auth.user!.id) return { error: '수정 권한이 없습니다.' };
   }
 
-  const { error } = await auth.supabase
+  const { error } = await db
     .from('new_contracts')
     .update({ ...clean(input), updated_at: new Date().toISOString() })
     .eq('id', id);
@@ -94,13 +107,14 @@ export async function deleteContract(id: string): Promise<{ error?: string }> {
   const auth = await getAuthorized();
   if (auth.error || !auth.supabase) return { error: auth.error };
 
+  const db = auth.isAdmin ? serviceClient() : auth.supabase;
   if (!auth.isAdmin) {
     const { data: row } = await auth.supabase
       .from('new_contracts').select('user_id').eq('id', id).single();
     if (!row || row.user_id !== auth.user!.id) return { error: '삭제 권한이 없습니다.' };
   }
 
-  const { error } = await auth.supabase
+  const { error } = await db
     .from('new_contracts').delete().eq('id', id);
 
   if (error) return { error: `삭제 실패: ${error.message}` };
