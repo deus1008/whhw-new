@@ -43,6 +43,10 @@
       "schedule": "40 16 * * *"
     },
     {
+      "path": "/api/cron/sync-drug-permits",
+      "schedule": "0 17 * * 0"
+    },
+    {
       "path": "/api/cron/warm-dashboard",
       "schedule": "*/20 * * * *"
     },
