@@ -1,13 +1,31 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { PeriodResult, CombinedData, DrilldownRow } from '@/app/api/approval-data/route';
+import type { ApprovalRow, DrilldownRow } from '@/app/api/approval-data/route';
 import { fmtNum } from '@/lib/format';
 
 type AllData = {
-  periods:     PeriodResult[];
-  combined:    CombinedData;
-  failedCount: number;
+  rows:         ApprovalRow[];
+  months:       string[];    // 선택 가능한 허가월(YYYY-MM, 오름차순)
+  rxTypes:      string[];    // 전문일반 값 목록
+  totalMonths:  number;
+  windowMonths: number;
+  undated:      number;
+  failedCount:  number;
+};
+
+type Breakdown = { name: string; count: number }[];
+type ViewData = {
+  meta: {
+    totalCount: number; approvedCount: number; cancelledCount: number;
+    uniqueIngredients: number; topIngredientName: string; topIngredientCompanyCount: number;
+    topIngredientTotalCount: number; monthCount: number;
+  };
+  companyBreakdown: Breakdown;
+  approvalTypeBreakdown: Breakdown;
+  topIngredients: Breakdown;
+  monthlyTrend: { period: string; count: number; approved: number; cancelled: number }[];
+  drilldownRows: DrilldownRow[];
 };
 
 type FileInfo = { id: string; filename: string; createdAt: string };
@@ -397,49 +415,8 @@ function ApprovalTypeTable({ rows, title }: { rows: { name: string; count: numbe
   );
 }
 
-function PipelineTable({ rows, periodLabel }: {
-  rows: PeriodResult['pipeline']; periodLabel: string;
-}) {
-  if (rows.length === 0) return null;
-  return (
-    <div style={CARD}>
-      <SectionTitle>파이프라인 현황{periodLabel && ` (${periodLabel} 기준)`}</SectionTitle>
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th style={TH}>질환군</th>
-              <th style={TH}>성분명</th>
-              <th style={TH}>자사 현황</th>
-              <th style={TH}>최근 동향</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, i) => {
-              const isLaunch = row.ownStatus.includes('발매');
-              const isDev    = row.ownStatus.includes('개발') || row.ownStatus.includes('진행');
-              return (
-                <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : undefined }}>
-                  <td style={{ ...TD, whiteSpace: 'nowrap' }}>{row.disease}</td>
-                  <td style={TD}>{row.ingredient}</td>
-                  <td style={{
-                    ...TD, whiteSpace: 'nowrap',
-                    color: isLaunch ? '#f87171' : isDev ? '#60a5fa' : 'var(--text-primary)',
-                    fontWeight: (isLaunch || isDev) ? 600 : 400,
-                  }}>{row.ownStatus}</td>
-                  <td style={{ ...TD, fontSize: '0.75rem', color: 'rgba(255,255,255,0.65)' }}>{row.thisMonth}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
 /* ── 월별 추이 ── */
-function MonthlyTrend({ trend }: { trend: CombinedData['monthlyTrend'] }) {
+function MonthlyTrend({ trend }: { trend: ViewData['monthlyTrend'] }) {
   if (trend.length === 0) return null;
   const maxCount = Math.max(...trend.map(t => t.count), 1);
   return (
@@ -448,9 +425,9 @@ function MonthlyTrend({ trend }: { trend: CombinedData['monthlyTrend'] }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
         {trend.map(item => {
           const pct = (item.count / maxCount) * 100;
-          const label = formatPeriod(item.period) || item.filename.replace(/\.[^.]+$/, '');
+          const label = formatPeriod(item.period);
           return (
-            <div key={item.period || item.filename} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div key={item.period} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', minWidth: '80px', flexShrink: 0 }}>
                 {label}
               </span>
@@ -483,13 +460,11 @@ function formatPeriod(key: string): string {
   return `${m[1]}년 ${parseInt(m[2])}월`;
 }
 
-function getPeriodRange(key: string): string {
-  const m = key.match(/^(\d{4})-(\d{2})$/);
-  if (!m) return '';
-  const year = parseInt(m[1]), month = parseInt(m[2]);
-  const lastDay = new Date(year, month, 0).getDate();
-  return `${year}-${m[2]}-01 ~ ${m[2]}-${lastDay}`;
-}
+const selStyle: React.CSSProperties = {
+  padding: '0.4rem 0.7rem', borderRadius: '8px', fontSize: '0.82rem',
+  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)',
+  color: 'var(--text-primary)', fontFamily: 'inherit', cursor: 'pointer',
+};
 
 function chipStyle(on: boolean, accent = false): React.CSSProperties {
   return {
@@ -501,34 +476,51 @@ function chipStyle(on: boolean, accent = false): React.CSSProperties {
   };
 }
 
-/* ── 선택 월 집계(클라이언트) ── */
-function mergeBreak(lists: { name: string; count: number }[][]): { name: string; count: number }[] {
-  const m = new Map<string, number>();
-  for (const l of lists) for (const it of l) m.set(it.name, (m.get(it.name) ?? 0) + it.count);
-  return [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-}
-function aggregate(periods: PeriodResult[]): CombinedData {
-  const companyBreakdown      = mergeBreak(periods.map(p => p.companyBreakdown));
-  const approvalTypeBreakdown = mergeBreak(periods.map(p => p.approvalTypeBreakdown));
-  const rxTypeBreakdown       = mergeBreak(periods.map(p => p.rxTypeBreakdown));
-  const allIng                = mergeBreak(periods.map(p => p.topIngredients));
-  const topIng                = allIng[0];
-  const monthlyTrend = periods.map(p => ({
-    period: p.period, filename: '',
-    count: p.meta.totalCount, approved: p.meta.approvedCount, cancelled: p.meta.cancelledCount,
-  }));
+/* ── 선택 행 집계(기간·전문일반 필터 후) ── */
+function aggregate(rows: ApprovalRow[]): ViewData {
+  const active = rows.filter(r => !r.cancelled);
+  const companyMap = new Map<string, number>();
+  const typeMap    = new Map<string, number>();
+  const ingMap     = new Map<string, number>();
+  const ingCoMap   = new Map<string, Set<string>>();
+  for (const r of active) {
+    if (r.company) companyMap.set(r.company, (companyMap.get(r.company) ?? 0) + 1);
+    typeMap.set(r.approvalType || '기타', (typeMap.get(r.approvalType || '기타') ?? 0) + 1);
+    if (r.ingredient) {
+      ingMap.set(r.ingredient, (ingMap.get(r.ingredient) ?? 0) + 1);
+      if (r.company) {
+        if (!ingCoMap.has(r.ingredient)) ingCoMap.set(r.ingredient, new Set());
+        ingCoMap.get(r.ingredient)!.add(r.company);
+      }
+    }
+  }
+  // 월별 추이(유효/전체/취소)
+  const mAgg = new Map<string, { a: number; c: number; t: number }>();
+  for (const r of rows) {
+    const o = mAgg.get(r.month) ?? { a: 0, c: 0, t: 0 };
+    o.t++; if (r.cancelled) o.c++; else o.a++;
+    mAgg.set(r.month, o);
+  }
+  const monthlyTrend = [...mAgg.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([period, o]) => ({ period, count: o.a, approved: o.t, cancelled: o.c }));
+
+  // 최다 집중 성분(회사 수 기준)
+  let topName = '', topCo = 0, topTot = 0;
+  for (const [n, co] of ingCoMap.entries()) if (co.size > topCo) { topCo = co.size; topName = n; topTot = ingMap.get(n) ?? 0; }
+  if (!topName && ingMap.size > 0) { let mx = 0; for (const [n, c] of ingMap.entries()) if (c > mx) { mx = c; topName = n; topTot = c; } }
+
+  const toArr = (m: Map<string, number>) => [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
   return {
     meta: {
-      totalCount:     periods.reduce((s, p) => s + p.meta.totalCount, 0),
-      approvedCount:  periods.reduce((s, p) => s + p.meta.approvedCount, 0),
-      cancelledCount: periods.reduce((s, p) => s + p.meta.cancelledCount, 0),
-      uniqueIngredients: allIng.length,
-      topIngredientName: topIng?.name ?? '', topIngredientCompanyCount: 0, topIngredientTotalCount: topIng?.count ?? 0,
-      pipelineCount: 0, periodCount: periods.length,
+      totalCount: active.length, approvedCount: rows.length, cancelledCount: rows.length - active.length,
+      uniqueIngredients: ingMap.size, topIngredientName: topName, topIngredientCompanyCount: topCo, topIngredientTotalCount: topTot,
+      monthCount: mAgg.size,
     },
-    companyBreakdown, approvalTypeBreakdown, rxTypeBreakdown,
-    topIngredients: allIng.slice(0, 10), monthlyTrend,
-    drilldownRows: periods.flatMap(p => p.drilldownRows), pipeline: [],
+    companyBreakdown: toArr(companyMap),
+    approvalTypeBreakdown: toArr(typeMap),
+    topIngredients: toArr(ingMap).slice(0, 10),
+    monthlyTrend,
+    drilldownRows: active.map(r => ({ company: r.company, ingredient: r.ingredient, product: r.product, approvalDate: r.approvalDate })),
   };
 }
 
@@ -538,8 +530,12 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
   const [allData,    setAllData]    = useState<AllData | null>(null);
   const [loading,    setLoading]    = useState(files.length > 0);
   const [fetchError, setFetchError] = useState(false);
-  const [pending,    setPending]    = useState<string[]>([]);   // 선택 중(분석 전)
-  const [applied,    setApplied]    = useState<string[]>([]);   // 분석 적용됨(빈 배열 = 전체)
+  // 선택 중(분석 전)
+  const [startM, setStartM] = useState('');
+  const [endM,   setEndM]   = useState('');
+  const [rxSel,  setRxSel]  = useState<string[]>([]);   // 전문일반 선택(빈 배열 = 전체)
+  // 분석 적용됨
+  const [applied, setApplied] = useState<{ start: string; end: string; rx: string[] } | null>(null);
 
   const ids = useMemo(() => files.map(f => f.id).join(','), [files]);
 
@@ -548,25 +544,31 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
     setAllData(null); setFetchError(false); setLoading(true);
     try {
       const res = await fetch(`/api/approval-data?ids=${encodeURIComponent(ids)}`);
-      if (res.ok) { setAllData(await res.json() as AllData); setPending([]); setApplied([]); }
-      else setFetchError(true);
+      if (res.ok) {
+        const d = await res.json() as AllData;
+        setAllData(d);
+        const first = d.months[0] ?? '', last = d.months[d.months.length - 1] ?? '';
+        setStartM(first); setEndM(last); setRxSel([]);
+        setApplied({ start: first, end: last, rx: [] });   // 초기: 전체
+      } else setFetchError(true);
     } catch { setFetchError(true); }
     finally { setLoading(false); }
   }
 
   useEffect(() => { if (files.length > 0) loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const periods = allData?.periods ?? [];
-  // 분석 적용된 월(없으면 전체) → 합산
-  const viewPeriods = useMemo(
-    () => (applied.length ? periods.filter(p => applied.includes(p.period)) : periods),
-    [periods, applied],
-  );
-  const viewData = useMemo(() => aggregate(viewPeriods), [viewPeriods]);
-  const viewWarnings = useMemo(
-    () => Array.from(new Set(viewPeriods.flatMap(p => p.warnings))),
-    [viewPeriods],
-  );
+  const months  = allData?.months ?? [];
+  const rxTypes = allData?.rxTypes ?? [];
+  const filteredRows = useMemo(() => {
+    if (!allData || !applied) return [];
+    const lo = applied.start <= applied.end ? applied.start : applied.end;
+    const hi = applied.start <= applied.end ? applied.end : applied.start;
+    return allData.rows.filter(r =>
+      r.month >= lo && r.month <= hi &&
+      (applied.rx.length === 0 || applied.rx.includes(r.rxType)),
+    );
+  }, [allData, applied]);
+  const viewData = useMemo(() => aggregate(filteredRows), [filteredRows]);
 
   if (files.length === 0) {
     return (
@@ -593,43 +595,56 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
               ))}
             </div>
           ) : (
-            <>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-                집계할 <b style={{ color: 'rgba(255,255,255,0.75)' }}>허가월</b>을 복수 선택하고 <b style={{ color: '#7eb3ff' }}>분석</b>을 누르세요. (미선택 시 전체)
+            <div style={{ ...CARD, padding: '1rem 1.1rem' }}>
+              {/* 기간(허가월) 선택 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'rgba(255,255,255,0.8)', minWidth: '54px' }}>허가월</span>
+                <select value={startM} onChange={e => setStartM(e.target.value)} style={selStyle}>
+                  {months.map(m => <option key={m} value={m}>{formatPeriod(m)}</option>)}
+                </select>
+                <span style={{ color: 'var(--text-muted)' }}>~</span>
+                <select value={endM} onChange={e => setEndM(e.target.value)} style={selStyle}>
+                  {months.map(m => <option key={m} value={m}>{formatPeriod(m)}</option>)}
+                </select>
               </div>
-              <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.7rem' }}>
-                <button
-                  onClick={() => setPending(pending.length === periods.length ? [] : periods.map(p => p.period))}
-                  style={chipStyle(pending.length === periods.length && periods.length > 0, true)}>
-                  {pending.length === periods.length && periods.length > 0 ? '전체 해제' : '전체 선택'}
-                </button>
-                {periods.map(p => {
-                  const on = pending.includes(p.period);
-                  return (
-                    <button key={p.period}
-                      onClick={() => setPending(on ? pending.filter(x => x !== p.period) : [...pending, p.period])}
-                      style={chipStyle(on)}>
-                      {on ? '✓ ' : ''}{formatPeriod(p.period)}
-                    </button>
-                  );
-                })}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-                <button onClick={() => setApplied([...pending])}
+
+              {/* 전문일반 복수선택 */}
+              {rxTypes.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.85rem' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'rgba(255,255,255,0.8)', minWidth: '54px' }}>전문일반</span>
+                  <button onClick={() => setRxSel([])} style={chipStyle(rxSel.length === 0, true)}>전체</button>
+                  {rxTypes.map(t => {
+                    const on = rxSel.includes(t);
+                    return (
+                      <button key={t}
+                        onClick={() => setRxSel(on ? rxSel.filter(x => x !== t) : [...rxSel, t])}
+                        style={chipStyle(on)}>
+                        {on ? '✓ ' : ''}{t}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 분석 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', flexWrap: 'wrap' }}>
+                <button onClick={() => setApplied({ start: startM, end: endM, rx: [...rxSel] })}
                   style={{
-                    padding: '0.5rem 1.3rem', borderRadius: '9px', cursor: 'pointer', fontFamily: 'inherit',
+                    padding: '0.5rem 1.4rem', borderRadius: '9px', cursor: 'pointer', fontFamily: 'inherit',
                     background: 'linear-gradient(135deg,#3b82f6,#6366f1)', border: 'none',
                     color: '#fff', fontSize: '0.85rem', fontWeight: 700, whiteSpace: 'nowrap',
                   }}>
-                  🔍 분석 {pending.length > 0 ? `(${pending.length}개월)` : '(전체)'}
+                  🔍 분석
                 </button>
-                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                  {applied.length
-                    ? <>선택 <b style={{ color: '#7eb3ff' }}>{applied.length}개월</b> 집계 · 총 <b style={{ color: '#7eb3ff' }}>{fmtNum(viewData.meta.totalCount)}</b>품목</>
-                    : <>전체 <b style={{ color: '#7eb3ff' }}>{periods.length}개월</b> 집계 · 총 <b style={{ color: '#7eb3ff' }}>{fmtNum(viewData.meta.totalCount)}</b>품목</>}
-                </span>
+                {applied && (
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    {formatPeriod(applied.start <= applied.end ? applied.start : applied.end)} ~ {formatPeriod(applied.start <= applied.end ? applied.end : applied.start)}
+                    {applied.rx.length > 0 && <> · {applied.rx.join('·')}</>}
+                    {' · '}유효 <b style={{ color: '#7eb3ff' }}>{fmtNum(viewData.meta.totalCount)}</b>품목 · <b>{viewData.meta.monthCount}</b>개월
+                  </span>
+                )}
               </div>
-            </>
+            </div>
           )}
         </>
       )}
@@ -682,10 +697,13 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
             </div>
           )}
 
-          {/* ═══ 선택 월 집계 뷰 ═══ */}
-          {viewWarnings.length > 0 && (
+          {/* ═══ 선택 기간 집계 뷰 ═══ */}
+          {(allData.undated > 0 || allData.totalMonths > allData.windowMonths) && (
             <div style={{ fontSize: '0.72rem', color: '#fbbf24', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(251,191,36,0.08)', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.2)' }}>
-              ⚠ {viewWarnings.join(' · ')}
+              ⚠ {[
+                allData.totalMonths > allData.windowMonths ? `허가일자 기준 최근 ${allData.windowMonths}개월만 조회(전체 ${allData.totalMonths}개월 중)` : '',
+                allData.undated > 0 ? `허가일자 미기재 ${allData.undated}건 제외` : '',
+              ].filter(Boolean).join(' · ')}
             </div>
           )}
 
@@ -719,14 +737,14 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
           <MonthlyTrend trend={viewData.monthlyTrend} />
 
           <DrilldownCompanyTable
-            title={`회사별 허가현황 (${viewData.meta.periodCount}개월)`}
+            title={`회사별 허가현황 (${viewData.meta.monthCount}개월)`}
             rows={viewData.companyBreakdown}
             drilldownRows={viewData.drilldownRows}
           />
 
           {viewData.topIngredients.length > 0 && (
             <DrilldownIngredientTable
-              title={`성분별 허가현황 TOP 10 (${viewData.meta.periodCount}개월)`}
+              title={`성분별 허가현황 TOP 10 (${viewData.meta.monthCount}개월)`}
               rows={viewData.topIngredients}
               drilldownRows={viewData.drilldownRows}
             />

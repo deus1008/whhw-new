@@ -11,60 +11,24 @@ export const maxDuration = 120;
 
 type SheetRow = Record<string, string | number | boolean | null>;
 
+// 드릴다운 테이블용(회사→성분→품목→허가일)
 export type DrilldownRow = {
   company: string;
-  ingredient: string;     // 품목허가공고엔 성분 컬럼이 없어 '' (하위호환)
+  ingredient: string;
   product: string;
   approvalDate: string;
-  approvalType?: string;
-  rxType?: string;
-  cancelled?: boolean;
-  cancelDate?: string;
 };
 
-export type PeriodResult = {
-  id: string;
-  filename: string;
-  period: string; // "YYYY-MM" (허가일자 기준 허가월)
-  meta: {
-    totalCount: number;        // 유효 허가(취소 제외)
-    approvedCount: number;     // 전체 허가(취소 포함)
-    cancelledCount: number;    // 취소 건수
-    uniqueIngredients: number;
-    topIngredientName: string;
-    topIngredientCompanyCount: number;
-    topIngredientTotalCount: number;
-    pipelineCount: number;
-  };
-  companyBreakdown:      { name: string; count: number }[];
-  approvalTypeBreakdown: { name: string; count: number }[];
-  rxTypeBreakdown:       { name: string; count: number }[];
-  topIngredients:        { name: string; count: number }[];
-  cumulativeIngredients: { name: string; count: number }[];
-  drilldownRows:         DrilldownRow[];
-  pipeline: { disease: string; ingredient: string; ownStatus: string; thisMonth: string }[];
-  warnings: string[];
-};
-
-export type CombinedData = {
-  meta: {
-    totalCount: number;
-    approvedCount: number;
-    cancelledCount: number;
-    uniqueIngredients: number;
-    topIngredientName: string;
-    topIngredientCompanyCount: number;
-    topIngredientTotalCount: number;
-    pipelineCount: number;
-    periodCount: number;
-  };
-  companyBreakdown:      { name: string; count: number }[];
-  approvalTypeBreakdown: { name: string; count: number }[];
-  rxTypeBreakdown:       { name: string; count: number }[];
-  topIngredients:        { name: string; count: number }[];
-  monthlyTrend:          { period: string; filename: string; count: number; approved: number; cancelled: number }[];
-  drilldownRows:         DrilldownRow[];
-  pipeline: { disease: string; ingredient: string; ownStatus: string; thisMonth: string }[];
+// 허가 1건(허가일자 기준 허가월 부여) — 클라이언트가 기간·전문일반으로 필터/집계.
+export type ApprovalRow = {
+  month: string;        // YYYY-MM (허가일자 기준)
+  company: string;
+  ingredient: string;
+  product: string;
+  approvalDate: string;
+  approvalType: string; // 허가심사유형
+  rxType: string;       // 전문일반
+  cancelled: boolean;   // 취소일자 기재 여부
 };
 
 /* ── 유틸 ── */
@@ -76,11 +40,9 @@ function findCol(headers: string[], candidates: string[]): string | null {
   }
   return null;
 }
-
 function str(v: string | number | boolean | null | undefined): string {
   return String(v ?? '').trim();
 }
-
 function formatDate(v: string | number | boolean | null | undefined): string {
   if (v == null) return '';
   if (typeof v === 'number' && v > 40000 && v < 60000) {
@@ -95,7 +57,6 @@ function formatDate(v: string | number | boolean | null | undefined): string {
   if (m2) return `${m2[1]}-${m2[2]}-${m2[3]}`;
   return s;
 }
-
 const MONTH_RE = /^\d{4}-\d{2}/;
 
 /* 제품명 괄호 안 텍스트 = 성분명. 뒤쪽 부가괄호(수출용·1회용 등)는 건너뛰고 실제 성분 괄호 사용. 없으면 ''. */
@@ -106,24 +67,16 @@ function extractIngredient(product: string): string {
   if (!groups) return '';
   for (let i = groups.length - 1; i >= 0; i--) {
     const inner = groups[i].replace(/^[(（]/, '').replace(/[)）]$/, '').trim();
-    if (inner && !NON_INGREDIENT.test(inner)) return inner;
+    // 띄어쓰기 차이로 다른 성분 취급되지 않도록 내부 공백 제거로 정규화.
+    if (inner && !NON_INGREDIENT.test(inner)) return inner.replace(/\s+/g, '');
   }
   return '';
 }
 
-function mergeBreakdowns(lists: { name: string; count: number }[][]): { name: string; count: number }[] {
-  const map = new Map<string, number>();
-  for (const list of lists)
-    for (const item of list)
-      map.set(item.name, (map.get(item.name) ?? 0) + item.count);
-  return Array.from(map.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-}
-
-/* ── 파일 → 행 추출(허가일자·취소일자 등) ── */
+/* ── 파일 → 행 추출 ── */
 type RawRow = { company: string; product: string; ingredient: string; approvalDate: string; cancelDate: string; approvalType: string; rxType: string };
 
-function parseRawRows(wb: XLSX.WorkBook): { rows: RawRow[]; warnings: string[] } {
-  const warnings: string[] = [];
+function parseRawRows(wb: XLSX.WorkBook): RawRow[] {
   const sheetNames = wb.SheetNames;
   let mainSheet = sheetNames[0] ?? '';
   for (const kw of ['허가', '공고', '품목', '데이터', '목록', '내역']) {
@@ -132,7 +85,7 @@ function parseRawRows(wb: XLSX.WorkBook): { rows: RawRow[]; warnings: string[] }
   }
   const ws = wb.Sheets[mainSheet];
   const raw: SheetRow[] = ws ? XLSX.utils.sheet_to_json<SheetRow>(ws, { defval: null }) : [];
-  if (raw.length === 0) { warnings.push(`'${mainSheet}' 시트에 데이터가 없습니다.`); return { rows: [], warnings }; }
+  if (raw.length === 0) return [];
 
   const headers = Object.keys(raw[0]);
   const productCol = findCol(headers, ['제품명', '품목명', '품명', '의약품명', '품목']);
@@ -141,112 +94,19 @@ function parseRawRows(wb: XLSX.WorkBook): { rows: RawRow[]; warnings: string[] }
   const cancelCol  = findCol(headers, ['취소일자', '취소일', '취하일자', '취하일']);
   const typeCol    = findCol(headers, ['허가심사유형', '허가유형', '허가구분', '심사유형', '유형']);
   const rxCol      = findCol(headers, ['전문일반', '전문/일반', '전문의약품']);
-  if (!apprCol) warnings.push('허가일자 컬럼을 자동 인식하지 못했습니다.');
 
-  const rows = raw.map(r => {
+  return raw.map(r => {
     const product = productCol ? str(r[productCol]) : '';
     return {
       company:      companyCol ? stripCompanyAffix(str(r[companyCol])) : '',
       product,
-      ingredient:   extractIngredient(product),   // 제품명 괄호 안 텍스트
+      ingredient:   extractIngredient(product),
       approvalDate: apprCol    ? formatDate(r[apprCol]) : '',
       cancelDate:   cancelCol  ? formatDate(r[cancelCol]) : '',
       approvalType: typeCol    ? (str(r[typeCol]) || '기타') : '기타',
       rxType:       rxCol      ? str(r[rxCol]) : '',
     };
   }).filter(r => r.company || r.product);
-
-  return { rows, warnings };
-}
-
-/* ── 허가월(허가일자 기준) 단위 집계 ── */
-function buildPeriod(month: string, rows: RawRow[]): PeriodResult {
-  const active    = rows.filter(r => !r.cancelDate);
-  const cancelled = rows.filter(r =>  r.cancelDate);
-
-  const companyMap = new Map<string, number>();
-  const typeMap    = new Map<string, number>();
-  const rxMap      = new Map<string, number>();
-  const ingCountMap   = new Map<string, number>();
-  const ingCompanyMap = new Map<string, Set<string>>();
-  for (const r of active) {
-    if (r.company) companyMap.set(r.company, (companyMap.get(r.company) ?? 0) + 1);
-    typeMap.set(r.approvalType || '기타', (typeMap.get(r.approvalType || '기타') ?? 0) + 1);
-    if (r.rxType) rxMap.set(r.rxType, (rxMap.get(r.rxType) ?? 0) + 1);
-    if (r.ingredient) {
-      ingCountMap.set(r.ingredient, (ingCountMap.get(r.ingredient) ?? 0) + 1);
-      if (r.company) {
-        if (!ingCompanyMap.has(r.ingredient)) ingCompanyMap.set(r.ingredient, new Set());
-        ingCompanyMap.get(r.ingredient)!.add(r.company);
-      }
-    }
-  }
-  const toArr = (m: Map<string, number>) => Array.from(m.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
-
-  // 최다 집중 성분(회사 수 기준)
-  let topIngredientName = '', topIngredientCompanyCount = 0, topIngredientTotalCount = 0;
-  for (const [name, companies] of ingCompanyMap.entries()) {
-    if (companies.size > topIngredientCompanyCount) {
-      topIngredientCompanyCount = companies.size; topIngredientName = name;
-      topIngredientTotalCount = ingCountMap.get(name) ?? 0;
-    }
-  }
-  if (!topIngredientName && ingCountMap.size > 0) {
-    let mx = 0;
-    for (const [n, c] of ingCountMap.entries()) if (c > mx) { mx = c; topIngredientName = n; topIngredientTotalCount = c; }
-  }
-
-  const companyBreakdown = toArr(companyMap);
-  const drilldownRows: DrilldownRow[] = active.map(r => ({
-    company: r.company, ingredient: r.ingredient, product: r.product, approvalDate: r.approvalDate,
-    approvalType: r.approvalType, rxType: r.rxType, cancelled: false, cancelDate: '',
-  })).filter(r => r.company || r.product);
-
-  return {
-    id: month, filename: '', period: month,
-    meta: {
-      totalCount: active.length,
-      approvedCount: rows.length,
-      cancelledCount: cancelled.length,
-      uniqueIngredients: ingCountMap.size,
-      topIngredientName, topIngredientCompanyCount, topIngredientTotalCount,
-      pipelineCount: 0,
-    },
-    companyBreakdown,
-    approvalTypeBreakdown: toArr(typeMap),
-    rxTypeBreakdown:       toArr(rxMap),
-    topIngredients: toArr(ingCountMap).slice(0, 10),
-    cumulativeIngredients: [],
-    drilldownRows, pipeline: [], warnings: [],
-  };
-}
-
-function computeCombined(periods: PeriodResult[]): CombinedData {
-  const companyBreakdown      = mergeBreakdowns(periods.map(p => p.companyBreakdown));
-  const approvalTypeBreakdown = mergeBreakdowns(periods.map(p => p.approvalTypeBreakdown));
-  const rxTypeBreakdown       = mergeBreakdowns(periods.map(p => p.rxTypeBreakdown));
-  const monthlyTrend = periods.map(p => ({
-    period: p.period, filename: '',
-    count: p.meta.totalCount, approved: p.meta.approvedCount, cancelled: p.meta.cancelledCount,
-  }));
-  const totalCount     = periods.reduce((s, p) => s + p.meta.totalCount, 0);
-  const approvedCount  = periods.reduce((s, p) => s + p.meta.approvedCount, 0);
-  const cancelledCount = periods.reduce((s, p) => s + p.meta.cancelledCount, 0);
-
-  const allIngredients = mergeBreakdowns(periods.map(p => p.topIngredients));
-  const topIngredients = allIngredients.slice(0, 10);
-  const topIng = allIngredients[0];
-
-  return {
-    meta: {
-      totalCount, approvedCount, cancelledCount,
-      uniqueIngredients: allIngredients.length,
-      topIngredientName: topIng?.name ?? '', topIngredientCompanyCount: 0, topIngredientTotalCount: topIng?.count ?? 0,
-      pipelineCount: 0, periodCount: periods.length,
-    },
-    drilldownRows: periods.flatMap(p => p.drilldownRows),
-    companyBreakdown, approvalTypeBreakdown, rxTypeBreakdown, topIngredients, monthlyTrend, pipeline: [],
-  };
 }
 
 /* ── GET 핸들러 ── */
@@ -268,10 +128,8 @@ export async function GET(request: NextRequest) {
 
   const isAdmin   = profileIsAdmin(profile);
   const companyId = await getEffectiveCompanyId((profile.company_id as string) ?? null, isAdmin);
-
   const db = createSvc(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
-  // 모든 파일 행 수집
   const settled = await Promise.allSettled(ids.map(async (id): Promise<RawRow[]> => {
     const { data: doc, error: docErr } = await db
       .from('documents').select('storage_path, company_id, filename').eq('id', id).single();
@@ -280,12 +138,12 @@ export async function GET(request: NextRequest) {
     const { data: fileData, error: dlErr } = await db.storage.from('documents').download(doc.storage_path as string);
     if (dlErr || !fileData) throw new Error(`Download failed: ${id}`);
     const wb = XLSX.read(new Uint8Array(await fileData.arrayBuffer()), { type: 'array' });
-    return parseRawRows(wb).rows;
+    return parseRawRows(wb);
   }));
 
   const failedCount = settled.filter(r => r.status === 'rejected').length;
 
-  // 파일 간 중복 제거(제품·업체·허가일자). 취소 정보가 있는 행 우선.
+  // 파일 간 중복 제거(제품·업체·허가일자). 취소 정보 있는 행 우선.
   const seen = new Map<string, RawRow>();
   for (const s of settled) {
     if (s.status !== 'fulfilled') continue;
@@ -296,29 +154,39 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 허가월(허가일자 기준)로 그룹
-  const byMonth = new Map<string, RawRow[]>();
+  // 허가일자 → 허가월. 이력이 수십 년이므로 최근 N개월만.
+  const MONTHS_WINDOW = 48;
+  const monthSet = new Set<string>();
+  const byRow: { row: RawRow; month: string }[] = [];
   let undated = 0;
   for (const row of seen.values()) {
     const m = MONTH_RE.test(row.approvalDate) ? row.approvalDate.slice(0, 7) : '';
     if (!m) { undated++; continue; }
-    if (!byMonth.has(m)) byMonth.set(m, []);
-    byMonth.get(m)!.push(row);
+    monthSet.add(m);
+    byRow.push({ row, month: m });
   }
-
-  // 품목허가 이력이 수십 년에 걸쳐 있어, 최근 N개월(허가일자 기준)만 표시.
-  const MONTHS_WINDOW = 36;
-  const allMonths = [...byMonth.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  const windowMonths = allMonths.slice(-MONTHS_WINDOW);
+  const allMonths = [...monthSet].sort();
   const totalMonths = allMonths.length;
-  const periods = windowMonths.map(([month, rows]) => buildPeriod(month, rows));
+  const windowMonths = allMonths.slice(-MONTHS_WINDOW);
+  const windowSet = new Set(windowMonths);
 
-  if (periods.length > 0) {
-    if (undated > 0) periods[periods.length - 1].warnings.push(`허가일자 미기재 ${undated}건은 허가월 분류에서 제외됨`);
-    if (totalMonths > MONTHS_WINDOW) periods[0].warnings.push(`허가일자 기준 최근 ${MONTHS_WINDOW}개월만 표시(전체 ${totalMonths}개월 중)`);
+  const rxSet = new Set<string>();
+  const rows: ApprovalRow[] = [];
+  for (const { row, month } of byRow) {
+    if (!windowSet.has(month)) continue;
+    if (row.rxType) rxSet.add(row.rxType);
+    rows.push({
+      month, company: row.company, ingredient: row.ingredient, product: row.product,
+      approvalDate: row.approvalDate, approvalType: row.approvalType || '기타',
+      rxType: row.rxType, cancelled: !!row.cancelDate,
+    });
   }
 
-  const combined = computeCombined(periods);
-
-  return NextResponse.json({ periods, combined, failedCount, totalMonths, windowMonths: MONTHS_WINDOW });
+  return NextResponse.json({
+    rows,
+    months: windowMonths,
+    rxTypes: [...rxSet].sort(),
+    totalMonths, windowMonths: MONTHS_WINDOW,
+    undated, failedCount,
+  });
 }
