@@ -424,7 +424,7 @@ export default function ContractsClient({
   const [editTarget, setEditTarget] = useState<ContractRow | null>(null);
   const [inputValue, setInputValue] = useState('');   // 입력 중인 텍스트
   const [search, setSearch]         = useState('');   // 실제 적용된 검색어 (버튼/엔터 시 반영)
-  const [activeTab, setActiveTab]   = useState<'전체' | '올해' | '이번달' | '유효중'>('전체');
+  const [activeTab, setActiveTab]   = useState<'전체' | '올해' | '이번달' | '유효중' | '신규계약' | '기존처변경'>('전체');
   const [deleting, setDeleting]     = useState<string | null>(null);
 
   function applySearch() { setSearch(inputValue.trim()); }
@@ -438,11 +438,14 @@ export default function ContractsClient({
   const thisMonth = today.slice(0, 7);
 
   /* 탭별 카운트 */
+  const isChange = (c: ContractRow) => c.contract_type === '기존처변경';
   const counts = useMemo(() => ({
     전체:   contracts.length,
     올해:   contracts.filter(c => c.contract_start.startsWith(thisYear)).length,
     이번달: contracts.filter(c => c.contract_start.startsWith(thisMonth)).length,
     유효중: contracts.filter(c => c.contract_start <= today && (!c.contract_end || c.contract_end >= today)).length,
+    신규계약:   contracts.filter(c => !isChange(c)).length,
+    기존처변경: contracts.filter(c =>  isChange(c)).length,
   }), [contracts, today, thisYear, thisMonth]);
 
   /* 클라이언트 필터 */
@@ -452,6 +455,8 @@ export default function ContractsClient({
       if (activeTab === '올해'   && !c.contract_start.startsWith(thisYear))  return false;
       if (activeTab === '이번달' && !c.contract_start.startsWith(thisMonth)) return false;
       if (activeTab === '유효중' && !(c.contract_start <= today && (!c.contract_end || c.contract_end >= today))) return false;
+      if (activeTab === '신규계약'   && isChange(c))  return false;
+      if (activeTab === '기존처변경' && !isChange(c)) return false;
       /* 키워드 검색 */
       if (search) {
         const q = search.toLowerCase();
@@ -510,6 +515,8 @@ export default function ContractsClient({
           { tab: '올해',   color: '#93c5fd', rgba: 'rgba(59,130,246,'  },
           { tab: '이번달', color: '#86efac', rgba: 'rgba(34,197,94,'   },
           { tab: '유효중', color: '#fde68a', rgba: 'rgba(251,191,36,'  },
+          { tab: '신규계약',   color: '#60a5fa', rgba: 'rgba(96,165,250,' },
+          { tab: '기존처변경', color: '#fbbf24', rgba: 'rgba(251,146,60,' },
         ] as const).map(({ tab, color, rgba }) => {
           const active = activeTab === tab;
           return (
