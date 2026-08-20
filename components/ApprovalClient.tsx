@@ -491,13 +491,55 @@ function getPeriodRange(key: string): string {
   return `${year}-${m[2]}-01 ~ ${m[2]}-${lastDay}`;
 }
 
+function chipStyle(on: boolean, accent = false): React.CSSProperties {
+  return {
+    padding: '0.4rem 0.85rem', borderRadius: '100px', cursor: 'pointer', border: '1px solid',
+    borderColor: on ? 'rgba(79,142,247,0.6)' : 'rgba(255,255,255,0.12)',
+    background: on ? 'rgba(79,142,247,0.18)' : (accent ? 'rgba(255,255,255,0.05)' : 'transparent'),
+    color: on ? '#7eb3ff' : 'var(--text-muted)',
+    fontSize: '0.8rem', fontWeight: on ? 700 : 400, fontFamily: 'inherit', transition: 'all 0.15s',
+  };
+}
+
+/* ── 선택 월 집계(클라이언트) ── */
+function mergeBreak(lists: { name: string; count: number }[][]): { name: string; count: number }[] {
+  const m = new Map<string, number>();
+  for (const l of lists) for (const it of l) m.set(it.name, (m.get(it.name) ?? 0) + it.count);
+  return [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+}
+function aggregate(periods: PeriodResult[]): CombinedData {
+  const companyBreakdown      = mergeBreak(periods.map(p => p.companyBreakdown));
+  const approvalTypeBreakdown = mergeBreak(periods.map(p => p.approvalTypeBreakdown));
+  const rxTypeBreakdown       = mergeBreak(periods.map(p => p.rxTypeBreakdown));
+  const allIng                = mergeBreak(periods.map(p => p.topIngredients));
+  const topIng                = allIng[0];
+  const monthlyTrend = periods.map(p => ({
+    period: p.period, filename: '',
+    count: p.meta.totalCount, approved: p.meta.approvedCount, cancelled: p.meta.cancelledCount,
+  }));
+  return {
+    meta: {
+      totalCount:     periods.reduce((s, p) => s + p.meta.totalCount, 0),
+      approvedCount:  periods.reduce((s, p) => s + p.meta.approvedCount, 0),
+      cancelledCount: periods.reduce((s, p) => s + p.meta.cancelledCount, 0),
+      uniqueIngredients: allIng.length,
+      topIngredientName: topIng?.name ?? '', topIngredientCompanyCount: 0, topIngredientTotalCount: topIng?.count ?? 0,
+      pipelineCount: 0, periodCount: periods.length,
+    },
+    companyBreakdown, approvalTypeBreakdown, rxTypeBreakdown,
+    topIngredients: allIng.slice(0, 10), monthlyTrend,
+    drilldownRows: periods.flatMap(p => p.drilldownRows), pipeline: [],
+  };
+}
+
 /* ── 메인 컴포넌트 ── */
 export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
   const files = allFiles ?? [];
-  const [allData,        setAllData]        = useState<AllData | null>(null);
-  const [loading,        setLoading]        = useState(files.length > 0);
-  const [fetchError,     setFetchError]     = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState<string>('전체');
+  const [allData,    setAllData]    = useState<AllData | null>(null);
+  const [loading,    setLoading]    = useState(files.length > 0);
+  const [fetchError, setFetchError] = useState(false);
+  const [pending,    setPending]    = useState<string[]>([]);   // 선택 중(분석 전)
+  const [applied,    setApplied]    = useState<string[]>([]);   // 분석 적용됨(빈 배열 = 전체)
 
   const ids = useMemo(() => files.map(f => f.id).join(','), [files]);
 
@@ -506,7 +548,7 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
     setAllData(null); setFetchError(false); setLoading(true);
     try {
       const res = await fetch(`/api/approval-data?ids=${encodeURIComponent(ids)}`);
-      if (res.ok) { setAllData(await res.json() as AllData); setSelectedPeriod('전체'); }
+      if (res.ok) { setAllData(await res.json() as AllData); setPending([]); setApplied([]); }
       else setFetchError(true);
     } catch { setFetchError(true); }
     finally { setLoading(false); }
@@ -514,13 +556,17 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
 
   useEffect(() => { if (files.length > 0) loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const displayData = useMemo(() => {
-    if (!allData || selectedPeriod === '전체') return null;
-    return allData.periods.find(p => p.period === selectedPeriod) ?? null;
-  }, [allData, selectedPeriod]);
-
-  const isCombined = selectedPeriod === '전체';
-  const combined   = allData?.combined;
+  const periods = allData?.periods ?? [];
+  // 분석 적용된 월(없으면 전체) → 합산
+  const viewPeriods = useMemo(
+    () => (applied.length ? periods.filter(p => applied.includes(p.period)) : periods),
+    [periods, applied],
+  );
+  const viewData = useMemo(() => aggregate(viewPeriods), [viewPeriods]);
+  const viewWarnings = useMemo(
+    () => Array.from(new Set(viewPeriods.flatMap(p => p.warnings))),
+    [viewPeriods],
+  );
 
   if (files.length === 0) {
     return (
@@ -537,50 +583,55 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
         @keyframes skel-pulse { 0%,100%{opacity:.3} 50%{opacity:.65} }
       `}</style>
 
-      {/* 기간 탭 */}
+      {/* 월 복수선택 */}
       {(loading || allData) && (
-        <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+        <>
           {loading ? (
-            [...Array(4)].map((_, i) => (
-              <div key={i} style={{ borderRadius: '100px', overflow: 'hidden' }}>
-                <Skel w={i === 0 ? '60px' : '90px'} h='32px' />
-              </div>
-            ))
+            <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              {[...Array(6)].map((_, i) => (
+                <div key={i} style={{ borderRadius: '100px', overflow: 'hidden' }}><Skel w='90px' h='32px' /></div>
+              ))}
+            </div>
           ) : (
-            ['전체', ...(allData?.periods.map(p => p.period) ?? [])].map(p => (
-              <button key={p} onClick={() => setSelectedPeriod(p)} style={{
-                padding: '0.4rem 0.9rem', borderRadius: '100px', cursor: 'pointer', border: '1px solid',
-                borderColor: selectedPeriod === p ? 'rgba(79,142,247,0.5)' : 'rgba(255,255,255,0.1)',
-                background: selectedPeriod === p ? 'rgba(79,142,247,0.15)' : 'transparent',
-                color: selectedPeriod === p ? '#7eb3ff' : 'var(--text-muted)',
-                fontSize: '0.8rem', fontWeight: selectedPeriod === p ? 600 : 400, transition: 'all 0.15s',
-              }}>
-                {p === '전체' ? `전체 (${allData?.periods.length ?? 0}개월)` : formatPeriod(p)}
-              </button>
-            ))
+            <>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+                집계할 <b style={{ color: 'rgba(255,255,255,0.75)' }}>허가월</b>을 복수 선택하고 <b style={{ color: '#7eb3ff' }}>분석</b>을 누르세요. (미선택 시 전체)
+              </div>
+              <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.7rem' }}>
+                <button
+                  onClick={() => setPending(pending.length === periods.length ? [] : periods.map(p => p.period))}
+                  style={chipStyle(pending.length === periods.length && periods.length > 0, true)}>
+                  {pending.length === periods.length && periods.length > 0 ? '전체 해제' : '전체 선택'}
+                </button>
+                {periods.map(p => {
+                  const on = pending.includes(p.period);
+                  return (
+                    <button key={p.period}
+                      onClick={() => setPending(on ? pending.filter(x => x !== p.period) : [...pending, p.period])}
+                      style={chipStyle(on)}>
+                      {on ? '✓ ' : ''}{formatPeriod(p.period)}
+                    </button>
+                  );
+                })}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+                <button onClick={() => setApplied([...pending])}
+                  style={{
+                    padding: '0.5rem 1.3rem', borderRadius: '9px', cursor: 'pointer', fontFamily: 'inherit',
+                    background: 'linear-gradient(135deg,#3b82f6,#6366f1)', border: 'none',
+                    color: '#fff', fontSize: '0.85rem', fontWeight: 700, whiteSpace: 'nowrap',
+                  }}>
+                  🔍 분석 {pending.length > 0 ? `(${pending.length}개월)` : '(전체)'}
+                </button>
+                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                  {applied.length
+                    ? <>선택 <b style={{ color: '#7eb3ff' }}>{applied.length}개월</b> 집계 · 총 <b style={{ color: '#7eb3ff' }}>{fmtNum(viewData.meta.totalCount)}</b>품목</>
+                    : <>전체 <b style={{ color: '#7eb3ff' }}>{periods.length}개월</b> 집계 · 총 <b style={{ color: '#7eb3ff' }}>{fmtNum(viewData.meta.totalCount)}</b>품목</>}
+                </span>
+              </div>
+            </>
           )}
-        </div>
-      )}
-
-      {/* 기간 헤더 */}
-      {!loading && allData && (
-        <div style={{ marginBottom: '1rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-          {isCombined ? (
-            <>
-              <span style={{ fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{allData.periods.length}개월 통합</span>
-              {allData.periods.length > 0 && (
-                <span> · {formatPeriod(allData.periods[0].period)} ~ {formatPeriod(allData.periods[allData.periods.length - 1].period)}</span>
-              )}
-              <span style={{ color: '#7eb3ff', fontWeight: 600 }}> · 총 {fmtNum(combined?.meta.totalCount ?? 0)}품목</span>
-            </>
-          ) : displayData ? (
-            <>
-              <span style={{ fontWeight: 600, color: 'rgba(255,255,255,0.75)' }}>{formatPeriod(displayData.period)}</span>
-              {displayData.period && <span> · 집계기간 {getPeriodRange(displayData.period)}</span>}
-              <span style={{ color: '#7eb3ff', fontWeight: 600 }}> · 총 {fmtNum(displayData.meta.totalCount)}품목</span>
-            </>
-          ) : null}
-        </div>
+        </>
       )}
 
       {/* 오류 */}
@@ -631,135 +682,62 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
             </div>
           )}
 
-          {/* ═══ 전체 통합 뷰 ═══ */}
-          {isCombined && combined && (
-            <>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
-                <SummaryCard
-                  label="유효 허가 품목 (합산)" value={fmtNum(combined.meta.totalCount)} unit="품목"
-                  sub={`전체 허가 ${fmtNum(combined.meta.approvedCount)} · ${fmtNum(combined.companyBreakdown.length)}개사`}
-                  color="#7eb3ff"
-                />
-                <SummaryCard
-                  label="허가 후 취소"
-                  value={fmtNum(combined.meta.cancelledCount)}
-                  unit="품목"
-                  sub={combined.meta.cancelledCount > 0 ? '취소일자 기재 건' : '취소 없음'}
-                  color="#f87171"
-                />
-                <SummaryCard
-                  label="최다 집중 성분"
-                  value={combined.meta.topIngredientTotalCount ? fmtNum(combined.meta.topIngredientTotalCount) : '-'}
-                  unit={combined.meta.topIngredientTotalCount ? '건' : undefined}
-                  sub={combined.meta.topIngredientName || '괄호 성분 없음'}
-                  color="#a78bfa"
-                />
-                <SummaryCard
-                  label="최다 허가 회사"
-                  value={combined.companyBreakdown[0] ? fmtNum(combined.companyBreakdown[0].count) : '-'}
-                  unit={combined.companyBreakdown[0] ? '품목' : undefined}
-                  sub={combined.companyBreakdown[0]?.name ?? '회사명 컬럼 미탐지'}
-                  color="#34d399"
-                />
-              </div>
-
-              <MonthlyTrend trend={combined.monthlyTrend} />
-
-              <DrilldownCompanyTable
-                title={`회사별 허가현황 (${allData.periods.length}개월 합산)`}
-                rows={combined.companyBreakdown}
-                drilldownRows={combined.drilldownRows}
-              />
-
-              {combined.topIngredients.length > 0 && (
-                <DrilldownIngredientTable
-                  title={`성분별 허가현황 TOP 10 (${allData.periods.length}개월 합산)`}
-                  rows={combined.topIngredients}
-                  drilldownRows={combined.drilldownRows}
-                />
-              )}
-
-              <ApprovalTypeTable title="허가심사유형별 분포 (누적)" rows={combined.approvalTypeBreakdown} />
-
-              {combined.pipeline.length > 0 && (
-                <PipelineTable
-                  rows={combined.pipeline}
-                  periodLabel={
-                    [...allData.periods].reverse().find(p => p.pipeline.length > 0)
-                      ? formatPeriod([...allData.periods].reverse().find(p => p.pipeline.length > 0)!.period)
-                      : ''
-                  }
-                />
-              )}
-            </>
+          {/* ═══ 선택 월 집계 뷰 ═══ */}
+          {viewWarnings.length > 0 && (
+            <div style={{ fontSize: '0.72rem', color: '#fbbf24', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(251,191,36,0.08)', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.2)' }}>
+              ⚠ {viewWarnings.join(' · ')}
+            </div>
           )}
 
-          {/* ═══ 개별 월 뷰 ═══ */}
-          {!isCombined && displayData && (
-            <>
-              {displayData.warnings.length > 0 && (
-                <div style={{ fontSize: '0.72rem', color: '#fbbf24', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(251,191,36,0.08)', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.2)' }}>
-                  ⚠ {displayData.warnings.join(' · ')}
-                </div>
-              )}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+            <SummaryCard
+              label="유효 허가 품목" value={fmtNum(viewData.meta.totalCount)} unit="품목"
+              sub={`전체 허가 ${fmtNum(viewData.meta.approvedCount)} · ${fmtNum(viewData.companyBreakdown.length)}개사`}
+              color="#7eb3ff"
+            />
+            <SummaryCard
+              label="허가 후 취소" value={fmtNum(viewData.meta.cancelledCount)} unit="품목"
+              sub={viewData.meta.cancelledCount > 0 ? '취소일자 기재 건' : '취소 없음'}
+              color="#f87171"
+            />
+            <SummaryCard
+              label="최다 집중 성분"
+              value={viewData.meta.topIngredientTotalCount ? fmtNum(viewData.meta.topIngredientTotalCount) : '-'}
+              unit={viewData.meta.topIngredientTotalCount ? '건' : undefined}
+              sub={viewData.meta.topIngredientName || '괄호 성분 없음'}
+              color="#a78bfa"
+            />
+            <SummaryCard
+              label="최다 허가 회사"
+              value={viewData.companyBreakdown[0] ? fmtNum(viewData.companyBreakdown[0].count) : '-'}
+              unit={viewData.companyBreakdown[0] ? '품목' : undefined}
+              sub={viewData.companyBreakdown[0]?.name ?? '회사명 컬럼 미탐지'}
+              color="#34d399"
+            />
+          </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
-                <SummaryCard
-                  label="유효 허가 품목" value={fmtNum(displayData.meta.totalCount)} unit="품목"
-                  sub={`전체 허가 ${fmtNum(displayData.meta.approvedCount)} · ${fmtNum(displayData.companyBreakdown.length)}개사`}
-                  color="#7eb3ff"
-                />
-                <SummaryCard
-                  label="허가 후 취소"
-                  value={fmtNum(displayData.meta.cancelledCount)}
-                  unit="품목"
-                  sub={displayData.meta.cancelledCount > 0 ? '취소일자 기재 건' : '취소 없음'}
-                  color="#f87171"
-                />
-                <SummaryCard
-                  label="최다 집중 성분"
-                  value={displayData.meta.topIngredientTotalCount ? fmtNum(displayData.meta.topIngredientTotalCount) : '-'}
-                  unit={displayData.meta.topIngredientTotalCount ? '품목' : undefined}
-                  sub={displayData.meta.topIngredientName
-                    ? `${displayData.meta.topIngredientName}${displayData.meta.topIngredientCompanyCount > 0 ? ` (${fmtNum(displayData.meta.topIngredientCompanyCount)}개사)` : ''}`
-                    : '괄호 성분 없음'}
-                  color="#a78bfa"
-                />
-                <SummaryCard
-                  label="최다 허가 회사"
-                  value={displayData.companyBreakdown[0] ? fmtNum(displayData.companyBreakdown[0].count) : '-'}
-                  unit={displayData.companyBreakdown[0] ? '품목' : undefined}
-                  sub={displayData.companyBreakdown[0]?.name ?? '회사명 컬럼 미탐지'}
-                  color="#34d399"
-                />
-              </div>
+          <MonthlyTrend trend={viewData.monthlyTrend} />
 
-              <DrilldownCompanyTable
-                title="회사별 허가현황"
-                rows={displayData.companyBreakdown}
-                drilldownRows={displayData.drilldownRows}
-              />
+          <DrilldownCompanyTable
+            title={`회사별 허가현황 (${viewData.meta.periodCount}개월)`}
+            rows={viewData.companyBreakdown}
+            drilldownRows={viewData.drilldownRows}
+          />
 
-              {(displayData.topIngredients.length > 0 || displayData.cumulativeIngredients.length > 0) && (
-                <DrilldownIngredientTable
-                  title="성분별 허가현황 TOP 10"
-                  rows={displayData.cumulativeIngredients.length > 0 ? displayData.cumulativeIngredients : displayData.topIngredients}
-                  drilldownRows={displayData.drilldownRows}
-                />
-              )}
+          {viewData.topIngredients.length > 0 && (
+            <DrilldownIngredientTable
+              title={`성분별 허가현황 TOP 10 (${viewData.meta.periodCount}개월)`}
+              rows={viewData.topIngredients}
+              drilldownRows={viewData.drilldownRows}
+            />
+          )}
 
-              <ApprovalTypeTable title="허가심사유형별 분포" rows={displayData.approvalTypeBreakdown} />
+          <ApprovalTypeTable title="허가심사유형별 분포" rows={viewData.approvalTypeBreakdown} />
 
-              {displayData.pipeline.length > 0 && (
-                <PipelineTable rows={displayData.pipeline} periodLabel={formatPeriod(displayData.period)} />
-              )}
-
-              {displayData.meta.totalCount === 0 && displayData.pipeline.length === 0 && (
-                <div style={{ ...CARD, textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', fontSize: '0.85rem' }}>
-                  파싱된 데이터가 없습니다. 파일 형식이나 시트 구조를 확인해주세요.
-                </div>
-              )}
-            </>
+          {viewData.meta.totalCount === 0 && (
+            <div style={{ ...CARD, textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', fontSize: '0.85rem' }}>
+              선택한 월에 허가 데이터가 없습니다.
+            </div>
           )}
         </>
       )}
