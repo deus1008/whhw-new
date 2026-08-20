@@ -59,15 +59,21 @@ function formatDate(v: string | number | boolean | null | undefined): string {
 }
 const MONTH_RE = /^\d{4}-\d{2}/;
 
-/* 제품명 괄호 안 텍스트 = 성분명. 뒤쪽 부가괄호(수출용·1회용 등)는 건너뛰고 실제 성분 괄호 사용. 없으면 ''. */
-const NON_INGREDIENT = /^((수출|내수|국내|병원|조제|약국)용?|[1일]?회용|수출명.*|밀리그램|그램|mg|g)$/i;
+/* 제품명 괄호 안 텍스트 = 성분명.
+   - 부가/형태 괄호(수출용·1회용·미분화 등)를 반복 제거해 중첩 괄호 안의 실제 성분을 노출.
+   - 남은 괄호 중 실제 성분을 취해 공백 정규화. 없으면 ''. */
+const NON_INGREDIENT = /^((수출|내수|국내|병원|조제|약국)용?|[1일]?회용|수출명.*|미분화|나노화|밀리그램|그램|mg|g)$/i;
 function extractIngredient(product: string): string {
   if (!product) return '';
-  const groups = product.match(/[(（]([^()（）]*)[)）]/g);
+  let s = product, prev = '';
+  do {
+    prev = s;
+    s = s.replace(/[(（]([^()（）]*)[)）]/g, (m, inner) => NON_INGREDIENT.test(String(inner).trim()) ? '' : m);
+  } while (s !== prev);
+  const groups = s.match(/[(（]([^()（）]*)[)）]/g);
   if (!groups) return '';
   for (let i = groups.length - 1; i >= 0; i--) {
     const inner = groups[i].replace(/^[(（]/, '').replace(/[)）]$/, '').trim();
-    // 띄어쓰기 차이로 다른 성분 취급되지 않도록 내부 공백 제거로 정규화.
     if (inner && !NON_INGREDIENT.test(inner)) return inner.replace(/\s+/g, '');
   }
   return '';
@@ -152,6 +158,16 @@ export async function GET(request: NextRequest) {
       const ex = seen.get(key);
       if (!ex || (!ex.cancelDate && row.cancelDate)) seen.set(key, row);
     }
+  }
+
+  // 무괄호 성분 보완: 괄호에서 얻은 성분 사전으로 제품명 부분매칭(실제 성분만 채움, 브랜드 오매칭 방지).
+  const dict = [...new Set(
+    [...seen.values()].map(r => r.ingredient).filter(x => x && x.length >= 4 && !x.includes(',')),
+  )].sort((a, b) => b.length - a.length);
+  for (const r of seen.values()) {
+    if (r.ingredient) continue;
+    const np = r.product.replace(/\s+/g, '');
+    for (const d of dict) { if (np.includes(d)) { r.ingredient = d; break; } }
   }
 
   // 허가일자 → 허가월. 이력이 수십 년이므로 최근 N개월만.
