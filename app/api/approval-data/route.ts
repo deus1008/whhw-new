@@ -115,6 +115,36 @@ function parseRawRows(wb: XLSX.WorkBook): RawRow[] {
   }).filter(r => r.company || r.product);
 }
 
+/* drug_prices(약가표)에서 한글 성분 사전 구축 — item_name 괄호(한글 성분) + 한글 ingredient_name.
+   프로세스 수명 동안 캐시(약가표는 자주 안 바뀜). */
+let _dpDict: string[] | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function drugPriceIngredients(db: any): Promise<string[]> {
+  if (_dpDict) return _dpDict;
+  const set = new Set<string>();
+  let from = 0; const P = 1000;
+  while (true) {
+    const { data } = await db.from('drug_prices').select('item_name, ingredient_name').range(from, from + P - 1);
+    if (!data?.length) break;
+    for (const r of data as { item_name: string | null; ingredient_name: string | null }[]) {
+      // item_name 뒤 용량 괄호 "_(40mg/1정)" 제거 후 한글 성분 괄호 추출
+      const nm = String(r.item_name ?? '').replace(/_\s*[(（][^()（）]*[)）]\s*$/, '');
+      const paren = extractIngredient(nm);
+      if (paren && /[가-힣]/.test(paren)) set.add(paren);
+      const ing = String(r.ingredient_name ?? '');
+      if (/[가-힣]/.test(ing)) {
+        for (const part of ing.split(/[,/、]/)) {
+          const p = part.trim().replace(/\s+/g, '');
+          if (p.length >= 4 && /[가-힣]/.test(p) && !/\d/.test(p)) set.add(p);
+        }
+      }
+    }
+    if (data.length < P) break; from += P;
+  }
+  _dpDict = [...set];
+  return _dpDict;
+}
+
 /* ── GET 핸들러 ── */
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -165,11 +195,14 @@ export async function GET(request: NextRequest) {
   //   염·수화물을 뗀 기본형도 사전에 추가.
   const SALT = /(염산염|브롬화수소산염|황산염|질산염|인산염|말레산염|푸마르산염|타르타르산염|시트르산염|구연산염|숙신산염|베실산염|캄실산염|메실산염|토실산염|에실산염|아세트산염|아스파르트산염|글루콘산염|락트산염|살리실산염|프로피오네이트|칼슘|나트륨|칼륨|마그네슘|삼수화물|이수화물|일수화물|무수물|수화물)/g;
   const dictSet = new Set<string>();
-  for (const ing of new Set([...seen.values()].map(r => r.ingredient).filter(x => x && !x.includes(',')))) {
+  const addWithBase = (ing: string) => {
     if (ing.length >= 4) dictSet.add(ing);
     const base = ing.replace(SALT, '').trim();
     if (base.length >= 4 && base !== ing) dictSet.add(base);
-  }
+  };
+  for (const ing of new Set([...seen.values()].map(r => r.ingredient).filter(x => x && !x.includes(',')))) addWithBase(ing);
+  // drug_prices(약가표) 성분 병합 → 무괄호 매칭 커버리지 확대
+  try { for (const ing of await drugPriceIngredients(db)) addWithBase(ing); } catch { /* 약가표 조회 실패 시 무시 */ }
   const dict = [...dictSet].sort((a, b) => b.length - a.length);
   for (const r of seen.values()) {
     if (r.ingredient) continue;
