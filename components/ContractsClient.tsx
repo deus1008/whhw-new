@@ -370,6 +370,14 @@ function ContractTr({
               {c.details       && <DetailRow label="세부내역"  value={c.details} />}
               {c.memo          && <DetailRow label="비고"      value={c.memo} />}
               <DetailRow label="등록일" value={fmtDate(c.created_at.slice(0, 10))} />
+              {canEdit && (
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', paddingTop: '0.6rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <button onClick={e => { e.stopPropagation(); onEdit(); }}
+                    style={{ ...BTN_PRIMARY, fontSize: '0.78rem', padding: '0.4rem 0.9rem' }}>✏️ 수정</button>
+                  <button onClick={e => { e.stopPropagation(); onDelete(); }}
+                    style={{ ...BTN_GHOST, fontSize: '0.78rem', padding: '0.4rem 0.9rem', borderColor: 'rgba(248,113,113,0.35)', color: '#f87171' }}>🗑 삭제</button>
+                </div>
+              )}
             </div>
           </td>
         </tr>
