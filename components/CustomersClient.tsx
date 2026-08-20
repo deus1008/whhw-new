@@ -22,6 +22,7 @@ type CustomerRow = {
 };
 
 type LevelCount = { level: string; count: number };
+type PrevSnap = { levelCounts: LevelCount[]; totalCount: number; filename: string; updatedAt: string };
 type Meta = {
   levels: string[];
   levelCounts: LevelCount[];
@@ -29,6 +30,7 @@ type Meta = {
   totalCount: number;
   filename: string;
   updatedAt: string;
+  prev?: PrevSnap | null;
 };
 
 export default function CustomersClient() {
@@ -80,6 +82,7 @@ export default function CustomersClient() {
   }
 
   const totalPages = Math.ceil(total / 50);
+  const prevMap = new Map((meta.prev?.levelCounts ?? []).map(l => [l.level, l.count]));
   const LEVEL_COLORS: Record<string, string> = {
     '1차': '#a78bfa', '2차': '#34d399', '3차': '#fbbf24',
     '4차': '#f87171', '5차': '#60a5fa', '6차': '#f472b6',
@@ -104,6 +107,7 @@ export default function CustomersClient() {
                 </h3>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   전체 <strong style={{ color: '#a5b4fc' }}>{meta.totalCount.toLocaleString()}</strong>개
+                  {meta.prev && <DeltaBadge d={meta.totalCount - meta.prev.totalCount} style={{ marginLeft: '0.4rem' }} />}
                   {meta.filename && <span style={{ marginLeft: '0.5rem', color: 'rgba(255,255,255,0.2)' }}>— {meta.filename}</span>}
                 </span>
               </div>
@@ -111,6 +115,7 @@ export default function CustomersClient() {
                 {meta.levelCounts.map(lc => {
                   const color = LEVEL_COLORS[lc.level] ?? '#94a3b8';
                   const pct   = meta.totalCount > 0 ? (lc.count / meta.totalCount) * 100 : 0;
+                  const d     = meta.prev ? lc.count - (prevMap.get(lc.level) ?? 0) : null;
                   return (
                     <div
                       key={lc.level}
@@ -123,8 +128,9 @@ export default function CustomersClient() {
                       }}
                     >
                       <span style={{ fontSize: '0.7rem', color, fontWeight: 700 }}>{lc.level}</span>
-                      <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
                         {lc.count.toLocaleString()}
+                        {d !== null && <DeltaBadge d={d} />}
                       </span>
                       <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{pct.toFixed(1)}%</span>
                     </div>
@@ -134,6 +140,9 @@ export default function CustomersClient() {
               {meta.updatedAt && (
                 <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', margin: '0.6rem 0 0', textAlign: 'right' }}>
                   기준: {meta.updatedAt}
+                  {meta.prev
+                    ? <span> · 직전 업로드({meta.prev.updatedAt}) 대비 <span style={{ color: '#4ade80' }}>▲증가</span>/<span style={{ color: '#f87171' }}>▼감소</span></span>
+                    : <span> · 직전 업로드 없음(변동 비교 불가)</span>}
                 </p>
               )}
             </>
@@ -314,6 +323,24 @@ function pageRange(current: number, total: number): (number | '…')[] {
     }
   }
   return pages;
+}
+
+/* 직전 업로드 대비 증감 배지 */
+function DeltaBadge({ d, style }: { d: number; style?: React.CSSProperties }) {
+  if (d === 0) {
+    return <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'rgba(255,255,255,0.3)', ...style }}>±0</span>;
+  }
+  const up = d > 0;
+  const col = up ? '#4ade80' : '#f87171';
+  const rgb = up ? '74,222,128' : '248,113,113';
+  return (
+    <span style={{
+      fontSize: '0.62rem', fontWeight: 700, color: col, whiteSpace: 'nowrap',
+      padding: '0.05rem 0.3rem', borderRadius: 4, background: `rgba(${rgb},0.14)`, ...style,
+    }}>
+      {up ? '▲' : '▼'}{Math.abs(d).toLocaleString()}
+    </span>
+  );
 }
 
 function PgBtn({ label, active, disabled, onClick }: {

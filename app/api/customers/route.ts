@@ -77,44 +77,51 @@ function serviceClient() {
   );
 }
 
-// Module-level cache (persists across warm invocations)
-let _cache: { key: string; rows: CustomerRow[] } | null = null;
+const ORDER = ['1차', '2차', '3차', '4차', '5차', '6차', '7차', '8차', '9차'];
+function levelCountsOf(rows: CustomerRow[]): { level: string; count: number }[] {
+  const m = new Map<string, number>();
+  for (const r of rows) m.set(r.level, (m.get(r.level) ?? 0) + 1);
+  return ORDER.filter(l => m.has(l)).map(l => ({ level: l, count: m.get(l)! }));
+}
+function fmtDate(d: string): string {
+  return new Date(d).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+}
 
-async function getRows(companyId: string | null): Promise<{ rows: CustomerRow[]; filename: string; updatedAt: string } | null> {
-  const svc = serviceClient();
+type DocMeta = { id: string; filename: string; storage_path: string; created_at: string };
+async function latestDocs(svc: ReturnType<typeof serviceClient>, companyId: string | null, n: number): Promise<DocMeta[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let docQ: any = svc
+  let q: any = svc
     .from('documents')
     .select('id, filename, storage_path, created_at')
     .eq('category', '거래처현황')
     .order('created_at', { ascending: false })
-    .limit(1);
-  if (companyId) docQ = docQ.eq('company_id', companyId);
-  const { data: docs } = await docQ;
-  const doc = (docs ?? [])[0] as Record<string, string> | undefined;
-  if (!doc) return null;
+    .limit(n);
+  if (companyId) q = q.eq('company_id', companyId);
+  const { data } = await q;
+  return (data ?? []) as DocMeta[];
+}
 
-  const cacheKey = `${companyId}:${doc.storage_path}`;
-  if (_cache?.key === cacheKey) {
-    return {
-      rows: _cache.rows,
-      filename: doc.filename,
-      updatedAt: new Date(doc.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }),
-    };
-  }
-
+// Module-level cache (persists across warm invocations) — storage_path 별 파싱 결과.
+const _cache = new Map<string, CustomerRow[]>();
+async function parseDoc(svc: ReturnType<typeof serviceClient>, companyId: string | null, doc: DocMeta): Promise<CustomerRow[] | null> {
+  const key = `${companyId}:${doc.storage_path}`;
+  const hit = _cache.get(key);
+  if (hit) return hit;
   const { data: blob, error } = await svc.storage.from('documents').download(doc.storage_path);
   if (error || !blob) return null;
+  const rows = parseRows(Buffer.from(await blob.arrayBuffer()));
+  if (_cache.size > 8) _cache.clear();
+  _cache.set(key, rows);
+  return rows;
+}
 
-  const buf = Buffer.from(await blob.arrayBuffer());
-  const rows = parseRows(buf);
-  _cache = { key: cacheKey, rows };
-
-  return {
-    rows,
-    filename: doc.filename,
-    updatedAt: new Date(doc.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }),
-  };
+async function getRows(companyId: string | null): Promise<{ rows: CustomerRow[]; filename: string; updatedAt: string } | null> {
+  const svc = serviceClient();
+  const doc = (await latestDocs(svc, companyId, 1))[0];
+  if (!doc) return null;
+  const rows = await parseDoc(svc, companyId, doc);
+  if (!rows) return null;
+  return { rows, filename: doc.filename, updatedAt: fmtDate(doc.created_at) };
 }
 
 export async function GET(req: NextRequest) {
@@ -146,16 +153,26 @@ export async function GET(req: NextRequest) {
 
   // 메타
   if (sp.get('meta') === '1') {
-    const levelMap = new Map<string, number>();
     const bizTypeSet = new Set<string>();
-    for (const r of rows) {
-      levelMap.set(r.level, (levelMap.get(r.level) ?? 0) + 1);
-      if (r.bizType) bizTypeSet.add(r.bizType);
+    for (const r of rows) if (r.bizType) bizTypeSet.add(r.bizType);
+    const levelCounts = levelCountsOf(rows);
+
+    // 직전 업로드 대비 변동(차수별 증감)
+    let prev: { levelCounts: { level: string; count: number }[]; totalCount: number; filename: string; updatedAt: string } | null = null;
+    const svc = serviceClient();
+    const prevDoc = (await latestDocs(svc, companyId, 2))[1];
+    if (prevDoc) {
+      const prevRows = await parseDoc(svc, companyId, prevDoc);
+      if (prevRows) {
+        prev = {
+          levelCounts: levelCountsOf(prevRows),
+          totalCount:  prevRows.length,
+          filename:    prevDoc.filename,
+          updatedAt:   fmtDate(prevDoc.created_at),
+        };
+      }
     }
-    const ORDER = ['1차','2차','3차','4차','5차','6차','7차','8차','9차'];
-    const levelCounts = ORDER
-      .filter(l => levelMap.has(l))
-      .map(l => ({ level: l, count: levelMap.get(l)! }));
+
     return NextResponse.json({
       levels:      levelCounts.map(l => l.level),
       levelCounts,
@@ -163,6 +180,7 @@ export async function GET(req: NextRequest) {
       totalCount:  rows.length,
       filename,
       updatedAt,
+      prev,
     });
   }
 
