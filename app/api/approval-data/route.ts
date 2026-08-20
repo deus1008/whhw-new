@@ -63,18 +63,23 @@ const MONTH_RE = /^\d{4}-\d{2}/;
    - 부가/형태 괄호(수출용·1회용·미분화 등)를 반복 제거해 중첩 괄호 안의 실제 성분을 노출.
    - 남은 괄호 중 실제 성분을 취해 공백 정규화. 없으면 ''. */
 const NON_INGREDIENT = /^((수출|내수|국내|병원|조제|약국)용?|[1일]?회용|수출명.*|미분화|나노화|밀리그램|그램|mg|g)$/i;
+// 성분이 아닌 부가/규격 표기 판별 — 부가표기 + 엑스 배율(15~25→1) + 순수 숫자/비율.
+function isNonIng(v: string): boolean {
+  const t = v.trim();
+  return NON_INGREDIENT.test(t) || t.includes('→') || /^[\d.,:~\-/×xX%\s]+$/.test(t);
+}
 function extractIngredient(product: string): string {
   if (!product) return '';
   let s = product, prev = '';
   do {
     prev = s;
-    s = s.replace(/[(（]([^()（）]*)[)）]/g, (m, inner) => NON_INGREDIENT.test(String(inner).trim()) ? '' : m);
+    s = s.replace(/[(（]([^()（）]*)[)）]/g, (m, inner) => isNonIng(String(inner)) ? '' : m);
   } while (s !== prev);
   const groups = s.match(/[(（]([^()（）]*)[)）]/g);
   if (!groups) return '';
   for (let i = groups.length - 1; i >= 0; i--) {
     const inner = groups[i].replace(/^[(（]/, '').replace(/[)）]$/, '').trim();
-    if (inner && !NON_INGREDIENT.test(inner)) return inner.replace(/\s+/g, '');
+    if (inner && !isNonIng(inner)) return inner.replace(/\s+/g, '');
   }
   return '';
 }
