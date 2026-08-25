@@ -8,7 +8,7 @@
       "maxDuration": 60
     },
     "app/api/documents/process/route.ts": {
-      "memory": 2048,
+      "memory": 3009,
       "maxDuration": 300
     },
     "app/api/admin/sync-hira/route.ts": {

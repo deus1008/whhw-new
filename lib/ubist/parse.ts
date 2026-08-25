@@ -131,7 +131,8 @@ export function parseUbistBuffer(
 ): ParseUbistResult {
   let wb: XLSX.WorkBook;
   try {
-    wb = XLSX.read(buffer, { type: 'buffer', cellDates: false });
+    // dense: true — 대용량 시트(수십만 행)의 워크북 메모리 사용을 크게 낮춰 OOM 방지.
+    wb = XLSX.read(buffer, { type: 'buffer', cellDates: false, dense: true });
   } catch (e) {
     return { rows: [], total: 0, error: `Excel 파일 읽기 실패: ${String(e)}` };
   }
@@ -144,6 +145,8 @@ export function parseUbistBuffer(
   for (const sheetName of wb.SheetNames) {
     const ws = wb.Sheets[sheetName];
     const raw: unknown[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+    // raw로 데이터 복사 완료 → 워크북 시트 참조 해제하여 파싱 중 메모리 회수.
+    delete wb.Sheets[sheetName];
     if (raw.length < 2) continue;
 
     // 시트명에서 기간 추출
