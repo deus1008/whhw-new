@@ -5,18 +5,17 @@ import type { RxTrendRow } from '@/app/api/rx-trend/route';
 
 type Meta = { periods: string[]; specialties: string[] };
 
+// 금액: 백만원 단위, 소수점 없이(정수).
 function fmtWon(v: number): string {
   if (!v) return '-';
-  if (v >= 1e8) return `${(v / 1e8).toLocaleString(undefined, { maximumFractionDigits: 1 })}억`;
-  if (v >= 1e4) return `${Math.round(v / 1e4).toLocaleString()}만`;
-  return v.toLocaleString();
+  return Math.round(v / 1e6).toLocaleString();
 }
 function fmtPeriod(p: string): string {
   const m = p.match(/^(\d{4})-(\d{2})$/); return m ? `${m[1]}.${m[2]}` : p;
 }
 function pct(part: number, whole: number): string {
   if (!whole) return '-';
-  return `${((part / whole) * 100).toFixed(1)}%`;
+  return `${Math.round((part / whole) * 100)}%`;
 }
 
 const card: React.CSSProperties = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '1rem 1.1rem', marginBottom: '1rem' };
@@ -71,7 +70,7 @@ export default function RxTrendClient() {
         </button>
         {rows && prev && (
           <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-            {fmtPeriod(prev)}(전년동월) vs {fmtPeriod(period)}(당월) · 상위 {rows.length}성분
+            {fmtPeriod(prev)}(전년동월) vs {fmtPeriod(period)}(당월) · 상위 {rows.length}성분 · <b style={{ color: 'rgba(255,255,255,0.7)' }}>금액 단위: 백만원</b>
           </span>
         )}
       </div>
