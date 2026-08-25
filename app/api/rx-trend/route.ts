@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
-import { normalizeRole } from '@/lib/roles';
-import { getEffectiveCompanyId } from '@/lib/active-company';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -28,9 +26,9 @@ export async function GET(req: NextRequest) {
     .from('profiles').select('role, status, company_id').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
-  const isAdmin = normalizeRole(profile.role as string) === '관리자';
-  const companyId = await getEffectiveCompanyId((profile.company_id as string) ?? null, isAdmin);
   const svc = createSvc(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+  // UBIST는 시장 전체(모든 위탁사 공유) 데이터 → 회사 스코프 미적용.
+  const companyId = null;
 
   const sp = req.nextUrl.searchParams;
 
