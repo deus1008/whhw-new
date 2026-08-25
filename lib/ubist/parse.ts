@@ -24,7 +24,8 @@ export type UbistRow = {
   ingredient_name:     string | null;
   product_name:        string | null;
   manufacturer:        string | null;
-  hospital_type:       string | null;
+  hospital_type:       string | null;       // 종별(의원/병원/종합병원…)
+  specialty:           string | null;       // 진료과(내과·이비인후과…)
   region:              string | null;
   prescription_amount: number | null;       // 원 단위 정수
   prescription_count:  number | null;
@@ -43,8 +44,9 @@ export type ParseUbistResult = {
 const PERIOD_KW     = ['기간','연월','년월','월','period','yyyymm','연도','date'];
 const INGR_KW       = ['성분명','성분','ingredient','inn','주성분','성분코드명'];
 const PROD_KW       = ['제품명','품목명','상품명','brand','제품','품목','상품'];
-const MFR_KW        = ['제조사','제약사','회사명','회사','manufacturer','메이커','공급사'];
+const MFR_KW        = ['제조사','제약사','회사명','회사','manufacturer','메이커','공급사','판매사','판매'];
 const HOSP_KW       = ['병원구분','의료기관종별','종별구분','병원종류','구분','종별'];
+const SPECIALTY_KW  = ['진료과목','진료과','과목','specialty','diagnosis'];
 const REGION_KW     = ['지역','시도','지역명','region','광역'];
 const AMOUNT_KW     = ['처방금액','처방조제액','금액','처방액','amount','처방매출','매출액','처방총액','측정치'];
 const COUNT_KW      = ['처방건수','건수','처방수','count','rx건수','건'];
@@ -163,7 +165,7 @@ export function parseUbistBuffer(
 
     // 컬럼 인덱스 매핑
     let periodCol = -1, ingrCol = -1, prodCol = -1, mfrCol = -1;
-    let hospCol = -1, regionCol = -1, amountCol = -1, countCol = -1, atcCol = -1, genericCol = -1, codeCol = -1;
+    let hospCol = -1, specialtyCol = -1, regionCol = -1, amountCol = -1, countCol = -1, atcCol = -1, genericCol = -1, codeCol = -1;
 
     headers.forEach((h, i) => {
       // 헤더 자체가 기간 값(예: "2025년 3월")이면 wide-format 금액 컬럼 — period 컬럼으로 잡지 않음
@@ -171,6 +173,7 @@ export function parseUbistBuffer(
       if (ingrCol    === -1 && matchKw(h, INGR_KW))    ingrCol    = i;
       if (prodCol    === -1 && matchKw(h, PROD_KW))    prodCol    = i;
       if (mfrCol     === -1 && matchKw(h, MFR_KW))     mfrCol     = i;
+      if (specialtyCol === -1 && matchKw(h, SPECIALTY_KW)) specialtyCol = i;
       if (hospCol    === -1 && matchKw(h, HOSP_KW))    hospCol    = i;
       if (regionCol  === -1 && matchKw(h, REGION_KW))  regionCol  = i;
       if (amountCol  === -1 && matchKw(h, AMOUNT_KW))  amountCol  = i;
@@ -186,7 +189,7 @@ export function parseUbistBuffer(
     const wideAmountCols: PeriodAmountCol[] = [];
 
     if (amountCol === -1) {
-      const fixedCols = new Set([periodCol, ingrCol, prodCol, mfrCol, hospCol, regionCol, countCol, atcCol].filter(c => c >= 0));
+      const fixedCols = new Set([periodCol, ingrCol, prodCol, mfrCol, hospCol, specialtyCol, regionCol, countCol, atcCol].filter(c => c >= 0));
       headers.forEach((h, i) => {
         if (fixedCols.has(i)) return;
         const candidate = normalizePeriod(h);
@@ -206,9 +209,10 @@ export function parseUbistBuffer(
 
       if (!productName && !ingrName) continue;
 
-      const mfr      = mfrCol    >= 0 ? (String(row[mfrCol]    ?? '')).trim() || null : null;
-      const hospType = hospCol   >= 0 ? (String(row[hospCol]   ?? '')).trim() || null : null;
-      const region   = regionCol >= 0 ? (String(row[regionCol] ?? '')).trim() || null : null;
+      const mfr       = mfrCol       >= 0 ? (String(row[mfrCol]       ?? '')).trim() || null : null;
+      const hospType  = hospCol      >= 0 ? (String(row[hospCol]      ?? '')).trim() || null : null;
+      const specialty = specialtyCol >= 0 ? (String(row[specialtyCol] ?? '')).trim() || null : null;
+      const region    = regionCol    >= 0 ? (String(row[regionCol]    ?? '')).trim() || null : null;
       const atcCode  = atcCol    >= 0 ? extractAtcCode(row[atcCol]) : null;
       // "Original" → true, "Generic" → false, 없음 → null
       let isOriginal: boolean | null = null;
@@ -232,6 +236,7 @@ export function parseUbistBuffer(
             product_name:        productName,
             manufacturer:        mfr,
             hospital_type:       hospType,
+            specialty,
             region,
             prescription_amount: amount,
             prescription_count:  countCol >= 0 ? toNum(row[countCol]) : null,
@@ -255,6 +260,7 @@ export function parseUbistBuffer(
           product_name:        productName,
           manufacturer:        mfr,
           hospital_type:       hospType,
+          specialty,
           region,
           prescription_amount: amount,
           prescription_count:  count,
