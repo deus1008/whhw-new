@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { RxTrendRow } from '@/app/api/rx-trend/route';
 
-type Meta = { periods: string[]; hospitals: string[]; specialties: string[] };
+type Meta = { periods: string[]; specialties: string[] };
 
 function fmtWon(v: number): string {
   if (!v) return '-';
@@ -25,9 +25,8 @@ const th: React.CSSProperties = { padding: '0.5rem 0.6rem', fontSize: '0.72rem',
 const td: React.CSSProperties = { padding: '0.5rem 0.6rem', fontSize: '0.8rem', borderBottom: '1px solid rgba(255,255,255,0.05)', whiteSpace: 'nowrap' };
 
 export default function RxTrendClient() {
-  const [meta, setMeta] = useState<Meta>({ periods: [], hospitals: [], specialties: [] });
+  const [meta, setMeta] = useState<Meta>({ periods: [], specialties: [] });
   const [period, setPeriod] = useState('');
-  const [hospital, setHospital] = useState('');   // 전체
   const [specialty, setSpecialty] = useState(''); // 전체
   const [rows, setRows] = useState<RxTrendRow[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -45,14 +44,13 @@ export default function RxTrendClient() {
     setLoading(true);
     try {
       const p = new URLSearchParams({ period, limit: '50' });
-      if (hospital) p.set('hospital', hospital);
       if (specialty) p.set('specialty', specialty);
       const res = await fetch(`/api/rx-trend?${p}`);
       const d = await res.json();
       setRows(d.rows ?? []); setPrev(d.prev ?? '');
     } catch { setRows([]); }
     finally { setLoading(false); }
-  }, [period, hospital, specialty]);
+  }, [period, specialty]);
 
   return (
     <div>
@@ -61,11 +59,6 @@ export default function RxTrendClient() {
         <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>기준월</label>
         <select value={period} onChange={e => setPeriod(e.target.value)} style={sel}>
           {meta.periods.map(p => <option key={p} value={p}>{fmtPeriod(p)}</option>)}
-        </select>
-        <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>종별</label>
-        <select value={hospital} onChange={e => setHospital(e.target.value)} style={sel}>
-          <option value="">전체 종별</option>
-          {meta.hospitals.map(h => <option key={h} value={h}>{h}</option>)}
         </select>
         <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'rgba(255,255,255,0.8)' }}>진료과</label>
         <select value={specialty} onChange={e => setSpecialty(e.target.value)} style={sel} disabled={meta.specialties.length === 0}>
