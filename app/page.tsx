@@ -233,6 +233,15 @@ const NAV_ITEMS: NavItem[] = [
     bg:   'rgba(14,165,233,0.10)',
     bd:   'rgba(14,165,233,0.22)',
   },
+  // ⑮-0 진료과별 다처방성분
+  {
+    href: '/prescription-trend',
+    icon: '🩺',
+    label: '다처방성분',
+    color: '#fdba74',
+    bg:   'rgba(249,115,22,0.10)',
+    bd:   'rgba(249,115,22,0.22)',
+  },
   // ⑮-1 처방처현황
   {
     href: '/prescription',
