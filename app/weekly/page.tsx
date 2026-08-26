@@ -9,7 +9,6 @@ import { profileIsAdmin } from '@/lib/roles';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 import { cachedRpc } from '@/lib/dashboard-cache';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
-import { fetchCsoTrends } from '@/lib/competitor/weekly-trends';
 
 export const dynamic = 'force-dynamic';
 
@@ -500,8 +499,8 @@ export default async function DashboardPage() {
     ingredient:     p.memo           as string | null,
   }));
 
-  // ── I. CSO 제약사 동향 (업계동향 /competitor-intel 기반) ──────────────────
-  const csoTrends = await fetchCsoTrends(svc);
+  // ── I. CSO 제약사 동향 — /weekly에서는 미표시(별도 /competitor-intel 페이지 사용)
+  const csoTrends: DashboardData['csoTrends'] = [];
 
   // ── J. DC현황 ─────────────────────────────────────────────────────────────
   const DC_STAGES = ['준비중', '접수', '코드인', '탈락'] as const;

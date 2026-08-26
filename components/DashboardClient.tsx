@@ -922,8 +922,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       </Section>
 
       {/* ══════════════════════════════════════════════════════════
-          섹션 6: CSO 제약사 동향
+          섹션 6: CSO 제약사 동향 (csoTrends 없으면 숨김 — 예: weekly)
       ══════════════════════════════════════════════════════════ */}
+      {csoTrends.length > 0 && (
       <Section title="📄 CSO 제약사 동향" id="s6">
         {(() => {
           const TYPE_C: Record<string, string> = {
@@ -994,6 +995,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           );
         })()}
       </Section>
+      )}
 
       {/* ══════════════════════════════════════════════════════════
           섹션 7: 발매예정현황
