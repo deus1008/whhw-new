@@ -766,7 +766,7 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
         >
           <div
             style={{
-              background: '#1a1f2e', border: '1px solid #e5e9f0',
+              background: '#ffffff', border: '1px solid #e5e9f0',
               borderRadius: '16px', padding: '1.8rem 2rem', maxWidth: '320px', width: '100%',
               textAlign: 'center',
             }}

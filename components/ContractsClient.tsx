@@ -173,7 +173,7 @@ function ContractForm({
     >
       <div style={{
         width: '100%', maxWidth: '600px',
-        background: '#141b2d',
+        background: '#ffffff',
         border: '1px solid #e5e9f0',
         borderRadius: '16px', padding: '1.5rem',
         marginTop: '1rem', marginBottom: '1rem',

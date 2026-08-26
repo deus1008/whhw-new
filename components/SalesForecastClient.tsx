@@ -372,7 +372,7 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
             <Field label="출시 유형">
               <select value={launchType} onChange={e => setLaunchType(e.target.value as LaunchType)} style={{ ...inp, cursor: 'pointer' }}>
                 {(['same', 'formulation', 'salt', 'other'] as LaunchType[]).map(t => (
-                  <option key={t} value={t} style={{ color: '#111827', background: '#1a2030' }}>{LAUNCH_TYPE_LABEL[t]}</option>
+                  <option key={t} value={t} style={{ color: '#111827', background: '#ffffff' }}>{LAUNCH_TYPE_LABEL[t]}</option>
                 ))}
               </select>
             </Field>
@@ -603,7 +603,7 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
             <Field label="출시 유형">
               <select value={eType} onChange={e => setEType(e.target.value as LaunchType)} style={{ ...inp, cursor: 'pointer' }}>
                 {(['same', 'formulation', 'salt', 'other'] as LaunchType[]).map(t => (
-                  <option key={t} value={t} style={{ color: '#111827', background: '#1a2030' }}>{LAUNCH_TYPE_LABEL[t]}</option>
+                  <option key={t} value={t} style={{ color: '#111827', background: '#ffffff' }}>{LAUNCH_TYPE_LABEL[t]}</option>
                 ))}
               </select>
             </Field>

@@ -404,7 +404,7 @@ function ReportModal({ initial, onClose, onDone }: {
       onClick={onClose}
     >
       <div
-        style={{ width: '100%', maxWidth: '720px', margin: '1rem', borderRadius: '16px', background: '#1a1f2e', border: '1px solid #e5e9f0', padding: '1.5rem', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        style={{ width: '100%', maxWidth: '720px', margin: '1rem', borderRadius: '16px', background: '#ffffff', border: '1px solid #e5e9f0', padding: '1.5rem', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
         onClick={e => e.stopPropagation()}
       >
         <h2 style={{ margin: '0 0 1.25rem', fontSize: '1rem', fontWeight: 700, color: '#fff' }}>

@@ -210,7 +210,7 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
         <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 600 }}>지역장 선택</span>
         <select value={selUid} onChange={e => setSelUid(e.target.value)} style={selectStyle}>
           {perManager.map(m => (
-            <option key={m.uid} value={m.uid} style={{ color: '#111827', background: '#1a2030' }}>
+            <option key={m.uid} value={m.uid} style={{ color: '#111827', background: '#ffffff' }}>
               {m.name} ({m.visits}건)
             </option>
           ))}
@@ -410,7 +410,7 @@ function TrendMatrix({ rxMonths, visitMonths, rows, unmatched, colName }: {
 // ── 소품 ──────────────────────────────────────────────
 function Section({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
   return (
-    <section style={{ background: 'rgba(15,20,35,0.55)', border: '1px solid rgba(148,163,184,0.15)', borderRadius: '14px', padding: '1.1rem 1.2rem' }}>
+    <section style={{ background: '#f8fafc', border: '1px solid rgba(148,163,184,0.15)', borderRadius: '14px', padding: '1.1rem 1.2rem' }}>
       <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 700, color: '#111827' }}>{title}</h3>
       {desc && <p style={{ margin: '0.25rem 0 0.9rem', fontSize: '0.8rem', color: '#94a3b8' }}>{desc}</p>}
       {children}
@@ -420,7 +420,7 @@ function Section({ title, desc, children }: { title: string; desc?: string; chil
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div style={{ background: 'rgba(15,20,35,0.6)', border: '1px solid rgba(148,163,184,0.15)', borderRadius: '12px', padding: '0.75rem 0.9rem', textAlign: 'center' }}>
+    <div style={{ background: '#f8fafc', border: '1px solid rgba(148,163,184,0.15)', borderRadius: '12px', padding: '0.75rem 0.9rem', textAlign: 'center' }}>
       <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem' }}>{label}</div>
       <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#111827' }}>{value}</div>
     </div>
@@ -441,7 +441,7 @@ const noteSm: React.CSSProperties = { fontSize: '0.75rem', color: '#64748b' };
 const tbl: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' };
 const th: React.CSSProperties = { padding: '0.45rem 0.5rem', textAlign: 'center', color: '#94a3b8', fontWeight: 600, borderBottom: '1px solid rgba(148,163,184,0.2)', whiteSpace: 'nowrap', fontSize: '0.76rem' };
 const td: React.CSSProperties = { padding: '0.4rem 0.5rem', textAlign: 'center', color: '#64748b', borderBottom: '1px solid rgba(148,163,184,0.08)', whiteSpace: 'nowrap' };
-const selectStyle: React.CSSProperties = { padding: '0.4rem 0.7rem', borderRadius: '8px', background: '#1a2030', color: '#111827', border: '1px solid rgba(148,163,184,0.3)', fontSize: '0.85rem', fontWeight: 600 };
+const selectStyle: React.CSSProperties = { padding: '0.4rem 0.7rem', borderRadius: '8px', background: '#ffffff', color: '#111827', border: '1px solid rgba(148,163,184,0.3)', fontSize: '0.85rem', fontWeight: 600 };
 const linkBtn: React.CSSProperties = { background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0, fontSize: '0.82rem', fontWeight: 600, minHeight: 'auto', textDecoration: 'underline' };
 function badge(color: string, bg: string): React.CSSProperties {
   return { color, background: bg, padding: '0.1rem 0.5rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700 };

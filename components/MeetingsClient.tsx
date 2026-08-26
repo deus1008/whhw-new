@@ -528,7 +528,8 @@ const OVERLAY: React.CSSProperties = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: '1rem',
 };
 const MODAL: React.CSSProperties = {
-  background: '#1a1f2e', border: '1px solid #e5e9f0', borderRadius: '16px',
+  background: '#ffffff', border: '1px solid #e5e9f0', borderRadius: '16px',
+  boxShadow: '0 20px 60px rgba(15,23,42,0.25)',
   padding: '1.5rem', width: '100%', maxWidth: '420px', maxHeight: '90vh', overflowY: 'auto',
 };
 const LABEL: React.CSSProperties = {
