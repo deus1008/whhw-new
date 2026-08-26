@@ -564,10 +564,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         <th className="center" style={{ width: '52px' }}>구분</th>
                         <th style={{ width: '76px' }}>항목</th>
                         {ediMonthly.map(r => (
-                          <th key={r.month} className="center">{fmtPeriod(r.month)}</th>
+                          <th key={r.month} className="right">{fmtPeriod(r.month)}</th>
                         ))}
-                        <th className="center">전년동월대비</th>
-                        <th className="center">성장율</th>
+                        <th className="right">전년동월대비</th>
+                        <th className="right">성장율</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -585,11 +585,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                               )}
                               <td className="muted" style={{ fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{metric.label}</td>
                               {ediMonthly.map(r => (
-                                <td key={r.month} className="center bold">
+                                <td key={r.month} className="right bold">
                                   {metric.isAmt ? fmtWon(metric.get(r)) : metric.get(r).toLocaleString()}
                                 </td>
                               ))}
-                              <td className="center">
+                              <td className="right">
                                 {delta === null ? (
                                   <span className="muted">-</span>
                                 ) : delta === 0 ? (
@@ -602,7 +602,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                                   </span>
                                 )}
                               </td>
-                              <td className="center">
+                              <td className="right">
                                 {(() => {
                                   const rate = (prvVal !== undefined && prvVal !== 0) ? Math.round(((curVal - prvVal) / prvVal) * 100) : null;
                                   if (rate === null) return <span className="muted">-</span>;
