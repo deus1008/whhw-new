@@ -632,3 +632,36 @@ select.auth-input { background-color: #ffffff; }
     display: block; position: fixed; inset: 0; background: rgba(15,23,42,0.35); z-index: 39;
   }
 }
+
+/* ══════════════════════════════════════════════════════════
+   반응형 표→카드 토글 (PC=표 / 모바일=카드) — 앱 공용
+   사용법: 기존 표 래퍼에 class="resp-table", 그 옆에
+   <div class="resp-cards"> …카드… </div> 추가.
+   ══════════════════════════════════════════════════════════ */
+.resp-cards { display: none; }
+@media (max-width: 640px) {
+  .resp-table { display: none !important; }
+  .resp-cards { display: block; }
+}
+.mcard {
+  border: 1px solid #e5e9f0; border-radius: 10px;
+  padding: 0.7rem 0.8rem; margin-bottom: 0.6rem; background: #ffffff;
+}
+.mcard-head {
+  display: flex; align-items: baseline; gap: 0.45rem; flex-wrap: wrap;
+  margin-bottom: 0.4rem; padding-bottom: 0.4rem; border-bottom: 1px solid #eef1f6;
+}
+.mcard-rank {
+  font-size: 0.72rem; font-weight: 700; color: #fff; background: #334155;
+  border-radius: 6px; padding: 0.05rem 0.42rem; flex-shrink: 0;
+}
+.mcard-title { font-size: 0.92rem; font-weight: 700; color: #111827; word-break: break-word; }
+.mcard-badge { font-size: 0.7rem; font-weight: 700; padding: 0.05rem 0.4rem; border-radius: 4px; }
+.mcard-row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem;
+  padding: 0.26rem 0; font-size: 0.84rem; border-bottom: 1px dashed #f1f4f9;
+}
+.mcard-row:last-child { border-bottom: none; }
+.mcard-k { color: #64748b; flex-shrink: 0; }
+.mcard-v { font-weight: 600; color: #111827; text-align: right; word-break: break-word; font-variant-numeric: tabular-nums; }
+.mcard-sub { font-size: 0.72rem; color: #94a3b8; margin-top: 0.15rem; word-break: break-word; }
