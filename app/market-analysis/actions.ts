@@ -98,6 +98,14 @@ export async function findUbistIngredientOptions(query: string): Promise<UbistIn
     map.get(prod)!.add(prod);
   }
 
+  // 부분일치가 0건이면 트라이그램 유사도(word_similarity)로 폴백 — 오타·유사어 대응
+  if (map.size === 0) {
+    const { data: fz } = await svc().rpc('search_ubist_ingredients_fuzzy', { p_q: rawQ, p_limit: 40 });
+    return (fz ?? []).map((r: { ingredient_name: string; cnt: number }) => ({
+      ingredient_name: r.ingredient_name, count: r.cnt,
+    }));
+  }
+
   return Array.from(map.entries())
     .sort((a, b) => b[1].size - a[1].size)
     .slice(0, 40)
