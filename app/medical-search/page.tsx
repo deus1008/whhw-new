@@ -1,7 +1,5 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import LogoutButton from '@/components/LogoutButton';
-import HomeButton from '@/components/HomeButton';
 import MedicalSearchClient from '@/components/MedicalSearchClient';
 
 export default async function MedicalSearchPage() {
@@ -33,8 +31,8 @@ export default async function MedicalSearchPage() {
           병원검색
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         <MedicalSearchClient apiConfigured={apiConfigured} />

@@ -2,8 +2,6 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeRole } from '@/lib/roles';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
-import LogoutButton from '@/components/LogoutButton';
-import HomeButton from '@/components/HomeButton';
 import DcClient from '@/components/DcClient';
 import { getDcItems } from './actions';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
@@ -66,8 +64,8 @@ export default async function DcPage() {
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         {(isAllianceUser || isSystemAdmin) && (

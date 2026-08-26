@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import HomeButton from '@/components/HomeButton';
 
 type Status = 'idle' | 'loading' | 'error';
 
@@ -97,7 +96,7 @@ export default function LoginPage() {
           판매대행사업
         </p>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-          <HomeButton />
+          
         </div>
 
         <div className="auth-card">

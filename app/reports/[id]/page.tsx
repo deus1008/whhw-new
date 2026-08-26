@@ -1,8 +1,6 @@
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
-import LogoutButton from '@/components/LogoutButton';
-import HomeButton from '@/components/HomeButton';
 import ReportViewer from '@/components/ReportViewer';
 
 export const revalidate = 0;
@@ -49,8 +47,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
         style={{ maxWidth: '860px', paddingTop: '2rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}>
 
         <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         <ReportViewer report={report} />

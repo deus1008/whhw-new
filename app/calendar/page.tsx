@@ -6,8 +6,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
-import LogoutButton from '@/components/LogoutButton';
-import HomeButton from '@/components/HomeButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import MarketingClient from '@/components/MarketingClient';
 import type { ScheduleCategory } from '@/app/calendar/actions';
@@ -130,10 +128,10 @@ export default async function MarketingPage() {
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <HomeButton />
+          
           <Link href="/weekly" style={navLink}>← 대시보드</Link>
           {isAdmin && <Link href="/admin" style={navLink}>관리자 →</Link>}
-          <LogoutButton compact />
+          
         </div>
 
         {(isAllianceUser || isAdmin) && (

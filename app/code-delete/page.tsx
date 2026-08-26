@@ -5,8 +5,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
-import LogoutButton from '@/components/LogoutButton';
-import HomeButton from '@/components/HomeButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import CodeDeleteClient from '@/components/CodeDeleteClient';
 
@@ -64,8 +62,8 @@ export default async function CodeDeletePage() {
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1.8rem', flexWrap: 'wrap' }}>
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         {(isAllianceUser || isSystemAdmin) && (

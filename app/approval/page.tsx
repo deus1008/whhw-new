@@ -7,8 +7,6 @@ import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { profileIsAdmin } from '@/lib/roles';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
 
-import HomeButton from '@/components/HomeButton';
-import LogoutButton from '@/components/LogoutButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import ApprovalClient from '@/components/ApprovalClient';
 
@@ -97,12 +95,12 @@ export default async function ApprovalPage() {
           의약품 허가현황
         </p>
         <div className="page-nav">
-          <HomeButton />
+          
           <Link href="/weekly" style={nl('#93c5fd', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.28)')}>대시보드</Link>
           {isAdmin && (
             <Link href="/documents" style={nl('#fde68a', 'rgba(251,191,36,0.12)', 'rgba(251,191,36,0.28)')}>문서관리</Link>
           )}
-          <LogoutButton compact />
+          
         </div>
 
         {(isAllianceUser || isAdmin) && (

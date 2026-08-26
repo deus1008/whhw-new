@@ -3,8 +3,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
-import HomeButton from '@/components/HomeButton';
-import LogoutButton from '@/components/LogoutButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import MarketAnalysisClient from '@/components/MarketAnalysisClient';
 
@@ -57,8 +55,8 @@ export default async function MarketAnalysisPage() {
           시장분석
         </p>
         <div className="page-nav">
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         {(isAllianceUser || isAdmin) && (

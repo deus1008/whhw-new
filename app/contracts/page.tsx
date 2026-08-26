@@ -3,8 +3,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
-import HomeButton from '@/components/HomeButton';
-import LogoutButton from '@/components/LogoutButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import ContractsClient from '@/components/ContractsClient';
 import type { ContractRow } from '@/components/ContractsClient';
@@ -64,8 +62,8 @@ export default async function ContractsPage() {
           신규거래처계약
         </p>
         <div className="page-nav">
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         {(isAllianceUser || isAdmin) && (

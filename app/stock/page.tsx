@@ -3,8 +3,6 @@ import { createClient }  from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
-import LogoutButton      from '@/components/LogoutButton';
-import HomeButton        from '@/components/HomeButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import StockClient, { type StockPeriod } from '@/components/StockClient';
 import { isExcludedStock } from '@/lib/stock/excluded';
@@ -94,8 +92,8 @@ export default async function StockPage() {
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         {(isAllianceUser || isAdmin) && (

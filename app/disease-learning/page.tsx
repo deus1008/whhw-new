@@ -4,8 +4,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
 import { profileIsAdmin } from '@/lib/roles';
 
-import HomeButton from '@/components/HomeButton';
-import LogoutButton from '@/components/LogoutButton';
 import DiseaseLearningClient from '@/components/DiseaseLearningClient';
 
 export const dynamic = 'force-dynamic';
@@ -100,7 +98,7 @@ export default async function DiseaseLearningPage() {
           질환별의약품
         </p>
         <div className="page-nav">
-          <HomeButton />
+          
           <Link href="/drug-search" style={nl('#6ee7b7', 'rgba(52,211,153,0.12)', 'rgba(52,211,153,0.28)')}>약품검색</Link>
           <Link href="/market-analysis" style={nl('#f9a8d4', 'rgba(236,72,153,0.12)', 'rgba(236,72,153,0.28)')}>시장분석</Link>
           {isAdmin && (
@@ -109,7 +107,7 @@ export default async function DiseaseLearningPage() {
           {isAdmin && (
             <Link href="/disease-learning/admin/ingredients" style={nl('#c4b5fd', 'rgba(167,139,250,0.12)', 'rgba(167,139,250,0.28)')}>성분설명 검수</Link>
           )}
-          <LogoutButton compact />
+          
         </div>
 
         {groups.length === 0 ? (

@@ -4,8 +4,6 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
 import { profileIsAdmin } from '@/lib/roles';
-import HomeButton from '@/components/HomeButton';
-import LogoutButton from '@/components/LogoutButton';
 import { setSecurityAccess } from './actions';
 import { SECURITY_META } from '@/app/meetings/types';
 
@@ -57,11 +55,11 @@ export default async function SecurityPage() {
 
         {/* 헤더 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', marginBottom: '1.8rem', flexWrap: 'wrap' }}>
-          <HomeButton />
+          
           <a href="/admin" style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', textDecoration: 'none', padding: '0.3rem 0.75rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)' }}>
             ← 관리자
           </a>
-          <LogoutButton compact />
+          
         </div>
 
         <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#f1f5f9', marginBottom: '0.4rem' }}>Task 보안등급 관리</h1>

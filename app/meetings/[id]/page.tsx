@@ -1,7 +1,5 @@
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import LogoutButton from '@/components/LogoutButton';
-import HomeButton from '@/components/HomeButton';
 import MeetingDetailClient from '@/components/MeetingDetailClient';
 import { getMeeting, getUserAccessLevels } from '../actions';
 import { profileIsAdmin } from '@/lib/roles';
@@ -50,7 +48,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
         style={{ maxWidth: '900px', paddingTop: '2rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}>
 
         <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          <HomeButton />
+          
           <a
             href="/meetings"
             style={{
@@ -61,7 +59,7 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
           >
             ← Task 목록
           </a>
-          <LogoutButton compact />
+          
         </div>
 
         <MeetingDetailClient meeting={meeting} isAdmin={isAdmin} availableCategories={availableCategories} />

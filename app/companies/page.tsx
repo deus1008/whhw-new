@@ -5,8 +5,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { profileIsAdmin } from '@/lib/roles';
 import { isAllianceEmployee } from '@/lib/active-company';
-import HomeButton from '@/components/HomeButton';
-import LogoutButton from '@/components/LogoutButton';
 import CompaniesViewClient from '@/components/CompaniesViewClient';
 
 export type Company = {
@@ -69,8 +67,8 @@ export default async function CompaniesViewPage() {
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         <CompaniesViewClient

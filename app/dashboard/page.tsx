@@ -1,8 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
-import LogoutButton from '@/components/LogoutButton';
-import HomeButton from '@/components/HomeButton';
 import DashboardClient from '@/components/DashboardClient';
 import type { DashboardData } from '@/components/DashboardClient';
 import { parseInventoryBuffer } from '@/lib/inventory/parse';
@@ -589,8 +587,8 @@ export default async function DashboardPage() {
           </p>
         )}
         <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         {(isAllianceUser || isAdmin) && (

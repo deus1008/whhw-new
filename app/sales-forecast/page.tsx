@@ -5,8 +5,6 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
 import { profileCanUpload } from '@/lib/roles';
-import HomeButton from '@/components/HomeButton';
-import LogoutButton from '@/components/LogoutButton';
 import SalesForecastClient from '@/components/SalesForecastClient';
 import type { SavedForecast } from '@/components/SalesForecastClient';
 
@@ -62,10 +60,10 @@ export default async function SalesForecastPage() {
           SF
         </p>
         <div className="page-nav">
-          <HomeButton />
+          
           <Link href="/disease-learning" style={nl('#93c5fd', 'rgba(147,197,253,0.12)', 'rgba(147,197,253,0.28)')}>질환별의약품</Link>
           <Link href="/market-analysis" style={nl('#f9a8d4', 'rgba(236,72,153,0.12)', 'rgba(236,72,153,0.28)')}>시장분석</Link>
-          <LogoutButton compact />
+          
         </div>
 
         <SalesForecastClient saved={saved} canEdit={canEdit} />

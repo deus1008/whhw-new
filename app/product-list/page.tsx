@@ -5,8 +5,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
-import LogoutButton from '@/components/LogoutButton';
-import HomeButton from '@/components/HomeButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import ProductListClient from '@/components/ProductListClient';
 import type { ProductRow } from '@/components/ProductListClient';
@@ -127,8 +125,8 @@ export default async function ProductListPage() {
         style={{ maxWidth: '1360px', paddingTop: '2.5rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         {(isAllianceUser || isAdmin) && (

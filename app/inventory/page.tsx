@@ -7,8 +7,6 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
-import LogoutButton from '@/components/LogoutButton';
-import HomeButton from '@/components/HomeButton';
 import InventoryClient from '@/components/InventoryClient';
 import { parseInventoryBuffer, type StockAlertItem } from '@/lib/inventory/parse';
 import type { DbItem } from '@/components/InventoryClient';
@@ -123,8 +121,8 @@ export default async function InventoryPage() {
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         {(isAllianceUser || isSystemAdmin) && (

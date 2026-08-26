@@ -1,8 +1,6 @@
 import { redirect, notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
-import LogoutButton from '@/components/LogoutButton';
-import HomeButton from '@/components/HomeButton';
 import NoticeViewer from '@/components/NoticeViewer';
 
 export const revalidate = 0;
@@ -40,8 +38,8 @@ export default async function NoticePage({ params }: { params: Promise<{ id: str
         style={{ maxWidth: '860px', paddingTop: '2rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         <NoticeViewer notice={row as { id: string; title: string; content: string; is_pinned: boolean; created_at: string; updated_at: string }} />

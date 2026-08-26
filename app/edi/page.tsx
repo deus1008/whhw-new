@@ -7,8 +7,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvcClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
 import { getEffectiveCompanyId, isAllianceEmployee } from '@/lib/active-company';
-import LogoutButton from '@/components/LogoutButton';
-import HomeButton from '@/components/HomeButton';
 import AllianceCompanyBar from '@/components/AllianceCompanyBar';
 import { getEdiFileList } from './actions';
 
@@ -67,12 +65,12 @@ export default async function EdiPage() {
           처방실적
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <HomeButton />
+          
           <Link href="/weekly" style={navLinkStyle}>← 대시보드</Link>
           {isAdmin && (
             <Link href="/documents" style={navLinkStyle}>📁 문서관리</Link>
           )}
-          <LogoutButton compact />
+          
         </div>
 
         {(isAllianceUser || isAdmin) && (

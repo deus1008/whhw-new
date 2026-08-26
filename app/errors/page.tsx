@@ -1,8 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { normalizeRole } from '@/lib/roles';
-import LogoutButton from '@/components/LogoutButton';
-import HomeButton from '@/components/HomeButton';
 import ErrorsClient from '@/components/ErrorsClient';
 import { getErrorReports } from './actions';
 
@@ -34,8 +32,8 @@ export default async function ErrorsPage() {
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         <div style={{ marginBottom: '1.5rem' }}>

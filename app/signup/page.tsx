@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import HomeButton from '@/components/HomeButton';
 import { setProfileOnSignup } from './actions';
 
 type Status = 'idle' | 'loading' | 'success' | 'error';
@@ -120,7 +119,7 @@ export default function SignupPage() {
           판매대행사업
         </p>
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
-          <HomeButton />
+          
         </div>
 
         <div className="auth-card">

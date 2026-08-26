@@ -4,8 +4,6 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient, createServiceClient } from '@/lib/supabase/server';
 import { profileIsAdmin } from '@/lib/roles';
-import HomeButton from '@/components/HomeButton';
-import LogoutButton from '@/components/LogoutButton';
 import SalesReportClient from '@/components/SalesReportClient';
 import type { SalesReportData } from '@/components/SalesReportClient';
 
@@ -78,10 +76,10 @@ export default async function SalesReportPage() {
           Sales Report
         </p>
         <div className="page-nav">
-          <HomeButton />
+          
           <Link href="/visits" style={nl('#6ee7b7', 'rgba(52,211,153,0.12)', 'rgba(52,211,153,0.28)')}>영업활동</Link>
           <Link href="/edi" style={nl('#d8b4fe', 'rgba(168,85,247,0.12)', 'rgba(168,85,247,0.28)')}>처방실적</Link>
-          <LogoutButton compact />
+          
         </div>
 
         <SalesReportClient data={data} />

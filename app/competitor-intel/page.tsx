@@ -4,8 +4,6 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
 import { profileIsAdmin } from '@/lib/roles';
-import HomeButton from '@/components/HomeButton';
-import LogoutButton from '@/components/LogoutButton';
 import CompetitorIntelClient, { type Company, type Source, type Trend } from '@/components/CompetitorIntelClient';
 
 export default async function CompetitorIntelPage() {
@@ -44,8 +42,8 @@ export default async function CompetitorIntelPage() {
           업계동향
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         <CompetitorIntelClient

@@ -6,8 +6,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createSvc } from '@supabase/supabase-js';
 import { updateStatus, updateRoles, updateName, updateUserCompany } from './actions';
 import { ADMIN_EMAIL } from '@/lib/constants';
-import LogoutButton from '@/components/LogoutButton';
-import HomeButton from '@/components/HomeButton';
 import { ALL_ROLES, ROLE_META, getRoles, normalizeRole, type UserRole } from '@/lib/roles';
 
 type Status = 'pending' | 'approved' | 'rejected';
@@ -482,8 +480,8 @@ export default async function AdminPage() {
           관리자
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          <HomeButton />
-          <LogoutButton compact />
+          
+          
         </div>
 
         {/* 관리 도구 */}
