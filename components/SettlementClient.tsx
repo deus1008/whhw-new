@@ -78,7 +78,7 @@ function StatCard({ label, value, color }: { label: string; value: string; color
       border: '1px solid #f1f5f9', borderRadius: '12px', padding: '0.85rem 1rem',
     }}>
       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>{label}</div>
-      <div style={{ fontSize: '1rem', fontWeight: 700, color: color ?? '#fff' }}>{value}</div>
+      <div style={{ fontSize: '1rem', fontWeight: 700, color: color ?? '#111827' }}>{value}</div>
     </div>
   );
 }
@@ -88,7 +88,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <h3 style={{
       fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.75rem',
-      background: 'linear-gradient(135deg,#fff 0%,#a8c4ff 100%)',
+      background: 'linear-gradient(135deg,#1e293b 0%,#2563eb 100%)',
       WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
     }}>{children}</h3>
   );
@@ -131,7 +131,7 @@ function ShowMoreRow({ hidden, onShow, onHide }: { hidden: number; onShow: () =>
       <td colSpan={5} style={{ textAlign: 'center', padding: '0.4rem' }}>
         <button onClick={onHide} style={{
           background: 'transparent', border: 'none',
-          color: 'rgba(180,180,220,0.35)', fontSize: '0.72rem',
+          color: '#94a3b8', fontSize: '0.72rem',
           padding: '0.2rem 0.8rem', cursor: 'pointer', fontFamily: 'inherit',
         }}>
           접기 ▲
@@ -177,7 +177,7 @@ function SettleCard({ node, depth = 0 }: { node: AggNode; depth?: number }) {
 function AccordionTable({
   title, tree, totalPresc, totalSett, totalCnt,
   accentL1, accentL2, accentL3,
-  colorPresc = '#a8c4ff', colorSett = '#059669', colorRate = '#b45309',
+  colorPresc = '#2563eb', colorSett = '#059669', colorRate = '#b45309',
   l1Label,
 }: AccordionTableProps) {
   const [openL1, setOpenL1] = useState<string | null>(null);
@@ -226,7 +226,7 @@ function AccordionTable({
                     style={{ cursor: 'pointer', background: l1Open ? accentL1 : undefined }}>
                     <td style={{ ...TD_L, fontWeight: 600 }}>
                       <span style={{ marginRight: '0.4rem', fontSize: '0.68rem', opacity: 0.55 }}>{l1Open ? '▲' : '▶'}</span>
-                      <span style={{ color: l1Open ? '#7c3aed' : '#e2e8f0' }}>{l1.name}</span>
+                      <span style={{ color: l1Open ? '#7c3aed' : '#334155' }}>{l1.name}</span>
                     </td>
                     <td style={{ ...TD, color: colorPresc }}>{fmtChun(l1.presc)}</td>
                     <td style={{ ...TD, color: colorSett, fontWeight: 600 }}>{fmtChun(l1.sett)}</td>
@@ -244,11 +244,11 @@ function AccordionTable({
                           style={{ cursor: 'pointer', background: l2Open ? accentL2 : accentL3 }}>
                           <td style={{ ...TD_L, paddingLeft: '1.7rem', fontSize: '0.75rem' }}>
                             <span style={{ marginRight: '0.35rem', fontSize: '0.63rem', opacity: 0.5 }}>{l2Open ? '▲' : '▶'}</span>
-                            <span style={{ color: l2Open ? '#ddd6fe' : 'var(--text-muted)' }}>{l2.name}</span>
+                            <span style={{ color: l2Open ? '#475569' : 'var(--text-muted)' }}>{l2.name}</span>
                           </td>
-                          <td style={{ ...TD, color: '#8ab0e8', fontSize: '0.75rem' }}>{fmtChun(l2.presc)}</td>
-                          <td style={{ ...TD, color: '#3dd68c', fontSize: '0.75rem' }}>{fmtChun(l2.sett)}</td>
-                          <td style={{ ...TD, color: '#d4a843', fontSize: '0.75rem' }}>{calcRate(l2.sett, l2.presc)}</td>
+                          <td style={{ ...TD, color: '#2563eb', fontSize: '0.75rem' }}>{fmtChun(l2.presc)}</td>
+                          <td style={{ ...TD, color: '#059669', fontSize: '0.75rem' }}>{fmtChun(l2.sett)}</td>
+                          <td style={{ ...TD, color: '#b45309', fontSize: '0.75rem' }}>{calcRate(l2.sett, l2.presc)}</td>
                           <td style={{ ...TD, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{l2.cnt.toLocaleString()}</td>
                         </tr>
 
@@ -267,26 +267,26 @@ function AccordionTable({
                                 }}
                               >
                                 <td style={{ ...TD_L, paddingLeft: '3.2rem', fontSize: '0.7rem',
-                                  color: 'rgba(200,200,230,0.55)', maxWidth: '200px',
+                                  color: '#64748b', maxWidth: '200px',
                                   overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   {hasL4 && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.4 }}>{l3Open ? '▲' : '▶'}</span>}
                                   {l3.name}
                                 </td>
-                                <td style={{ ...TD, color: '#7a9fd4', fontSize: '0.7rem' }}>{fmtChun(l3.presc)}</td>
-                                <td style={{ ...TD, color: '#34c472', fontSize: '0.7rem' }}>{fmtChun(l3.sett)}</td>
-                                <td style={{ ...TD, color: '#c49a30', fontSize: '0.7rem' }}>{calcRate(l3.sett, l3.presc)}</td>
+                                <td style={{ ...TD, color: '#2563eb', fontSize: '0.7rem' }}>{fmtChun(l3.presc)}</td>
+                                <td style={{ ...TD, color: '#059669', fontSize: '0.7rem' }}>{fmtChun(l3.sett)}</td>
+                                <td style={{ ...TD, color: '#b45309', fontSize: '0.7rem' }}>{calcRate(l3.sett, l3.presc)}</td>
                                 <td style={{ ...TD, fontSize: '0.7rem', color: 'var(--text-muted)' }}>{l3.cnt.toLocaleString()}</td>
                               </tr>
                               {l3Open && l3.sub?.map((l4, j) => (
                                 <tr key={l4.name} style={{ background: j % 2 === 0 ? 'rgba(100,80,180,0.05)' : undefined }}>
                                   <td style={{ ...TD_L, paddingLeft: '4.8rem', fontSize: '0.66rem',
-                                    color: 'rgba(160,160,210,0.5)', maxWidth: '180px',
+                                    color: '#94a3b8', maxWidth: '180px',
                                     overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                     {l4.name}
                                   </td>
-                                  <td style={{ ...TD, color: '#6a8fc4', fontSize: '0.66rem' }}>{fmtChun(l4.presc)}</td>
-                                  <td style={{ ...TD, color: '#2ab460', fontSize: '0.66rem' }}>{fmtChun(l4.sett)}</td>
-                                  <td style={{ ...TD, color: '#b48820', fontSize: '0.66rem' }}>{calcRate(l4.sett, l4.presc)}</td>
+                                  <td style={{ ...TD, color: '#2563eb', fontSize: '0.66rem' }}>{fmtChun(l4.presc)}</td>
+                                  <td style={{ ...TD, color: '#059669', fontSize: '0.66rem' }}>{fmtChun(l4.sett)}</td>
+                                  <td style={{ ...TD, color: '#b45309', fontSize: '0.66rem' }}>{calcRate(l4.sett, l4.presc)}</td>
                                   <td style={{ ...TD, fontSize: '0.66rem', color: 'var(--text-muted)' }}>{l4.cnt.toLocaleString()}</td>
                                 </tr>
                               ))}
@@ -354,7 +354,7 @@ interface AccordionTable5Props {
 function AccordionTable5({
   title, tree, totalPresc, totalSett, totalCnt,
   accentL1, accentL2, accentL3, accentL4,
-  colorPresc = '#a8c4ff', colorSett = '#059669', colorRate = '#b45309',
+  colorPresc = '#2563eb', colorSett = '#059669', colorRate = '#b45309',
   l1Label,
 }: AccordionTable5Props) {
   const [search, setSearch]               = useState('');
@@ -416,7 +416,7 @@ function AccordionTable5({
                   <tr onClick={() => toggleL1(l1.name)} style={{ cursor: 'pointer', background: l1Open ? accentL1 : undefined }}>
                     <td style={{ ...TD_L, fontWeight: 600 }}>
                       <span style={{ marginRight: '0.4rem', fontSize: '0.68rem', opacity: 0.55 }}>{l1Open ? '▲' : '▶'}</span>
-                      <span style={{ color: l1Open ? '#059669' : '#e2e8f0' }}>{l1.name}</span>
+                      <span style={{ color: l1Open ? '#059669' : '#334155' }}>{l1.name}</span>
                     </td>
                     <td style={{ ...TD, color: colorPresc }}>{fmtChun(l1.presc)}</td>
                     <td style={{ ...TD, color: colorSett, fontWeight: 600 }}>{fmtChun(l1.sett)}</td>
@@ -435,9 +435,9 @@ function AccordionTable5({
                             <span style={{ marginRight: '0.35rem', fontSize: '0.63rem', opacity: 0.5 }}>{l2Open ? '▲' : '▶'}</span>
                             <span style={{ color: l2Open ? '#a7f3d0' : 'var(--text-muted)' }}>{l2.name}</span>
                           </td>
-                          <td style={{ ...TD, color: '#8ab0e8', fontSize: '0.75rem' }}>{fmtChun(l2.presc)}</td>
-                          <td style={{ ...TD, color: '#3dd68c', fontSize: '0.75rem' }}>{fmtChun(l2.sett)}</td>
-                          <td style={{ ...TD, color: '#d4a843', fontSize: '0.75rem' }}>{calcRate(l2.sett, l2.presc)}</td>
+                          <td style={{ ...TD, color: '#2563eb', fontSize: '0.75rem' }}>{fmtChun(l2.presc)}</td>
+                          <td style={{ ...TD, color: '#059669', fontSize: '0.75rem' }}>{fmtChun(l2.sett)}</td>
+                          <td style={{ ...TD, color: '#b45309', fontSize: '0.75rem' }}>{calcRate(l2.sett, l2.presc)}</td>
                           <td style={{ ...TD, fontSize: '0.75rem', color: 'var(--text-muted)' }}>{l2.cnt.toLocaleString()}</td>
                         </tr>
 
@@ -452,9 +452,9 @@ function AccordionTable5({
                                   <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.45 }}>{l3Open ? '▲' : '▶'}</span>
                                   <span style={{ color: l3Open ? '#d1fae5' : 'rgba(200,220,210,0.6)' }}>{l3.name}</span>
                                 </td>
-                                <td style={{ ...TD, color: '#7a9fd4', fontSize: '0.72rem' }}>{fmtChun(l3.presc)}</td>
-                                <td style={{ ...TD, color: '#34c472', fontSize: '0.72rem' }}>{fmtChun(l3.sett)}</td>
-                                <td style={{ ...TD, color: '#c49a30', fontSize: '0.72rem' }}>{calcRate(l3.sett, l3.presc)}</td>
+                                <td style={{ ...TD, color: '#2563eb', fontSize: '0.72rem' }}>{fmtChun(l3.presc)}</td>
+                                <td style={{ ...TD, color: '#059669', fontSize: '0.72rem' }}>{fmtChun(l3.sett)}</td>
+                                <td style={{ ...TD, color: '#b45309', fontSize: '0.72rem' }}>{calcRate(l3.sett, l3.presc)}</td>
                                 <td style={{ ...TD, fontSize: '0.72rem', color: 'var(--text-muted)' }}>{l3.cnt.toLocaleString()}</td>
                               </tr>
 
@@ -469,9 +469,9 @@ function AccordionTable5({
                                         <span style={{ marginRight: '0.28rem', fontSize: '0.58rem', opacity: 0.4 }}>{l4Open ? '▲' : '▶'}</span>
                                         <span style={{ color: l4Open ? '#ecfdf5' : 'rgba(180,210,195,0.5)' }}>{l4.name}</span>
                                       </td>
-                                      <td style={{ ...TD, color: '#6a8fc4', fontSize: '0.69rem' }}>{fmtChun(l4.presc)}</td>
-                                      <td style={{ ...TD, color: '#2ab460', fontSize: '0.69rem' }}>{fmtChun(l4.sett)}</td>
-                                      <td style={{ ...TD, color: '#b48820', fontSize: '0.69rem' }}>{calcRate(l4.sett, l4.presc)}</td>
+                                      <td style={{ ...TD, color: '#2563eb', fontSize: '0.69rem' }}>{fmtChun(l4.presc)}</td>
+                                      <td style={{ ...TD, color: '#059669', fontSize: '0.69rem' }}>{fmtChun(l4.sett)}</td>
+                                      <td style={{ ...TD, color: '#b45309', fontSize: '0.69rem' }}>{calcRate(l4.sett, l4.presc)}</td>
                                       <td style={{ ...TD, fontSize: '0.69rem', color: 'var(--text-muted)' }}>{l4.cnt.toLocaleString()}</td>
                                     </tr>
 
@@ -656,7 +656,7 @@ export default function SettlementClient({
                     cursor: 'pointer', fontFamily: 'inherit',
                   }}
                 >
-                  <div style={{ fontSize: '0.8rem', fontWeight: 500, color: isActive ? '#7c3aed' : '#e2e8f0' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 500, color: isActive ? '#7c3aed' : '#334155' }}>
                     {f.file}
                   </div>
                   {(f.settMonth || f.prescMonth) && (
@@ -764,7 +764,7 @@ export default function SettlementClient({
 
           {/* ── 요약 스탯 ── */}
           <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-            <StatCard label="총 처방금액 (천원)" value={fmtChunBig(totalPresc)} color="#a8c4ff" />
+            <StatCard label="총 처방금액 (천원)" value={fmtChunBig(totalPresc)} color="#2563eb" />
             <StatCard label="총 정산액 (천원)"   value={fmtChunBig(totalSett)}  color="#059669" />
             <StatCard label="평균 수수료율"       value={fmtPct(avgRate)}        color="#b45309" />
             <StatCard label="처방 건수"           value={`${totalCnt.toLocaleString()}건`} />
