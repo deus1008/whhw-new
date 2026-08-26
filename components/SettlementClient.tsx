@@ -141,6 +141,39 @@ function ShowMoreRow({ hidden, onShow, onHide }: { hidden: number; onShow: () =>
   );
 }
 
+/* ── 모바일 카드 (재귀: 처방금액/정산액/수수료율/건수) ── */
+function SettleCard({ node, depth = 0 }: { node: AggNode; depth?: number }) {
+  const [open, setOpen] = useState(false);
+  const has = !!node.sub?.length;
+  if (depth === 0) {
+    return (
+      <div className="mcard">
+        <div className="mcard-head" onClick={() => has && setOpen(o => !o)} style={{ cursor: has ? 'pointer' : 'default' }}>
+          <span className="mcard-title">{has ? (open ? '▲ ' : '▶ ') : ''}{node.name}</span>
+        </div>
+        <div className="mcard-row"><span className="mcard-k">처방금액</span><span className="mcard-v" style={{ color: '#2563eb' }}>{fmtChun(node.presc)}</span></div>
+        <div className="mcard-row"><span className="mcard-k">정산액</span><span className="mcard-v" style={{ color: '#059669' }}>{fmtChun(node.sett)}</span></div>
+        <div className="mcard-row"><span className="mcard-k">수수료율</span><span className="mcard-v" style={{ color: '#b45309' }}>{calcRate(node.sett, node.presc)}</span></div>
+        <div className="mcard-row"><span className="mcard-k">건수</span><span className="mcard-v" style={{ color: '#64748b', fontWeight: 400 }}>{node.cnt.toLocaleString()}</span></div>
+        {open && node.sub!.map((c, i) => <SettleCard key={c.name + i} node={c} depth={1} />)}
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginLeft: `${(depth - 1) * 0.5}rem`, borderLeft: '2px solid #eef1f6', paddingLeft: '0.5rem', marginTop: '0.25rem' }}>
+      <div onClick={() => has && setOpen(o => !o)} style={{ cursor: has ? 'pointer' : 'default', fontSize: depth === 1 ? '0.82rem' : '0.76rem', color: '#334155', wordBreak: 'break-word' }}>
+        {has ? (open ? '▲ ' : '▶ ') : '• '}{node.name}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.65rem', fontSize: '0.7rem', paddingLeft: '0.9rem', marginTop: '0.1rem' }}>
+        <span style={{ color: '#2563eb' }}>처방 {fmtChun(node.presc)}</span>
+        <span style={{ color: '#059669' }}>정산 {fmtChun(node.sett)}</span>
+        <span style={{ color: '#b45309' }}>{calcRate(node.sett, node.presc)}</span>
+        <span style={{ color: '#94a3b8' }}>{node.cnt.toLocaleString()}건</span>
+      </div>
+      {open && node.sub!.map((c, i) => <SettleCard key={c.name + i} node={c} depth={depth + 1} />)}
+    </div>
+  );
+}
 function AccordionTable({
   title, tree, totalPresc, totalSett, totalCnt,
   accentL1, accentL2, accentL3,
@@ -172,7 +205,7 @@ function AccordionTable({
   return (
     <div style={CARD}>
       <SectionTitle>{title}</SectionTitle>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -283,6 +316,16 @@ function AccordionTable({
           </tbody>
         </table>
       </div>
+      <div className="resp-cards">
+        {visible.map((n, i) => <SettleCard key={n.name + i} node={n as AggNode} />)}
+        <div className="mcard" style={{ background: '#f8fafc' }}>
+          <div className="mcard-head"><span className="mcard-title" style={{ color: '#475569' }}>합계</span></div>
+          <div className="mcard-row"><span className="mcard-k">처방금액</span><span className="mcard-v" style={{ color: '#2563eb' }}>{fmtChun(totalPresc)}</span></div>
+          <div className="mcard-row"><span className="mcard-k">정산액</span><span className="mcard-v" style={{ color: '#059669' }}>{fmtChun(totalSett)}</span></div>
+          <div className="mcard-row"><span className="mcard-k">수수료율</span><span className="mcard-v" style={{ color: '#b45309' }}>{calcRate(totalSett, totalPresc)}</span></div>
+          <div className="mcard-row"><span className="mcard-k">건수</span><span className="mcard-v" style={{ color: '#64748b', fontWeight: 400 }}>{totalCnt.toLocaleString()}</span></div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -353,7 +396,7 @@ function AccordionTable5({
           style={{ padding: '0.43rem 0.9rem', borderRadius: '8px', background: 'rgba(79,142,247,0.18)', border: '1px solid rgba(79,142,247,0.4)', color: '#2563eb', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >검색</button>
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -474,6 +517,16 @@ function AccordionTable5({
             </tr>
           </tbody>
         </table>
+      </div>
+      <div className="resp-cards">
+        {filtered.map((n, i) => <SettleCard key={n.name + i} node={n as AggNode} />)}
+        <div className="mcard" style={{ background: '#f8fafc' }}>
+          <div className="mcard-head"><span className="mcard-title" style={{ color: '#475569' }}>합계</span></div>
+          <div className="mcard-row"><span className="mcard-k">처방금액</span><span className="mcard-v" style={{ color: '#2563eb' }}>{fmtChun(totalPresc)}</span></div>
+          <div className="mcard-row"><span className="mcard-k">정산액</span><span className="mcard-v" style={{ color: '#059669' }}>{fmtChun(totalSett)}</span></div>
+          <div className="mcard-row"><span className="mcard-k">수수료율</span><span className="mcard-v" style={{ color: '#b45309' }}>{calcRate(totalSett, totalPresc)}</span></div>
+          <div className="mcard-row"><span className="mcard-k">건수</span><span className="mcard-v" style={{ color: '#64748b', fontWeight: 400 }}>{totalCnt.toLocaleString()}</span></div>
+        </div>
       </div>
     </div>
   );
