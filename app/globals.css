@@ -527,10 +527,11 @@ select.auth-input { background-color: #1e293b; }
   font-family: inherit; cursor: pointer; min-height: 42px;
 }
 .rxt-btn {
-  padding: 0.55rem 1.4rem; border-radius: 9px; border: none; cursor: pointer;
-  background: #1d4ed8; color: #fff; font-size: 0.92rem; font-weight: 500; font-family: inherit;
+  padding: 0.55rem 1.4rem; border-radius: 9px; border: 1px solid #cdddfb; cursor: pointer;
+  background: #eaf1fe; color: #2563eb; font-size: 0.92rem; font-weight: 500; font-family: inherit;
   min-height: 42px;
 }
+.rxt-btn:hover:not(:disabled) { background: #dbe8fd; }
 .rxt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .rxt-note { font-size: 0.8rem; color: var(--rxt-sub); font-weight: 400; }
 .rxt-empty { text-align: center; color: var(--rxt-sub); padding: 2.6rem 1rem; font-size: 0.92rem; font-weight: 400; }
