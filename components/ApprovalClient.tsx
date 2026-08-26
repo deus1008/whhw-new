@@ -147,7 +147,7 @@ function DrilldownCompanyTable({ drilldownRows, title }: {
   return (
     <div style={CARD}>
       <SectionTitle>{title}</SectionTitle>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -251,6 +251,46 @@ function DrilldownCompanyTable({ drilldownRows, title }: {
           </tbody>
         </table>
       </div>
+
+      {/* ── 모바일 카드 (회사→성분→품목→허가일 확장 유지) ── */}
+      <div className="resp-cards">
+        {rows.length > 0 ? rows.map((row, i) => {
+          const isOpen = lvl1.expanded.has(row.name);
+          const ingMap = tree.get(row.name);
+          const hasDetail = !!ingMap && ingMap.size > 0;
+          const ingList = ingMap ? Array.from(ingMap.entries()).sort((a, b) => b[1].length - a[1].length) : [];
+          return (
+            <div key={row.name} className="mcard">
+              <div className="mcard-head" onClick={() => hasDetail && lvl1.toggle(row.name)} style={{ cursor: hasDetail ? 'pointer' : 'default' }}>
+                <span className="mcard-rank">{i + 1}</span>
+                <span className="mcard-title">{row.name}</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.76rem', whiteSpace: 'nowrap', color: i === 0 ? '#dc2626' : i < 3 ? '#2563eb' : '#475569' }}>
+                  {fmtNum(row.count)}성분 · {fmtNum(row.products)}품목 {hasDetail && (isOpen ? '▼' : '▶')}
+                </span>
+              </div>
+              {isOpen && ingList.map(([ingName, products]) => {
+                const ingKey = `${row.name}::${ingName}`;
+                const isIngOpen = lvl2.expanded.has(ingKey);
+                const sorted = [...products].sort((a, b) => (b.approvalDate || '').localeCompare(a.approvalDate || ''));
+                return (
+                  <div key={ingKey} style={{ marginTop: '0.3rem', paddingLeft: '0.4rem', borderLeft: '2px solid #e5e9f0' }}>
+                    <div onClick={() => lvl2.toggle(ingKey)} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', gap: '0.5rem', padding: '0.3rem 0', fontSize: '0.83rem', color: '#475569' }}>
+                      <span>{isIngOpen ? '▼' : '▶'} {ingName}</span>
+                      <span style={{ color: '#2563eb', whiteSpace: 'nowrap' }}>{products.length}건</span>
+                    </div>
+                    {isIngOpen && sorted.map((p, pi) => (
+                      <div key={pi} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', padding: '0.18rem 0 0.18rem 0.9rem', fontSize: '0.77rem', color: '#64748b' }}>
+                        <span>• {p.product}</span>
+                        <span style={{ color: '#94a3b8', whiteSpace: 'nowrap' }}>{p.approvalDate || '-'}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        }) : <div className="mcard" style={{ color: '#94a3b8' }}>회사명 컬럼이 탐지되지 않았습니다.</div>}
+      </div>
     </div>
   );
 }
@@ -285,7 +325,7 @@ function DrilldownIngredientTable({ rows, drilldownRows, title }: {
   return (
     <div style={CARD}>
       <SectionTitle>{title}</SectionTitle>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -387,6 +427,46 @@ function DrilldownIngredientTable({ rows, drilldownRows, title }: {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* ── 모바일 카드 (성분→회사→품목→허가일 확장 유지) ── */}
+      <div className="resp-cards">
+        {rows.length > 0 ? rows.map((row, i) => {
+          const isOpen = lvl1.expanded.has(row.name);
+          const coMap = tree.get(row.name);
+          const hasDetail = !!coMap && coMap.size > 0;
+          const coList = coMap ? Array.from(coMap.entries()).sort((a, b) => b[1].length - a[1].length) : [];
+          return (
+            <div key={row.name} className="mcard">
+              <div className="mcard-head" onClick={() => hasDetail && lvl1.toggle(row.name)} style={{ cursor: hasDetail ? 'pointer' : 'default' }}>
+                <span className="mcard-rank">{i + 1}</span>
+                <span className="mcard-title">{row.name}</span>
+                <span style={{ marginLeft: 'auto', fontSize: '0.78rem', whiteSpace: 'nowrap', color: i === 0 ? '#7c3aed' : i < 3 ? '#2563eb' : '#475569' }}>
+                  {fmtNum(row.count)}건 {hasDetail && (isOpen ? '▼' : '▶')}
+                </span>
+              </div>
+              {isOpen && coList.map(([coName, products]) => {
+                const coKey = `${row.name}::${coName}`;
+                const isCoOpen = lvl2.expanded.has(coKey);
+                const sorted = [...products].sort((a, b) => (b.approvalDate || '').localeCompare(a.approvalDate || ''));
+                return (
+                  <div key={coKey} style={{ marginTop: '0.3rem', paddingLeft: '0.4rem', borderLeft: '2px solid #e5e9f0' }}>
+                    <div onClick={() => lvl2.toggle(coKey)} style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', gap: '0.5rem', padding: '0.3rem 0', fontSize: '0.83rem', color: '#475569' }}>
+                      <span>{isCoOpen ? '▼' : '▶'} {coName}</span>
+                      <span style={{ color: '#7c3aed', whiteSpace: 'nowrap' }}>{products.length}건</span>
+                    </div>
+                    {isCoOpen && sorted.map((p, pi) => (
+                      <div key={pi} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', padding: '0.18rem 0 0.18rem 0.9rem', fontSize: '0.77rem', color: '#64748b' }}>
+                        <span>• {p.product}</span>
+                        <span style={{ color: '#94a3b8', whiteSpace: 'nowrap' }}>{p.approvalDate || '-'}</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        }) : <div className="mcard" style={{ color: '#94a3b8' }}>성분명 컬럼이 탐지되지 않았습니다.</div>}
       </div>
     </div>
   );
