@@ -434,6 +434,35 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           .dash-table td { padding: 0.32rem 0.34rem; font-size: 0.72rem; }
         }
 
+        /* ── 데스크탑=표 / 모바일=카드 토글 ── */
+        .dash-cards { display: none; }
+        @media (max-width: 640px) {
+          .dash-table-wrap { display: none; }
+          .dash-cards { display: block; }
+        }
+        .dcard {
+          border: 1px solid #e5e9f0; border-radius: 10px;
+          padding: 0.7rem 0.8rem; margin-bottom: 0.6rem; background: #fff;
+        }
+        .dcard-head {
+          display: flex; align-items: baseline; gap: 0.45rem;
+          margin-bottom: 0.5rem; padding-bottom: 0.45rem; border-bottom: 1px solid #eef1f6;
+        }
+        .dcard-rank {
+          font-size: 0.72rem; font-weight: 700; color: #fff; background: #334155;
+          border-radius: 6px; padding: 0.05rem 0.42rem; flex-shrink: 0;
+        }
+        .dcard-name { font-size: 0.95rem; font-weight: 700; color: #7c3aed; }
+        .dcard-metric { padding: 0.4rem 0; border-bottom: 1px dashed #eef1f6; }
+        .dcard-metric:last-child { border-bottom: none; }
+        .dcard-mrow { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+        .dcard-mlabel { font-size: 0.78rem; color: #64748b; }
+        .dcard-mval { font-size: 0.9rem; font-weight: 700; color: #111827; }
+        .dcard-months {
+          display: flex; flex-wrap: wrap; gap: 0.6rem;
+          margin-top: 0.2rem; font-size: 0.72rem; color: #94a3b8;
+        }
+
         /* ── 인쇄 ── */
         @media print {
           @page { size: A4 portrait; margin: 8mm 10mm; }
@@ -800,7 +829,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         ) : (
           <>
             <SubTitle>▸ CSO별 집계 · 상위 {csoStats.length}개 / 전체 {totalCsoCount}개 ({ediMonths.length > 0 ? `${fmtPeriod(ediMonths[0])} ~ ${fmtPeriod(ediMonths[ediMonths.length - 1])}` : '최근 3개월'})</SubTitle>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="dash-table-wrap" style={{ overflowX: 'auto' }}>
               {(() => {
                 type CsoMonth = CsoStat['months'][0];
                 type CsoMetric = { label: string; get: (m: CsoMonth) => number; isAmt: boolean };
@@ -924,6 +953,53 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     </tbody>
                   </table>
                 );
+              })()}
+            </div>
+
+            {/* 모바일 카드 (≤640px) */}
+            <div className="dash-cards">
+              {(() => {
+                type CsoMonth = CsoStat['months'][0];
+                const metrics: { label: string; get: (m: CsoMonth) => number; isAmt: boolean }[] = [
+                  { label: '처방처수',       get: m => m.hospCount, isAmt: false },
+                  { label: '처방품목수',     get: m => m.prodCount, isAmt: false },
+                  { label: '처방액합계',     get: m => m.prescAmt,  isAmt: true  },
+                  { label: '처별 처방액평균', get: m => m.hospCount > 0 ? Math.round(m.prescAmt / m.hospCount) : 0, isAmt: true },
+                ];
+                const fmt = (v: number, amt: boolean) => amt ? (v > 0 ? fmtWon(v) : '-') : v.toLocaleString();
+                const rateEl = (cur: number, prv: number | undefined) => {
+                  const rate = (prv !== undefined && prv > 0) ? Math.round(((cur - prv) / prv) * 100) : null;
+                  if (rate === null) return null;
+                  if (rate === 0) return <span className="muted"> (±0%)</span>;
+                  return <span className={rate > 0 ? 'up' : 'dn'}> ({rate > 0 ? '▲' : '▼'}{Math.abs(rate)}%)</span>;
+                };
+                return csoStats.map((r, i) => (
+                  <div key={r.name} className="dcard">
+                    <div className="dcard-head">
+                      <span className="dcard-rank">{i + 1}</span>
+                      <span className="dcard-name">{r.name}</span>
+                    </div>
+                    {metrics.map(metric => {
+                      const last  = r.months[r.months.length - 1];
+                      const first = r.months[0];
+                      const cur = last ? metric.get(last) : 0;
+                      const prv = first ? metric.get(first) : undefined;
+                      return (
+                        <div key={metric.label} className="dcard-metric">
+                          <div className="dcard-mrow">
+                            <span className="dcard-mlabel">{metric.label}</span>
+                            <span className="dcard-mval">{fmt(cur, metric.isAmt)}{rateEl(cur, prv)}</span>
+                          </div>
+                          <div className="dcard-months">
+                            {r.months.map(mm => (
+                              <span key={mm.month}>{fmtPeriod(mm.month)} {fmt(metric.get(mm), metric.isAmt)}</span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ));
               })()}
             </div>
 
