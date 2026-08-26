@@ -18,11 +18,17 @@ export default async function CompetitorIntelPage() {
 
   const svc = createSvc(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
+  // 최근 3개월 이내 기사만 게재 (event_date 기준, 날짜 없으면 created_at 보완)
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 3);
+  const cutoffStr = cutoff.toISOString().slice(0, 10); // YYYY-MM-DD
+
   const [{ data: companies }, { data: sources }, { data: trends }, { data: deleted }] = await Promise.all([
     svc.from('competitor_companies').select('id, name, display_order').eq('active', true).order('display_order'),
     svc.from('media_sources').select('id, name, base_url, display_order').eq('active', true).order('display_order'),
     svc.from('competitor_trends')
       .select('id, company_name, trend_type, title, summary, content, source_name, url, event_date, is_field, supplement, author_id, author_name, crawled, created_at')
+      .or(`event_date.gte.${cutoffStr},and(event_date.is.null,created_at.gte.${cutoffStr})`)
       .order('event_date', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
       .limit(2000),
