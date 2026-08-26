@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "판매대행사업",
@@ -21,7 +22,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="flex flex-col items-center justify-start min-h-screen">
-        {children}
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
