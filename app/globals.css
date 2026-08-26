@@ -494,3 +494,90 @@ select.auth-input { background-color: #1e293b; }
   .orb { display: none !important; }
   body { background: #fff !important; color: #000 !important; display: block !important; }
 }
+
+/* ══════════════════════════════════════════════════════════
+   다처방성분(/prescription-trend) — 밝은 테마 · 반응형
+   PC: 넓은 표 / 모바일: 성분별 카드 세로 나열
+   ══════════════════════════════════════════════════════════ */
+.rxt-root {
+  --rxt-line:   #d7dce5;
+  --rxt-ink:    #0b1220;   /* 굵은 검은 기본 글자 */
+  --rxt-sub:    #475569;
+  --rxt-aju:    #1d4ed8;
+  --rxt-ref:    #7c3aed;
+  --rxt-up:     #1d4ed8;
+  --rxt-down:   #dc2626;
+  color: var(--rxt-ink);
+  width: 100%;
+}
+.rxt-card {
+  background: #ffffff;
+  border: 1px solid var(--rxt-line);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+}
+.rxt-filter {
+  display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.9rem 1rem; margin-bottom: 1rem;
+}
+.rxt-filter label { font-size: 0.85rem; font-weight: 700; color: var(--rxt-ink); }
+.rxt-select {
+  padding: 0.5rem 0.7rem; border-radius: 9px; font-size: 0.9rem; font-weight: 600;
+  background: #fff; border: 1.5px solid var(--rxt-line); color: var(--rxt-ink);
+  font-family: inherit; cursor: pointer; min-height: 42px;
+}
+.rxt-btn {
+  padding: 0.55rem 1.4rem; border-radius: 9px; border: none; cursor: pointer;
+  background: #1d4ed8; color: #fff; font-size: 0.92rem; font-weight: 700; font-family: inherit;
+  min-height: 42px;
+}
+.rxt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.rxt-note { font-size: 0.8rem; color: var(--rxt-sub); font-weight: 600; }
+.rxt-empty { text-align: center; color: var(--rxt-sub); padding: 2.6rem 1rem; font-size: 0.92rem; font-weight: 600; }
+
+/* ── 표(PC) ── */
+.rxt-tablewrap { display: block; overflow-x: auto; padding: 0.4rem; }
+.rxt-cards { display: none; }
+.rxt-table { width: 100%; border-collapse: collapse; min-width: 860px; }
+.rxt-table th {
+  padding: 0.6rem 0.6rem; font-size: 0.78rem; font-weight: 800; color: var(--rxt-ink);
+  white-space: nowrap; border-bottom: 2px solid #c3cad6; background: #f1f4f9; text-align: right;
+}
+.rxt-table th.l { text-align: left; }
+.rxt-table th.c { text-align: center; }
+.rxt-table td {
+  padding: 0.55rem 0.6rem; font-size: 0.9rem; color: var(--rxt-ink); white-space: nowrap;
+  border-bottom: 1px solid #eaeef4; text-align: right; font-variant-numeric: tabular-nums;
+}
+.rxt-table tr:nth-child(even) td { background: #fafbfd; }
+.rxt-table td.l { text-align: left; }
+.rxt-table td.c { text-align: center; }
+.rxt-table td.name { font-weight: 800; white-space: normal; max-width: 240px; }
+.rxt-table td.num  { font-weight: 800; }
+.rxt-sep-aju { border-left: 2px solid rgba(29,78,216,0.22); }
+.rxt-sep-ref { border-left: 2px solid rgba(124,58,237,0.22); }
+.rxt-aju { color: var(--rxt-aju); font-weight: 700; }
+.rxt-ref { color: var(--rxt-ref); font-weight: 700; }
+
+/* ── 카드(모바일) ── */
+@media (max-width: 767px) {
+  .rxt-tablewrap { display: none; }
+  .rxt-cards { display: block; }
+}
+.rxt-item { padding: 0.85rem 0.95rem; margin-bottom: 0.7rem; }
+.rxt-item-head {
+  display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.6rem;
+  padding-bottom: 0.55rem; border-bottom: 1.5px solid #eaeef4;
+}
+.rxt-rank {
+  flex-shrink: 0; font-size: 0.8rem; font-weight: 800; color: #fff; background: #0b1220;
+  border-radius: 7px; min-width: 26px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+}
+.rxt-item-name { font-size: 1rem; font-weight: 800; color: var(--rxt-ink); line-height: 1.3; }
+.rxt-row { display: flex; justify-content: space-between; align-items: center; padding: 0.28rem 0; font-size: 0.9rem; }
+.rxt-row .k { color: var(--rxt-sub); font-weight: 700; }
+.rxt-row .v { font-weight: 800; color: var(--rxt-ink); font-variant-numeric: tabular-nums; }
+.rxt-block { margin-top: 0.55rem; padding-top: 0.5rem; border-top: 1px dashed #e2e7ef; }
+.rxt-block-title { font-size: 0.76rem; font-weight: 800; margin-bottom: 0.15rem; }
+.rxt-up   { color: var(--rxt-up);   font-weight: 800; }
+.rxt-down { color: var(--rxt-down); font-weight: 800; }

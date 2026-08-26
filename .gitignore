@@ -49,3 +49,4 @@ next-env.d.ts
 # 임시 적재/검증 스크립트
 scratch_*.mts
 scratch_*.ts
+scratch_*.html

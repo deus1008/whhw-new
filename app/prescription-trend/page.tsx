@@ -32,15 +32,12 @@ export default async function PrescriptionTrendPage() {
   }
 
   return (
-    <>
-      <div className="orb orb-1" />
-      <div className="orb orb-2" />
-      <div className="orb orb-3" />
-      <div className="relative z-10 w-full px-4" style={{ maxWidth: '1180px', paddingTop: '2rem', paddingBottom: '3rem', alignSelf: 'flex-start' }}>
-        <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.3rem, 4vw, 1.9rem)' }}>
+    <div style={{ minHeight: '100vh', width: '100%', background: '#ffffff', alignSelf: 'stretch' }}>
+      <div className="relative z-10 w-full px-4" style={{ maxWidth: '1320px', margin: '0 auto', paddingTop: '1.6rem', paddingBottom: '3rem' }}>
+        <h1 style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.35rem, 4vw, 2rem)', fontWeight: 800, color: '#0b1220', letterSpacing: '-0.02em' }}>
           진료과별 다처방 성분
-        </p>
-        <div className="page-nav" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+        </h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1.4rem', flexWrap: 'wrap' }}>
           <HomeButton />
           <LogoutButton compact />
         </div>
@@ -49,6 +46,6 @@ export default async function PrescriptionTrendPage() {
         )}
         <RxTrendClient />
       </div>
-    </>
+    </div>
   );
 }
