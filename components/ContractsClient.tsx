@@ -345,7 +345,7 @@ function ContractTr({
         </td>
         <td style={{ ...cellTd, whiteSpace: 'nowrap' }}><TypeBadge type={c.contract_type} /></td>
         <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>{c.manager}</td>
-        <td style={{ ...cellTd, color: '#a8c4ff', whiteSpace: 'nowrap' }}>{period}</td>
+        <td style={{ ...cellTd, color: '#475569', whiteSpace: 'nowrap' }}>{period}</td>
         <td style={{ ...cellTd, maxWidth: 170, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={contact}>{contact || '-'}</td>
         <td style={{ ...cellTd, maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={expect}>{expect || '-'}</td>
         <td style={{ ...cellTd, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.hospitals ?? ''}>{c.hospitals || '-'}</td>
@@ -383,6 +383,50 @@ function ContractTr({
         </tr>
       )}
     </>
+  );
+}
+
+/* ── 모바일 카드 버전 (확장·수정·삭제 유지) ── */
+function ContractCard({
+  contract: c, canEdit, onEdit, onDelete,
+}: {
+  contract: ContractRow; canEdit: boolean; onEdit: () => void; onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const period = `${fmtDate(c.contract_start)} ~ ${fmtDate(c.contract_end)}${c.auto_renewal ? ' (자동갱신)' : ''}`;
+  const contact = [c.contact_name, c.contact_phone].filter(Boolean).join(' / ');
+  const expect  = [c.expected_month, c.expected_amount && `예상 ${c.expected_amount}`].filter(Boolean).join(' · ');
+  return (
+    <div className="mcard">
+      <div className="mcard-head" onClick={() => setOpen(v => !v)} style={{ cursor: 'pointer' }}>
+        <span className="mcard-title">{c.company_name}</span>
+        <TypeBadge type={c.contract_type} />
+        <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#94a3b8' }}>{open ? '▼' : '▶'}</span>
+      </div>
+      <div className="mcard-row"><span className="mcard-k">담당자</span><span className="mcard-v" style={{ fontWeight: 400 }}>{c.manager}</span></div>
+      <div className="mcard-row"><span className="mcard-k">계약기간</span><span className="mcard-v" style={{ fontWeight: 400 }}>{period}</span></div>
+      <div className="mcard-row"><span className="mcard-k">연락처</span><span className="mcard-v" style={{ fontWeight: 400 }}>{contact || '-'}</span></div>
+      <div className="mcard-row"><span className="mcard-k">처방 예상</span><span className="mcard-v" style={{ fontWeight: 400 }}>{expect || '-'}</span></div>
+      <div className="mcard-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.15rem' }}>
+        <span className="mcard-k">주요 병원·품목</span>
+        <span className="mcard-v" style={{ textAlign: 'left', fontWeight: 400, whiteSpace: 'pre-wrap' }}>{c.hospitals || '-'}</span>
+      </div>
+      {open && (
+        <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #eef1f6', display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+          {c.contact_email && <DetailRow label="이메일"   value={c.contact_email} />}
+          {c.evidence      && <DetailRow label="증빙자료" value={c.evidence} />}
+          {c.details       && <DetailRow label="세부내역" value={c.details} />}
+          {c.memo          && <DetailRow label="비고"     value={c.memo} />}
+          <DetailRow label="등록일" value={fmtDate(c.created_at.slice(0, 10))} />
+          {canEdit && (
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.3rem' }}>
+              <button onClick={onEdit} style={{ ...BTN_PRIMARY, fontSize: '0.78rem', padding: '0.4rem 0.9rem' }}>✏️ 수정</button>
+              <button onClick={onDelete} style={{ ...BTN_GHOST, fontSize: '0.78rem', padding: '0.4rem 0.9rem', borderColor: 'rgba(248,113,113,0.35)', color: '#dc2626' }}>🗑 삭제</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -591,7 +635,8 @@ export default function ContractsClient({
         const showActions = isAdmin || filtered.some(c => c.user_id === userId);
         const colCount = 7 + (showActions ? 1 : 0);
         return (
-          <div style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: 12 }}>
+          <>
+          <div className="resp-table" style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: 12 }}>
             <table style={{ width: '100%', minWidth: showActions ? 880 : 760, borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
@@ -620,6 +665,18 @@ export default function ContractsClient({
               </tbody>
             </table>
           </div>
+          <div className="resp-cards">
+            {filtered.map(c => (
+              <ContractCard
+                key={c.id}
+                contract={c}
+                canEdit={isAdmin || c.user_id === userId}
+                onEdit={() => openEdit(c)}
+                onDelete={() => !deleting && handleDelete(c.id)}
+              />
+            ))}
+          </div>
+          </>
         );
       })()}
 
