@@ -505,6 +505,44 @@ function EdiDashboard({ data }: { data: EdiData }) {
 /* ════════════════════════════════════════════════════════════ */
 /*  ① 담당자별 현황                                            */
 /* ════════════════════════════════════════════════════════════ */
+/* ── 아코디언 공용 모바일 카드 (이름+금액 3단 확장 재귀) ── */
+type ANode = { name: string; amount: number; children?: ANode[] };
+function AccordionCard({ node, depth = 0 }: { node: ANode; depth?: number }) {
+  const [open, setOpen] = useState(false);
+  const has = !!node.children?.length;
+  if (depth === 0) {
+    return (
+      <div className="mcard">
+        <div className="mcard-head" onClick={() => has && setOpen(o => !o)} style={{ cursor: has ? 'pointer' : 'default' }}>
+          <span className="mcard-title">{has ? (open ? '▼ ' : '▶ ') : ''}{node.name}</span>
+          <span className="mcard-v" style={{ marginLeft: 'auto' }}>{fmt(node.amount)}</span>
+        </div>
+        {open && node.children!.map((c, i) => <AccordionCard key={c.name + i} node={c} depth={1} />)}
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginLeft: `${(depth - 1) * 0.6}rem`, borderLeft: '2px solid #eef1f6', paddingLeft: '0.5rem', marginTop: '0.2rem' }}>
+      <div onClick={() => has && setOpen(o => !o)} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', padding: '0.2rem 0', cursor: has ? 'pointer' : 'default', fontSize: depth === 1 ? '0.82rem' : '0.77rem', color: depth === 1 ? '#475569' : '#64748b' }}>
+        <span style={{ wordBreak: 'break-word' }}>{has ? (open ? '▼ ' : '▶ ') : '• '}{node.name}</span>
+        <span style={{ whiteSpace: 'nowrap', color: '#334155' }}>{fmt(node.amount)}</span>
+      </div>
+      {open && node.children!.map((c, i) => <AccordionCard key={c.name + i} node={c} depth={depth + 1} />)}
+    </div>
+  );
+}
+function AccordionCards({ nodes, total }: { nodes: ANode[]; total: number }) {
+  return (
+    <div className="resp-cards">
+      {nodes.map((n, i) => <AccordionCard key={n.name + i} node={n} />)}
+      <div className="mcard" style={{ background: '#f8fafc', display: 'flex', justifyContent: 'space-between', gap: '0.5rem' }}>
+        <span style={{ fontWeight: 700, color: '#475569' }}>총합계</span>
+        <span style={{ fontWeight: 700, color: '#111827' }}>{fmt(total)}</span>
+      </div>
+    </div>
+  );
+}
+
 function SalesPersonAccordion({ stats, totalAmount }: {
   stats: SalesPersonStat[];
   totalAmount: number;
@@ -523,7 +561,7 @@ function SalesPersonAccordion({ stats, totalAmount }: {
 
   return (
     <Section title="담당자별 현황">
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
             <tr>
@@ -588,6 +626,13 @@ function SalesPersonAccordion({ stats, totalAmount }: {
           </tbody>
         </table>
       </div>
+      <AccordionCards total={displayTotal} nodes={stats.map(sp => ({
+        name: sp.name, amount: sp.amount,
+        children: sp.csos.map(cso => ({
+          name: cso.name, amount: cso.amount,
+          children: cso.hospitals.map(h => ({ name: h.name, amount: h.amount })),
+        })),
+      }))} />
     </Section>
   );
 }
@@ -617,7 +662,7 @@ function CsoAccordion({ stats, totalAmount }: {
 
   return (
     <Section title="CSO별 현황" searchSlot={<SearchInput value={search} onChange={v => { setSearch(v); setShowAll(false); }} />}>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
             <tr>
@@ -682,6 +727,13 @@ function CsoAccordion({ stats, totalAmount }: {
           </tbody>
         </table>
       </div>
+      <AccordionCards total={displayTotal} nodes={display.map(cso => ({
+        name: cso.name, amount: cso.amount,
+        children: cso.hospitals.map(h => ({
+          name: h.name, amount: h.amount,
+          children: h.items.map(it => ({ name: it.name, amount: it.amount })),
+        })),
+      }))} />
       {filtered.length > 20 && (
         <MoreButton showAll={showAll} total={filtered.length} onClick={() => setShowAll(v => !v)} />
       )}
@@ -714,7 +766,7 @@ function HospitalAccordion({ stats, totalAmount }: {
 
   return (
     <Section title="처방처별 현황" searchSlot={<SearchInput value={search} onChange={v => { setSearch(v); setShowAll(false); }} />}>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
             <tr>
@@ -779,6 +831,13 @@ function HospitalAccordion({ stats, totalAmount }: {
           </tbody>
         </table>
       </div>
+      <AccordionCards total={displayTotal} nodes={display.map(h => ({
+        name: h.name, amount: h.amount,
+        children: h.items.map(it => ({
+          name: it.name, amount: it.amount,
+          children: it.csos.map(c => ({ name: c.name, amount: c.amount })),
+        })),
+      }))} />
       {filtered.length > 20 && (
         <MoreButton showAll={showAll} total={filtered.length} onClick={() => setShowAll(v => !v)} />
       )}
@@ -848,7 +907,7 @@ function ItemCsoAccordion({ stats, search, totalAmount }: {
 
   return (
     <div>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
             <tr>
@@ -913,6 +972,13 @@ function ItemCsoAccordion({ stats, search, totalAmount }: {
           </tbody>
         </table>
       </div>
+      <AccordionCards total={displayTotal} nodes={display.map(it => ({
+        name: it.name, amount: it.amount,
+        children: it.csos.map(cso => ({
+          name: cso.name, amount: cso.amount,
+          children: cso.hospitals.map(h => ({ name: h.name, amount: h.amount })),
+        })),
+      }))} />
       {filtered.length > 20 && (
         <MoreButton showAll={showAll} total={filtered.length} onClick={() => setShowAll(v => !v)} />
       )}
@@ -940,7 +1006,7 @@ function ItemHospAccordion({ stats, search, totalAmount }: {
 
   return (
     <div>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
             <tr>
@@ -1019,6 +1085,16 @@ function ItemHospAccordion({ stats, search, totalAmount }: {
           </tbody>
         </table>
       </div>
+      <AccordionCards total={displayTotal} nodes={display.map(it => ({
+        name: it.name, amount: it.amount,
+        children: it.hospitals.map(h => ({
+          name: h.name, amount: h.amount,
+          children: h.salesPersons.map(sp => ({
+            name: sp.name, amount: sp.amount,
+            children: sp.csos.map(cso => ({ name: cso.name, amount: cso.amount })),
+          })),
+        })),
+      }))} />
       {filtered.length > 20 && (
         <MoreButton showAll={showAll} total={filtered.length} onClick={() => setShowAll(v => !v)} />
       )}
