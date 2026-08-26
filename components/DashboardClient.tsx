@@ -1123,10 +1123,10 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 <tr key={i}>
                   <td style={{ whiteSpace: 'nowrap' }}>{v.personName}</td>
                   <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.customerName}</td>
-                  <td style={{ maxWidth: '84px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: v.contactName ? '#fff' : '#94a3b8' }}>
+                  <td style={{ maxWidth: '84px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: v.contactName ? '#111827' : '#94a3b8' }}>
                     {v.contactName ?? '-'}
                   </td>
-                  <td style={{ lineHeight: 1.5, maxWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.content}</td>
+                  <td style={{ lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{v.content}</td>
                   <td className="center muted" style={{ whiteSpace: 'nowrap' }}>{fmtDate(v.visitedAt)}</td>
                 </tr>
               ))}
