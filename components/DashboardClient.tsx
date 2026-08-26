@@ -810,7 +810,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         {ediMonths.map(m => (
                           <th key={m} className="right">{fmtPeriod(m)}</th>
                         ))}
-                        <th className="right">전월대비</th>
+                        <th className="right">전년동월대비</th>
+                        <th className="right">성장율</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -846,6 +847,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                                    : <span className={delta > 0 ? 'up' : 'dn'} style={{ fontSize: '0.78rem' }}>
                                        {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toLocaleString()}
                                      </span>}
+                              </td>
+                              <td className="right">
+                                {(() => {
+                                  const rate = (prvVal !== undefined && prvVal !== 0) ? Math.round(((curVal - prvVal) / prvVal) * 100) : null;
+                                  if (rate === null) return <span className="muted">-</span>;
+                                  if (rate === 0) return <span className="muted">±0%</span>;
+                                  return <span className={rate > 0 ? 'up' : 'dn'} style={{ fontSize: '0.78rem' }}>{rate > 0 ? '▲' : '▼'}{Math.abs(rate)}%</span>;
+                                })()}
                               </td>
                             </tr>
                           );
@@ -890,6 +899,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                                  : <span className={delta > 0 ? 'up' : 'dn'} style={{ fontSize: '0.78rem' }}>
                                      {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toLocaleString()}
                                    </span>}
+                            </td>
+                            <td className="right">
+                              {(() => {
+                                const rate = (prvVal !== undefined && prvVal !== 0) ? Math.round(((curVal - prvVal) / prvVal) * 100) : null;
+                                if (rate === null) return <span className="muted">-</span>;
+                                if (rate === 0) return <span className="muted">±0%</span>;
+                                return <span className={rate > 0 ? 'up' : 'dn'} style={{ fontSize: '0.78rem' }}>{rate > 0 ? '▲' : '▼'}{Math.abs(rate)}%</span>;
+                              })()}
                             </td>
                           </tr>
                         );
