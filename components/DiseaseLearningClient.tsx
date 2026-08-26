@@ -427,7 +427,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
   const ubistTotal   = displayed.reduce((s, d) => s + ubistSum(d), 0);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '1rem', marginTop: '1.25rem' }}>
+    <div className="dl-layout" style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: '1rem', marginTop: '1.25rem' }}>
 
       {/* ── 사이드바: 질환군 ─────────────────────────────────────────────── */}
       <div className="tree-menu" style={{
@@ -771,7 +771,8 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
       )}
 
       {open && (
-        <div style={{ overflowX: 'auto' }}>
+        <>
+        <div className="resp-table" style={{ overflowX: 'auto' }}>
           <table style={{
             width: '100%', minWidth: tableMinWidth(periods.length), tableLayout: 'fixed',
             borderCollapse: 'collapse', fontSize: '0.78rem',
@@ -803,7 +804,7 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
                   <th colSpan={periods.length} onClick={() => onSort('ubist')} title="클릭하여 정렬"
                     style={{ ...TH_NUM, textAlign: 'center', cursor: 'pointer', userSelect: 'none',
                       paddingBottom: '0.15rem', borderBottom: 'none',
-                      color: ubistOn ? '#0891b2' : 'rgba(165,243,252,0.55)' }}>
+                      color: ubistOn ? '#0891b2' : '#64748b' }}>
                     처방액(천원)
                     <span style={{ marginLeft: 3, opacity: ubistOn ? 1 : 0.3 }}>
                       {ubistOn ? (sort!.dir === 'asc' ? '▲' : '▼') : '⇅'}
@@ -816,7 +817,7 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
                   <th key={periods[i]} onClick={() => onSort('ubist')} title="클릭하여 정렬"
                     style={{ ...TH_NUM, textAlign: 'right', paddingTop: 0,
                       fontSize: '0.65rem', cursor: 'pointer', userSelect: 'none',
-                      color: ubistOn ? '#0891b2' : 'rgba(165,243,252,0.55)' }}>
+                      color: ubistOn ? '#0891b2' : '#64748b' }}>
                     {h}
                   </th>
                 ))}
@@ -829,6 +830,10 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
             </tbody>
           </table>
         </div>
+        <div className="resp-cards">
+          {items.map(d => <DrugCard key={d.id} drug={d} periods={periods} maxPrice={maxPrice} />)}
+        </div>
+        </>
       )}
     </div>
   );
@@ -847,13 +852,13 @@ function DrugRow({ drug: d, even, periods, maxPrice }: {
     <tr style={{ background: even ? 'transparent' : '#ffffff' }}>
       <td style={TD} title={d.product_name ?? undefined}>
         <div style={{
-          fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#b45309' : '#e2e8f0',
+          fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#b45309' : '#334155',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
           {d.product_name ?? '-'}
         </div>
         {d.atc_code && (
-          <div style={{ fontSize: '0.65rem', color: 'rgba(147,197,253,0.7)', marginTop: '1px' }}>
+          <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '1px' }}>
             ATC: {d.atc_code}
           </div>
         )}
@@ -890,7 +895,7 @@ function DrugRow({ drug: d, even, periods, maxPrice }: {
         )}
       </td>
       <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-        <span style={{ color: d.max_price ? '#e2e8f0' : '#cbd5e1', fontSize: '0.75rem' }}>
+        <span style={{ color: d.max_price ? '#334155' : '#cbd5e1', fontSize: '0.75rem' }}>
           {fmtPrice(d.max_price)}
         </span>
       </td>
@@ -934,6 +939,39 @@ function DrugRow({ drug: d, even, periods, maxPrice }: {
         );
       })}
     </tr>
+  );
+}
+
+/* ── 의약품 모바일 카드 ── */
+function DrugCard({ drug: d, periods, maxPrice }: { drug: DrugItem; periods: string[]; maxPrice: number }) {
+  const ratioBase = d.orig_list_price ?? (maxPrice > 0 ? maxPrice : null);
+  const priceRatio = (d.max_price != null && ratioBase != null && ratioBase > 0) ? (d.max_price / ratioBase) * 100 : null;
+  return (
+    <div className="mcard">
+      <div className="mcard-head">
+        <span className="mcard-title" style={{ color: d.is_original ? '#b45309' : '#111827' }}>{d.product_name ?? '-'}</span>
+        {d.strength && <span className="mcard-badge" style={{ background: 'rgba(8,145,178,0.10)', color: '#0891b2' }}>{d.strength}</span>}
+        <span className="mcard-badge" style={{ marginLeft: 'auto', background: d.is_original ? 'rgba(251,191,36,0.15)' : 'rgba(110,231,183,0.14)', color: d.is_original ? '#b45309' : '#059669' }}>{d.is_original ? '오리지널' : '제네릭'}</span>
+      </div>
+      {(d.atc_code || d.permit_kind) && <div className="mcard-sub">{d.atc_code ? `ATC: ${d.atc_code}` : ''}{d.atc_code && d.permit_kind ? ' · ' : ''}{d.permit_kind ?? ''}</div>}
+      <div className="mcard-row"><span className="mcard-k">판매사</span><span className="mcard-v" style={{ fontWeight: 400 }}>{d.distributor ?? '-'}</span></div>
+      <div className="mcard-row"><span className="mcard-k">제조사</span><span className="mcard-v" style={{ fontWeight: 400 }}>{d.manufacturer ?? '-'}</span></div>
+      <div className="mcard-row"><span className="mcard-k">약가(상한)</span><span className="mcard-v">{fmtPrice(d.max_price)}</span></div>
+      <div className="mcard-row"><span className="mcard-k">기준가</span><span className="mcard-v" style={{ color: '#b45309' }}>{d.orig_list_price != null ? (d.orig_price_est ? '≈' : '') + fmtPrice(d.orig_list_price) : '-'}</span></div>
+      <div className="mcard-row"><span className="mcard-k">약가산정율</span><span className="mcard-v" style={{ color: priceRatio != null && priceRatio >= 100 ? '#059669' : '#475569' }}>{priceRatio != null ? `${priceRatio.toFixed(1)}%` : '-'}</span></div>
+      <div className="mcard-row"><span className="mcard-k">수수료율</span><span className="mcard-v" style={{ color: '#db2777' }}>{d.commission_rate != null ? `${d.commission_rate.toFixed(1)}%` : '-'}</span></div>
+      {periods.length > 0 && (
+        <div className="mcard-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.2rem' }}>
+          <span className="mcard-k">처방액(천원)</span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', fontSize: '0.74rem' }}>
+            {periods.map(p => {
+              const amt = d.ubist_monthly?.[p] ?? null;
+              return <span key={p}><span style={{ color: '#94a3b8' }}>{fmtPeriod(p)}</span> <span style={{ color: '#0891b2', fontWeight: 600 }}>{amt != null ? fmtThousand(amt) : '-'}</span></span>;
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

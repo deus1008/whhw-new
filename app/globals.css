@@ -665,3 +665,12 @@ select.auth-input { background-color: #ffffff; }
 .mcard-k { color: #64748b; flex-shrink: 0; }
 .mcard-v { font-weight: 600; color: #111827; text-align: right; word-break: break-word; font-variant-numeric: tabular-nums; }
 .mcard-sub { font-size: 0.72rem; color: #94a3b8; margin-top: 0.15rem; word-break: break-word; }
+
+/* 질환별의약품: 모바일에서 좌측 트리+결과를 세로로 스택 */
+@media (max-width: 640px) {
+  .dl-layout { grid-template-columns: 1fr !important; }
+  .dl-layout .tree-menu {
+    position: static !important;
+    max-height: 42vh !important;
+  }
+}
