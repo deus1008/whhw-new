@@ -596,7 +596,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 },
               ];
               return (
-                <div style={{ overflowX: 'auto' }}>
+                <>
+                <div className="resp-table" style={{ overflowX: 'auto' }}>
                   <table className="dash-table">
                     <thead>
                       <tr>
@@ -656,6 +657,37 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     </tbody>
                   </table>
                 </div>
+                <div className="resp-cards">
+                  {cats.map(cat => (
+                    <div key={cat.label} className="mcard">
+                      <div className="mcard-head">
+                        <span className="mcard-title" style={{ color: cat.isTotal ? '#2563eb' : '#111827' }}>{cat.label}</span>
+                      </div>
+                      {cat.metrics.map(metric => {
+                        const curVal = cur ? metric.get(cur) : 0;
+                        const prvVal = prv ? metric.get(prv) : undefined;
+                        const rate = (prvVal !== undefined && prvVal > 0) ? Math.round(((curVal - prvVal) / prvVal) * 100) : null;
+                        const rateEl = rate === null ? null : rate === 0
+                          ? <span className="muted"> (±0%)</span>
+                          : <span className={rate > 0 ? 'up' : 'dn'}> ({rate > 0 ? '▲' : '▼'}{Math.abs(rate)}%)</span>;
+                        return (
+                          <div key={metric.label} style={{ padding: '0.35rem 0', borderBottom: '1px dashed #f1f4f9' }}>
+                            <div className="mcard-row" style={{ padding: 0, border: 'none' }}>
+                              <span className="mcard-k">{metric.label}</span>
+                              <span className="mcard-v">{metric.isAmt ? (curVal > 0 ? fmtWon(curVal) : '-') : curVal.toLocaleString()}{rateEl}</span>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', marginTop: '0.15rem', fontSize: '0.72rem', color: '#94a3b8' }}>
+                              {ediMonthly.map(r => (
+                                <span key={r.month}>{fmtPeriod(r.month)} {metric.isAmt ? (metric.get(r) > 0 ? fmtWon(metric.get(r)) : '-') : metric.get(r).toLocaleString()}</span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+                </>
               );
             })()}
           </>
@@ -786,7 +818,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               })}
             </div>
 
-            <div style={{ overflowX: 'auto' }}>
+            <div className="resp-table" style={{ overflowX: 'auto' }}>
               <table className="dash-table">
                 <thead>
                   <tr>
@@ -838,6 +870,35 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                   })}
                 </tbody>
               </table>
+            </div>
+            <div className="resp-cards">
+              {stockItems.map((item, idx) => {
+                const color = item.alert_type === '품절' ? '#dc2626' : '#b45309';
+                const dayColor =
+                  item.stock_days === null ? '#94a3b8'
+                  : item.stock_days <= 0   ? '#b91c1c'
+                  : item.stock_days < 7    ? '#dc2626'
+                  : item.stock_days < 14   ? '#ea580c'
+                  : item.stock_days < 30   ? '#b45309'
+                  : '#059669';
+                const fmtD = (s: string | null) => {
+                  if (!s) return '-';
+                  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                  return m ? `${m[1].slice(2)}.${m[2]}.${m[3]}` : s;
+                };
+                return (
+                  <div key={idx} className="mcard">
+                    <div className="mcard-head">
+                      <span className="mcard-badge" style={{ color, background: `${color}14` }}>{item.alert_type}</span>
+                      <span className="mcard-title">{item.product_name}</span>
+                    </div>
+                    <div className="mcard-row"><span className="mcard-k">재고일</span><span className="mcard-v" style={{ color: dayColor }}>{item.stock_days !== null ? `${item.stock_days}일` : '-'}</span></div>
+                    <div className="mcard-row"><span className="mcard-k">품절시작일</span><span className="mcard-v">{fmtD(item.stockout_start)}</span></div>
+                    <div className="mcard-row"><span className="mcard-k">공급예정일</span><span className="mcard-v">{fmtD(item.supply_date)}</span></div>
+                    <div className="mcard-row"><span className="mcard-k">발생유형</span><span className="mcard-v" style={{ fontWeight: 400 }}>{item.cause || '-'}</span></div>
+                  </div>
+                );
+              })}
             </div>
 
             {stockFileName && (
@@ -1121,7 +1182,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         {upcomingProducts.length === 0 ? (
           <Empty msg="허가현황 폴더에 파일을 업로드하면 자동으로 등록됩니다." />
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <>
+          <div className="resp-table" style={{ overflowX: 'auto' }}>
             <table className="dash-table">
               <thead>
                 <tr>
@@ -1158,6 +1220,24 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </tbody>
             </table>
           </div>
+          <div className="resp-cards">
+            {upcomingProducts.map(p => {
+              const isPast = p.launchDate && p.launchDate < today;
+              return (
+                <div key={p.id} className="mcard" style={{ opacity: isPast ? 0.65 : 1 }}>
+                  <div className="mcard-head">
+                    <span className="mcard-title">{p.title}</span>
+                    <span className="mcard-sub" style={{ marginLeft: 'auto' }}>{p.status ?? '예정'}</span>
+                  </div>
+                  <div className="mcard-row"><span className="mcard-k">성분명</span><span className="mcard-v" style={{ fontWeight: 400 }}>{p.ingredient ?? '-'}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">제조사</span><span className="mcard-v" style={{ fontWeight: 400 }}>{p.manufacturer ?? '-'}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">발매예정일</span><span className="mcard-v">{p.launchDate ? fmtDate(p.launchDate.slice(0, 10)) : '-'}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">보험가</span><span className="mcard-v">{/^\d+$/.test(String(p.insurancePrice ?? '')) ? Number(p.insurancePrice).toLocaleString('ko-KR') : (p.insurancePrice ?? '-')}</span></div>
+                </div>
+              );
+            })}
+          </div>
+          </>
         )}
       </Section>
 
@@ -1169,7 +1249,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         {dcItems.length === 0 ? (
           <Empty msg="DC현황 페이지에서 데이터를 입력하면 표시됩니다." />
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <>
+          <div className="resp-table" style={{ overflowX: 'auto' }}>
             <table className="dash-table">
               <thead>
                 <tr>
@@ -1202,6 +1283,19 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               </tbody>
             </table>
           </div>
+          <div className="resp-cards">
+            {dcItems.slice(0, 30).map(d => (
+              <div key={d.id} className="mcard">
+                <div className="mcard-head">
+                  <span className="mcard-badge" style={{ color: DC_COLORS[d.category] ?? '#64748b', background: `${DC_COLORS[d.category] ?? '#64748b'}14` }}>{d.category}</span>
+                  <span className="mcard-title">{d.productName}</span>
+                </div>
+                <div className="mcard-row"><span className="mcard-k">병원명</span><span className="mcard-v">{d.hospitalName}</span></div>
+                <div className="mcard-row"><span className="mcard-k">진행현황</span><span className="mcard-v" style={{ fontWeight: 400 }}>{d.progress ?? '-'}</span></div>
+              </div>
+            ))}
+          </div>
+          </>
         )}
 
         <p style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.5rem', textAlign: 'right' }}>
