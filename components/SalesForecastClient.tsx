@@ -433,7 +433,8 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
       )}
 
       {years.length > 0 && (
-        <div style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: '10px' }}>
+        <>
+        <div className="resp-table" style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: '10px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
             <thead>
               <tr style={{ background: '#ffffff' }}>
@@ -464,6 +465,30 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
             </tbody>
           </table>
         </div>
+        <div className="resp-cards">
+          {derived.map(d => (
+            <div key={d.y} className="mcard">
+              <div className="mcard-head"><span className="mcard-title">{d.y}Y</span></div>
+              <div className="mcard-row">
+                <span className="mcard-k" style={{ color: '#2563eb' }}>금액(원)</span>
+                <span className="mcard-v"><CommaNumberInput value={d.amount} onChange={v => editAmount(d.y, v)}
+                  style={{ width: 130, textAlign: 'right', background: '#f8fafc', border: '1px solid #e5e9f0', borderRadius: 6, color: '#111827', fontSize: '0.8rem', padding: '4px 8px', fontFamily: 'inherit' }} /></span>
+              </div>
+              <div className="mcard-row"><span className="mcard-k">금액(억)</span><span className="mcard-v">{eok(d.amount)}</span></div>
+              <div className="mcard-row"><span className="mcard-k">성장률</span><span className="mcard-v" style={{ color: d.growth == null ? '#94a3b8' : d.growth >= 0 ? '#059669' : '#dc2626' }}>{d.growth == null ? '-' : pct(d.growth, 0)}</span></div>
+              {mode === 'new' && (
+                <>
+                  <div className="mcard-row"><span className="mcard-k">정 수량</span><span className="mcard-v" style={{ fontWeight: 400 }}>{won(d.tablets)}</span></div>
+                  {packs.map(pk => (
+                    <div key={pk.label} className="mcard-row"><span className="mcard-k">{pk.label} 박스</span><span className="mcard-v" style={{ fontWeight: 400 }}>{won(d.boxesByPack[pk.label])}</span></div>
+                  ))}
+                  <div className="mcard-row"><span className="mcard-k">마진(억)</span><span className="mcard-v" style={{ color: '#0891b2' }}>{eok(d.grossProfit)}</span></div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        </>
       )}
 
       {years.length > 0 && (
