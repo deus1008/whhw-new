@@ -202,7 +202,7 @@ function fmtPeriod(s: string): string {
 }
 
 function fmtWon(n: number, _compact = false): string {
-  return Math.round(n / 1000).toLocaleString();
+  return Math.round(n / 1e6).toLocaleString();
 }
 
 function fmtRate(r: number): string { return `${r.toFixed(1)}%`; }
@@ -507,7 +507,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       {/* ── 인쇄 버튼 + 단위 표기 ──────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
         <span className="unit-label" style={{ fontSize: '0.78rem', color: '#475569', fontWeight: 600, letterSpacing: '0.03em' }}>
-          단위: 천원
+          단위: 백만원
         </span>
         <button className="print-btn" onClick={() => window.print()} style={{ marginBottom: 0 }}>
           🖨️ A4 인쇄
@@ -567,6 +567,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                           <th key={r.month} className="center">{fmtPeriod(r.month)}</th>
                         ))}
                         <th className="center">전년동월대비</th>
+                        <th className="center">성장율</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -600,6 +601,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                                     {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toLocaleString()}
                                   </span>
                                 )}
+                              </td>
+                              <td className="center">
+                                {(() => {
+                                  const rate = (prvVal !== undefined && prvVal !== 0) ? Math.round(((curVal - prvVal) / prvVal) * 100) : null;
+                                  if (rate === null) return <span className="muted">-</span>;
+                                  if (rate === 0) return <span className="muted">±0%</span>;
+                                  return <span className={rate > 0 ? 'up' : 'dn'} style={{ fontSize: '0.78rem' }}>{rate > 0 ? '▲' : '▼'}{Math.abs(rate)}%</span>;
+                                })()}
                               </td>
                             </tr>
                           );
@@ -637,6 +646,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                           <th>품목명</th>
                           {ediMonths.map(m => <th key={m} className="right">{fmtPeriod(m)}</th>)}
                           <th className="right">전년동월대비</th>
+                          <th className="right">성장율</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -657,6 +667,16 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                                 : <span className={p.delta > 0 ? 'up' : 'dn'}>
                                     {p.delta > 0 ? '▲' : '▼'}{fmtWon(Math.abs(p.delta), true)}
                                   </span>}
+                            </td>
+                            <td className="right" style={{ fontSize: '0.78rem' }}>
+                              {(() => {
+                                const prevAmt = p.months[0]?.prescAmt ?? 0;
+                                const curAmt  = p.months[p.months.length - 1]?.prescAmt ?? 0;
+                                const rate = prevAmt > 0 ? Math.round(((curAmt - prevAmt) / prevAmt) * 100) : null;
+                                if (rate === null) return <span className="muted">-</span>;
+                                if (rate === 0) return <span className="muted">±0%</span>;
+                                return <span className={rate > 0 ? 'up' : 'dn'}>{rate > 0 ? '▲' : '▼'}{Math.abs(rate)}%</span>;
+                              })()}
                             </td>
                           </tr>
                         ))}

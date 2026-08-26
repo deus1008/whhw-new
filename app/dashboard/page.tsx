@@ -67,14 +67,6 @@ export default async function DashboardPage() {
     allianceCompanies = (companiesData ?? []) as { id: string; name: string }[];
   }
 
-  // 위탁사 이름 조회 (뱃지 표시용)
-  let companyName: string | null = isAdmin ? null : '아주얼라이언스';
-  if (companyId) {
-    const { data: cd } = await svc
-      .from('client_companies').select('name').eq('id', companyId).single();
-    companyName = (cd as { name: string } | null)?.name ?? null;
-  }
-
   // ── 날짜 기준 ──────────────────────────────────────────────────────────────
   const now = new Date();
 
@@ -572,20 +564,9 @@ export default async function DashboardPage() {
         className="relative z-10 w-full px-4 dash-page-wrapper"
         style={{ maxWidth: '860px', paddingTop: '2rem', paddingBottom: '2rem', alignSelf: 'flex-start' }}
       >
-        <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>
-          판매대행사업
+        <p className="domain" style={{ textAlign: 'center', marginBottom: '1.2rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}>
+          Monthly Summary
         </p>
-        {companyName && (
-          <p className="no-print" style={{ textAlign: 'center', marginBottom: '0.75rem' }}>
-            <span style={{
-              fontSize: '0.75rem', padding: '3px 12px', borderRadius: '100px',
-              background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)',
-              color: '#4f46e5',
-            }}>
-              {companyName}
-            </span>
-          </p>
-        )}
         <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
           
           
