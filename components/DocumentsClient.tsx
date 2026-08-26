@@ -294,7 +294,9 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
 
     setUploading(false);
 
-    for (const doc of uploaded) triggerProcess(doc.id);
+    // 대용량 파일(예: Ubist 수십만 행)을 다건 업로드하면 동시 처리 시 서버 함수 메모리가
+    // 경합해 크래시(→ 상태가 processing에 멈춤)가 난다. 순차 처리로 한 번에 하나씩 안전하게.
+    for (const doc of uploaded) await triggerProcess(doc.id);
   }
 
   /* ── RAG 처리 트리거 ──────────────────────────────────── */
