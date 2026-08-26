@@ -424,6 +424,16 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
         @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
 
+        /* ── 모바일 최적화: 전체폭 + 컴팩트 밀도 ── */
+        @media (max-width: 640px) {
+          .dash-page-wrapper { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+          .dash-section { padding: 0.8rem 0.6rem; border-radius: 12px; }
+          .section-title { font-size: 0.9rem; margin-bottom: 0.7rem; }
+          .sub-title { font-size: 0.7rem; }
+          .dash-table th { padding: 0.28rem 0.34rem; font-size: 0.63rem; }
+          .dash-table td { padding: 0.32rem 0.34rem; font-size: 0.72rem; }
+        }
+
         /* ── 인쇄 ── */
         @media print {
           @page { size: A4 portrait; margin: 8mm 10mm; }
