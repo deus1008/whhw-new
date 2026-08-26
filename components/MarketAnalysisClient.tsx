@@ -605,10 +605,11 @@ export default function MarketAnalysisClient() {
             const grandTotal = colTotals.reduce((s, v) => s + v, 0);
 
             return (
-              <div className="auth-card" style={{ padding: '1rem', overflowX: 'auto' }}>
+              <div className="auth-card" style={{ padding: '1rem' }}>
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.75rem', fontWeight: 600 }}>
                   기간별 처방액 (천원)
                 </p>
+                <div className="resp-table" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
                   <thead>
                     <tr>
@@ -667,6 +668,46 @@ export default function MarketAnalysisClient() {
                     </tr>
                   </tfoot>
                 </table>
+                </div>
+                <div className="resp-cards">
+                  {displayPeriods.map((p, pi) => (
+                    <div key={p} className="mcard">
+                      <div className="mcard-head">
+                        <span className="mcard-title">{p}</span>
+                      </div>
+                      {sortedAnalysis.map((prod, i) => (
+                        <div key={i} className="mcard-row">
+                          <span className="mcard-k">{prod.product_name}</span>
+                          <span className="mcard-v">
+                            {prodMaps[i][p] != null ? fmt천원(prodMaps[i][p]) : '-'}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="mcard-row">
+                        <span className="mcard-k">합계</span>
+                        <span className="mcard-v">{fmt천원(rowTotals[pi])}</span>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="mcard">
+                    <div className="mcard-head">
+                      <span className="mcard-title">합계 · 점유율</span>
+                    </div>
+                    {sortedAnalysis.map((prod, i) => (
+                      <div key={i} className="mcard-row">
+                        <span className="mcard-k">{prod.product_name}</span>
+                        <span className="mcard-v">
+                          {fmt천원(colTotals[i])}
+                          {' '}({grandTotal > 0 ? Math.round(colTotals[i] / grandTotal * 100) : 0}%)
+                        </span>
+                      </div>
+                    ))}
+                    <div className="mcard-row">
+                      <span className="mcard-k">전체</span>
+                      <span className="mcard-v">{fmt천원(grandTotal)} (100%)</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             );
           })()}

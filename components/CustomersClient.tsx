@@ -229,7 +229,7 @@ export default function CustomersClient() {
             )}
           </div>
 
-          <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid #e5e9f0' }}>
+          <div className="resp-table" style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid #e5e9f0' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ background: '#f1f4f9' }}>
@@ -287,6 +287,36 @@ export default function CustomersClient() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          <div className="resp-cards">
+            {items.map((c, i) => {
+              const color = LEVEL_COLORS[c.level] ?? '#94a3b8';
+              const isExpired = c.end && new Date(c.end) < new Date();
+              const bizLabel = c.bizType === '법인' ? '법인'
+                : (c.bizType === '개인' || c.bizType === '개인사업자') ? '개인'
+                : (c.bizType || '—');
+              return (
+                <div key={`${c.no}-${i}`} className="mcard">
+                  <div className="mcard-head">
+                    <span className="mcard-rank">{c.no}</span>
+                    <span className="mcard-title">{c.name || '—'}</span>
+                    <span style={{
+                      fontSize: '0.68rem', padding: '0.1rem 0.5rem', borderRadius: 4,
+                      background: `rgba(${hexToRgb(color)},0.12)`,
+                      border: `1px solid ${color}40`, color, whiteSpace: 'nowrap',
+                    }}>{c.level}</span>
+                  </div>
+                  <div className="mcard-row"><span className="mcard-k">1차업체</span><span className="mcard-v">{c.root !== c.name ? c.root : '—'}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">개인/법인</span><span className="mcard-v">{bizLabel}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">계약기간</span><span className="mcard-v" style={{ color: isExpired ? '#dc2626' : undefined }}>{c.start && c.end ? `${c.start} ~ ${c.end}${isExpired ? ' (만료)' : ''}` : '—'}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">사업자번호</span><span className="mcard-v">{c.bizNo || '—'}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">대표자</span><span className="mcard-v">{c.rep || '—'}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">담당자</span><span className="mcard-v">{c.manager || '—'}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">주소</span><span className="mcard-v">{c.address || '—'}</span></div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

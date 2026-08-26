@@ -84,7 +84,7 @@ export default function MfdsListSearch({ type, columns, placeholder }: {
               style={{ flex: 1, minWidth: 220, padding: '0.42rem 0.7rem', borderRadius: 7, background: '#ffffff', border: '1px solid #d7dce5', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }} />
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{view.length.toLocaleString()}건</span>
           </div>
-          <div style={{ overflowX: 'auto', border: '1px solid #e5e9f0', borderRadius: 12 }}>
+          <div className="resp-table" style={{ overflowX: 'auto', border: '1px solid #e5e9f0', borderRadius: 12 }}>
             <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', fontSize: '0.82rem', tableLayout: 'fixed' }}>
               <colgroup>
                 {columns.map(c => <col key={c.key} style={c.w ? { width: c.w } : undefined} />)}
@@ -113,6 +113,21 @@ export default function MfdsListSearch({ type, columns, placeholder }: {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className="resp-cards">
+            {view.map((r, i) => (
+              <div key={i} className="mcard">
+                <div className="mcard-head">
+                  <span className="mcard-title">{r[columns[0].key] || '—'}</span>
+                </div>
+                {columns.slice(1).map(c => (
+                  <div key={c.key} className="mcard-row">
+                    <span className="mcard-k">{c.label}</span>
+                    <span className="mcard-v">{r[c.key] || '—'}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
           </div>
         </>
       )}

@@ -553,7 +553,8 @@ export default function CustomerAliasesClient({
         {filteredAliases.length === 0 ? (
           <p style={{ fontSize: '0.82rem', color: '#64748b' }}>매핑 데이터가 없습니다.</p>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <>
+          <div className="resp-table" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
                 <tr>
@@ -583,6 +584,21 @@ export default function CustomerAliasesClient({
               </tbody>
             </table>
           </div>
+          <div className="resp-cards">
+            {filteredAliases.map(a => (
+              <div key={a.id} className="mcard">
+                <div className="mcard-head">
+                  <span className="mcard-title" style={{ color: '#b45309' }}>{a.alias}</span>
+                </div>
+                <div className="mcard-row"><span className="mcard-k">→ 정규 거래처명</span><span className="mcard-v">{a.canonical_name}</span></div>
+                <div className="mcard-row"><span className="mcard-k">종별</span><span className="mcard-v">{a.customer_type ?? '—'}</span></div>
+                <div className="mcard-row"><span className="mcard-k">메모</span><span className="mcard-v">{a.note ?? '—'}</span></div>
+                <div className="mcard-row"><span className="mcard-k">등록일</span><span className="mcard-v">{a.created_at.slice(0, 10)}</span></div>
+                <div className="mcard-row"><span className="mcard-k"></span><span className="mcard-v"><button onClick={() => handleDelete(a.id)} style={BTN_DANGER}>복원</button></span></div>
+              </div>
+            ))}
+          </div>
+          </>
         )}
       </div>
     </div>

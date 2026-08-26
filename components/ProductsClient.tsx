@@ -365,7 +365,8 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
           {appliedSearch || filterStatus || filterCompany ? '검색 결과가 없습니다.' : '등록된 품목이 없습니다.'}
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
+       <>
+        <div className="resp-table" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', background: '#ffffff', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e9f0' }}>
             <thead>
               <tr style={{ background: '#f1f4f9', borderBottom: '1px solid #e5e9f0' }}>
@@ -485,6 +486,58 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
             </tbody>
           </table>
         </div>
+
+        <div className="resp-cards">
+          {filtered.map(p => {
+            const sc = STATUS_COLOR[p.status ?? ''] ?? STATUS_COLOR['개발검토'];
+            return (
+              <div key={p.id} className="mcard">
+                <div className="mcard-head">
+                  <span className="mcard-title" style={{ color: '#2563eb' }}>{p.title}</span>
+                </div>
+                <div className="mcard-row"><span className="mcard-k">성분명</span><span className="mcard-v" style={{ fontWeight: 700 }}>{p.memo || '—'}</span></div>
+                <div className="mcard-row"><span className="mcard-k">발매(예정)일</span><span className="mcard-v" style={{ color: '#7c3aed', fontWeight: 600 }}>{fmtDate(p.launch_date)}</span></div>
+                <div className="mcard-row"><span className="mcard-k">계열</span><span className="mcard-v">{p.indication ?? '—'}</span></div>
+                <div className="mcard-row">
+                  <span className="mcard-k">판매사</span>
+                  <span className="mcard-v">
+                    {p.manufacturer ? (
+                      <span style={{
+                        display: 'inline-block', padding: '0.12rem 0.5rem', borderRadius: '5px',
+                        fontSize: '0.72rem', fontWeight: 600,
+                        background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)',
+                        color: '#059669',
+                      }}>{p.manufacturer}</span>
+                    ) : '—'}
+                  </span>
+                </div>
+                <div className="mcard-row"><span className="mcard-k">보험코드</span><span className="mcard-v">{p.insurance_code ?? '—'}</span></div>
+                <div className="mcard-row"><span className="mcard-k">보험가</span><span className="mcard-v">{/^\d+$/.test(String(p.insurance_price ?? '')) ? Number(p.insurance_price).toLocaleString('ko-KR') : (p.insurance_price ?? '—')}</span></div>
+                <div className="mcard-row">
+                  <span className="mcard-k">진행상태</span>
+                  <span className="mcard-v">
+                    {p.status ? (
+                      <span style={{ display: 'inline-block', padding: '0.15rem 0.55rem', borderRadius: '20px', background: sc.bg, border: `1px solid ${sc.bd}`, color: sc.color, fontSize: '0.7rem', fontWeight: 700 }}>
+                        {p.status}
+                      </span>
+                    ) : '—'}
+                  </span>
+                </div>
+                {isAdmin && (
+                  <div className="mcard-row">
+                    <span className="mcard-k">관리</span>
+                    <span className="mcard-v">
+                      <button onClick={() => openEdit(p)} style={actionBtn('#2563eb', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.3)')}>수정</button>
+                      <button onClick={() => handleDelete(p.id)} disabled={isPending}
+                        style={{ ...actionBtn('#dc2626', 'rgba(239,68,68,0.1)', 'rgba(239,68,68,0.3)'), marginLeft: '0.35rem' }}>삭제</button>
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+       </>
       )}
       <p style={{ fontSize: '0.73rem', color: '#475569', marginTop: '0.6rem', textAlign: 'right' }}>총 {filtered.length}건</p>
 

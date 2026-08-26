@@ -148,7 +148,7 @@ export default function DrugSearchClient(_props: { apiConfigured: boolean }) {
           </div>
 
           {/* 테이블 */}
-          <div style={{ overflowX: 'auto', border: '1px solid #e5e9f0', borderRadius: 12 }}>
+          <div className="resp-table" style={{ overflowX: 'auto', border: '1px solid #e5e9f0', borderRadius: 12 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
               <thead>
                 <tr>
@@ -193,6 +193,30 @@ export default function DrugSearchClient(_props: { apiConfigured: boolean }) {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* 모바일 카드 */}
+          <div className="resp-cards">
+            {view.map(r => {
+              const k = r.itemCode + r.productName;
+              return (
+                <div key={k} className="mcard">
+                  <div className="mcard-head">
+                    <span className="mcard-title">{r.productName}</span>
+                    {r.isBioequiv && (
+                      <span className="mcard-badge" style={{ color: '#15803d', background: 'rgba(52,211,153,0.14)' }}>생동</span>
+                    )}
+                  </div>
+                  <div className="mcard-row"><span className="mcard-k">판매회사</span><span className="mcard-v">{r.manufacturer || '—'}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">성분명</span><span className="mcard-v">{r.ingredientName || '—'}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">제형</span><span className="mcard-v">{r.form}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">포장단위</span><span className="mcard-v">{r.packageUnit || '—'}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">구분</span><span className="mcard-v">{r.payType || '—'}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">제조</span><span className="mcard-v">{r.isConsignment == null ? '—' : (r.isConsignment ? '위탁' : '자사')}</span></div>
+                  <div className="mcard-row"><span className="mcard-k">약가</span><span className="mcard-v">{r.maxPrice != null ? r.maxPrice.toLocaleString() : '—'}</span></div>
+                </div>
+              );
+            })}
           </div>
         </>
       )}

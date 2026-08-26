@@ -218,7 +218,8 @@ export default function ProductListClient({
           검색 결과가 없습니다.
         </p>
       ) : (
-        <div style={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid #e5e9f0' }}>
+       <>
+        <div className="resp-table" style={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid #e5e9f0' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#f1f4f9' }}>
@@ -293,6 +294,72 @@ export default function ProductListClient({
             </tbody>
           </table>
         </div>
+
+        <div className="resp-cards">
+          {filtered.map(row => {
+            const ds = DIST_STYLE[row.distribution] ?? { color: '#94a3b8', bg: 'rgba(148,163,184,0.08)' };
+            return (
+              <div key={row.no} className="mcard">
+                <div className="mcard-head">
+                  <span className="mcard-rank">{row.no}</span>
+                  <span className="mcard-title">{row.name}</span>
+                </div>
+                <div className="mcard-row"><span className="mcard-k">보험코드</span><span className="mcard-v" style={{ fontFamily: 'monospace' }}>{row.code}</span></div>
+                <div className="mcard-row"><span className="mcard-k">성분명</span><span className="mcard-v">{row.ingredient}</span></div>
+                <div className="mcard-row">
+                  <span className="mcard-k">생동</span>
+                  <span className="mcard-v">
+                    <FlagBadge value={row.id ? flags[row.id]?.isBioequiv ?? null : (row.isBioequiv ?? null)} label="생동" falseText="-"
+                      editable={isAdmin && !!row.id} onClick={() => cycleFlag(row.id, 'is_bioequiv', row.id ? flags[row.id]?.isBioequiv ?? null : null)} />
+                  </span>
+                </div>
+                <div className="mcard-row">
+                  <span className="mcard-k">DMF</span>
+                  <span className="mcard-v">
+                    <FlagBadge value={row.id ? flags[row.id]?.hasDmf ?? null : (row.hasDmf ?? null)} label="DMF"
+                      editable={isAdmin && !!row.id} onClick={() => cycleFlag(row.id, 'has_dmf', row.id ? flags[row.id]?.hasDmf ?? null : null)} />
+                  </span>
+                </div>
+                <div className="mcard-row">
+                  <span className="mcard-k">대조약</span>
+                  <span className="mcard-v">
+                    <FlagBadge value={row.id ? flags[row.id]?.isReference ?? null : (row.isReference ?? null)} label="대조약"
+                      editable={isAdmin && !!row.id} onClick={() => cycleFlag(row.id, 'is_reference_drug', row.id ? flags[row.id]?.isReference ?? null : null)} />
+                  </span>
+                </div>
+                <div className="mcard-row"><span className="mcard-k">제조원</span><span className="mcard-v">{row.maker || '—'}</span></div>
+                <div className="mcard-row">
+                  <span className="mcard-k">생산</span>
+                  <span className="mcard-v">
+                    {row.isConsignment == null ? <span style={{ color: '#94a3b8' }}>—</span> : (
+                      <span style={{
+                        fontSize: '0.68rem', padding: '0.15rem 0.45rem', borderRadius: '4px', whiteSpace: 'nowrap',
+                        background: row.isConsignment ? 'rgba(251,191,36,0.12)' : 'rgba(52,211,153,0.12)',
+                        color: row.isConsignment ? '#b45309' : '#15803d',
+                      }}>{row.isConsignment ? '위탁' : '자사'}</span>
+                    )}
+                  </span>
+                </div>
+                <div className="mcard-row"><span className="mcard-k">허가일자</span><span className="mcard-v" style={{ fontFamily: 'monospace' }}>{fmtYmd(row.permitDate) || '—'}</span></div>
+                <div className="mcard-row"><span className="mcard-k">포장</span><span className="mcard-v">{row.packageUnit || '—'}</span></div>
+                <div className="mcard-row"><span className="mcard-k">수수료율</span><span className="mcard-v" style={{ color: '#2563eb', fontWeight: 600 }}>{row.rate > 0 ? `${(row.rate * 100).toFixed(1)}%` : '—'}</span></div>
+                <div className="mcard-row">
+                  <span className="mcard-k">유통여부</span>
+                  <span className="mcard-v">
+                    {row.distribution ? (
+                      <span style={{
+                        fontSize: '0.68rem', padding: '0.15rem 0.5rem', borderRadius: '4px',
+                        background: ds.bg, color: ds.color, whiteSpace: 'nowrap',
+                      }}>{row.distribution}</span>
+                    ) : '—'}
+                  </span>
+                </div>
+                <div className="mcard-row"><span className="mcard-k">참고사항</span><span className="mcard-v">{row.note || '—'}</span></div>
+              </div>
+            );
+          })}
+        </div>
+       </>
       )}
 
       <style>{`

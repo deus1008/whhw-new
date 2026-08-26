@@ -159,7 +159,7 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
 
       {/* ── 섹션 1: 지역장별 월간 활동력 ── */}
       <Section title="① 지역장별 월간 활동력" desc="지역장 × 월 방문 건수">
-        <div style={{ overflowX: 'auto' }}>
+        <div className="resp-table" style={{ overflowX: 'auto' }}>
           <table style={tbl}>
             <thead>
               <tr>
@@ -186,6 +186,22 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
               ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="resp-cards">
+          {perManager.map(m => (
+            <div key={m.uid} className="mcard">
+              <div className="mcard-head">
+                <button onClick={() => setSelUid(m.uid)} style={linkBtn}>{m.name}</button>
+                <span className="mcard-badge" style={{ color: '#0891b2', background: 'rgba(8,145,178,0.1)' }}>합계 {m.visits}</span>
+              </div>
+              {visitMonths.map(mo => (
+                <div key={mo} className="mcard-row"><span className="mcard-k">{mLabel(mo)}</span><span className="mcard-v">{m.byMonth[mo] ? m.byMonth[mo] : '·'}</span></div>
+              ))}
+              <div className="mcard-row"><span className="mcard-k">고객</span><span className="mcard-v">{m.customers.size}</span></div>
+              <div className="mcard-row"><span className="mcard-k">품목</span><span className="mcard-v">{m.products.size}</span></div>
+            </div>
+          ))}
         </div>
       </Section>
 
@@ -262,39 +278,62 @@ function RankTable({ rows, unit, trendDelta, rxMonths, colName }: {
   unit: string; trendDelta: (t: Trend | null) => number | null; rxMonths: string[]; colName: string;
 }) {
   if (!rows.length) return <Empty />;
+  const unitLabel = unit.includes('방문') ? '방문' : '소개';
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={tbl}>
-        <thead>
-          <tr>
-            <th style={{ ...th, textAlign: 'left', width: '40%' }}>{colName}</th>
-            <th style={th}>{unit.includes('방문') ? '방문' : '소개'}</th>
-            <th style={th}>EDI 처방</th>
-            <th style={th}>최근 처방(억)</th>
-            <th style={th}>최근추세</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(r => {
-            const d = trendDelta(r.trend);
-            const recent = r.trend ? (r.trend[rxMonths[rxMonths.length - 1]] ?? 0) : 0;
-            return (
-              <tr key={r.name}>
-                <td style={{ ...td, textAlign: 'left' }}>{r.name}</td>
-                <td style={{ ...td, fontWeight: 700, color: '#0891b2' }}>{r.cnt}</td>
-                <td style={td}>
-                  {r.trend
-                    ? <span style={badge('#059669', 'rgba(52,211,153,0.14)')}>매칭</span>
-                    : <span style={badge('#64748b', 'rgba(100,116,139,0.12)')}>미매칭</span>}
-                </td>
-                <td style={td}>{r.trend ? eok(recent) : '—'}</td>
-                <td style={td}>{d == null ? '—' : <Delta v={d} />}</td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
+        <table style={tbl}>
+          <thead>
+            <tr>
+              <th style={{ ...th, textAlign: 'left', width: '40%' }}>{colName}</th>
+              <th style={th}>{unitLabel}</th>
+              <th style={th}>EDI 처방</th>
+              <th style={th}>최근 처방(억)</th>
+              <th style={th}>최근추세</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => {
+              const d = trendDelta(r.trend);
+              const recent = r.trend ? (r.trend[rxMonths[rxMonths.length - 1]] ?? 0) : 0;
+              return (
+                <tr key={r.name}>
+                  <td style={{ ...td, textAlign: 'left' }}>{r.name}</td>
+                  <td style={{ ...td, fontWeight: 700, color: '#0891b2' }}>{r.cnt}</td>
+                  <td style={td}>
+                    {r.trend
+                      ? <span style={badge('#059669', 'rgba(52,211,153,0.14)')}>매칭</span>
+                      : <span style={badge('#64748b', 'rgba(100,116,139,0.12)')}>미매칭</span>}
+                  </td>
+                  <td style={td}>{r.trend ? eok(recent) : '—'}</td>
+                  <td style={td}>{d == null ? '—' : <Delta v={d} />}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="resp-cards">
+        {rows.map(r => {
+          const d = trendDelta(r.trend);
+          const recent = r.trend ? (r.trend[rxMonths[rxMonths.length - 1]] ?? 0) : 0;
+          return (
+            <div key={r.name} className="mcard">
+              <div className="mcard-head">
+                <span className="mcard-title">{r.name}</span>
+                {r.trend
+                  ? <span style={badge('#059669', 'rgba(52,211,153,0.14)')}>매칭</span>
+                  : <span style={badge('#64748b', 'rgba(100,116,139,0.12)')}>미매칭</span>}
+              </div>
+              <div className="mcard-row"><span className="mcard-k">{unitLabel}</span><span className="mcard-v" style={{ color: '#0891b2' }}>{r.cnt}</span></div>
+              <div className="mcard-row"><span className="mcard-k">최근 처방(억)</span><span className="mcard-v">{r.trend ? eok(recent) : '—'}</span></div>
+              <div className="mcard-row"><span className="mcard-k">최근추세</span><span className="mcard-v">{d == null ? '—' : <Delta v={d} />}</span></div>
+            </div>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
@@ -313,7 +352,7 @@ function TrendMatrix({ rxMonths, visitMonths, rows, unmatched, colName }: {
   const visitSet = new Set(visitMonths);
   return (
     <>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={tbl}>
           <thead>
             <tr>
@@ -339,6 +378,26 @@ function TrendMatrix({ rxMonths, visitMonths, rows, unmatched, colName }: {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="resp-cards">
+        {rows.map(r => (
+          <div key={r.name} className="mcard">
+            <div className="mcard-head">
+              <span className="mcard-title">{r.name}</span>
+              <span className="mcard-sub">({r.cnt})</span>
+            </div>
+            {rxMonths.map(m => {
+              const v = r.trend?.[m] ?? 0;
+              return (
+                <div key={m} className="mcard-row" style={visitSet.has(m) ? { background: 'rgba(251,191,36,0.08)' } : undefined}>
+                  <span className="mcard-k" style={visitSet.has(m) ? { color: '#b45309' } : undefined}>{mLabel(m)}{visitSet.has(m) ? '★' : ''}</span>
+                  <span className="mcard-v">{v > 0 ? eok(v) : '·'}</span>
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </div>
       <p style={{ ...noteSm, marginTop: '0.5rem' }}>
         ★ = 방문 발생 월(노랑) · 단위 억원 · 매칭 {rows.length}개

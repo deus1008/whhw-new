@@ -399,7 +399,7 @@ function ApprovalTypeTable({ rows, title }: { rows: { name: string; count: numbe
   return (
     <div style={CARD}>
       <SectionTitle>{title}</SectionTitle>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr>
@@ -418,6 +418,19 @@ function ApprovalTypeTable({ rows, title }: { rows: { name: string; count: numbe
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="resp-cards">
+        {rows.map((row, i) => (
+          <div key={row.name} className="mcard">
+            <div className="mcard-head">
+              <span className="mcard-title">{row.name}</span>
+            </div>
+            <div className="mcard-row">
+              <span className="mcard-k">품목수</span>
+              <span className="mcard-v" style={{ color: i === 0 ? '#dc2626' : '#2563eb' }}>{fmtNum(row.count)}</span>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

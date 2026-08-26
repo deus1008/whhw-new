@@ -245,7 +245,8 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
           {filtered.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#94a3b8', padding: '2.5rem 0', fontSize: '0.88rem' }}>검색 결과가 없습니다.</div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
+            <>
+            <div className="resp-table" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                 {/* No. 열만 고정, 나머지 데이터 열은 균등 분배 */}
                 <colgroup>
@@ -282,6 +283,31 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
                 </tbody>
               </table>
             </div>
+            <div className="resp-cards">
+              {filtered.map((row, i) => {
+                const titleH = displayHeaders[0];
+                const titleVal = titleH ? (row[titleH] ?? '') : '';
+                return (
+                  <div key={i} className="mcard">
+                    <div className="mcard-head">
+                      <span className="mcard-rank">{i + 1}</span>
+                      <span className="mcard-title">{titleVal || '-'}</span>
+                    </div>
+                    {displayHeaders.slice(1).map(h => {
+                      const val = row[h] ?? '';
+                      const hl = appliedQuery ? highlight(val, appliedQuery) : null;
+                      return (
+                        <div key={h} className="mcard-row">
+                          <span className="mcard-k">{h}</span>
+                          <span className="mcard-v">{hl ? <span dangerouslySetInnerHTML={{ __html: hl }} /> : val}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+            </>
           )}
         </div>
       )}

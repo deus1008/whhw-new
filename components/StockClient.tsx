@@ -249,7 +249,7 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
 
       {/* 테이블 */}
       <div style={CARD}>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="resp-table" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
@@ -318,6 +318,32 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
             )}
           </table>
         </div>
+
+        {/* 모바일 카드 */}
+        <div className="resp-cards">
+          {rows.map((r) => (
+            <div key={r.material_code} className="mcard">
+              <div className="mcard-head">
+                <span className="mcard-title">{r.material_name}</span>
+              </div>
+              <div className="mcard-sub">{r.material_code}{r.unit ? ` · ${r.unit}` : ''}</div>
+              <div className="mcard-row"><span className="mcard-k">가용</span><span className="mcard-v" style={{ color: r.available_qty > 0 ? '#059669' : '#d7dce5' }}>{fmt(r.available_qty)}</span></div>
+              <div className="mcard-row"><span className="mcard-k">운송중</span><span className="mcard-v" style={{ color: r.transit_qty > 0 ? '#a8c4ff' : '#d7dce5' }}>{fmt(r.transit_qty)}</span></div>
+              <div className="mcard-row"><span className="mcard-k">합계</span><span className="mcard-v" style={{ color: r.total_qty > 0 ? '#b45309' : '#d7dce5' }}>{fmt(r.total_qty)}</span></div>
+            </div>
+          ))}
+          {rows.length === 0 && (
+            <div className="mcard" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>검색 결과가 없습니다.</div>
+          )}
+          {rows.length > 0 && (
+            <div className="mcard">
+              <div className="mcard-head"><span className="mcard-title">합계</span></div>
+              <div className="mcard-row"><span className="mcard-k">가용</span><span className="mcard-v" style={{ color: '#059669' }}>{totalAvail.toLocaleString()}</span></div>
+              <div className="mcard-row"><span className="mcard-k">운송중</span><span className="mcard-v" style={{ color: '#a8c4ff' }}>{totalTransit.toLocaleString()}</span></div>
+              <div className="mcard-row"><span className="mcard-k">합계</span><span className="mcard-v" style={{ color: '#b45309' }}>{totalAll.toLocaleString()}</span></div>
+            </div>
+          )}
+        </div>
       </div>
       </>
       )}
@@ -375,7 +401,7 @@ function TrendView({ trend, rows, filter, setFilter, search, setSearch }: {
       </div>
 
       <div style={CARD}>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="resp-table" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
@@ -405,6 +431,27 @@ function TrendView({ trend, rows, filter, setFilter, search, setSearch }: {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* 모바일 카드 */}
+        <div className="resp-cards">
+          {rows.map((it) => (
+            <div key={it.code} className="mcard">
+              <div className="mcard-head">
+                <span className="mcard-title">{it.name}</span>
+                <span className="mcard-badge" style={{ color: it.meta.color }}>{it.meta.label}</span>
+              </div>
+              <div className="mcard-sub">{it.code}{it.unit ? ` · ${it.unit}` : ''}</div>
+              {it.series.map((v, j) => (
+                <div key={j} className="mcard-row"><span className="mcard-k">{monthLabels[j]}</span><span className="mcard-v" style={{ color: v > 0 ? '#b45309' : '#d7dce5', fontWeight: j === it.series.length - 1 ? 700 : 400 }}>{fmt(v)}</span></div>
+              ))}
+              <div className="mcard-row"><span className="mcard-k">년간평균</span><span className="mcard-v" style={{ color: '#7c3aed' }}>{it.annualAvg > 0 ? Math.round(it.annualAvg).toLocaleString() : '-'}</span></div>
+              <div className="mcard-row"><span className="mcard-k">기준대비</span><span className="mcard-v" style={{ color: it.meta.color }}>{it.ratio == null ? '-' : `${Math.round(it.ratio * 100)}%`}</span></div>
+            </div>
+          ))}
+          {rows.length === 0 && (
+            <div className="mcard" style={{ textAlign: 'center', color: 'var(--text-muted)' }}>해당 품목이 없습니다.</div>
+          )}
         </div>
       </div>
     </div>

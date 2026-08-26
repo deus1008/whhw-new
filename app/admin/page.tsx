@@ -556,7 +556,7 @@ export default async function AdminPage() {
           </div>
 
           {/* 사용자별 활동 테이블 — 역할별 그룹 */}
-          <div style={{ overflowX: 'auto' }}>
+          <div className="resp-table" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #e5e9f0' }}>
@@ -639,6 +639,59 @@ export default async function AdminPage() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* 모바일 카드 — 위 테이블과 동일 데이터 */}
+          <div className="resp-cards">
+            {[...roleGroups, ...(unassigned.length > 0 ? [{ role: '미지정', users: unassigned }] : [])].map(({ role, users }) => {
+              const meta = ROLE_META[role as keyof typeof ROLE_META];
+              const sortedUsers = [...users].sort((a, b) => {
+                const aS = lastSignInMap.get(a.id) ?? '';
+                const bS = lastSignInMap.get(b.id) ?? '';
+                return bS.localeCompare(aS);
+              });
+              const loginNoData = loginCountMap.size === 0;
+              return (
+                <div key={`mcard-group-${role}`}>
+                  <div style={{
+                    fontSize: '0.68rem', fontWeight: 700,
+                    color: meta?.color ?? 'var(--text-muted)',
+                    letterSpacing: '0.04em', margin: '0.75rem 0 0.4rem',
+                  }}>
+                    {meta?.label ?? role} ({users.length}명)
+                  </div>
+                  {sortedUsers.map((p) => {
+                    const lastSignIn  = lastSignInMap.get(p.id);
+                    const signInDate  = lastSignIn ? new Date(lastSignIn) : null;
+                    const isToday     = signInDate && signInDate.toISOString() >= todayStart;
+                    const isThisWeek  = signInDate && signInDate.toISOString() >= sevenDaysAgo;
+                    const visits      = visitMap.get(p.id)      ?? 0;
+                    const schedules   = scheduleMap.get(p.id)   ?? 0;
+                    const docs        = docMap.get(p.id)        ?? 0;
+                    const contracts   = contractMap.get(p.id)   ?? 0;
+                    const logins      = loginCountMap.get(p.id) ?? 0;
+                    const signInLabel = signInDate
+                      ? isToday
+                        ? `오늘 ${signInDate.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul' })}`
+                        : signInDate.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', timeZone: 'Asia/Seoul' })
+                      : '—';
+                    return (
+                      <div key={p.id} className="mcard">
+                        <div className="mcard-head">
+                          <span className="mcard-title">{p.full_name ?? p.email.split('@')[0]}</span>
+                        </div>
+                        <div className="mcard-row"><span className="mcard-k">최근 로그인</span><span className="mcard-v" style={{ color: isToday ? '#059669' : isThisWeek ? '#2563eb' : '#94a3b8' }}>{signInLabel}</span></div>
+                        <div className="mcard-row"><span className="mcard-k">로그인(30일)</span><span className="mcard-v">{loginNoData ? '—' : logins > 0 ? logins : '—'}</span></div>
+                        <div className="mcard-row"><span className="mcard-k">방문</span><span className="mcard-v">{visits > 0 ? visits : '—'}</span></div>
+                        <div className="mcard-row"><span className="mcard-k">일정</span><span className="mcard-v">{schedules > 0 ? schedules : '—'}</span></div>
+                        <div className="mcard-row"><span className="mcard-k">문서</span><span className="mcard-v">{docs > 0 ? docs : '—'}</span></div>
+                        <div className="mcard-row"><span className="mcard-k">계약</span><span className="mcard-v">{contracts > 0 ? contracts : '—'}</span></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </div>
         </div>
 

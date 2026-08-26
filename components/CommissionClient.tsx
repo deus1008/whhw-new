@@ -362,7 +362,7 @@ export default function CommissionClient({
           </div>
 
           {/* 테이블 */}
-          <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #e5e9f0' }}>
+          <div className="resp-table" style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #e5e9f0' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '860px' }}>
               <thead>
                 <tr>
@@ -429,6 +429,42 @@ export default function CommissionClient({
                 })()}
               </tbody>
             </table>
+          </div>
+
+          {/* 모바일 카드 — 위 결과 테이블과 동일 데이터 */}
+          <div className="resp-cards">
+            {(() => {
+              const { rankMap, nonZeroCount } = calcRanks(rows);
+              return rows.map((r, i) => {
+                const amt = Math.floor(r.settlement_amount);
+                const rank = amt > 0 ? rankMap.get(amt) : null;
+                const mine = isMyCompany(r.manufacturer, companyName ?? null);
+                return (
+                  <div key={i} className="mcard" style={mine ? { background: 'rgba(250,204,21,0.10)', borderLeft: '3px solid #ca8a04' } : {}}>
+                    <div className="mcard-head">
+                      {rank != null && <span className="mcard-rank">{rank}/{nonZeroCount}</span>}
+                      <span className="mcard-title">{r.item_name}</span>
+                    </div>
+                    <div className="mcard-row"><span className="mcard-k">제약사</span><span className="mcard-v" style={{ color: mine ? '#b45309' : '#2563eb' }}>{r.manufacturer ?? '-'}</span></div>
+                    <div className="mcard-row"><span className="mcard-k">규격</span><span className="mcard-v">{r.standard ?? '-'}</span></div>
+                    <div className="mcard-row"><span className="mcard-k">약가(원)</span><span className="mcard-v">{(r.max_price ?? 0).toLocaleString()}</span></div>
+                    <div className="mcard-row"><span className="mcard-k">수량</span><span className="mcard-v" style={{ color: '#b45309' }}>{r.quantity.toLocaleString()}</span></div>
+                    <div className="mcard-row"><span className="mcard-k">처방액(천원)</span><span className="mcard-v" style={{ color: '#2563eb' }}>{Math.round(r.prescription_amount / 1000).toLocaleString()}</span></div>
+                    <div className="mcard-row">
+                      <span className="mcard-k">수수료율</span>
+                      <span className="mcard-v" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <RateInput value={r.commission_rate} onChange={v => handleRateChange(i, v)} />
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>%</span>
+                        {!r.rate_matched && (
+                          <span title="수수료율 파일에 미등록" style={{ fontSize: '0.65rem', color: '#dc2626', opacity: 0.7 }}>미등록</span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="mcard-row"><span className="mcard-k">정산액(원)</span><span className="mcard-v" style={{ color: '#059669' }}>{r.settlement_amount.toLocaleString()}</span></div>
+                  </div>
+                );
+              });
+            })()}
           </div>
 
           <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', marginTop: '0.6rem' }}>

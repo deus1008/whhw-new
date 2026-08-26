@@ -677,7 +677,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               items.length > 0 && (
                 <div key={label} style={{ marginBottom: '0.5rem' }}>
                   <SubTitle>{label}</SubTitle>
-                  <div style={{ overflowX: 'auto' }}>
+                  <div className="resp-table" style={{ overflowX: 'auto' }}>
                     <table className="dash-table">
                       <thead>
                         <tr>
@@ -721,6 +721,37 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                  <div className="resp-cards">
+                    {items.map((p, i) => (
+                      <div key={p.name} className="mcard">
+                        <div className="mcard-head">
+                          <span className="mcard-rank">{isTop ? i + 1 : `▼${i + 1}`}</span>
+                          <span className="mcard-title">{p.name}</span>
+                        </div>
+                        {p.months.map(m => (
+                          <div key={m.month} className="mcard-row">
+                            <span className="mcard-k">{fmtPeriod(m.month)}</span>
+                            <span className="mcard-v">{m.prescAmt > 0 ? fmtWon(m.prescAmt, true) : '-'}</span>
+                          </div>
+                        ))}
+                        <div className="mcard-row">
+                          <span className="mcard-k">전년동월대비</span>
+                          <span className="mcard-v">{p.delta === 0 ? '±0' : <span className={p.delta > 0 ? 'up' : 'dn'}>{p.delta > 0 ? '▲' : '▼'}{fmtWon(Math.abs(p.delta), true)}</span>}</span>
+                        </div>
+                        <div className="mcard-row">
+                          <span className="mcard-k">성장율</span>
+                          <span className="mcard-v">{(() => {
+                            const prevAmt = p.months[0]?.prescAmt ?? 0;
+                            const curAmt  = p.months[p.months.length - 1]?.prescAmt ?? 0;
+                            const rate = prevAmt > 0 ? Math.round(((curAmt - prevAmt) / prevAmt) * 100) : null;
+                            if (rate === null) return '-';
+                            if (rate === 0) return '±0%';
+                            return <span className={rate > 0 ? 'up' : 'dn'}>{rate > 0 ? '▲' : '▼'}{Math.abs(rate)}%</span>;
+                          })()}</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )
@@ -1187,6 +1218,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         {recentVisits.length === 0 ? (
           <Empty msg="최근 2주간 영업활동 기록이 없습니다." />
         ) : (
+          <>
+          <div className="resp-table">
           <table className="dash-table" style={{ marginBottom: '1.4rem' }}>
             <colgroup>
               <col style={{ width: '72px' }} />
@@ -1218,6 +1251,24 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
               ))}
             </tbody>
           </table>
+          </div>
+          <div className="resp-cards">
+            {recentVisits.map((v, i) => (
+              <div key={i} className="mcard">
+                <div className="mcard-head">
+                  <span className="mcard-title">{v.personName}</span>
+                  <span className="mcard-sub" style={{ marginLeft: 'auto' }}>{fmtDate(v.visitedAt)}</span>
+                </div>
+                <div className="mcard-row"><span className="mcard-k">방문한 업체</span><span className="mcard-v">{v.customerName}</span></div>
+                <div className="mcard-row"><span className="mcard-k">CSO담당자명</span><span className="mcard-v">{v.contactName ?? '-'}</span></div>
+                <div className="mcard-row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '0.15rem' }}>
+                  <span className="mcard-k">협의내용</span>
+                  <span className="mcard-v" style={{ textAlign: 'left', fontWeight: 400, whiteSpace: 'pre-wrap' }}>{v.content}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          </>
         )}
 
         {/* ── 예정 일정 ── */}

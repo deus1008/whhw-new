@@ -218,7 +218,7 @@ function ComparisonSummary({ reports }: { reports: EdiReport[] }) {
   return (
     <div style={{ background: '#ffffff', border: '1px solid #f1f5f9', borderRadius: 14, padding: '1rem 1.2rem' }}>
       <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.85rem' }}>📊 비교 요약 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400 }}>(단위: 천원)</span></h3>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
             <tr>
@@ -249,6 +249,21 @@ function ComparisonSummary({ reports }: { reports: EdiReport[] }) {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* 모바일 카드 */}
+      <div className="resp-cards">
+        {reports.map(r => (
+          <div key={r.doc_id} className="mcard">
+            <div className="mcard-head"><span className="mcard-title">{r.filename}</span></div>
+            <div className="mcard-row"><span className="mcard-k">기간</span><span className="mcard-v">{r.period}</span></div>
+            <div className="mcard-row"><span className="mcard-k">총 처방액</span><span className="mcard-v">{fmt(r.data.totalAmount)}</span></div>
+            <div className="mcard-row"><span className="mcard-k">담당자</span><span className="mcard-v">{(r.data.totalSpCount ?? r.data.salesPersonStats.length).toLocaleString()}</span></div>
+            <div className="mcard-row"><span className="mcard-k">CSO</span><span className="mcard-v">{(r.data.totalCsoCount ?? r.data.csoStats.length).toLocaleString()}</span></div>
+            <div className="mcard-row"><span className="mcard-k">처방처</span><span className="mcard-v">{(r.data.totalHospitalCount ?? r.data.hospitalRanking.length).toLocaleString()}</span></div>
+            <div className="mcard-row"><span className="mcard-k">품목</span><span className="mcard-v">{(r.data.totalItemCount ?? r.data.itemStats.length).toLocaleString()}</span></div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1032,7 +1047,7 @@ function DrugPriceTable({ prices }: { prices: DrugPrice[] }) {
       <div style={{ marginBottom: '0.75rem' }}>
         <SearchInput value={search} onChange={v => { setSearch(v); setShowAll(false); }} />
       </div>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
             <tr>
@@ -1051,6 +1066,16 @@ function DrugPriceTable({ prices }: { prices: DrugPrice[] }) {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* 모바일 카드 */}
+      <div className="resp-cards">
+        {display.map(p => (
+          <div key={p.name} className="mcard">
+            <div className="mcard-head"><span className="mcard-title">{p.name}</span></div>
+            <div className="mcard-row"><span className="mcard-k">약가</span><span className="mcard-v">{p.unitPrice.toLocaleString()}</span></div>
+          </div>
+        ))}
       </div>
       {filtered.length > 30 && (
         <MoreButton showAll={showAll} total={filtered.length} onClick={() => setShowAll(v => !v)} />

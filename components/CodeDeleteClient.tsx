@@ -246,7 +246,8 @@ export default function CodeDeleteClient() {
 
                     {/* 처방처 테이블 */}
                     {csoOpen && (
-                      <div style={{ overflowX: 'auto', borderBottom: '1px solid #eaeef4' }}>
+                      <>
+                      <div className="resp-table" style={{ overflowX: 'auto', borderBottom: '1px solid #eaeef4' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', minWidth: 560 }}>
                           <thead>
                             <tr style={{ background: '#f1f4f9' }}>
@@ -322,6 +323,48 @@ export default function CodeDeleteClient() {
                           </tbody>
                         </table>
                       </div>
+
+                      {/* 모바일 카드 — 위 처방처 테이블과 동일 데이터 */}
+                      <div className="resp-cards" style={{ padding: '0.5rem 0.9rem 0.9rem' }}>
+                        {cso.hospitals.map((h) => {
+                          const tr = calcTrend(result.months, h.monthlyAmounts);
+                          return (
+                            <div key={h.hospitalName} className="mcard">
+                              <div className="mcard-head">
+                                <span className="mcard-title">{h.hospitalName}</span>
+                                <span className="mcard-badge" style={{ background: 'transparent', color: tr.color }}>{tr.arrow} {tr.label}</span>
+                              </div>
+                              {result.months.map((m, mi) => {
+                                const amt  = h.monthlyAmounts[m] ?? 0;
+                                const prev = mi > 0 ? (h.monthlyAmounts[result.months[mi - 1]] ?? 0) : amt;
+                                const diff = prev > 0 ? amt - prev : 0;
+                                return (
+                                  <div key={m} className="mcard-row">
+                                    <span className="mcard-k">{fmtM(m)}</span>
+                                    <span className="mcard-v" style={{ color: amt === 0 ? '#94a3b8' : 'var(--text-primary)' }}>
+                                      {amt === 0 ? '—' : fmt(amt)}
+                                      {mi > 0 && diff !== 0 && (
+                                        <span style={{ marginLeft: '0.35rem', fontSize: '0.72rem', color: diff > 0 ? '#059669' : '#dc2626', fontWeight: 600 }}>
+                                          {diff > 0 ? '▲' : '▼'}{fmt(Math.abs(diff))}
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                              <div className="mcard-row">
+                                <span className="mcard-k">월별차트</span>
+                                <span className="mcard-v"><Sparkline months={result.months} amounts={h.monthlyAmounts} /></span>
+                              </div>
+                              <div className="mcard-row">
+                                <span className="mcard-k">3개월 평균</span>
+                                <span className="mcard-v" style={{ flex: 1 }}><AvgBar avg={h.avgAmount} /></span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      </>
                     )}
                   </Fragment>
                 );

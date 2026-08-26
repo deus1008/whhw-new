@@ -157,7 +157,7 @@ function MarketTable({ market, onGoBuild }: { market: MarketData; onGoBuild: () 
 
       {note && <div style={{ fontSize: '0.75rem', color: 'rgba(251,191,36,0.85)', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: '8px', padding: '0.55rem 0.8rem' }}>⚠ {note}</div>}
 
-      <div style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: '10px' }}>
+      <div className="resp-table" style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: '10px' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.76rem' }}>
           <thead>
             <tr style={{ background: '#ffffff' }}>
@@ -196,6 +196,32 @@ function MarketTable({ market, onGoBuild }: { market: MarketData; onGoBuild: () 
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="resp-cards">
+        <div className="mcard">
+          <div className="mcard-head"><span className="mcard-title" style={{ color: '#2563eb' }}>시장 합계</span></div>
+          {years.map(y => (
+            <div key={y} className="mcard-row"><span className="mcard-k">{y}(억)</span><span className="mcard-v" style={{ color: '#2563eb' }}>{eok(marketTotalByYear[y])}</span></div>
+          ))}
+        </div>
+        {products.map((p, i) => (
+          <div key={`${p.product_name}|${p.manufacturer}`} className="mcard">
+            <div className="mcard-head">
+              <span className="mcard-rank">{i + 1}</span>
+              <span className="mcard-title" style={{ color: p.is_reference ? '#b45309' : undefined }}>{p.product_name}</span>
+              {p.is_reference && <span className="mcard-badge" style={{ color: '#b45309', background: 'rgba(251,191,36,0.12)' }}>대조약</span>}
+            </div>
+            <div className="mcard-row"><span className="mcard-k">제조사</span><span className="mcard-v">{p.manufacturer ?? '-'}</span></div>
+            <div className="mcard-row"><span className="mcard-k">약가</span><span className="mcard-v">{p.price != null ? `${won(p.price)}원` : '-'}</span></div>
+            <div className="mcard-row"><span className="mcard-k">수수료율</span><span className="mcard-v" style={{ color: p.commission_rate != null ? '#db2777' : undefined }}>{pct(p.commission_rate, 0)}</span></div>
+            {years.map(y => (
+              <div key={y} className="mcard-row"><span className="mcard-k">{y}(억)</span><span className="mcard-v">{p.amountByYear[y] ? eok(p.amountByYear[y]) : '-'}</span></div>
+            ))}
+            <div className="mcard-row"><span className="mcard-k">Share</span><span className="mcard-v" style={{ color: '#0891b2' }}>{pct(p.share)}</span></div>
+            <div className="mcard-row"><span className="mcard-k">CAGR</span><span className="mcard-v" style={{ color: p.cagr != null ? (p.cagr >= 0 ? '#059669' : '#dc2626') : undefined }}>{p.cagr != null ? pct(p.cagr, 0) : '-'}</span></div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -577,7 +603,7 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
 
       {/* 예측 vs 실측 */}
       {sel && (
-        <div style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: 10 }}>
+        <div className="resp-table" style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: 10 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
             <thead>
               <tr style={{ background: '#ffffff' }}>
@@ -603,6 +629,36 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
               })()}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* 모바일 카드: 예측 vs 실측 — 연차별 카드 */}
+      {sel && (
+        <div className="resp-cards">
+          {(() => {
+            const actArr = actuals ? actualYears.map(y => actuals.byYear[y]) : [];
+            return sel.years.map((y, i) => {
+              const a = actuals ? actArr[i] : null;
+              let devEl: React.ReactNode = null;
+              if (actuals) {
+                if (a == null || !y.amount) {
+                  devEl = <span style={{ color: '#64748b' }}>-</span>;
+                } else {
+                  const dev = (a - y.amount) / y.amount;
+                  const alert = Math.abs(dev) > 0.2;
+                  devEl = <span style={{ color: alert ? '#b45309' : dev >= 0 ? '#059669' : '#dc2626', fontWeight: alert ? 700 : 400 }}>{dev >= 0 ? '+' : ''}{pct(dev, 0)}{alert && ' ⚠'}</span>;
+                }
+              }
+              return (
+                <div key={y.y} className="mcard">
+                  <div className="mcard-head"><span className="mcard-title">{y.y}Y</span></div>
+                  <div className="mcard-row"><span className="mcard-k">예측(억)</span><span className="mcard-v" style={{ color: '#2563eb' }}>{eok(y.amount)}</span></div>
+                  {actuals && <div className="mcard-row"><span className="mcard-k">실측(억)</span><span className="mcard-v" style={{ color: '#059669' }}>{a != null ? eok(a) : '-'}</span></div>}
+                  {actuals && <div className="mcard-row"><span className="mcard-k">편차</span><span className="mcard-v">{devEl}</span></div>}
+                </div>
+              );
+            });
+          })()}
         </div>
       )}
       {actuals && (
