@@ -41,8 +41,8 @@ export default function LogoutButton({ compact = false }: { compact?: boolean })
         style={{
           padding: '0.35rem 0.9rem',
           borderRadius: '7px',
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          background: '#f8fafc',
+          border: '1px solid #e5e9f0',
           color: 'var(--text-muted)',
           fontSize: '0.75rem',
           fontWeight: 500,

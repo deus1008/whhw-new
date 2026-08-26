@@ -82,8 +82,8 @@ function downloadContractsCsv(rows: ContractRow[]) {
 
 /* ── 공통 스타일 ── */
 const CARD = {
-  background:   'rgba(255,255,255,0.04)',
-  border:       '1px solid rgba(255,255,255,0.08)',
+  background:   '#f8fafc',
+  border:       '1px solid #f1f5f9',
   borderRadius: '14px',
   padding:      '1rem',
   marginBottom: '0.75rem',
@@ -91,9 +91,9 @@ const CARD = {
 
 const INPUT_STYLE = {
   width: '100%', padding: '0.55rem 0.7rem',
-  background: 'rgba(255,255,255,0.07)',
-  border: '1px solid rgba(255,255,255,0.15)',
-  borderRadius: '8px', color: '#fff',
+  background: '#f1f5f9',
+  border: '1px solid #d7dce5',
+  borderRadius: '8px', color: '#111827',
   fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' as const,
 };
 
@@ -104,13 +104,13 @@ const LABEL_STYLE = {
 
 const BTN_PRIMARY = {
   padding: '0.55rem 1.4rem', borderRadius: '8px', border: 'none',
-  background: 'rgba(99,102,241,0.8)', color: '#fff',
+  background: '#4f46e5', color: '#fff',
   fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
 } as const;
 
 const BTN_GHOST = {
   padding: '0.45rem 1rem', borderRadius: '8px',
-  background: 'transparent', border: '1px solid rgba(255,255,255,0.15)',
+  background: 'transparent', border: '1px solid #d7dce5',
   color: 'var(--text-muted)', fontSize: '0.82rem', cursor: 'pointer',
 } as const;
 
@@ -174,7 +174,7 @@ function ContractForm({
       <div style={{
         width: '100%', maxWidth: '600px',
         background: '#141b2d',
-        border: '1px solid rgba(255,255,255,0.12)',
+        border: '1px solid #e5e9f0',
         borderRadius: '16px', padding: '1.5rem',
         marginTop: '1rem', marginBottom: '1rem',
       }}>
@@ -206,9 +206,9 @@ function ContractForm({
                   style={{
                     flex: 1, padding: '0.5rem', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
                     fontSize: '0.82rem', fontWeight: 700,
-                    background: on ? `rgba(${rgb},0.18)` : 'rgba(255,255,255,0.04)',
-                    border: on ? `1px solid rgba(${rgb},0.6)` : '1px solid rgba(255,255,255,0.12)',
-                    color: on ? (amber ? '#fbbf24' : '#60a5fa') : 'var(--text-muted)',
+                    background: on ? `rgba(${rgb},0.18)` : '#f8fafc',
+                    border: on ? `1px solid rgba(${rgb},0.6)` : '1px solid #e5e9f0',
+                    color: on ? (amber ? '#b45309' : '#2563eb') : 'var(--text-muted)',
                   }}>
                   {t === '신규계약' ? '🆕 신규계약' : '🔁 기존처변경'}
                 </button>
@@ -232,7 +232,7 @@ function ContractForm({
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginTop: '0.5rem', cursor: 'pointer' }}>
             <input type="checkbox" checked={form.auto_renewal}
               onChange={e => set('auto_renewal', e.target.checked)}
-              style={{ accentColor: '#818cf8' }} />
+              style={{ accentColor: '#4f46e5' }} />
             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>연 단위 자동 갱신</span>
           </label>
         </div>
@@ -297,7 +297,7 @@ function ContractForm({
         </Field>
 
         {error && (
-          <p style={{ color: '#f87171', fontSize: '0.82rem', marginBottom: '0.75rem', margin: '0 0 0.75rem' }}>
+          <p style={{ color: '#dc2626', fontSize: '0.82rem', marginBottom: '0.75rem', margin: '0 0 0.75rem' }}>
             {error}
           </p>
         )}
@@ -315,13 +315,13 @@ function ContractForm({
 
 /* ── 테이블 셀 스타일 ── */
 const cellTd: React.CSSProperties = {
-  padding: '0.55rem 0.65rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.85)',
-  borderBottom: '1px solid rgba(255,255,255,0.05)', verticalAlign: 'top',
+  padding: '0.55rem 0.65rem', fontSize: '0.78rem', color: '#334155',
+  borderBottom: '1px solid #f8fafc', verticalAlign: 'top',
 };
 const cellTh: React.CSSProperties = {
   padding: '0.55rem 0.65rem', fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600,
-  textAlign: 'left', whiteSpace: 'nowrap', background: 'rgba(255,255,255,0.03)',
-  borderBottom: '1px solid rgba(255,255,255,0.1)',
+  textAlign: 'left', whiteSpace: 'nowrap', background: '#ffffff',
+  borderBottom: '1px solid #e5e9f0',
 };
 
 /* ── 계약 리스트 행 (클릭 시 상세 펼침) ── */
@@ -341,7 +341,7 @@ function ContractTr({
       <tr onClick={() => setOpen(v => !v)} style={{ cursor: 'pointer', background: open ? 'rgba(99,102,241,0.06)' : undefined }}>
         <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>
           <span style={{ marginRight: 5, fontSize: '0.6rem', opacity: 0.6 }}>{open ? '▼' : '▶'}</span>
-          <span style={{ fontWeight: 700, color: '#fff' }}>{c.company_name}</span>
+          <span style={{ fontWeight: 700, color: '#111827' }}>{c.company_name}</span>
         </td>
         <td style={{ ...cellTd, whiteSpace: 'nowrap' }}><TypeBadge type={c.contract_type} /></td>
         <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>{c.manager}</td>
@@ -354,7 +354,7 @@ function ContractTr({
             {canEdit ? (
               <div style={{ display: 'flex', gap: '0.3rem' }}>
                 <button onClick={onEdit} style={{ ...BTN_GHOST, fontSize: '0.7rem', padding: '0.25rem 0.55rem' }}>수정</button>
-                <button onClick={onDelete} style={{ ...BTN_GHOST, fontSize: '0.7rem', padding: '0.25rem 0.55rem', borderColor: 'rgba(248,113,113,0.3)', color: '#f87171' }}>삭제</button>
+                <button onClick={onDelete} style={{ ...BTN_GHOST, fontSize: '0.7rem', padding: '0.25rem 0.55rem', borderColor: 'rgba(248,113,113,0.3)', color: '#dc2626' }}>삭제</button>
               </div>
             ) : <span style={{ opacity: 0.3 }}>-</span>}
           </td>
@@ -362,7 +362,7 @@ function ContractTr({
       </tr>
       {open && (
         <tr>
-          <td colSpan={colSpan} style={{ ...cellTd, background: 'rgba(255,255,255,0.02)' }}>
+          <td colSpan={colSpan} style={{ ...cellTd, background: '#ffffff' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', padding: '0.1rem 0.2rem' }}>
               {c.contact_email && <DetailRow label="이메일"    value={c.contact_email} />}
               {c.hospitals     && <DetailRow label="병원·품목" value={c.hospitals} />}
@@ -371,11 +371,11 @@ function ContractTr({
               {c.memo          && <DetailRow label="비고"      value={c.memo} />}
               <DetailRow label="등록일" value={fmtDate(c.created_at.slice(0, 10))} />
               {canEdit && (
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', paddingTop: '0.6rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', paddingTop: '0.6rem', borderTop: '1px solid #f1f5f9' }}>
                   <button onClick={e => { e.stopPropagation(); onEdit(); }}
                     style={{ ...BTN_PRIMARY, fontSize: '0.78rem', padding: '0.4rem 0.9rem' }}>✏️ 수정</button>
                   <button onClick={e => { e.stopPropagation(); onDelete(); }}
-                    style={{ ...BTN_GHOST, fontSize: '0.78rem', padding: '0.4rem 0.9rem', borderColor: 'rgba(248,113,113,0.35)', color: '#f87171' }}>🗑 삭제</button>
+                    style={{ ...BTN_GHOST, fontSize: '0.78rem', padding: '0.4rem 0.9rem', borderColor: 'rgba(248,113,113,0.35)', color: '#dc2626' }}>🗑 삭제</button>
                 </div>
               )}
             </div>
@@ -389,7 +389,7 @@ function ContractTr({
 function TypeBadge({ type }: { type: string | null }) {
   const isChange = type === '기존처변경';
   const rgb = isChange ? '251,191,36' : '96,165,250';
-  const col = isChange ? '#fbbf24' : '#60a5fa';
+  const col = isChange ? '#b45309' : '#2563eb';
   return (
     <span style={{
       fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap', padding: '0.12rem 0.45rem', borderRadius: 5,
@@ -402,7 +402,7 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0, minWidth: '64px', paddingTop: '0.1rem' }}>{label}</span>
-      <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{value}</span>
+      <span style={{ fontSize: '0.78rem', color: '#334155', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{value}</span>
     </div>
   );
 }
@@ -511,12 +511,12 @@ export default function ContractsClient({
       {/* ── 카운트 카드 ── */}
       <div className="visit-stats-grid">
         {([
-          { tab: '전체',   color: '#c084fc', rgba: 'rgba(162,89,255,' },
-          { tab: '올해',   color: '#93c5fd', rgba: 'rgba(59,130,246,'  },
-          { tab: '이번달', color: '#86efac', rgba: 'rgba(34,197,94,'   },
-          { tab: '유효중', color: '#fde68a', rgba: 'rgba(251,191,36,'  },
-          { tab: '신규계약',   color: '#60a5fa', rgba: 'rgba(96,165,250,' },
-          { tab: '기존처변경', color: '#fbbf24', rgba: 'rgba(251,146,60,' },
+          { tab: '전체',   color: '#9333ea', rgba: 'rgba(162,89,255,' },
+          { tab: '올해',   color: '#2563eb', rgba: 'rgba(59,130,246,'  },
+          { tab: '이번달', color: '#059669', rgba: 'rgba(34,197,94,'   },
+          { tab: '유효중', color: '#b45309', rgba: 'rgba(251,191,36,'  },
+          { tab: '신규계약',   color: '#2563eb', rgba: 'rgba(96,165,250,' },
+          { tab: '기존처변경', color: '#b45309', rgba: 'rgba(251,146,60,' },
         ] as const).map(({ tab, color, rgba }) => {
           const active = activeTab === tab;
           return (
@@ -558,7 +558,7 @@ export default function ContractsClient({
         </div>
         {search && (
           <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            <span style={{ color: '#a5b4fc' }}>"{search}"</span> 검색 중
+            <span style={{ color: '#4f46e5' }}>"{search}"</span> 검색 중
             <button onClick={() => { setSearch(''); setInputValue(''); }}
               style={{ marginLeft: '0.5rem', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.75rem' }}>
               ✕ 초기화
@@ -591,7 +591,7 @@ export default function ContractsClient({
         const showActions = isAdmin || filtered.some(c => c.user_id === userId);
         const colCount = 7 + (showActions ? 1 : 0);
         return (
-          <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
+          <div style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: 12 }}>
             <table style={{ width: '100%', minWidth: showActions ? 880 : 760, borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
@@ -648,7 +648,7 @@ const statCard: React.CSSProperties = {
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+  background: '#f8fafc', border: '1px solid #e5e9f0',
   color: 'var(--text-primary)', fontSize: '16px', fontFamily: 'inherit',
   outline: 'none', boxSizing: 'border-box', minHeight: '44px',
 };

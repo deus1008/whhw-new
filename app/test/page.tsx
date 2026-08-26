@@ -42,12 +42,12 @@ export default function SupabaseTestPage() {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#0f1117',
-      color: '#e2e8f0',
+      backgroundColor: '#ffffff',
+      color: '#111827',
       fontFamily: 'monospace',
       padding: '2rem',
     }}>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '2rem', color: '#94a3b8' }}>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '2rem', color: '#475569' }}>
         Supabase 연결 진단
       </h1>
 
@@ -69,23 +69,24 @@ export default function SupabaseTestPage() {
         </h2>
 
         {result.status === 'idle' || result.status === 'loading' ? (
-          <p style={{ color: '#94a3b8', fontSize: '1.1rem' }}>
+          <p style={{ color: '#475569', fontSize: '1.1rem' }}>
             {result.status === 'idle' ? '대기 중...' : '연결 시도 중...'}
           </p>
         ) : result.status === 'success' ? (
           <div>
-            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#22c55e', marginBottom: '1rem' }}>
+            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#059669', marginBottom: '1rem' }}>
               ✓ 연결 성공
             </p>
-            <p style={{ color: '#94a3b8', marginBottom: '0.5rem' }}>
+            <p style={{ color: '#475569', marginBottom: '0.5rem' }}>
               getSession() 응답:
             </p>
             <pre style={{
-              backgroundColor: '#1e293b',
+              backgroundColor: '#111827',
+              border: '1px solid #e5e9f0',
               borderRadius: '8px',
               padding: '1rem',
               fontSize: '0.85rem',
-              color: '#cbd5e1',
+              color: '#334155',
               overflowX: 'auto',
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-all',
@@ -95,18 +96,19 @@ export default function SupabaseTestPage() {
           </div>
         ) : (
           <div>
-            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ef4444', marginBottom: '1rem' }}>
+            <p style={{ fontSize: '1.5rem', fontWeight: 700, color: '#dc2626', marginBottom: '1rem' }}>
               ✗ 연결 실패
             </p>
-            <p style={{ color: '#94a3b8', marginBottom: '0.5rem' }}>
+            <p style={{ color: '#475569', marginBottom: '0.5rem' }}>
               에러 전문:
             </p>
             <pre style={{
-              backgroundColor: '#1e293b',
+              backgroundColor: '#111827',
+              border: '1px solid #e5e9f0',
               borderRadius: '8px',
               padding: '1rem',
               fontSize: '0.85rem',
-              color: '#fca5a5',
+              color: '#dc2626',
               overflowX: 'auto',
               whiteSpace: 'pre-wrap',
               wordBreak: 'break-all',
@@ -120,11 +122,11 @@ export default function SupabaseTestPage() {
       {/* 환경변수 누락 경고 */}
       {(!hasUrl || !hasKey) && (
         <section style={{
-          backgroundColor: '#422006',
-          border: '1px solid #92400e',
+          backgroundColor: '#fffbeb',
+          border: '1px solid #b45309',
           borderRadius: '8px',
           padding: '1rem',
-          color: '#fcd34d',
+          color: '#b45309',
           fontSize: '0.9rem',
           lineHeight: 1.6,
         }}>
@@ -145,11 +147,11 @@ function EnvRow({ label, present }: { label: string; present: boolean }) {
         width: '10px',
         height: '10px',
         borderRadius: '50%',
-        backgroundColor: present ? '#22c55e' : '#ef4444',
+        backgroundColor: present ? '#16a34a' : '#dc2626',
         flexShrink: 0,
       }} />
-      <code style={{ fontSize: '0.9rem', color: '#cbd5e1' }}>{label}</code>
-      <span style={{ color: present ? '#22c55e' : '#ef4444', fontSize: '0.85rem' }}>
+      <code style={{ fontSize: '0.9rem', color: '#334155' }}>{label}</code>
+      <span style={{ color: present ? '#059669' : '#dc2626', fontSize: '0.85rem' }}>
         {present ? '있음' : '없음 (비어있음)'}
       </span>
     </div>

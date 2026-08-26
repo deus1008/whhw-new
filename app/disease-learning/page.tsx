@@ -99,13 +99,13 @@ export default async function DiseaseLearningPage() {
         </p>
         <div className="page-nav">
           
-          <Link href="/drug-search" style={nl('#6ee7b7', 'rgba(52,211,153,0.12)', 'rgba(52,211,153,0.28)')}>약품검색</Link>
-          <Link href="/market-analysis" style={nl('#f9a8d4', 'rgba(236,72,153,0.12)', 'rgba(236,72,153,0.28)')}>시장분석</Link>
+          <Link href="/drug-search" style={nl('#059669', 'rgba(52,211,153,0.12)', 'rgba(52,211,153,0.28)')}>약품검색</Link>
+          <Link href="/market-analysis" style={nl('#db2777', 'rgba(236,72,153,0.12)', 'rgba(236,72,153,0.28)')}>시장분석</Link>
           {isAdmin && (
-            <Link href="/disease-learning/admin" style={nl('#fde68a', 'rgba(251,191,36,0.12)', 'rgba(251,191,36,0.28)')}>데이터관리</Link>
+            <Link href="/disease-learning/admin" style={nl('#b45309', 'rgba(251,191,36,0.12)', 'rgba(251,191,36,0.28)')}>데이터관리</Link>
           )}
           {isAdmin && (
-            <Link href="/disease-learning/admin/ingredients" style={nl('#c4b5fd', 'rgba(167,139,250,0.12)', 'rgba(167,139,250,0.28)')}>성분설명 검수</Link>
+            <Link href="/disease-learning/admin/ingredients" style={nl('#7c3aed', 'rgba(167,139,250,0.12)', 'rgba(167,139,250,0.28)')}>성분설명 검수</Link>
           )}
           
         </div>
@@ -113,22 +113,22 @@ export default async function DiseaseLearningPage() {
         {groups.length === 0 ? (
           <div style={{
             marginTop: '3rem', padding: '3rem 2rem', textAlign: 'center',
-            background: 'rgba(255,255,255,0.03)', borderRadius: '16px',
-            border: '1px dashed rgba(255,255,255,0.12)',
+            background: '#f8fafc', borderRadius: '16px',
+            border: '1px dashed #e5e9f0',
           }}>
             <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>📋</div>
-            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.95rem', marginBottom: '0.5rem' }}>
+            <p style={{ color: '#475569', fontSize: '0.95rem', marginBottom: '0.5rem' }}>
               질환 데이터가 없습니다.
             </p>
             {isAdmin ? (
-              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem' }}>
-                <Link href="/disease-learning/admin" style={{ color: '#fbbf24', textDecoration: 'none' }}>
+              <p style={{ color: '#94a3b8', fontSize: '0.82rem' }}>
+                <Link href="/disease-learning/admin" style={{ color: '#b45309', textDecoration: 'none' }}>
                   데이터관리 → 질환DB 임포트
                 </Link>
                 를 먼저 실행해주세요.
               </p>
             ) : (
-              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.82rem' }}>
+              <p style={{ color: '#94a3b8', fontSize: '0.82rem' }}>
                 관리자에게 데이터 임포트를 요청해주세요.
               </p>
             )}

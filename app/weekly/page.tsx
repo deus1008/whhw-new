@@ -587,7 +587,7 @@ export default async function DashboardPage() {
             <span style={{
               fontSize: '0.75rem', padding: '3px 12px', borderRadius: '100px',
               background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.3)',
-              color: '#a5b4fc',
+              color: '#4f46e5',
             }}>
               {companyName}
             </span>

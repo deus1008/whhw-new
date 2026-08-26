@@ -19,19 +19,19 @@ function fmtDate(s: string | null): string {
 // ── 경보 색상 ─────────────────────────────────────────────────────────────────
 type AlertColor = { badge: string; badgeBg: string; border: string; glow: string };
 const ALERT_COLORS: Record<string, AlertColor> = {
-  품절:     { badge: '#ef4444', badgeBg: 'rgba(239,68,68,0.15)',   border: 'rgba(239,68,68,0.35)',   glow: 'rgba(239,68,68,0.08)' },
-  품절예측:  { badge: '#f59e0b', badgeBg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.30)', glow: 'rgba(245,158,11,0.06)' },
-  원활:     { badge: '#4ade80', badgeBg: 'rgba(74,222,128,0.12)',  border: 'rgba(74,222,128,0.28)',  glow: 'rgba(74,222,128,0.05)' },
-  과잉재고:  { badge: '#818cf8', badgeBg: 'rgba(129,140,248,0.12)', border: 'rgba(129,140,248,0.28)', glow: 'rgba(129,140,248,0.05)' },
+  품절:     { badge: '#dc2626', badgeBg: 'rgba(239,68,68,0.15)',   border: 'rgba(239,68,68,0.35)',   glow: 'rgba(239,68,68,0.08)' },
+  품절예측:  { badge: '#b45309', badgeBg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.30)', glow: 'rgba(245,158,11,0.06)' },
+  원활:     { badge: '#15803d', badgeBg: 'rgba(74,222,128,0.12)',  border: 'rgba(74,222,128,0.28)',  glow: 'rgba(74,222,128,0.05)' },
+  과잉재고:  { badge: '#4f46e5', badgeBg: 'rgba(129,140,248,0.12)', border: 'rgba(129,140,248,0.28)', glow: 'rgba(129,140,248,0.05)' },
 };
 function alertColor(type: string): AlertColor {
-  return ALERT_COLORS[type] ?? { badge: '#60a5fa', badgeBg: 'rgba(96,165,250,0.15)', border: 'rgba(96,165,250,0.3)', glow: 'rgba(96,165,250,0.06)' };
+  return ALERT_COLORS[type] ?? { badge: '#2563eb', badgeBg: 'rgba(96,165,250,0.15)', border: 'rgba(96,165,250,0.3)', glow: 'rgba(96,165,250,0.06)' };
 }
 
 // ── 재고일 배지 ───────────────────────────────────────────────────────────────
 function StockDaysBadge({ days }: { days: number | null }) {
-  if (days === null) return <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '1.3rem', fontWeight: 800 }}>-</span>;
-  const color = days <= 0 ? '#ef4444' : days < 7 ? '#f87171' : days < 14 ? '#fb923c' : days < 30 ? '#fbbf24' : '#4ade80';
+  if (days === null) return <span style={{ color: '#94a3b8', fontSize: '1.3rem', fontWeight: 800 }}>-</span>;
+  const color = days <= 0 ? '#b91c1c' : days < 7 ? '#dc2626' : days < 14 ? '#c2410c' : days < 30 ? '#b45309' : '#15803d';
   return <span style={{ fontWeight: 800, color, fontSize: '1.4rem', lineHeight: 1 }}>{days}일</span>;
 }
 
@@ -39,8 +39,8 @@ function StockDaysBadge({ days }: { days: number | null }) {
 function Meta({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-      <span style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.32)', letterSpacing: '0.04em' }}>{label}</span>
-      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: color ?? 'rgba(255,255,255,0.75)' }}>{value}</span>
+      <span style={{ fontSize: '0.63rem', color: '#94a3b8', letterSpacing: '0.04em' }}>{label}</span>
+      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: color ?? '#334155' }}>{value}</span>
     </div>
   );
 }
@@ -53,7 +53,7 @@ function SummaryChip({ count, label, color }: { count: number; label: string; co
       background: `${color}15`, border: `1px solid ${color}40`,
     }}>
       <span style={{ fontSize: '1.4rem', fontWeight: 900, color, lineHeight: 1 }}>{count}</span>
-      <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.55)', fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: '0.8rem', color: '#475569', fontWeight: 600 }}>{label}</span>
     </div>
   );
 }
@@ -69,7 +69,7 @@ function AlertCard({ item, onEdit, onDelete }: {
   return (
     <div style={{
       borderRadius: '14px', padding: '1rem 1.1rem',
-      background: 'rgba(255,255,255,0.035)',
+      background: '#ffffff',
       border: `1px solid ${c.border}`,
       boxShadow: `0 0 20px ${c.glow}`,
       position: 'relative',
@@ -80,14 +80,14 @@ function AlertCard({ item, onEdit, onDelete }: {
             <button onClick={onEdit} style={{
               fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '5px',
               background: 'rgba(96,165,250,0.15)', border: '1px solid rgba(96,165,250,0.3)',
-              color: '#60a5fa', cursor: 'pointer',
+              color: '#2563eb', cursor: 'pointer',
             }}>수정</button>
           )}
           {onDelete && (
             <button onClick={onDelete} style={{
               fontSize: '0.65rem', padding: '0.2rem 0.5rem', borderRadius: '5px',
               background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
-              color: '#f87171', cursor: 'pointer',
+              color: '#dc2626', cursor: 'pointer',
             }}>삭제</button>
           )}
         </div>
@@ -100,8 +100,8 @@ function AlertCard({ item, onEdit, onDelete }: {
           marginTop: '2px',
         }}>{item.alert_type}</span>
         <div>
-          <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff', lineHeight: 1.3, margin: 0 }}>{item.product_name}</p>
-          <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.32)', margin: '2px 0 0' }}>
+          <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111827', lineHeight: 1.3, margin: 0 }}>{item.product_name}</p>
+          <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '2px 0 0' }}>
             {item.product_code} · {item.manufacturer}
           </p>
         </div>
@@ -112,17 +112,17 @@ function AlertCard({ item, onEdit, onDelete }: {
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0.55rem 0.8rem', borderRadius: '10px',
-          background: 'rgba(255,255,255,0.04)', marginBottom: '0.8rem',
+          background: '#f8fafc', marginBottom: '0.8rem',
         }}>
           <div>
-            <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.32)', margin: '0 0 2px', letterSpacing: '0.04em' }}>재고일 (SF대비)</p>
+            <p style={{ fontSize: '0.63rem', color: '#94a3b8', margin: '0 0 2px', letterSpacing: '0.04em' }}>재고일 (SF대비)</p>
             <StockDaysBadge days={item.stock_days} />
           </div>
           <div style={{ textAlign: 'right' }}>
-            <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.32)', margin: '0 0 2px', letterSpacing: '0.04em' }}>잔여재고</p>
+            <p style={{ fontSize: '0.63rem', color: '#94a3b8', margin: '0 0 2px', letterSpacing: '0.04em' }}>잔여재고</p>
             <span style={{
               fontSize: '0.88rem', fontWeight: 700,
-              color: (item.stock_amount ?? -1) <= 0 ? '#ef4444' : 'rgba(255,255,255,0.7)',
+              color: (item.stock_amount ?? -1) <= 0 ? '#dc2626' : '#334155',
             }}>
               {item.stock_amount !== null ? `${item.stock_amount.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 백만` : '-'}
             </span>
@@ -132,22 +132,22 @@ function AlertCard({ item, onEdit, onDelete }: {
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '0.55rem 0.8rem', borderRadius: '10px',
-          background: 'rgba(255,255,255,0.04)', marginBottom: '0.8rem',
+          background: '#f8fafc', marginBottom: '0.8rem',
         }}>
           <div>
-            <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.32)', margin: '0 0 2px', letterSpacing: '0.04em' }}>집계월</p>
-            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>{item.collect_month}</span>
+            <p style={{ fontSize: '0.63rem', color: '#94a3b8', margin: '0 0 2px', letterSpacing: '0.04em' }}>집계월</p>
+            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#334155' }}>{item.collect_month}</span>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <p style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.32)', margin: '0 0 2px', letterSpacing: '0.04em' }}>품절 기간</p>
-            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#fbbf24' }}>{item.stockout_days ?? '-'}</span>
+            <p style={{ fontSize: '0.63rem', color: '#94a3b8', margin: '0 0 2px', letterSpacing: '0.04em' }}>품절 기간</p>
+            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#b45309' }}>{item.stockout_days ?? '-'}</span>
           </div>
         </div>
       ) : null}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.55rem', marginBottom: '0.7rem' }}>
-        <Meta label="품절 시작일" value={fmtDate(item.stockout_start)} color="#fca5a5" />
-        <Meta label={item.collect_month ? '품절 종료일' : '공급 예정일'} value={fmtDate(item.supply_date)} color="#86efac" />
+        <Meta label="품절 시작일" value={fmtDate(item.stockout_start)} color="#dc2626" />
+        <Meta label={item.collect_month ? '품절 종료일' : '공급 예정일'} value={fmtDate(item.supply_date)} color="#059669" />
         {item.collect_month
           ? <Meta label="월평균 매출" value={item.sales_3m !== null ? `${item.sales_3m.toLocaleString('ko-KR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} 백만` : '-'} />
           : <Meta label="품절 기간"   value={item.stockout_days ?? '-'} />
@@ -160,16 +160,16 @@ function AlertCard({ item, onEdit, onDelete }: {
 
       <div style={{
         padding: '0.38rem 0.65rem', borderRadius: '7px',
-        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
-        fontSize: '0.73rem', color: 'rgba(255,255,255,0.48)',
+        background: '#f8fafc', border: '1px solid #e5e9f0',
+        fontSize: '0.73rem', color: '#475569',
       }}>
         원인: {item.cause || '-'}
       </div>
       {item.memo && (
         <div style={{
           marginTop: '0.5rem', padding: '0.38rem 0.65rem', borderRadius: '7px',
-          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
-          fontSize: '0.73rem', color: 'rgba(255,255,255,0.55)', lineHeight: 1.5,
+          background: '#f8fafc', border: '1px solid #e5e9f0',
+          fontSize: '0.73rem', color: '#475569', lineHeight: 1.5,
           whiteSpace: 'pre-wrap',
         }}>
           메모: {item.memo}
@@ -196,7 +196,7 @@ function Section({ title, items, color, onEdit, onDelete }: {
     <div style={{ marginBottom: '1.75rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
         <div style={{ width: '3px', height: '16px', borderRadius: '2px', background: color }} />
-        <h3 style={{ fontSize: '0.82rem', fontWeight: 700, color: 'rgba(255,255,255,0.55)', margin: 0, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+        <h3 style={{ fontSize: '0.82rem', fontWeight: 700, color: '#475569', margin: 0, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
           {title}
         </h3>
         <span style={{ fontSize: '0.75rem', color, fontWeight: 700 }}>({items.length})</span>
@@ -218,12 +218,12 @@ function Section({ title, items, color, onEdit, onDelete }: {
 // ── 폼 입력 스타일 ────────────────────────────────────────────────────────────
 const iStyle: CSSProperties = {
   width: '100%', padding: '0.5rem 0.7rem', borderRadius: '8px',
-  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-  color: '#fff', fontSize: '0.83rem', boxSizing: 'border-box',
+  background: '#ffffff', border: '1px solid #d7dce5',
+  color: '#111827', fontSize: '0.83rem', boxSizing: 'border-box',
   outline: 'none',
 };
 const lStyle: CSSProperties = {
-  fontSize: '0.68rem', color: 'rgba(255,255,255,0.45)', marginBottom: '0.25rem', letterSpacing: '0.04em',
+  fontSize: '0.68rem', color: '#64748b', marginBottom: '0.25rem', letterSpacing: '0.04em',
 };
 
 const EMPTY: StockAlertItem = {
@@ -257,14 +257,14 @@ function ItemFormModal({ initial, onSave, onClose, isPending }: {
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)' }}
       onClick={onClose}
     >
       <div
-        style={{ width: '100%', maxWidth: '520px', margin: '1rem', borderRadius: '16px', background: '#1a1f2e', border: '1px solid rgba(255,255,255,0.12)', padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }}
+        style={{ width: '100%', maxWidth: '520px', margin: '1rem', borderRadius: '16px', background: '#ffffff', border: '1px solid #e5e9f0', padding: '1.5rem', maxHeight: '90vh', overflowY: 'auto' }}
         onClick={e => e.stopPropagation()}
       >
-        <h2 style={{ margin: '0 0 1.25rem', fontSize: '1rem', fontWeight: 700, color: '#fff' }}>
+        <h2 style={{ margin: '0 0 1.25rem', fontSize: '1rem', fontWeight: 700, color: '#111827' }}>
           {initial ? '항목 수정' : '새 항목 추가'}
         </h2>
 
@@ -344,13 +344,13 @@ function ItemFormModal({ initial, onSave, onClose, isPending }: {
         <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem', justifyContent: 'flex-end' }}>
           <button onClick={onClose} disabled={isPending} style={{
             padding: '0.55rem 1.1rem', borderRadius: '8px', fontSize: '0.83rem',
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-            color: 'rgba(255,255,255,0.7)', cursor: 'pointer',
+            background: '#f1f5f9', border: '1px solid #e5e9f0',
+            color: '#475569', cursor: 'pointer',
           }}>취소</button>
           <button onClick={() => { if (canSave) onSave(form); }} disabled={!canSave} style={{
             padding: '0.55rem 1.1rem', borderRadius: '8px', fontSize: '0.83rem', fontWeight: 600,
             background: 'rgba(96,165,250,0.2)', border: '1px solid rgba(96,165,250,0.4)',
-            color: '#60a5fa', cursor: canSave ? 'pointer' : 'not-allowed', opacity: isPending ? 0.7 : 1,
+            color: '#2563eb', cursor: canSave ? 'pointer' : 'not-allowed', opacity: isPending ? 0.7 : 1,
           }}>
             {isPending ? '저장 중...' : '저장'}
           </button>
@@ -448,7 +448,7 @@ export default function InventoryClient({
     <div style={{ marginTop: '1.2rem' }}>
       {/* 파일 정보 */}
       {fileName && (
-        <p style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.28)', marginBottom: '1rem' }}>
+        <p style={{ fontSize: '0.73rem', color: '#64748b', marginBottom: '1rem' }}>
           📂 기준 파일: {fileName}
           {uploadDate && ` · 업로드: ${fmtDate(uploadDate.slice(0, 10))}`}
         </p>
@@ -459,7 +459,7 @@ export default function InventoryClient({
         <div style={{
           padding: '0.9rem 1rem', borderRadius: '10px', marginBottom: '1rem',
           background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
-          color: '#fca5a5', fontSize: '0.83rem',
+          color: '#dc2626', fontSize: '0.83rem',
         }}>
           ⚠️ {error ?? actionError}
         </div>
@@ -472,9 +472,9 @@ export default function InventoryClient({
             <>
               <SummaryChip count={allStockouts.length} label="품절"     color="#ef4444" />
               <SummaryChip count={allForecasts.length} label="품절예측" color="#f59e0b" />
-              <SummaryChip count={allSmooth.length}    label="원활"     color="#4ade80" />
-              <SummaryChip count={allExcess.length}    label="과잉재고" color="#818cf8" />
-              <SummaryChip count={totalCount}          label="전체"     color="#60a5fa" />
+              <SummaryChip count={allSmooth.length}    label="원활"     color="#059669" />
+              <SummaryChip count={allExcess.length}    label="과잉재고" color="#4f46e5" />
+              <SummaryChip count={totalCount}          label="전체"     color="#2563eb" />
             </>
           )}
         </div>
@@ -483,7 +483,7 @@ export default function InventoryClient({
           style={{
             padding: '0.55rem 1.1rem', borderRadius: '8px', fontSize: '0.83rem', fontWeight: 600,
             background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.35)',
-            color: '#4ade80', cursor: 'pointer', whiteSpace: 'nowrap',
+            color: '#059669', cursor: 'pointer', whiteSpace: 'nowrap',
           }}
         >
           + 새 항목 추가
@@ -495,7 +495,7 @@ export default function InventoryClient({
         <div style={{ position: 'relative', flex: 1 }}>
           <span style={{
             position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)',
-            fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none',
+            fontSize: '0.85rem', color: '#94a3b8', pointerEvents: 'none',
           }}>🔍</span>
           <input
             type="text"
@@ -507,9 +507,9 @@ export default function InventoryClient({
               width: '100%', boxSizing: 'border-box',
               padding: '0.55rem 2.4rem 0.55rem 2.2rem',
               borderRadius: '10px', fontSize: '0.85rem',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              color: '#fff', outline: 'none',
+              background: '#f8fafc',
+              border: '1px solid #e5e9f0',
+              color: '#111827', outline: 'none',
             }}
           />
           {query && (
@@ -517,7 +517,7 @@ export default function InventoryClient({
               onClick={() => { setQuery(''); setAppliedQuery(''); }}
               style={{
                 position: 'absolute', right: '0.7rem', top: '50%', transform: 'translateY(-50%)',
-                background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)',
+                background: 'none', border: 'none', color: '#94a3b8',
                 cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1, padding: 0,
               }}
             >✕</button>
@@ -525,13 +525,13 @@ export default function InventoryClient({
         </div>
         <button
           onClick={handleSearch}
-          style={{ padding: '0.53rem 1.1rem', borderRadius: '10px', background: 'rgba(79,142,247,0.18)', border: '1px solid rgba(79,142,247,0.4)', color: '#7eb3ff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+          style={{ padding: '0.53rem 1.1rem', borderRadius: '10px', background: 'rgba(79,142,247,0.18)', border: '1px solid rgba(79,142,247,0.4)', color: '#2563eb', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >검색</button>
       </div>
 
       {/* 데이터 없음 */}
       {totalCount === 0 && !error && (
-        <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.28)', fontSize: '0.83rem' }}>
+        <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b', fontSize: '0.83rem' }}>
           {needle
             ? `"${appliedQuery}"에 해당하는 항목이 없습니다.`
             : '문서관리 > 품절예측 폴더에 파일을 업로드하거나 항목을 직접 추가하세요.'}
@@ -546,10 +546,10 @@ export default function InventoryClient({
         <Section title="🟡 품절 예측" items={allForecasts} color="#f59e0b" onEdit={openEdit} onDelete={openDelete} />
       )}
       {allSmooth.length > 0 && (
-        <Section title="🟢 원활" items={allSmooth} color="#4ade80" onEdit={openEdit} onDelete={openDelete} />
+        <Section title="🟢 원활" items={allSmooth} color="#059669" onEdit={openEdit} onDelete={openDelete} />
       )}
       {allExcess.length > 0 && (
-        <Section title="🔵 과잉재고" items={allExcess} color="#818cf8" onEdit={openEdit} onDelete={openDelete} />
+        <Section title="🔵 과잉재고" items={allExcess} color="#4f46e5" onEdit={openEdit} onDelete={openDelete} />
       )}
 
       {/* 폼 모달 */}

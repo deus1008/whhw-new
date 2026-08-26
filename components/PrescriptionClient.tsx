@@ -20,32 +20,32 @@ function fmtRxMonth(m: string | null): string {
 }
 
 const CARD_STYLE: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: '#ffffff',
+  border: '1px solid #e5e9f0',
   borderRadius: '14px', padding: '1.25rem', marginBottom: '1rem',
 };
 
 const TYPE_COLOR: Record<string, { bg: string; color: string }> = {
-  '의원':       { bg: 'rgba(79,142,247,0.15)',  color: '#7eb3ff' },
-  '병원':       { bg: 'rgba(52,211,153,0.15)',  color: '#6ee7b7' },
-  '종합병원':   { bg: 'rgba(167,139,250,0.15)', color: '#c4b5fd' },
-  '상급종합':   { bg: 'rgba(251,146,60,0.15)',  color: '#fdba74' },
-  '요양병원':   { bg: 'rgba(251,191,36,0.15)',  color: '#fcd34d' },
-  '정신병원':   { bg: 'rgba(244,114,182,0.15)', color: '#f9a8d4' },
+  '의원':       { bg: 'rgba(79,142,247,0.15)',  color: '#1d4ed8' },
+  '병원':       { bg: 'rgba(52,211,153,0.15)',  color: '#15803d' },
+  '종합병원':   { bg: 'rgba(167,139,250,0.15)', color: '#7c3aed' },
+  '상급종합':   { bg: 'rgba(251,146,60,0.15)',  color: '#b45309' },
+  '요양병원':   { bg: 'rgba(251,191,36,0.15)',  color: '#b45309' },
+  '정신병원':   { bg: 'rgba(244,114,182,0.15)', color: '#db2777' },
 };
 
 function typeStyle(t: string) {
   for (const k of Object.keys(TYPE_COLOR)) {
     if (t.includes(k)) return TYPE_COLOR[k];
   }
-  return { bg: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' };
+  return { bg: '#f1f4f9', color: '#64748b' };
 }
 
 function Skel({ w = '100%', h = '0.85rem' }: { w?: string; h?: string }) {
   return (
     <div style={{
       width: w, height: h, borderRadius: '5px',
-      background: 'rgba(255,255,255,0.09)',
+      background: '#e5e9f0',
       animation: 'skel-pulse 1.4s ease-in-out infinite',
     }} />
   );
@@ -98,35 +98,35 @@ function MemoPanel({
     <>
       <div onClick={onClose} style={{
         position: 'fixed', inset: 0, zIndex: 40,
-        background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)',
+        background: 'rgba(15,23,42,0.35)', backdropFilter: 'blur(2px)',
       }} />
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 50,
         width: 'min(420px, 100vw)',
-        background: 'var(--bg-dark, #0f1117)',
-        borderLeft: '1px solid rgba(255,255,255,0.1)',
+        background: '#ffffff',
+        borderLeft: '1px solid #e5e9f0',
         display: 'flex', flexDirection: 'column',
-        boxShadow: '-8px 0 40px rgba(0,0,0,0.5)',
+        boxShadow: '-8px 0 40px rgba(15,23,42,0.10)',
       }}>
         <div style={{
           padding: '1rem 1.25rem',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          borderBottom: '1px solid #e5e9f0',
           display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
         }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', marginBottom: '0.2rem' }}>메모 히스토리</div>
-            <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#fff', wordBreak: 'break-all' }}>
+            <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '0.2rem' }}>메모 히스토리</div>
+            <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#111827', wordBreak: 'break-all' }}>
               {stripCompanyAffix(sourceName)}
             </div>
           </div>
           <button onClick={onClose} style={{
             flexShrink: 0, background: 'none', border: 'none',
-            color: 'rgba(255,255,255,0.4)', fontSize: '1.2rem',
+            color: '#94a3b8', fontSize: '1.2rem',
             cursor: 'pointer', padding: '0.2rem', lineHeight: 1,
           }}>✕</button>
         </div>
 
-        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #e5e9f0' }}>
           <textarea
             ref={textareaRef}
             value={text}
@@ -136,20 +136,20 @@ function MemoPanel({
             onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleAdd(); }}
             style={{
               width: '100%', boxSizing: 'border-box',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              background: '#ffffff',
+              border: '1px solid #d7dce5',
               borderRadius: '8px', padding: '0.65rem 0.75rem',
-              color: '#fff', fontSize: '0.82rem', resize: 'vertical',
+              color: '#111827', fontSize: '0.82rem', resize: 'vertical',
               fontFamily: 'inherit', outline: 'none', lineHeight: 1.55,
             }}
           />
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.5rem' }}>
-            <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.28)' }}>Ctrl+Enter로 저장</span>
+            <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Ctrl+Enter로 저장</span>
             <button onClick={handleAdd} disabled={!text.trim() || saving} style={{
               padding: '0.4rem 1rem', borderRadius: '7px', cursor: text.trim() ? 'pointer' : 'not-allowed',
-              background: text.trim() ? 'rgba(79,142,247,0.2)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${text.trim() ? 'rgba(79,142,247,0.4)' : 'rgba(255,255,255,0.08)'}`,
-              color: text.trim() ? '#7eb3ff' : 'rgba(255,255,255,0.25)',
+              background: text.trim() ? 'rgba(79,142,247,0.2)' : '#f1f5f9',
+              border: `1px solid ${text.trim() ? 'rgba(79,142,247,0.4)' : '#e5e9f0'}`,
+              color: text.trim() ? '#1d4ed8' : '#94a3b8',
               fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.15s',
             }}>
               {saving ? '저장 중...' : '저장'}
@@ -159,33 +159,33 @@ function MemoPanel({
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem 1.25rem' }}>
           {sortedMemos.length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.82rem', marginTop: '2rem' }}>
+            <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.82rem', marginTop: '2rem' }}>
               아직 메모가 없습니다.
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               {sortedMemos.map(m => (
                 <div key={m.id} style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.07)',
+                  background: '#f8fafc',
+                  border: '1px solid #e5e9f0',
                   borderRadius: '10px', padding: '0.75rem 0.9rem',
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#7eb3ff' }}>{m.authorName}</span>
-                      <span style={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.3)' }}>{formatDate(m.createdAt)}</span>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#2563eb' }}>{m.authorName}</span>
+                      <span style={{ fontSize: '0.67rem', color: '#94a3b8' }}>{formatDate(m.createdAt)}</span>
                     </div>
                     {(isAdmin || m.createdBy === userId) && (
                       <button onClick={() => handleDelete(m.id)} disabled={deletingId === m.id} style={{
                         background: 'none', border: 'none', cursor: 'pointer',
-                        color: 'rgba(255,255,255,0.25)', fontSize: '0.72rem', padding: '0.1rem 0.3rem',
+                        color: '#94a3b8', fontSize: '0.72rem', padding: '0.1rem 0.3rem',
                       }}>
                         {deletingId === m.id ? '...' : '삭제'}
                       </button>
                     )}
                   </div>
                   <p style={{
-                    margin: 0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.75)',
+                    margin: 0, fontSize: '0.8rem', color: '#475569',
                     lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                   }}>{m.memo}</p>
                 </div>
@@ -219,8 +219,8 @@ function PrescriptionCard({
     <div
       className="prx-card"
       style={{
-        background: isSelected ? 'rgba(79,142,247,0.08)' : 'rgba(255,255,255,0.03)',
-        border: `1px solid ${isSelected ? 'rgba(79,142,247,0.35)' : 'rgba(255,255,255,0.07)'}`,
+        background: isSelected ? '#e8f0fe' : '#ffffff',
+        border: `1px solid ${isSelected ? '#cdddfb' : '#e5e9f0'}`,
         borderRadius: '14px',
         padding: '1rem 1.1rem',
         display: 'flex', flexDirection: 'column', gap: '0.65rem',
@@ -242,7 +242,7 @@ function PrescriptionCard({
             <span style={{
               fontSize: '0.67rem', fontWeight: 600, borderRadius: '6px',
               padding: '0.15rem 0.5rem', flexShrink: 0,
-              background: 'rgba(251,191,36,0.15)', color: '#fcd34d',
+              background: 'rgba(251,191,36,0.15)', color: '#b45309',
             }}>중복</span>
           )}
         </div>
@@ -250,10 +250,10 @@ function PrescriptionCard({
           onClick={onMemo}
           style={{
             flexShrink: 0,
-            background: mc > 0 ? 'rgba(79,142,247,0.18)' : 'rgba(255,255,255,0.06)',
-            border: `1px solid ${mc > 0 ? 'rgba(79,142,247,0.35)' : 'rgba(255,255,255,0.1)'}`,
+            background: mc > 0 ? 'rgba(79,142,247,0.18)' : '#f1f5f9',
+            border: `1px solid ${mc > 0 ? 'rgba(79,142,247,0.35)' : '#e5e9f0'}`,
             borderRadius: '100px', padding: '0.18rem 0.6rem',
-            color: mc > 0 ? '#7eb3ff' : 'rgba(255,255,255,0.3)',
+            color: mc > 0 ? '#1d4ed8' : '#94a3b8',
             fontSize: '0.7rem', fontWeight: mc > 0 ? 600 : 400,
             cursor: 'pointer', whiteSpace: 'nowrap',
           }}
@@ -263,35 +263,35 @@ function PrescriptionCard({
       </div>
 
       {/* 처방처명 */}
-      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#e2e8f0', lineHeight: 1.35 }}>
-        {name || <span style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>}
+      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#111827', lineHeight: 1.35 }}>
+        {name || <span style={{ color: '#94a3b8' }}>—</span>}
       </div>
 
       {/* 위치 */}
       {loc && (
-        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)', marginTop: '-0.3rem' }}>
+        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '-0.3rem' }}>
           📍 {loc}
         </div>
       )}
 
       {/* 구분선 */}
-      <div style={{ height: '1px', background: 'rgba(255,255,255,0.06)' }} />
+      <div style={{ height: '1px', background: '#e5e9f0' }} />
 
       {/* 수치 스탯 */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
         {[
-          { label: '의사수', value: row.doctorCount, color: 'rgba(255,255,255,0.7)' },
-          { label: '허용품목', value: row.allowedCount, color: '#6ee7b7' },
-          { label: '불가품목', value: row.disallowedCount, color: '#fca5a5' },
-          { label: '회수불가', value: row.unrecoverableCount, color: '#fdba74' },
+          { label: '의사수', value: row.doctorCount, color: '#475569' },
+          { label: '허용품목', value: row.allowedCount, color: '#059669' },
+          { label: '불가품목', value: row.disallowedCount, color: '#dc2626' },
+          { label: '회수불가', value: row.unrecoverableCount, color: '#b45309' },
         ].map(({ label, value, color }) => (
           <div key={label} style={{
-            background: 'rgba(255,255,255,0.04)',
+            background: '#f8fafc',
             borderRadius: '8px', padding: '0.4rem 0.3rem',
             textAlign: 'center',
           }}>
             <div style={{ fontSize: '1rem', fontWeight: 700, color }}>{fmtNum(value) || '0'}</div>
-            <div style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.1rem' }}>{label}</div>
+            <div style={{ fontSize: '0.6rem', color: '#94a3b8', marginTop: '0.1rem' }}>{label}</div>
           </div>
         ))}
       </div>
@@ -300,14 +300,14 @@ function PrescriptionCard({
       {(cso || row.internalManager) && (
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
           {cso && (
-            <span style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.45)' }}>
-              <span style={{ color: 'rgba(255,255,255,0.25)', marginRight: '0.3rem' }}>CSO</span>
+            <span style={{ fontSize: '0.73rem', color: '#94a3b8' }}>
+              <span style={{ color: '#94a3b8', marginRight: '0.3rem' }}>CSO</span>
               {cso}
             </span>
           )}
           {row.internalManager && (
-            <span style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.45)' }}>
-              <span style={{ color: 'rgba(255,255,255,0.25)', marginRight: '0.3rem' }}>담당</span>
+            <span style={{ fontSize: '0.73rem', color: '#94a3b8' }}>
+              <span style={{ color: '#94a3b8', marginRight: '0.3rem' }}>담당</span>
               {row.internalManager}
             </span>
           )}
@@ -315,28 +315,28 @@ function PrescriptionCard({
       )}
 
       {/* 최근 EDI 처방: 처방품목 리스트 + 처방액 */}
-      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.55rem' }}>
+      <div style={{ borderTop: '1px solid #e5e9f0', paddingTop: '0.55rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: rx && rx.products.length ? '0.4rem' : 0 }}>
-          <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
-            최근 처방{rxMonth ? ` (${fmtRxMonth(rxMonth)})` : ''} <span style={{ color: 'rgba(255,255,255,0.25)' }}>· 천원</span>
+          <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>
+            최근 처방{rxMonth ? ` (${fmtRxMonth(rxMonth)})` : ''} <span style={{ color: '#94a3b8' }}>· 천원</span>
           </span>
           {rx && rx.total > 0 && (
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#7eb3ff' }}>{fmtAmt(rx.total)}</span>
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#2563eb' }}>{fmtAmt(rx.total)}</span>
           )}
         </div>
         {rxLoading ? (
-          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>처방 조회 중…</div>
+          <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>처방 조회 중…</div>
         ) : rx && rx.products.length > 0 ? (
           <div style={{ maxHeight: 130, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
             {rx.products.map((p, idx) => (
               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', fontSize: '0.72rem' }}>
-                <span style={{ color: 'rgba(255,255,255,0.7)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.name}>{p.name}</span>
-                <span style={{ color: 'rgba(255,255,255,0.55)', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(p.amount)}</span>
+                <span style={{ color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.name}>{p.name}</span>
+                <span style={{ color: '#475569', flexShrink: 0, fontVariantNumeric: 'tabular-nums' }}>{fmtAmt(p.amount)}</span>
               </div>
             ))}
           </div>
         ) : (
-          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.28)' }}>최근월 EDI 처방 없음</div>
+          <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>최근월 EDI 처방 없음</div>
         )}
       </div>
     </div>
@@ -447,33 +447,33 @@ function NetworkSummary({ rows }: { rows: PrescriptionRow[] }) {
 
   const TH: React.CSSProperties = {
     padding: '0.45rem 0.6rem', fontSize: '0.7rem', fontWeight: 600,
-    color: 'rgba(255,255,255,0.45)', whiteSpace: 'nowrap', textAlign: 'center',
-    borderBottom: '1px solid rgba(255,255,255,0.07)',
+    color: '#94a3b8', whiteSpace: 'nowrap', textAlign: 'center',
+    borderBottom: '1px solid #e5e9f0',
   };
   const TD: React.CSSProperties = {
     padding: '0.38rem 0.5rem', fontSize: '0.78rem', textAlign: 'center',
-    borderBottom: '1px solid rgba(255,255,255,0.04)',
+    borderBottom: '1px solid #eaeef4',
   };
 
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      background: '#ffffff',
+      border: '1px solid #e5e9f0',
       borderRadius: '14px', marginBottom: '1.25rem', overflow: 'hidden',
     }}>
       {/* 헤더 */}
       <div style={{
         padding: '0.85rem 1.1rem',
-        borderBottom: '1px solid rgba(255,255,255,0.07)',
+        borderBottom: '1px solid #e5e9f0',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem',
       }}>
         <div>
-          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0' }}>영업 네트워크 현황</div>
-          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.15rem' }}>시도 × 종별 처방처 수</div>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111827' }}>영업 네트워크 현황</div>
+          <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.15rem' }}>시도 × 종별 처방처 수</div>
         </div>
         <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#7eb3ff', lineHeight: 1 }}>{grand.toLocaleString()}</div>
-          <div style={{ fontSize: '0.67rem', color: 'rgba(255,255,255,0.35)', marginTop: '0.1rem' }}>총 처방처</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#2563eb', lineHeight: 1 }}>{grand.toLocaleString()}</div>
+          <div style={{ fontSize: '0.67rem', color: '#94a3b8', marginTop: '0.1rem' }}>총 처방처</div>
         </div>
       </div>
 
@@ -482,7 +482,7 @@ function NetworkSummary({ rows }: { rows: PrescriptionRow[] }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: `${(types.length + 2) * 70}px` }}>
           <thead>
             <tr>
-              <th style={{ ...TH, textAlign: 'left', minWidth: '72px', position: 'sticky', left: 0, background: 'rgba(15,17,23,0.97)', borderRight: '1px solid rgba(255,255,255,0.07)' }}>시도</th>
+              <th style={{ ...TH, textAlign: 'left', minWidth: '72px', position: 'sticky', left: 0, background: '#f1f4f9', borderRight: '1px solid #e5e9f0' }}>시도</th>
               {types.map(t => {
                 const ts = typeStyle(t);
                 return (
@@ -491,7 +491,7 @@ function NetworkSummary({ rows }: { rows: PrescriptionRow[] }) {
                   </th>
                 );
               })}
-              <th style={{ ...TH, color: 'rgba(255,255,255,0.6)', borderLeft: '1px solid rgba(255,255,255,0.07)' }}>합계</th>
+              <th style={{ ...TH, color: '#475569', borderLeft: '1px solid #e5e9f0' }}>합계</th>
             </tr>
           </thead>
           <tbody>
@@ -502,9 +502,9 @@ function NetworkSummary({ rows }: { rows: PrescriptionRow[] }) {
                 <tr key={sido}>
                   <td style={{
                     ...TD, textAlign: 'left', fontWeight: 600, fontSize: '0.75rem',
-                    color: 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap',
-                    position: 'sticky', left: 0, background: 'rgba(15,17,23,0.95)',
-                    borderRight: '1px solid rgba(255,255,255,0.07)',
+                    color: '#475569', whiteSpace: 'nowrap',
+                    position: 'sticky', left: 0, background: '#ffffff',
+                    borderRight: '1px solid #e5e9f0',
                     padding: '0.38rem 0.75rem',
                   }}>{sido}</td>
                   {types.map(t => {
@@ -513,7 +513,7 @@ function NetworkSummary({ rows }: { rows: PrescriptionRow[] }) {
                       <td key={t} style={{
                         ...TD,
                         background: cellBg(n),
-                        color: n ? '#e2e8f0' : 'rgba(255,255,255,0.12)',
+                        color: n ? '#111827' : '#cbd5e1',
                         fontWeight: n > 0 ? 600 : 400,
                         transition: 'background 0.15s',
                       }}>
@@ -523,29 +523,29 @@ function NetworkSummary({ rows }: { rows: PrescriptionRow[] }) {
                   })}
                   <td style={{
                     ...TD,
-                    fontWeight: 700, color: '#7eb3ff',
-                    borderLeft: '1px solid rgba(255,255,255,0.07)',
+                    fontWeight: 700, color: '#2563eb',
+                    borderLeft: '1px solid #e5e9f0',
                   }}>{fmtNum(total)}</td>
                 </tr>
               );
             })}
           </tbody>
           <tfoot>
-            <tr style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+            <tr style={{ borderTop: '1px solid #e5e9f0' }}>
               <td style={{
                 ...TD, textAlign: 'left', fontSize: '0.72rem', fontWeight: 700,
-                color: 'rgba(255,255,255,0.5)', padding: '0.45rem 0.75rem',
-                position: 'sticky', left: 0, background: 'rgba(15,17,23,0.97)',
-                borderRight: '1px solid rgba(255,255,255,0.07)',
+                color: '#475569', padding: '0.45rem 0.75rem',
+                position: 'sticky', left: 0, background: '#f1f4f9',
+                borderRight: '1px solid #e5e9f0',
               }}>합계</td>
               {types.map(t => (
-                <td key={t} style={{ ...TD, fontWeight: 700, color: 'rgba(255,255,255,0.65)', fontSize: '0.75rem' }}>
+                <td key={t} style={{ ...TD, fontWeight: 700, color: '#475569', fontSize: '0.75rem' }}>
                   {fmtNum(typeTotals.get(t) ?? 0)}
                 </td>
               ))}
               <td style={{
-                ...TD, fontWeight: 800, color: '#7eb3ff', fontSize: '0.85rem',
-                borderLeft: '1px solid rgba(255,255,255,0.07)',
+                ...TD, fontWeight: 800, color: '#2563eb', fontSize: '0.85rem',
+                borderLeft: '1px solid #e5e9f0',
               }}>{fmtNum(grand)}</td>
             </tr>
           </tfoot>
@@ -700,9 +700,9 @@ export default function PrescriptionClient({
   }, [filtered]);
 
   // 현재 페이지 병원들의 최신월 EDI 처방 조회 (결과는 rxMap에 누적)
-  const pagedNamesKey = paged.map(r => r.sourceName).join('\u0001');
+  const pagedNamesKey = paged.map(r => r.sourceName).join('');
   useEffect(() => {
-    const names = pagedNamesKey ? pagedNamesKey.split('\u0001') : [];
+    const names = pagedNamesKey ? pagedNamesKey.split('') : [];
     if (!names.length) return;
     let cancelled = false;
     setRxLoading(true);
@@ -727,7 +727,7 @@ export default function PrescriptionClient({
 
   if (files.length === 0) {
     return (
-      <div style={{ ...CARD_STYLE, textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', padding: '2.5rem' }}>
+      <div style={{ ...CARD_STYLE, textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', padding: '2.5rem' }}>
         <div style={{ fontSize: '1.5rem', marginBottom: '0.6rem', opacity: 0.4 }}>📄</div>
         문서관리 &gt; 처방처현황 폴더에 업로드된 파일이 없습니다.
       </div>
@@ -738,13 +738,13 @@ export default function PrescriptionClient({
     <>
       <style>{`
         @keyframes skel-pulse { 0%,100%{opacity:.3} 50%{opacity:.65} }
-        .prx-card:hover { border-color: rgba(255,255,255,0.14) !important; background: rgba(255,255,255,0.055) !important; }
+        .prx-card:hover { border-color: #d7dce5 !important; background: #f8fafc !important; }
       `}</style>
 
       {/* 검색바 + 정렬 */}
       <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
         <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
-          <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none' }}>🔍</span>
+          <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }}>🔍</span>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -752,10 +752,10 @@ export default function PrescriptionClient({
             placeholder="처방처명, 시도, 종별, 담당자 등 검색..."
             style={{
               width: '100%', boxSizing: 'border-box',
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.12)',
+              background: '#ffffff',
+              border: '1px solid #d7dce5',
               borderRadius: '10px', padding: '0.55rem 0.75rem 0.55rem 2.2rem',
-              color: '#fff', fontSize: '0.82rem', outline: 'none',
+              color: '#111827', fontSize: '0.82rem', outline: 'none',
             }}
           />
         </div>
@@ -765,7 +765,7 @@ export default function PrescriptionClient({
             padding: '0.53rem 1.2rem', borderRadius: '10px', cursor: 'pointer',
             background: 'rgba(79,142,247,0.18)',
             border: '1px solid rgba(79,142,247,0.4)',
-            color: '#7eb3ff', fontSize: '0.82rem', fontWeight: 600,
+            color: '#1d4ed8', fontSize: '0.82rem', fontWeight: 600,
             flexShrink: 0, whiteSpace: 'nowrap',
           }}
         >검색</button>
@@ -775,10 +775,10 @@ export default function PrescriptionClient({
           value={sortKey ?? ''}
           onChange={e => { setSortKey((e.target.value || null) as SortKey); setPage(1); }}
           style={{
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.12)',
+            background: '#ffffff',
+            border: '1px solid #d7dce5',
             borderRadius: '10px', padding: '0.53rem 0.75rem',
-            color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', outline: 'none', cursor: 'pointer',
+            color: '#111827', fontSize: '0.8rem', outline: 'none', cursor: 'pointer',
           }}
         >
           <option value="">정렬 기준</option>
@@ -792,9 +792,9 @@ export default function PrescriptionClient({
             onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
             style={{
               padding: '0.5rem 0.8rem', borderRadius: '10px', cursor: 'pointer',
-              background: 'rgba(255,255,255,0.06)',
-              border: '1px solid rgba(255,255,255,0.12)',
-              color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem',
+              background: '#f1f5f9',
+              border: '1px solid #e5e9f0',
+              color: '#334155', fontSize: '0.8rem',
               flexShrink: 0,
             }}
           >{sortDir === 'asc' ? '↑ 오름차순' : '↓ 내림차순'}</button>
@@ -809,13 +809,13 @@ export default function PrescriptionClient({
               marginLeft: 'auto', padding: '0.5rem 0.95rem', borderRadius: '10px',
               cursor: filtered.length ? 'pointer' : 'not-allowed',
               background: 'rgba(52,211,153,0.14)', border: '1px solid rgba(52,211,153,0.4)',
-              color: '#6ee7b7', fontSize: '0.8rem', fontWeight: 600, flexShrink: 0,
+              color: '#15803d', fontSize: '0.8rem', fontWeight: 600, flexShrink: 0,
               opacity: filtered.length ? 1 : 0.45, whiteSpace: 'nowrap',
             }}
           >⬇ 다운로드</button>
         )}
         {!loading && (
-          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8', flexShrink: 0 }}>
             {filtered.length !== rows.length
               ? `${filtered.length} / ${rows.length}건`
               : `총 ${rows.length}건`}
@@ -826,11 +826,11 @@ export default function PrescriptionClient({
       {/* 오류 */}
       {fetchError && !loading && (
         <div style={{ ...CARD_STYLE, textAlign: 'center', padding: '2rem' }}>
-          <div style={{ color: '#fca5a5', marginBottom: '0.75rem' }}>파일을 불러오는 중 오류가 발생했습니다.</div>
+          <div style={{ color: '#dc2626', marginBottom: '0.75rem' }}>파일을 불러오는 중 오류가 발생했습니다.</div>
           <button onClick={loadAll} style={{
             padding: '0.45rem 1.2rem', borderRadius: '8px', cursor: 'pointer',
             background: 'rgba(79,142,247,0.15)', border: '1px solid rgba(79,142,247,0.35)',
-            color: '#7eb3ff', fontSize: '0.82rem',
+            color: '#1d4ed8', fontSize: '0.82rem',
           }}>다시 시도</button>
         </div>
       )}
@@ -864,7 +864,7 @@ export default function PrescriptionClient({
       {!loading && !fetchError && rows.length > 0 && (
         <>
           {paged.length === 0 ? (
-            <div style={{ ...CARD_STYLE, textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '0.85rem', padding: '3rem' }}>
+            <div style={{ ...CARD_STYLE, textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem', padding: '3rem' }}>
               검색 결과가 없습니다.
             </div>
           ) : (
@@ -895,11 +895,11 @@ export default function PrescriptionClient({
                 disabled={page === 1}
                 style={{
                   padding: '0.3rem 0.85rem', borderRadius: '8px', cursor: page > 1 ? 'pointer' : 'not-allowed',
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: page > 1 ? '#fff' : 'rgba(255,255,255,0.25)', fontSize: '0.78rem',
+                  background: '#f1f5f9', border: '1px solid #e5e9f0',
+                  color: page > 1 ? '#111827' : '#94a3b8', fontSize: '0.78rem',
                 }}
               >이전</button>
-              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                 {page} / {totalPages}
               </span>
               <button
@@ -907,8 +907,8 @@ export default function PrescriptionClient({
                 disabled={page === totalPages}
                 style={{
                   padding: '0.3rem 0.85rem', borderRadius: '8px', cursor: page < totalPages ? 'pointer' : 'not-allowed',
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  color: page < totalPages ? '#fff' : 'rgba(255,255,255,0.25)', fontSize: '0.78rem',
+                  background: '#f1f5f9', border: '1px solid #e5e9f0',
+                  color: page < totalPages ? '#111827' : '#94a3b8', fontSize: '0.78rem',
                 }}
               >다음</button>
             </div>

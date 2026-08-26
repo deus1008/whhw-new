@@ -341,7 +341,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
   // DC 단계 상수
   const DC_STAGES = ['준비중', '접수', '코드인', '탈락'] as const;
   const DC_COLORS: Record<string, string> = {
-    준비중: '#94a3b8', 접수: '#fbbf24', 코드인: '#4ade80', 탈락: '#f87171',
+    준비중: '#64748b', 접수: '#b45309', 코드인: '#059669', 탈락: '#dc2626',
   };
 
   return (
@@ -350,49 +350,50 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       <style>{`
         /* ── 공통 ── */
         .dash-section {
-          background: rgba(255,255,255,0.04);
-          border: 1px solid rgba(255,255,255,0.08);
+          background: #ffffff;
+          border: 1px solid #e5e9f0;
           border-radius: 14px;
           padding: 1.1rem 1rem;
           margin-bottom: 1rem;
         }
         .section-title {
           font-size: 0.98rem; font-weight: 700; margin-bottom: 0.9rem;
-          background: linear-gradient(135deg,#fff 0%,#a8c4ff 100%);
+          background: linear-gradient(135deg,#1e293b 0%,#2563eb 100%);
           -webkit-background-clip: text; -webkit-text-fill-color: transparent;
           background-clip: text;
         }
         .sub-title {
-          font-size: 0.78rem; font-weight: 600; color: rgba(255,255,255,0.5);
+          font-size: 0.78rem; font-weight: 600; color: #475569;
           margin: 0.9rem 0 0.45rem; letter-spacing: 0.03em;
           text-transform: uppercase;
         }
         .dash-table { width: 100%; border-collapse: collapse; }
         .dash-table th {
           padding: 0.35rem 0.5rem; font-size: 0.72rem;
-          color: rgba(255,255,255,0.45); font-weight: 600;
-          border-bottom: 1px solid rgba(255,255,255,0.08);
+          color: #475569; font-weight: 600;
+          background: #f1f4f9;
+          border-bottom: 1px solid #e5e9f0;
           white-space: nowrap;
         }
         .dash-table td {
           padding: 0.4rem 0.5rem; font-size: 0.82rem;
-          border-bottom: 1px solid rgba(255,255,255,0.04);
+          border-bottom: 1px solid #eaeef4;
           vertical-align: middle;
         }
         .dash-table tr:last-child td { border-bottom: none; }
         .dash-table .right { text-align: right; }
         .dash-table .center { text-align: center; }
         .dash-table .bold { font-weight: 700; }
-        .dash-table .muted { color: rgba(255,255,255,0.38); }
+        .dash-table .muted { color: #94a3b8; }
         .dash-table .total-row td {
-          font-weight: 700; color: #a8c4ff;
-          border-top: 1px solid rgba(255,255,255,0.12);
+          font-weight: 700; color: #2563eb;
+          border-top: 1px solid #d7dce5;
         }
-        .up { color: #4ade80; }
-        .dn { color: #f87171; }
-        .muted { color: rgba(255,255,255,0.38); }
+        .up { color: #059669; }
+        .dn { color: #dc2626; }
+        .muted { color: #94a3b8; }
         .empty-msg {
-          font-size: 0.8rem; color: rgba(255,255,255,0.35);
+          font-size: 0.8rem; color: #94a3b8;
           text-align: center; padding: 1rem 0; margin: 0;
         }
         .badge-clinic  { }
@@ -400,25 +401,25 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         .print-btn {
           display: flex; align-items: center; gap: 0.4rem;
           padding: 0.4rem 0.9rem; border-radius: 8px;
-          background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
-          color: rgba(255,255,255,0.7); font-size: 0.8rem; font-weight: 600;
+          background: #f1f5f9; border: 1px solid #e5e9f0;
+          color: #475569; font-size: 0.8rem; font-weight: 600;
           cursor: pointer; font-family: inherit; margin-bottom: 0.75rem;
           transition: background 0.15s;
         }
-        .print-btn:hover { background: rgba(255,255,255,0.10); }
+        .print-btn:hover { background: #e5e9f0; }
         .print-header { display: none; }
         .schedule-list { list-style: none; padding: 0; margin: 0; }
         .schedule-item {
           display: flex; gap: 0.5rem; align-items: flex-start;
-          padding: 0.35rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+          padding: 0.35rem 0; border-bottom: 1px solid #eaeef4;
           font-size: 0.8rem;
         }
         .schedule-item:last-child { border-bottom: none; }
-        .schedule-date { color: rgba(255,255,255,0.45); white-space: nowrap; min-width: 60px; }
-        .schedule-title { color: rgba(255,255,255,0.85); flex: 1; }
+        .schedule-date { color: #94a3b8; white-space: nowrap; min-width: 60px; }
+        .schedule-title { color: #334155; flex: 1; }
         .schedule-tag {
           font-size: 0.68rem; padding: 0.05rem 0.35rem; border-radius: 3px;
-          background: rgba(168,85,247,0.15); color: #d8b4fe; white-space: nowrap;
+          background: rgba(168,85,247,0.15); color: #7c3aed; white-space: nowrap;
         }
         .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
         @media (max-width: 600px) { .two-col { grid-template-columns: 1fr; } }
@@ -505,7 +506,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
 
       {/* ── 인쇄 버튼 + 단위 표기 ──────────────────────────────── */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-        <span className="unit-label" style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', fontWeight: 600, letterSpacing: '0.03em' }}>
+        <span className="unit-label" style={{ fontSize: '0.78rem', color: '#475569', fontWeight: 600, letterSpacing: '0.03em' }}>
           단위: 천원
         </span>
         <button className="print-btn" onClick={() => window.print()} style={{ marginBottom: 0 }}>
@@ -622,8 +623,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         ) : (
           <>
             {([
-              { label: '▸ 상위 10 품목 (최신월 EDI 기준)', items: top10Products,    isTop: true,  accentColor: '#4ade80' },
-              { label: '▸ 하위 10 품목 (최신월 EDI 기준)', items: bottom10Products, isTop: false, accentColor: '#f87171' },
+              { label: '▸ 상위 10 품목 (최신월 EDI 기준)', items: top10Products,    isTop: true,  accentColor: '#059669' },
+              { label: '▸ 하위 10 품목 (최신월 EDI 기준)', items: bottom10Products, isTop: false, accentColor: '#dc2626' },
             ] as { label: string; items: ProductRankItem[]; isTop: boolean; accentColor: string }[]).map(({ label, items, isTop, accentColor }) => (
               items.length > 0 && (
                 <div key={label} style={{ marginBottom: '0.5rem' }}>
@@ -641,7 +642,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       <tbody>
                         {items.map((p, i) => (
                           <tr key={p.name}>
-                            <td className="center" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>
+                            <td className="center" style={{ color: '#94a3b8', fontSize: '0.78rem' }}>
                               {isTop ? i + 1 : `▼${i + 1}`}
                             </td>
                             <td style={{ maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>{p.name}</td>
@@ -681,7 +682,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
               {(['품절', '예측'] as const).map(type => {
                 const cnt = stockItems.filter(i => i.alert_type === type).length;
-                const color = type === '품절' ? '#ef4444' : '#f59e0b';
+                const color = type === '품절' ? '#dc2626' : '#b45309';
                 return (
                   <div key={type} style={{
                     display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
@@ -689,7 +690,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                     background: `${color}14`, border: `1px solid ${color}33`,
                   }}>
                     <span style={{ fontSize: '1rem', fontWeight: 700, color, lineHeight: 1 }}>{cnt}</span>
-                    <span style={{ fontSize: '0.73rem', color: 'rgba(255,255,255,0.6)' }}>{type}</span>
+                    <span style={{ fontSize: '0.73rem', color: '#475569' }}>{type}</span>
                   </div>
                 );
               })}
@@ -709,14 +710,14 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 </thead>
                 <tbody>
                   {stockItems.map((item, idx) => {
-                    const color = item.alert_type === '품절' ? '#ef4444' : '#f59e0b';
+                    const color = item.alert_type === '품절' ? '#dc2626' : '#b45309';
                     const dayColor =
-                      item.stock_days === null   ? 'rgba(255,255,255,0.4)'
-                      : item.stock_days <= 0     ? '#ef4444'
-                      : item.stock_days < 7      ? '#f87171'
-                      : item.stock_days < 14     ? '#fb923c'
-                      : item.stock_days < 30     ? '#fbbf24'
-                      : '#4ade80';
+                      item.stock_days === null   ? '#94a3b8'
+                      : item.stock_days <= 0     ? '#b91c1c'
+                      : item.stock_days < 7      ? '#dc2626'
+                      : item.stock_days < 14     ? '#ea580c'
+                      : item.stock_days < 30     ? '#b45309'
+                      : '#059669';
                     const fmtD = (s: string | null) => {
                       if (!s) return '-';
                       const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -750,8 +751,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </div>
 
             {stockFileName && (
-              <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.5rem', textAlign: 'right' }}>
-                출처: {stockFileName} · <a href="/inventory" style={{ color: '#a5b4fc' }}>품절현황</a>
+              <p style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.5rem', textAlign: 'right' }}>
+                출처: {stockFileName} · <a href="/inventory" style={{ color: '#2563eb' }}>품절현황</a>
               </p>
             )}
           </>
@@ -889,8 +890,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
       <Section title="📄 CSO 제약사 동향" id="s6">
         {(() => {
           const TYPE_C: Record<string, string> = {
-            '신제품출시': '#6ee7b7', '정책변경': '#93c5fd', '이슈사항': '#fca5a5',
-            '현장동향': '#fcd34d', '기타': '#cbd5e1',
+            '신제품출시': '#059669', '정책변경': '#2563eb', '이슈사항': '#dc2626',
+            '현장동향': '#b45309', '기타': '#64748b',
           };
           const hasAny = csoTrends.some(c => c.items.length > 0);
 
@@ -912,26 +913,26 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                       return (
                         <tr key={c.company} style={{ opacity: on ? 1 : 0.45 }}>
                           <td className="center muted">{idx + 1}</td>
-                          <td style={{ fontWeight: 700, color: on ? '#e9d5ff' : 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>
+                          <td style={{ fontWeight: 700, color: on ? '#7c3aed' : '#94a3b8', whiteSpace: 'nowrap' }}>
                             {c.company}
-                            {c.total > 0 && <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontWeight: 400 }}> {c.total}건</span>}
+                            {c.total > 0 && <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 400 }}> {c.total}건</span>}
                           </td>
                           <td style={{ fontSize: '0.83rem', lineHeight: 1.6 }}>
-                            {!on ? <span style={{ color: 'rgba(255,255,255,0.3)' }}>수집된 기사 없음</span> : (
+                            {!on ? <span style={{ color: '#94a3b8' }}>수집된 기사 없음</span> : (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                 {c.items.map(it => (
                                   <div key={it.id} style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem' }}>
-                                    <span style={{ fontSize: '0.7rem', fontFamily: 'monospace', color: 'rgba(255,255,255,0.35)', minWidth: '3.1rem', flexShrink: 0 }}>
+                                    <span style={{ fontSize: '0.7rem', fontFamily: 'monospace', color: '#94a3b8', minWidth: '3.1rem', flexShrink: 0 }}>
                                       {it.date ? it.date.slice(2).replace(/-/g, '.') : '—'}
                                     </span>
                                     <span style={{ fontSize: '0.63rem', fontWeight: 700, color: TYPE_C[it.type] ?? '#cbd5e1', flexShrink: 0, minWidth: '3.6rem' }}>
                                       {it.type}
                                     </span>
-                                    <span style={{ flex: 1, color: 'rgba(255,255,255,0.85)' }}>
+                                    <span style={{ flex: 1, color: '#334155' }}>
                                       {it.url
-                                        ? <a href={it.url} target="_blank" rel="noreferrer" style={{ color: 'rgba(255,255,255,0.85)', textDecoration: 'none' }}>{it.title}</a>
+                                        ? <a href={it.url} target="_blank" rel="noreferrer" style={{ color: '#334155', textDecoration: 'none' }}>{it.title}</a>
                                         : it.title}
-                                      {it.summary && <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.76rem' }}> — {it.summary}</span>}
+                                      {it.summary && <span style={{ color: '#64748b', fontSize: '0.76rem' }}> — {it.summary}</span>}
                                     </span>
                                   </div>
                                 ))}
@@ -949,8 +950,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 <Empty msg="업계동향 페이지에서 뉴스를 수집하거나 동향을 직접 입력하면 자동 표시됩니다." />
               )}
 
-              <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.7rem', textAlign: 'right' }}>
-                업체별 전체 동향·현장청취 보기 · <a href="/competitor-intel" style={{ color: '#a5b4fc' }}>업계동향</a>
+              <p style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.7rem', textAlign: 'right' }}>
+                업체별 전체 동향·현장청취 보기 · <a href="/competitor-intel" style={{ color: '#4f46e5' }}>업계동향</a>
               </p>
             </>
           );
@@ -1026,7 +1027,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 {dcItems.slice(0, 30).map(d => (
                   <tr key={d.id}>
                     <td className="center" style={{
-                      color: DC_COLORS[d.category] ?? 'rgba(255,255,255,0.5)',
+                      color: DC_COLORS[d.category] ?? '#64748b',
                       fontWeight: 600, fontSize: '0.78rem', whiteSpace: 'nowrap',
                     }}>
                       {d.category}
@@ -1047,8 +1048,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           </div>
         )}
 
-        <p style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.5rem', textAlign: 'right' }}>
-          전체 보기 → <a href="/dc" style={{ color: '#a5b4fc' }}>DC현황</a>
+        <p style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.5rem', textAlign: 'right' }}>
+          전체 보기 → <a href="/dc" style={{ color: '#4f46e5' }}>DC현황</a>
         </p>
       </Section>
 
@@ -1083,7 +1084,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
                 <tr key={i}>
                   <td style={{ whiteSpace: 'nowrap' }}>{v.personName}</td>
                   <td style={{ maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.customerName}</td>
-                  <td style={{ maxWidth: '84px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: v.contactName ? '#fff' : 'rgba(255,255,255,0.3)' }}>
+                  <td style={{ maxWidth: '84px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: v.contactName ? '#fff' : '#94a3b8' }}>
                     {v.contactName ?? '-'}
                   </td>
                   <td style={{ lineHeight: 1.5, maxWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.content}</td>
@@ -1139,11 +1140,11 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
         <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.6rem' }}>
           {isEditingMemo ? (
             <>
-              <button onClick={handleSave} style={memoBtn('#4ade80', 'rgba(74,222,128,0.15)', 'rgba(74,222,128,0.35)')}>
+              <button onClick={handleSave} style={memoBtn('#059669', 'rgba(74,222,128,0.15)', 'rgba(74,222,128,0.35)')}>
                 저장
               </button>
               {savedMemo && (
-                <button onClick={handleCancel} style={memoBtn('rgba(255,255,255,0.55)', 'rgba(255,255,255,0.05)', 'rgba(255,255,255,0.15)')}>
+                <button onClick={handleCancel} style={memoBtn('#64748b', '#f8fafc', '#d7dce5')}>
                   취소
                 </button>
               )}
@@ -1154,7 +1155,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             </button>
           )}
           {justSaved && (
-            <span style={{ fontSize: '0.78rem', color: '#4ade80', marginLeft: '0.3rem' }}>✓ 저장됨</span>
+            <span style={{ fontSize: '0.78rem', color: '#059669', marginLeft: '0.3rem' }}>✓ 저장됨</span>
           )}
         </div>
 
@@ -1169,8 +1170,8 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             rows={6}
             style={{
               width: '100%', padding: '0.7rem 0.8rem',
-              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.18)',
-              borderRadius: '8px', color: 'rgba(255,255,255,0.85)',
+              background: '#f8fafc', border: '1px solid #d7dce5',
+              borderRadius: '8px', color: '#334155',
               fontSize: '0.83rem', lineHeight: 1.65, resize: 'vertical',
               fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box',
             }}
@@ -1183,9 +1184,9 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
             className="no-print"
             style={{
               whiteSpace: 'pre-wrap', fontSize: '0.83rem', lineHeight: 1.7,
-              background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+              background: '#ffffff', border: '1px solid #f1f5f9',
               borderRadius: '8px', padding: '0.7rem 0.8rem',
-              minHeight: '80px', color: savedMemo ? 'rgba(255,255,255,0.82)' : 'rgba(255,255,255,0.25)',
+              minHeight: '80px', color: savedMemo ? '#334155' : '#cbd5e1',
             }}
           >
             {savedMemo || '저장된 메모가 없습니다.'}
@@ -1212,7 +1213,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           .memo-print { display: block !important; }
         }
         .memo-area:focus { border-color: rgba(99,102,241,0.5) !important; box-shadow: 0 0 0 2px rgba(99,102,241,0.15); }
-        .memo-area::placeholder { color: rgba(255,255,255,0.22); }
+        .memo-area::placeholder { color: #cbd5e1; }
         .memo-btn:hover { opacity: 0.8; }
       `}</style>
     </>

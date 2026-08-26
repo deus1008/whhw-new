@@ -54,19 +54,19 @@ function fmtMonth(m: string | null): string {
 
 /* ── 공통 스타일 ── */
 const CARD: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: '#f8fafc',
+  border: '1px solid #f1f5f9',
   borderRadius: '14px', padding: '1rem', marginBottom: '0.75rem',
 };
 const TH: React.CSSProperties = {
   padding: '0.4rem 0.6rem', fontSize: '0.7rem', color: 'var(--text-muted)',
   fontWeight: 600, whiteSpace: 'nowrap',
-  borderBottom: '1px solid rgba(255,255,255,0.08)', textAlign: 'right',
+  borderBottom: '1px solid #f1f5f9', textAlign: 'right',
 };
 const TH_L: React.CSSProperties = { ...TH, textAlign: 'left' };
 const TD: React.CSSProperties = {
   padding: '0.4rem 0.6rem', fontSize: '0.78rem', whiteSpace: 'nowrap',
-  borderBottom: '1px solid rgba(255,255,255,0.04)', textAlign: 'right',
+  borderBottom: '1px solid #f8fafc', textAlign: 'right',
 };
 const TD_L: React.CSSProperties = { ...TD, textAlign: 'left' };
 
@@ -74,8 +74,8 @@ const TD_L: React.CSSProperties = { ...TD, textAlign: 'left' };
 function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div style={{
-      flex: 1, minWidth: '130px', background: 'rgba(255,255,255,0.05)',
-      border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '0.85rem 1rem',
+      flex: 1, minWidth: '130px', background: '#f8fafc',
+      border: '1px solid #f1f5f9', borderRadius: '12px', padding: '0.85rem 1rem',
     }}>
       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>{label}</div>
       <div style={{ fontSize: '1rem', fontWeight: 700, color: color ?? '#fff' }}>{value}</div>
@@ -117,7 +117,7 @@ function ShowMoreRow({ hidden, onShow, onHide }: { hidden: number; onShow: () =>
     <tr>
       <td colSpan={5} style={{ textAlign: 'center', padding: '0.5rem' }}>
         <button onClick={onShow} style={{
-          background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+          background: '#f1f5f9', border: '1px solid #e5e9f0',
           borderRadius: '6px', color: 'var(--text-muted)', fontSize: '0.75rem',
           padding: '0.3rem 1rem', cursor: 'pointer', fontFamily: 'inherit',
         }}>
@@ -144,7 +144,7 @@ function ShowMoreRow({ hidden, onShow, onHide }: { hidden: number; onShow: () =>
 function AccordionTable({
   title, tree, totalPresc, totalSett, totalCnt,
   accentL1, accentL2, accentL3,
-  colorPresc = '#a8c4ff', colorSett = '#4ade80', colorRate = '#fbbf24',
+  colorPresc = '#a8c4ff', colorSett = '#059669', colorRate = '#b45309',
   l1Label,
 }: AccordionTableProps) {
   const [openL1, setOpenL1] = useState<string | null>(null);
@@ -193,7 +193,7 @@ function AccordionTable({
                     style={{ cursor: 'pointer', background: l1Open ? accentL1 : undefined }}>
                     <td style={{ ...TD_L, fontWeight: 600 }}>
                       <span style={{ marginRight: '0.4rem', fontSize: '0.68rem', opacity: 0.55 }}>{l1Open ? '▲' : '▶'}</span>
-                      <span style={{ color: l1Open ? '#c4b5fd' : '#e2e8f0' }}>{l1.name}</span>
+                      <span style={{ color: l1Open ? '#7c3aed' : '#e2e8f0' }}>{l1.name}</span>
                     </td>
                     <td style={{ ...TD, color: colorPresc }}>{fmtChun(l1.presc)}</td>
                     <td style={{ ...TD, color: colorSett, fontWeight: 600 }}>{fmtChun(l1.sett)}</td>
@@ -273,8 +273,8 @@ function AccordionTable({
             )}
 
             {/* 합계 행 */}
-            <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-              <td style={{ ...TD_L, fontWeight: 700, color: '#fff' }}>합계</td>
+            <tr style={{ borderTop: '1px solid #d7dce5' }}>
+              <td style={{ ...TD_L, fontWeight: 700, color: '#111827' }}>합계</td>
               <td style={{ ...TD, color: colorPresc, fontWeight: 700 }}>{fmtChun(totalPresc)}</td>
               <td style={{ ...TD, color: colorSett,  fontWeight: 700 }}>{fmtChun(totalSett)}</td>
               <td style={{ ...TD, color: colorRate,  fontWeight: 700 }}>{calcRate(totalSett, totalPresc)}</td>
@@ -311,7 +311,7 @@ interface AccordionTable5Props {
 function AccordionTable5({
   title, tree, totalPresc, totalSett, totalCnt,
   accentL1, accentL2, accentL3, accentL4,
-  colorPresc = '#a8c4ff', colorSett = '#4ade80', colorRate = '#fbbf24',
+  colorPresc = '#a8c4ff', colorSett = '#059669', colorRate = '#b45309',
   l1Label,
 }: AccordionTable5Props) {
   const [search, setSearch]               = useState('');
@@ -344,13 +344,13 @@ function AccordionTable5({
           onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
           style={{
             flex: 1, padding: '0.45rem 0.8rem', fontSize: '0.8rem',
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: '8px', color: '#e2e8f0', outline: 'none', fontFamily: 'inherit',
+            background: '#f1f5f9', border: '1px solid #e5e9f0',
+            borderRadius: '8px', color: '#111827', outline: 'none', fontFamily: 'inherit',
           }}
         />
         <button
           onClick={handleSearch}
-          style={{ padding: '0.43rem 0.9rem', borderRadius: '8px', background: 'rgba(79,142,247,0.18)', border: '1px solid rgba(79,142,247,0.4)', color: '#7eb3ff', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+          style={{ padding: '0.43rem 0.9rem', borderRadius: '8px', background: 'rgba(79,142,247,0.18)', border: '1px solid rgba(79,142,247,0.4)', color: '#2563eb', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >검색</button>
       </div>
       <div style={{ overflowX: 'auto' }}>
@@ -373,7 +373,7 @@ function AccordionTable5({
                   <tr onClick={() => toggleL1(l1.name)} style={{ cursor: 'pointer', background: l1Open ? accentL1 : undefined }}>
                     <td style={{ ...TD_L, fontWeight: 600 }}>
                       <span style={{ marginRight: '0.4rem', fontSize: '0.68rem', opacity: 0.55 }}>{l1Open ? '▲' : '▶'}</span>
-                      <span style={{ color: l1Open ? '#6ee7b7' : '#e2e8f0' }}>{l1.name}</span>
+                      <span style={{ color: l1Open ? '#059669' : '#e2e8f0' }}>{l1.name}</span>
                     </td>
                     <td style={{ ...TD, color: colorPresc }}>{fmtChun(l1.presc)}</td>
                     <td style={{ ...TD, color: colorSett, fontWeight: 600 }}>{fmtChun(l1.sett)}</td>
@@ -465,8 +465,8 @@ function AccordionTable5({
             )}
 
             {/* 합계 행 */}
-            <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-              <td style={{ ...TD_L, fontWeight: 700, color: '#fff' }}>합계</td>
+            <tr style={{ borderTop: '1px solid #d7dce5' }}>
+              <td style={{ ...TD_L, fontWeight: 700, color: '#111827' }}>합계</td>
               <td style={{ ...TD, color: colorPresc, fontWeight: 700 }}>{fmtChun(totalPresc)}</td>
               <td style={{ ...TD, color: colorSett,  fontWeight: 700 }}>{fmtChun(totalSett)}</td>
               <td style={{ ...TD, color: colorRate,  fontWeight: 700 }}>{calcRate(totalSett, totalPresc)}</td>
@@ -544,7 +544,7 @@ export default function SettlementClient({
         0%, 100% { opacity: 0.3; }
         50% { opacity: 0.65; }
       }
-      .skel { animation: skel-pulse 1.4s ease-in-out infinite; background: rgba(255,255,255,0.09); border-radius: 5px; }
+      .skel { animation: skel-pulse 1.4s ease-in-out infinite; background: #f1f5f9; border-radius: 5px; }
       @media print {
         .orb, .page-nav, .no-print { display: none !important; }
         .print-only { display: block !important; }
@@ -567,7 +567,7 @@ export default function SettlementClient({
           }}
         >
           <div>
-            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#c4b5fd' }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#7c3aed' }}>
               {selectedFile || '파일을 선택하세요'}
             </div>
             {selectedMeta && (selectedMeta.settMonth || selectedMeta.prescMonth) && (
@@ -599,11 +599,11 @@ export default function SettlementClient({
                   style={{
                     width: '100%', display: 'block', textAlign: 'left', padding: '0.6rem 1rem',
                     background: isActive ? 'rgba(99,102,241,0.25)' : 'transparent',
-                    border: 'none', borderBottom: i < files.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                    border: 'none', borderBottom: i < files.length - 1 ? '1px solid #f8fafc' : 'none',
                     cursor: 'pointer', fontFamily: 'inherit',
                   }}
                 >
-                  <div style={{ fontSize: '0.8rem', fontWeight: 500, color: isActive ? '#c4b5fd' : '#e2e8f0' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 500, color: isActive ? '#7c3aed' : '#e2e8f0' }}>
                     {f.file}
                   </div>
                   {(f.settMonth || f.prescMonth) && (
@@ -624,7 +624,7 @@ export default function SettlementClient({
       {fetchError && !loading && (
         <div style={{ ...CARD, textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
           <div style={{ fontSize: '1.4rem', marginBottom: '0.6rem', opacity: 0.6 }}>⚠️</div>
-          <div style={{ marginBottom: '0.4rem', color: '#fca5a5' }}>데이터 조회 중 오류가 발생했습니다.</div>
+          <div style={{ marginBottom: '0.4rem', color: '#dc2626' }}>데이터 조회 중 오류가 발생했습니다.</div>
           <div style={{ fontSize: '0.78rem', marginBottom: '1rem', opacity: 0.6 }}>
             DB 부하로 인한 일시적 오류일 수 있습니다. 잠시 후 다시 시도해주세요.
           </div>
@@ -633,7 +633,7 @@ export default function SettlementClient({
             style={{
               padding: '0.5rem 1.4rem', fontSize: '0.82rem', fontWeight: 600,
               background: 'rgba(99,102,241,0.25)', border: '1px solid rgba(99,102,241,0.5)',
-              borderRadius: '8px', color: '#c4b5fd', cursor: 'pointer', fontFamily: 'inherit',
+              borderRadius: '8px', color: '#7c3aed', cursor: 'pointer', fontFamily: 'inherit',
             }}
           >
             다시 시도
@@ -647,8 +647,8 @@ export default function SettlementClient({
           <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
             {[140, 110, 80, 90].map((w, i) => (
               <div key={i} style={{
-                flex: 1, minWidth: '130px', background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '0.85rem 1rem',
+                flex: 1, minWidth: '130px', background: '#f8fafc',
+                border: '1px solid #f1f5f9', borderRadius: '12px', padding: '0.85rem 1rem',
               }}>
                 <div className="skel" style={{ height: '9px', width: `${Math.round(w * 0.58)}px`, marginBottom: '0.5rem' }} />
                 <div className="skel" style={{ height: '14px', width: `${Math.round(w * 0.45)}px` }} />
@@ -661,7 +661,7 @@ export default function SettlementClient({
               {Array.from({ length: rowCnt }).map((_, ri) => (
                 <div key={ri} style={{
                   display: 'flex', gap: '0.5rem', padding: '0.4rem 0',
-                  borderBottom: '1px solid rgba(255,255,255,0.03)', alignItems: 'center',
+                  borderBottom: '1px solid #ffffff', alignItems: 'center',
                 }}>
                   <div className="skel" style={{ height: '9px', flex: 3 }} />
                   <div className="skel" style={{ height: '9px', flex: 1 }} />
@@ -700,8 +700,8 @@ export default function SettlementClient({
               onClick={() => window.print()}
               style={{
                 padding: '0.4rem 1rem', fontSize: '0.8rem', fontWeight: 600,
-                background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.18)',
-                borderRadius: '8px', color: '#e2e8f0', cursor: 'pointer', fontFamily: 'inherit',
+                background: '#f1f5f9', border: '1px solid #d7dce5',
+                borderRadius: '8px', color: '#111827', cursor: 'pointer', fontFamily: 'inherit',
                 letterSpacing: '0.03em',
               }}
             >
@@ -712,8 +712,8 @@ export default function SettlementClient({
           {/* ── 요약 스탯 ── */}
           <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
             <StatCard label="총 처방금액 (천원)" value={fmtChunBig(totalPresc)} color="#a8c4ff" />
-            <StatCard label="총 정산액 (천원)"   value={fmtChunBig(totalSett)}  color="#4ade80" />
-            <StatCard label="평균 수수료율"       value={fmtPct(avgRate)}        color="#fbbf24" />
+            <StatCard label="총 정산액 (천원)"   value={fmtChunBig(totalSett)}  color="#059669" />
+            <StatCard label="평균 수수료율"       value={fmtPct(avgRate)}        color="#b45309" />
             <StatCard label="처방 건수"           value={`${totalCnt.toLocaleString()}건`} />
           </div>
 
@@ -726,7 +726,7 @@ export default function SettlementClient({
               accentL1="rgba(167,139,250,0.14)"
               accentL2="rgba(167,139,250,0.09)"
               accentL3="rgba(167,139,250,0.04)"
-              colorSett="#4ade80" colorRate="#fbbf24"
+              colorSett="#059669" colorRate="#b45309"
               l1Label="기조실병의원구분"
             />
           )}
@@ -740,7 +740,7 @@ export default function SettlementClient({
               accentL1="rgba(251,191,36,0.14)"
               accentL2="rgba(251,191,36,0.09)"
               accentL3="rgba(251,191,36,0.04)"
-              colorSett="#4ade80" colorRate="#fbbf24"
+              colorSett="#059669" colorRate="#b45309"
               l1Label="내부담당자"
             />
           )}

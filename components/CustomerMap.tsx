@@ -228,8 +228,8 @@ const ADDR_PATTERNS: Array<[RegExp, [number, number]]> = [
 ];
 
 const COLORS = [
-  '#a78bfa', '#34d399', '#fbbf24', '#f87171', '#ffffff',
-  '#c4b5fd', '#86efac', '#fde68a', '#fb923c', '#60a5fa',
+  '#7c3aed', '#059669', '#b45309', '#dc2626', '#ffffff',
+  '#7c3aed', '#059669', '#b45309', '#fb923c', '#2563eb',
 ];
 
 function hashStr(s: string): number {
@@ -292,7 +292,7 @@ export default function CustomerMap({ managerOrder }: Props) {
           const s = document.createElement('style');
           s.id = 'leaflet-dark-css';
           s.textContent = [
-            '.leaflet-popup-content-wrapper{background:#0f172a;border:1px solid rgba(255,255,255,0.12);',
+            '.leaflet-popup-content-wrapper{background:#0f172a;border:1px solid #e5e9f0;',
             'border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.5);color:#e2e8f0}',
             '.leaflet-popup-tip{background:#0f172a}',
             '.leaflet-popup-content{margin:10px 14px;font-size:12px;line-height:1.6}',
@@ -377,13 +377,13 @@ export default function CustomerMap({ managerOrder }: Props) {
   return (
     <div style={{
       position: 'relative', borderRadius: '14px', overflow: 'hidden',
-      border: '1px solid rgba(255,255,255,0.08)',
+      border: '1px solid #e5e9f0',
     }}>
       {status === 'loading' && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 10,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(15,23,42,0.85)', color: '#64748b', fontSize: '0.85rem', gap: '0.4rem',
+          background: '#f1f5f9', color: '#64748b', fontSize: '0.85rem', gap: '0.4rem',
         }}>
           ⟳ 지도 불러오는 중…
         </div>
@@ -392,7 +392,7 @@ export default function CustomerMap({ managerOrder }: Props) {
         <div style={{
           position: 'absolute', inset: 0, zIndex: 10,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(15,23,42,0.85)', color: '#f87171', fontSize: '0.82rem',
+          background: '#f1f5f9', color: '#dc2626', fontSize: '0.82rem',
         }}>
           지도 로드 실패
         </div>

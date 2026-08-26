@@ -12,11 +12,11 @@ const STORAGE_KEY = 'disease-learning:v1';
 type IngredientInfo = { description: string; drug_class: string | null; grounded: boolean };
 
 const FORM_COLOR: Record<string, { border: string; bg: string; fg: string }> = {
-  all:    { border: 'rgba(147,197,253,0.4)', bg: 'rgba(147,197,253,0.12)', fg: '#93c5fd' },
-  정제:   { border: 'rgba(110,231,183,0.4)', bg: 'rgba(110,231,183,0.12)', fg: '#6ee7b7' },
-  캡슐제: { border: 'rgba(251,191,36,0.4)',  bg: 'rgba(251,191,36,0.12)',  fg: '#fbbf24' },
+  all:    { border: 'rgba(147,197,253,0.4)', bg: 'rgba(147,197,253,0.12)', fg: '#2563eb' },
+  정제:   { border: 'rgba(110,231,183,0.4)', bg: 'rgba(110,231,183,0.12)', fg: '#059669' },
+  캡슐제: { border: 'rgba(251,191,36,0.4)',  bg: 'rgba(251,191,36,0.12)',  fg: '#b45309' },
   주사제: { border: 'rgba(244,114,182,0.4)', bg: 'rgba(244,114,182,0.12)', fg: '#f472b6' },
-  기타:   { border: 'rgba(255,255,255,0.25)', bg: 'rgba(255,255,255,0.08)', fg: 'rgba(255,255,255,0.7)' },
+  기타:   { border: '#cbd5e1', bg: '#f1f5f9', fg: '#475569' },
 };
 
 /* ── 타입 ── */
@@ -431,12 +431,12 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
 
       {/* ── 사이드바: 질환군 ─────────────────────────────────────────────── */}
       <div className="tree-menu" style={{
-        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+        background: '#ffffff', border: '1px solid #f1f5f9',
         borderRadius: '14px', padding: '0.75rem 0.5rem', alignSelf: 'start',
         position: 'sticky', top: '1rem',
         maxHeight: 'calc(100vh - 2rem)', overflowY: 'auto',   // 우측 리스트와 무관하게 좌측 메뉴 독립 스크롤
       }}>
-        <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600,
+        <p style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600,
           letterSpacing: '0.06em', textTransform: 'uppercase', padding: '0 0.5rem', marginBottom: '0.5rem' }}>
           질환군 ({groups.length})
         </p>
@@ -453,7 +453,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                     width: '100%', textAlign: 'left', padding: '0.45rem 0.6rem',
                     borderRadius: '8px', border: 'none', cursor: 'pointer', fontSize: '0.78rem',
                     background: isActive ? 'rgba(251,191,36,0.15)' : 'transparent',
-                    color: isActive ? '#fbbf24' : 'rgba(255,255,255,0.55)',
+                    color: isActive ? '#b45309' : '#64748b',
                     fontWeight: isActive ? 600 : 400,
                     display: 'flex', alignItems: 'center', gap: '6px',
                     transition: 'all 0.12s',
@@ -481,7 +481,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                               width: '100%', textAlign: 'left', padding: '0.3rem 0.5rem',
                               borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '0.72rem',
                               background: subActive ? 'rgba(251,191,36,0.12)' : 'transparent',
-                              color: subActive ? '#fde68a' : 'rgba(255,255,255,0.4)',
+                              color: subActive ? '#b45309' : '#94a3b8',
                               fontWeight: subActive ? 600 : 400,
                               display: 'flex', alignItems: 'center', gap: 4,
                               transition: 'all 0.1s',
@@ -496,7 +496,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
 
                           {/* 3단계: 성분 (펼친 중분류만) */}
                           {subOpen && ingredients.length > 0 && (
-                            <div style={{ marginLeft: '10px', borderLeft: '1.5px solid rgba(255,255,255,0.08)',
+                            <div style={{ marginLeft: '10px', borderLeft: '1.5px solid #f1f5f9',
                               paddingLeft: '7px', marginTop: '1px', marginBottom: '3px',
                               display: 'flex', flexDirection: 'column', gap: '1px' }}>
                               {ingredients.map(ingItem => {
@@ -512,7 +512,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                                         width: '100%', textAlign: 'left', padding: '0.22rem 0.4rem', borderRadius: '5px',
                                         border: 'none', cursor: 'pointer', fontSize: '0.67rem',
                                         background: selectedIngr === ing ? 'rgba(34,211,238,0.14)' : 'transparent',
-                                        color: selectedIngr === ing ? '#67e8f9' : 'rgba(255,255,255,0.38)',
+                                        color: selectedIngr === ing ? '#0891b2' : '#94a3b8',
                                         fontWeight: selectedIngr === ing ? 600 : 400,
                                         display: 'flex', alignItems: 'center', gap: 3,
                                         transition: 'all 0.1s',
@@ -537,7 +537,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                                               textAlign: 'left', padding: '0.18rem 0.35rem', borderRadius: '4px',
                                               border: 'none', cursor: 'pointer', fontSize: '0.63rem',
                                               background: selectedStrength === st ? 'rgba(167,139,250,0.16)' : 'transparent',
-                                              color: selectedStrength === st ? '#c4b5fd' : 'rgba(255,255,255,0.34)',
+                                              color: selectedStrength === st ? '#7c3aed' : '#94a3b8',
                                               fontWeight: selectedStrength === st ? 600 : 400,
                                               whiteSpace: 'nowrap',
                                               display: 'flex', alignItems: 'center', gap: 3,
@@ -576,19 +576,19 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
               style={{
                 padding: '0.5rem 1.15rem', borderRadius: '9px', fontSize: '0.85rem', fontWeight: 700,
                 cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
-                background: needsSearch ? 'rgba(251,191,36,0.18)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${needsSearch ? 'rgba(251,191,36,0.5)' : 'rgba(255,255,255,0.14)'}`,
-                color: needsSearch ? '#fbbf24' : 'rgba(255,255,255,0.6)',
+                background: needsSearch ? 'rgba(251,191,36,0.18)' : '#f8fafc',
+                border: `1px solid ${needsSearch ? 'rgba(251,191,36,0.5)' : '#d7dce5'}`,
+                color: needsSearch ? '#b45309' : '#475569',
                 whiteSpace: 'nowrap',
               }}
             >
               {loading ? '조회 중…' : '🔍 조회'}
             </button>
-            <span style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.45)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: '0.8rem', color: '#64748b', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {[selectedGroup, selectedSub].filter(Boolean).join(' › ')}
             </span>
             {needsSearch && !loading && (
-              <span style={{ fontSize: '0.75rem', color: '#fbbf24' }}>선택이 변경됐습니다 · [조회]를 눌러주세요</span>
+              <span style={{ fontSize: '0.75rem', color: '#b45309' }}>선택이 변경됐습니다 · [조회]를 눌러주세요</span>
             )}
           </div>
         )}
@@ -596,35 +596,35 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
         {/* 헤더 + 통계 */}
         {selectedGroup && !needsSearch && (
           <div style={{
-            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+            background: '#f8fafc', border: '1px solid #e5e9f0',
             borderRadius: '14px', padding: '1rem 1.25rem',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <h1 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff', margin: 0 }}>
+                  <h1 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#111827', margin: 0 }}>
                     {applied?.strength
                       ? [applied?.ingr, applied?.strength].filter(Boolean).join(' ')   // 성분+함량
                       : (applied?.ingr ?? applied?.sub ?? applied?.group ?? selectedGroup)}
                   </h1>
                   {applied?.ingr && (
                     <button onClick={clearIngrFilter} title="성분 선택 해제"
-                      style={{ fontSize: '0.66rem', color: '#67e8f9', background: 'rgba(34,211,238,0.12)',
+                      style={{ fontSize: '0.66rem', color: '#0891b2', background: 'rgba(34,211,238,0.12)',
                         border: '1px solid rgba(34,211,238,0.3)', borderRadius: '5px', padding: '1px 6px',
                         cursor: 'pointer', fontFamily: 'inherit', minHeight: 'auto' }}>
                       성분 ✕
                     </button>
                   )}
                 </div>
-                <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginTop: '3px' }}>
+                <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '3px' }}>
                   {[applied?.group, applied?.sub, applied?.ingr, applied?.strength].filter(Boolean).join(' › ')}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                <Stat label="전체" value={displayed.length} color="#93c5fd" />
-                <Stat label="오리지널" value={origCount} color="#fbbf24" />
-                <Stat label="제네릭" value={genericCount} color="#6ee7b7" />
-                {ubistTotal > 0 && <Stat label={`처방액 ${periods.length}개월(천원)`} value={fmtThousand(ubistTotal)} color="#f9a8d4" />}
+                <Stat label="전체" value={displayed.length} color="#2563eb" />
+                <Stat label="오리지널" value={origCount} color="#b45309" />
+                <Stat label="제네릭" value={genericCount} color="#059669" />
+                {ubistTotal > 0 && <Stat label={`처방액 ${periods.length}개월(천원)`} value={fmtThousand(ubistTotal)} color="#db2777" />}
               </div>
             </div>
 
@@ -640,8 +640,8 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
             placeholder="제품명 / 성분명 / 제조사 검색"
             style={{
               flex: 1, minWidth: '180px', padding: '0.45rem 0.8rem',
-              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '8px', color: '#e2e8f0', fontSize: '0.82rem',
+              background: '#f8fafc', border: '1px solid #e5e9f0',
+              borderRadius: '8px', color: '#111827', fontSize: '0.82rem',
               outline: 'none', fontFamily: 'inherit',
             }}
           />
@@ -657,9 +657,9 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
                 style={{
                   padding: '0.4rem 0.85rem', borderRadius: '8px', fontSize: '0.78rem', cursor: 'pointer',
                   fontFamily: 'inherit', border: '1px solid',
-                  borderColor: on ? c.border : 'rgba(255,255,255,0.12)',
-                  background:  on ? c.bg     : 'rgba(255,255,255,0.03)',
-                  color:       on ? c.fg     : 'rgba(255,255,255,0.4)',
+                  borderColor: on ? c.border : '#e5e9f0',
+                  background:  on ? c.bg     : '#ffffff',
+                  color:       on ? c.fg     : '#94a3b8',
                 }}
               >
                 {f === 'all' ? '전체' : f}
@@ -668,7 +668,7 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
             );
           })}
           {(search || filter !== 'all') && (
-            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>
+            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
               {displayed.length}개
             </span>
           )}
@@ -677,15 +677,15 @@ export default function DiseaseLearningClient({ groups }: { groups: GroupItem[] 
 
         {/* 의약품 테이블 */}
         {loading ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.85rem' }}>
+          <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
             불러오는 중…
           </div>
         ) : needsSearch ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem', lineHeight: 1.6 }}>
-            🔍 <b style={{ color: '#fbbf24' }}>조회</b> 버튼을 눌러 선택한 질환의 의약품을 불러오세요.
+          <div style={{ padding: '3rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.6 }}>
+            🔍 <b style={{ color: '#b45309' }}>조회</b> 버튼을 눌러 선택한 질환의 의약품을 불러오세요.
           </div>
         ) : displayed.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.85rem' }}>
+          <div style={{ padding: '3rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
             {drugs.length === 0 ? '데이터가 없습니다.' : '검색 결과가 없습니다.'}
           </div>
         ) : (
@@ -724,7 +724,7 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
 
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+      background: '#ffffff', border: '1px solid #f1f5f9',
       borderRadius: '12px', overflow: 'hidden',
     }}>
       {/* 성분명 헤더 */}
@@ -732,23 +732,23 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
         onClick={() => setOpen(p => !p)}
         style={{
           width: '100%', textAlign: 'left', padding: '0.65rem 1rem',
-          background: 'rgba(255,255,255,0.04)', border: 'none',
-          borderBottom: open ? '1px solid rgba(255,255,255,0.07)' : 'none',
+          background: '#f8fafc', border: 'none',
+          borderBottom: open ? '1px solid #f1f5f9' : 'none',
           cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
         }}
       >
-        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#93c5fd' }}>{ingredient}</span>
+        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#2563eb' }}>{ingredient}</span>
         {info?.drug_class && (
           <span style={{
-            fontSize: '0.65rem', color: '#c4b5fd', background: 'rgba(167,139,250,0.14)',
+            fontSize: '0.65rem', color: '#7c3aed', background: 'rgba(167,139,250,0.14)',
             border: '1px solid rgba(167,139,250,0.25)', borderRadius: '10px',
             padding: '1px 7px', whiteSpace: 'nowrap',
           }}>{info.drug_class}</span>
         )}
-        <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)' }}>
+        <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
           오리지널 {origCount} / 제네릭 {genericCount} / 총 {items.length}
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)' }}>
+        <span style={{ marginLeft: 'auto', fontSize: '0.7rem', color: '#64748b' }}>
           {open ? '▲' : '▼'}
         </span>
       </button>
@@ -757,8 +757,8 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
       {info?.description && (
         <div style={{
           padding: '0.55rem 1rem 0.6rem', background: 'rgba(147,197,253,0.04)',
-          borderBottom: open ? '1px solid rgba(255,255,255,0.07)' : 'none',
-          fontSize: '0.75rem', lineHeight: 1.65, color: 'rgba(255,255,255,0.6)',
+          borderBottom: open ? '1px solid #f1f5f9' : 'none',
+          fontSize: '0.75rem', lineHeight: 1.65, color: '#475569',
         }}>
           {info.description}
           {!info.grounded && (
@@ -782,7 +782,7 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
             </colgroup>
             <thead>
               {/* 1행: 고정 열(2행 병합) + 처방액 그룹 라벨 / 2행: 월 */}
-              <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <tr style={{ background: '#ffffff' }}>
                 {fixedHeaders.map(h => {
                   const k = SORT_OF[h.label];
                   const on = sort?.key === k;
@@ -793,7 +793,7 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
                       style={{
                         ...(h.num ? TH_NUM : TH),
                         cursor: k ? 'pointer' : 'default', userSelect: 'none',
-                        color: on ? '#a5f3fc' : TH.color,
+                        color: on ? '#0891b2' : TH.color,
                       }}>
                       {h.label}{k && <span style={{ marginLeft: 3, opacity: on ? 1 : 0.3 }}>{on ? (sort!.dir === 'asc' ? '▲' : '▼') : '⇅'}</span>}
                     </th>
@@ -803,7 +803,7 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
                   <th colSpan={periods.length} onClick={() => onSort('ubist')} title="클릭하여 정렬"
                     style={{ ...TH_NUM, textAlign: 'center', cursor: 'pointer', userSelect: 'none',
                       paddingBottom: '0.15rem', borderBottom: 'none',
-                      color: ubistOn ? '#a5f3fc' : 'rgba(165,243,252,0.55)' }}>
+                      color: ubistOn ? '#0891b2' : 'rgba(165,243,252,0.55)' }}>
                     처방액(천원)
                     <span style={{ marginLeft: 3, opacity: ubistOn ? 1 : 0.3 }}>
                       {ubistOn ? (sort!.dir === 'asc' ? '▲' : '▼') : '⇅'}
@@ -811,12 +811,12 @@ function IngredientGroup({ ingredient, items, periods, sort, onSort, info }: {
                   </th>
                 )}
               </tr>
-              <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <tr style={{ background: '#ffffff' }}>
                 {periodHeaders.map((h, i) => (
                   <th key={periods[i]} onClick={() => onSort('ubist')} title="클릭하여 정렬"
                     style={{ ...TH_NUM, textAlign: 'right', paddingTop: 0,
                       fontSize: '0.65rem', cursor: 'pointer', userSelect: 'none',
-                      color: ubistOn ? '#a5f3fc' : 'rgba(165,243,252,0.55)' }}>
+                      color: ubistOn ? '#0891b2' : 'rgba(165,243,252,0.55)' }}>
                     {h}
                   </th>
                 ))}
@@ -844,10 +844,10 @@ function DrugRow({ drug: d, even, periods, maxPrice }: {
     ? (d.max_price / ratioBase) * 100
     : null;
   return (
-    <tr style={{ background: even ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+    <tr style={{ background: even ? 'transparent' : '#ffffff' }}>
       <td style={TD} title={d.product_name ?? undefined}>
         <div style={{
-          fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#fde68a' : '#e2e8f0',
+          fontWeight: d.is_original ? 600 : 400, color: d.is_original ? '#b45309' : '#e2e8f0',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
           {d.product_name ?? '-'}
@@ -858,17 +858,17 @@ function DrugRow({ drug: d, even, periods, maxPrice }: {
           </div>
         )}
       </td>
-      <td style={{ ...TD, textAlign: 'center', color: '#a5f3fc', fontSize: '0.73rem', whiteSpace: 'nowrap' }}>
+      <td style={{ ...TD, textAlign: 'center', color: '#0891b2', fontSize: '0.73rem', whiteSpace: 'nowrap' }}>
         {d.strength ?? '-'}
       </td>
       <td style={{
-        ...TD, color: 'rgba(255,255,255,0.55)', fontSize: '0.73rem',
+        ...TD, color: '#64748b', fontSize: '0.73rem',
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       }} title={d.distributor ?? undefined}>
         {d.distributor ?? '-'}
       </td>
       <td style={{
-        ...TD, color: 'rgba(255,255,255,0.4)', fontSize: '0.72rem',
+        ...TD, color: '#94a3b8', fontSize: '0.72rem',
         whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       }} title={d.manufacturer ?? undefined}>
         {d.manufacturer ?? '-'}
@@ -878,19 +878,19 @@ function DrugRow({ drug: d, even, periods, maxPrice }: {
           fontSize: '0.68rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 600,
           whiteSpace: 'nowrap', display: 'inline-block',
           background: d.is_original ? 'rgba(251,191,36,0.15)' : 'rgba(110,231,183,0.12)',
-          color: d.is_original ? '#fbbf24' : '#6ee7b7',
+          color: d.is_original ? '#b45309' : '#059669',
           border: `1px solid ${d.is_original ? 'rgba(251,191,36,0.3)' : 'rgba(110,231,183,0.25)'}`,
         }}>
           {d.is_original ? '오리지널' : '제네릭'}
         </span>
         {d.permit_kind && (
-          <div style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.28)', marginTop: '2px' }}>
+          <div style={{ fontSize: '0.62rem', color: '#64748b', marginTop: '2px' }}>
             {d.permit_kind}
           </div>
         )}
       </td>
       <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-        <span style={{ color: d.max_price ? '#e2e8f0' : 'rgba(255,255,255,0.25)', fontSize: '0.75rem' }}>
+        <span style={{ color: d.max_price ? '#e2e8f0' : '#cbd5e1', fontSize: '0.75rem' }}>
           {fmtPrice(d.max_price)}
         </span>
       </td>
@@ -900,7 +900,7 @@ function DrugRow({ drug: d, even, periods, maxPrice }: {
                 ? '최초등재제품의 조정 전 상한금액(추정). 급여이력 미적재로 제네릭 현재가÷53.55% 역산 추정값'
                 : '최초등재제품의 조정 전 상한금액(급여이력 기반)')
             : undefined}>
-        <span style={{ color: d.orig_list_price != null ? '#fcd34d' : 'rgba(255,255,255,0.2)', fontSize: '0.75rem' }}>
+        <span style={{ color: d.orig_list_price != null ? '#b45309' : '#d7dce5', fontSize: '0.75rem' }}>
           {d.orig_list_price != null
             ? (d.orig_price_est ? '≈' : '') + fmtPrice(d.orig_list_price)
             : '-'}
@@ -908,17 +908,17 @@ function DrugRow({ drug: d, even, periods, maxPrice }: {
       </td>
       <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
         {priceRatio != null ? (
-          <span style={{ color: priceRatio >= 100 ? '#6ee7b7' : 'rgba(255,255,255,0.6)', fontSize: '0.75rem', fontWeight: priceRatio >= 100 ? 700 : 400 }}>
+          <span style={{ color: priceRatio >= 100 ? '#059669' : '#475569', fontSize: '0.75rem', fontWeight: priceRatio >= 100 ? 700 : 400 }}>
             {priceRatio.toFixed(1)}%
           </span>
-        ) : <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.72rem' }}>-</span>}
+        ) : <span style={{ color: '#64748b', fontSize: '0.72rem' }}>-</span>}
       </td>
       <td style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
         {d.commission_rate != null ? (
-          <span style={{ color: '#f9a8d4', fontSize: '0.78rem', fontWeight: 600 }}>
+          <span style={{ color: '#db2777', fontSize: '0.78rem', fontWeight: 600 }}>
             {d.commission_rate.toFixed(1)}%
           </span>
-        ) : <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.72rem' }}>-</span>}
+        ) : <span style={{ color: '#64748b', fontSize: '0.72rem' }}>-</span>}
       </td>
       {/* 월별 처방액 (오래된 순) */}
       {periods.map(p => {
@@ -926,10 +926,10 @@ function DrugRow({ drug: d, even, periods, maxPrice }: {
         return (
           <td key={p} style={{ ...TD_NUM, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
             {amt != null ? (
-              <span style={{ color: '#a5f3fc', fontSize: '0.78rem', fontWeight: 600 }}>
+              <span style={{ color: '#0891b2', fontSize: '0.78rem', fontWeight: 600 }}>
                 {fmtThousand(amt)}
               </span>
-            ) : <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.72rem' }}>-</span>}
+            ) : <span style={{ color: '#64748b', fontSize: '0.72rem' }}>-</span>}
           </td>
         );
       })}
@@ -942,7 +942,7 @@ function Stat({ label, value, color }: { label: string; value: number | string; 
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{ fontSize: '1rem', fontWeight: 700, color }}>{value}</div>
-      <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginTop: '1px' }}>{label}</div>
+      <div style={{ fontSize: '0.65rem', color: '#94a3b8', marginTop: '1px' }}>{label}</div>
     </div>
   );
 }
@@ -950,12 +950,12 @@ function Stat({ label, value, color }: { label: string; value: number | string; 
 /* ── 공통 스타일 ── */
 const TH: React.CSSProperties = {
   padding: '0.4rem 0.75rem', textAlign: 'left', fontSize: '0.68rem',
-  color: 'rgba(255,255,255,0.35)', fontWeight: 600, whiteSpace: 'nowrap',
-  borderBottom: '1px solid rgba(255,255,255,0.07)',
+  color: '#94a3b8', fontWeight: 600, whiteSpace: 'nowrap',
+  borderBottom: '1px solid #f1f5f9',
 };
 
 const TD: React.CSSProperties = {
-  padding: '0.5rem 0.75rem', borderBottom: '1px solid rgba(255,255,255,0.04)',
+  padding: '0.5rem 0.75rem', borderBottom: '1px solid #f8fafc',
   verticalAlign: 'middle',
 };
 

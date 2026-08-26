@@ -2,13 +2,13 @@
 
 /* ── Design tokens ─────────────────────────────────────── */
 :root {
-  --bg-dark:      #080c14;
-  --accent-1:     #4f8ef7;
-  --accent-2:     #a259ff;
-  --text-primary: #f0f4ff;
-  --text-muted:   #6b7a99;
-  --card-bg:      rgba(255, 255, 255, 0.03);
-  --card-border:  rgba(255, 255, 255, 0.07);
+  --bg-dark:      #ffffff;   /* 앱 배경(밝은 테마) */
+  --accent-1:     #2563eb;
+  --accent-2:     #7c3aed;
+  --text-primary: #111827;
+  --text-muted:   #64748b;
+  --card-bg:      #ffffff;
+  --card-border:  #e5e9f0;
 }
 
 /* ── Base ──────────────────────────────────────────────── */
@@ -48,38 +48,26 @@ button, a[href] {
   text-align: left;
 }
 
-/* ── 스크롤바: 다크 배경과 이질감 없이 은은하게 ──────────── */
+/* ── 스크롤바: 밝은 배경에 은은하게 ──────────── */
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  scrollbar-color: rgba(15, 23, 42, 0.22) transparent;
 }
 /* WebKit(Chrome·Edge·Safari) */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }   /* 트랙 = 배경 그대로 */
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.18);
   border-radius: 8px;
   border: 2px solid transparent;   /* 배경과 붙지 않도록 얇은 여백 */
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: rgba(15, 23, 42, 0.30);
   background-clip: padding-box;
 }
 ::-webkit-scrollbar-corner { background: transparent; }
-
-/* Grid overlay */
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(79, 142, 247, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(79, 142, 247, 0.03) 1px, transparent 1px);
-  background-size: 60px 60px;
-  pointer-events: none;
-}
 
 /* ── Keyframes ─────────────────────────────────────────── */
 @keyframes drift {
@@ -99,8 +87,9 @@ body::before {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Orbs ──────────────────────────────────────────────── */
-.orb {
+/* ── Orbs (밝은 테마에서는 숨김 — 깔끔한 흰 배경) ─────────── */
+.orb { display: none; }
+.orb-legacy {
   position: fixed;
   border-radius: 50%;
   filter: blur(120px);
@@ -164,7 +153,7 @@ body::before {
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1;
-  background: linear-gradient(135deg, #ffffff 0%, #a8c4ff 50%, var(--accent-2) 100%);
+  background: linear-gradient(135deg, #1e293b 0%, #2563eb 55%, var(--accent-2) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -222,7 +211,7 @@ body::before {
   font-size: clamp(2rem, 5vw, 2.8rem);
   font-weight: 700;
   letter-spacing: -0.02em;
-  background: linear-gradient(180deg, #ffffff, #8ab4ff);
+  background: linear-gradient(180deg, #1e293b, #2563eb);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -262,10 +251,9 @@ body::before {
 
 /* ── Auth ──────────────────────────────────────────────── */
 .auth-card {
-  background: rgba(13, 21, 38, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: #ffffff;
+  border: 1px solid #e5e9f0;
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.06);
   border-radius: 20px;
   padding: 2.5rem;
   width: 100%;
@@ -281,10 +269,7 @@ body::before {
   font-weight: 700;
   letter-spacing: -0.025em;
   margin-bottom: 0.35rem;
-  background: linear-gradient(135deg, #ffffff 0%, #a8c4ff 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #111827;
 }
 
 .auth-subtitle {
@@ -307,8 +292,8 @@ body::before {
 
 .auth-input {
   width: 100%;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  border: 1px solid #d7dce5;
   border-radius: 10px;
   color: var(--text-primary);
   padding: 0.72rem 1rem;
@@ -319,7 +304,7 @@ body::before {
   box-sizing: border-box;
 }
 
-.auth-input::placeholder { color: rgba(107, 122, 153, 0.7); }
+.auth-input::placeholder { color: #94a3b8; }
 
 .auth-input:focus {
   border-color: var(--accent-1);
@@ -328,13 +313,13 @@ body::before {
 
 .auth-input:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* ── 드롭다운 option 가독성 (어두운 배경 + 밝은 글자) ────────── */
-select { background-color: #1e293b; }
+/* ── 드롭다운 option 가독성 (밝은 배경 + 검은 글자) ────────── */
+select { background-color: #ffffff; color: #111827; }
 select option {
-  background-color: #1e293b;
-  color: #e2e8f0;
+  background-color: #ffffff;
+  color: #111827;
 }
-select.auth-input { background-color: #1e293b; }
+select.auth-input { background-color: #ffffff; }
 
 .auth-btn {
   width: 100%;
@@ -366,19 +351,19 @@ select.auth-input { background-color: #1e293b; }
   border-radius: 10px;
   padding: 0.7rem 1rem;
   font-size: 0.82rem;
-  color: #fca5a5;
+  color: #b91c1c;
   margin-bottom: 1.2rem;
   line-height: 1.5;
   word-break: break-word;
 }
 
 .auth-success {
-  background: rgba(34, 197, 94, 0.08);
-  border: 1px solid rgba(34, 197, 94, 0.2);
+  background: rgba(34, 197, 94, 0.10);
+  border: 1px solid rgba(34, 197, 94, 0.28);
   border-radius: 10px;
   padding: 1.4rem 1.2rem;
   font-size: 0.9rem;
-  color: #86efac;
+  color: #15803d;
   text-align: center;
   line-height: 1.7;
 }
@@ -407,7 +392,7 @@ select.auth-input { background-color: #1e293b; }
 
 .auth-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.07);
+  background: #eef1f6;
   margin: 1.6rem 0 1.2rem;
 }
 

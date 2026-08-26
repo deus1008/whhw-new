@@ -18,17 +18,17 @@ export const CAT_META: Record<CatKey, {
     icon: '🔄', emoji: '🔄',
   },
   '접수': {
-    color: '#fbbf24', dimColor: '#92400e',
+    color: '#b45309', dimColor: '#92400e',
     bg: 'rgba(251,191,36,0.06)', border: 'rgba(251,191,36,0.22)', headerBg: 'rgba(251,191,36,0.1)',
     icon: '📩', emoji: '📩',
   },
   '코드인': {
-    color: '#4ade80', dimColor: '#14532d',
+    color: '#059669', dimColor: '#14532d',
     bg: 'rgba(74,222,128,0.06)', border: 'rgba(74,222,128,0.22)', headerBg: 'rgba(74,222,128,0.1)',
     icon: '✅', emoji: '✅',
   },
   '탈락': {
-    color: '#f87171', dimColor: '#7f1d1d',
+    color: '#dc2626', dimColor: '#7f1d1d',
     bg: 'rgba(248,113,113,0.06)', border: 'rgba(248,113,113,0.22)', headerBg: 'rgba(248,113,113,0.1)',
     icon: '❌', emoji: '❌',
   },
@@ -86,10 +86,10 @@ function ProductFilterSelect({
           style={{
             display: 'flex', alignItems: 'center', gap: '0.4rem',
             padding: '0.3rem 0.6rem',
-            background: value ? 'rgba(248,113,113,0.1)' : 'rgba(255,255,255,0.04)',
-            border: value ? '1px solid rgba(248,113,113,0.4)' : '1px solid rgba(255,255,255,0.1)',
+            background: value ? 'rgba(248,113,113,0.1)' : '#f8fafc',
+            border: value ? '1px solid rgba(248,113,113,0.4)' : '1px solid #e5e9f0',
             borderRadius: '8px', cursor: 'pointer',
-            fontSize: '0.78rem', color: value ? '#fca5a5' : '#64748b',
+            fontSize: '0.78rem', color: value ? '#dc2626' : '#64748b',
             userSelect: 'none',
           }}
         >
@@ -110,13 +110,13 @@ function ProductFilterSelect({
         {open && (
           <div style={{
             position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-            background: '#0f172a', border: '1px solid rgba(255,255,255,0.12)',
+            background: '#ffffff', border: '1px solid #e5e9f0',
             borderRadius: '10px', zIndex: 200,
             boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
             overflow: 'hidden',
           }}>
             {/* 검색 */}
-            <div style={{ padding: '0.4rem 0.5rem', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ padding: '0.4rem 0.5rem', borderBottom: '1px solid #f1f5f9' }}>
               <input
                 ref={inputRef}
                 value={query}
@@ -124,9 +124,9 @@ function ProductFilterSelect({
                 placeholder="품목 검색…"
                 style={{
                   width: '100%', boxSizing: 'border-box',
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                  background: '#f8fafc', border: '1px solid #e5e9f0',
                   borderRadius: '6px', padding: '0.3rem 0.5rem',
-                  color: '#e2e8f0', fontSize: '0.76rem', fontFamily: 'inherit', outline: 'none',
+                  color: '#111827', fontSize: '0.76rem', fontFamily: 'inherit', outline: 'none',
                 }}
               />
             </div>
@@ -135,11 +135,11 @@ function ProductFilterSelect({
               onClick={() => select(null)}
               style={{
                 padding: '0.35rem 0.7rem', fontSize: '0.76rem', cursor: 'pointer',
-                color: !value ? '#fca5a5' : '#94a3b8',
+                color: !value ? '#dc2626' : '#94a3b8',
                 background: !value ? 'rgba(248,113,113,0.08)' : 'transparent',
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                borderBottom: '1px solid #f8fafc',
               }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+              onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
               onMouseLeave={e => (e.currentTarget.style.background = !value ? 'rgba(248,113,113,0.08)' : 'transparent')}
             >
               전체 품목
@@ -154,10 +154,10 @@ function ProductFilterSelect({
                   onClick={() => select(p)}
                   style={{
                     padding: '0.35rem 0.7rem', fontSize: '0.76rem', cursor: 'pointer',
-                    color: value === p ? '#fca5a5' : '#cbd5e1',
+                    color: value === p ? '#dc2626' : '#cbd5e1',
                     background: value === p ? 'rgba(248,113,113,0.1)' : 'transparent',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
                   onMouseLeave={e => (e.currentTarget.style.background = value === p ? 'rgba(248,113,113,0.1)' : 'transparent')}
                 >
                   {p}
@@ -177,7 +177,7 @@ function MemoLines({ text }: { text: string }) {
   return (
     <div style={{
       marginTop: '0.6rem', paddingTop: '0.6rem',
-      borderTop: '1px solid rgba(255,255,255,0.07)',
+      borderTop: '1px solid #f1f5f9',
       display: 'flex', flexDirection: 'column', gap: '0.2rem',
     }}>
       {lines.map((line, i) => {
@@ -188,7 +188,7 @@ function MemoLines({ text }: { text: string }) {
           <div key={i} style={{
             paddingLeft: isBullet ? '0.8rem' : 0,
             fontSize: '0.76rem',
-            color: isNote ? '#fbbf24' : isBullet ? '#94a3b8' : '#64748b',
+            color: isNote ? '#b45309' : isBullet ? '#94a3b8' : '#64748b',
             lineHeight: 1.5,
           }}>
             {isBullet
@@ -218,18 +218,18 @@ function ItemCard({
     const today = new Date(); today.setHours(0,0,0,0);
     const due   = new Date(item.due_date);
     const diff  = Math.ceil((due.getTime() - today.getTime()) / 86400000);
-    const color = diff < 0 ? '#f87171' : diff <= 7 ? '#fbbf24' : '#64748b';
+    const color = diff < 0 ? '#dc2626' : diff <= 7 ? '#b45309' : '#64748b';
     const label = diff < 0 ? `D+${-diff}` : diff === 0 ? 'D-Day' : `D-${diff}`;
     return { color, label };
   })() : null;
 
   return (
     <div
-      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+      onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
       onMouseLeave={e => (e.currentTarget.style.background = 'rgba(15,23,42,0.6)')}
       style={{
         background: 'rgba(15,23,42,0.6)',
-        border: '1px solid rgba(255,255,255,0.07)',
+        border: '1px solid #f1f5f9',
         borderLeft: `3px solid ${catColor}`,
         borderRadius: '8px',
         padding: '0.4rem 0.7rem',
@@ -243,13 +243,13 @@ function ItemCard({
       <span style={{
         padding: '0.1rem 0.45rem', flexShrink: 0,
         background: 'rgba(248,113,113,0.13)', border: '1px solid rgba(248,113,113,0.25)',
-        borderRadius: '5px', color: '#fca5a5', fontWeight: 700, fontSize: '0.78rem',
+        borderRadius: '5px', color: '#dc2626', fontWeight: 700, fontSize: '0.78rem',
       }}>
         {item.product_name}
       </span>
 
       {/* 병원명 */}
-      <span style={{ color: '#7dd3fc', fontWeight: 600, fontSize: '0.82rem', flexShrink: 0 }}>
+      <span style={{ color: '#0284c7', fontWeight: 600, fontSize: '0.82rem', flexShrink: 0 }}>
         🏥 {item.hospital_name}
       </span>
 
@@ -276,8 +276,8 @@ function ItemCard({
         {hasMemo && (
           <button onClick={() => setExpanded(e => !e)} style={{
             padding: '0.1rem 0.45rem', borderRadius: '4px', fontSize: '0.67rem',
-            border: '1px solid rgba(255,255,255,0.1)',
-            background: expanded ? 'rgba(255,255,255,0.08)' : 'transparent',
+            border: '1px solid #e5e9f0',
+            background: expanded ? '#f1f5f9' : 'transparent',
             color: '#64748b', cursor: 'pointer',
           }}>
             {expanded ? '▲' : '▼ 메모'}
@@ -288,12 +288,12 @@ function ItemCard({
             <button onClick={() => onEdit(item)} style={{
               padding: '0.1rem 0.45rem', borderRadius: '4px', fontSize: '0.67rem',
               border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.1)',
-              color: '#a5b4fc', cursor: 'pointer',
+              color: '#4f46e5', cursor: 'pointer',
             }}>보기</button>
             <button onClick={() => onDelete(item.id)} style={{
               padding: '0.1rem 0.45rem', borderRadius: '4px', fontSize: '0.67rem',
               border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.08)',
-              color: '#fca5a5', cursor: 'pointer',
+              color: '#dc2626', cursor: 'pointer',
             }}>삭제</button>
           </>
         )}
@@ -337,7 +337,7 @@ function DcFormModal({
 
   const inputStyle: React.CSSProperties = {
     width: '100%', padding: '0.55rem 0.75rem',
-    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+    background: '#f8fafc', border: '1px solid #e5e9f0',
     borderRadius: '8px', color: 'var(--text-primary)', fontSize: '0.88rem',
     fontFamily: 'inherit', boxSizing: 'border-box',
   };
@@ -354,8 +354,8 @@ function DcFormModal({
       zIndex: 1000, padding: '1rem',
     }} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={{
-        background: '#0f172a',
-        border: '1px solid rgba(255,255,255,0.12)',
+        background: '#ffffff',
+        border: '1px solid #e5e9f0',
         borderRadius: '18px',
         padding: '2rem',
         width: '100%', maxWidth: '540px',
@@ -428,18 +428,18 @@ function DcFormModal({
               style={{ ...inputStyle, width: '100px' }} />
           </div>
 
-          {error && <p style={{ color: '#fca5a5', fontSize: '0.82rem', margin: 0 }}>⚠ {error}</p>}
+          {error && <p style={{ color: '#dc2626', fontSize: '0.82rem', margin: 0 }}>⚠ {error}</p>}
 
           <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end', marginTop: '0.2rem' }}>
             <button type="button" onClick={onClose} style={{
               padding: '0.55rem 1.2rem', borderRadius: '8px', fontSize: '0.85rem',
-              border: '1px solid rgba(255,255,255,0.1)', background: 'transparent',
+              border: '1px solid #e5e9f0', background: 'transparent',
               color: 'var(--text-muted)', cursor: 'pointer',
             }}>취소</button>
             <button type="submit" disabled={pending} style={{
               padding: '0.55rem 1.4rem', borderRadius: '8px', fontSize: '0.85rem',
               border: '1px solid rgba(139,92,246,0.4)', background: 'rgba(139,92,246,0.2)',
-              color: '#c4b5fd', cursor: pending ? 'not-allowed' : 'pointer', fontWeight: 600,
+              color: '#7c3aed', cursor: pending ? 'not-allowed' : 'pointer', fontWeight: 600,
             }}>
               {pending ? '저장 중…' : isEdit ? '수정 저장' : '추가'}
             </button>
@@ -524,7 +524,7 @@ export default function DcClient({
               flex: '0 0 auto', alignSelf: 'stretch',
               padding: '0.45rem 1rem', borderRadius: '10px', fontSize: '0.8rem',
               border: '1px solid rgba(139,92,246,0.4)', background: 'rgba(139,92,246,0.12)',
-              color: '#c4b5fd', cursor: 'pointer', fontWeight: 700,
+              color: '#7c3aed', cursor: 'pointer', fontWeight: 700,
             }}
           >
             + 항목 추가

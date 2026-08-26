@@ -88,8 +88,8 @@ function RateInput({ value, onChange }: { value: number; onChange: (v: number) =
       onChange={e => onChange(parseFloat(e.target.value) || 0)}
       style={{
         width: '60px', padding: '0.2rem 0.4rem',
-        background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
-        borderRadius: '5px', color: '#fbbf24', fontSize: '0.82rem',
+        background: '#ffffff', border: '1px solid #d7dce5',
+        borderRadius: '5px', color: '#b45309', fontSize: '0.82rem',
         fontFamily: 'inherit', textAlign: 'right',
       }}
     />
@@ -239,17 +239,17 @@ export default function CommissionClient({
 
   const inputStyle: React.CSSProperties = {
     padding: '0.6rem 0.85rem', boxSizing: 'border-box',
-    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)',
+    background: '#ffffff', border: '1px solid #d7dce5',
     borderRadius: '8px', color: 'var(--text-primary)', fontSize: '0.9rem', fontFamily: 'inherit',
   };
   const thStyle: React.CSSProperties = {
     padding: '0.55rem 0.75rem', fontSize: '0.75rem', fontWeight: 700,
     color: 'var(--text-muted)', textAlign: 'left',
-    background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap',
+    background: '#f1f4f9', borderBottom: '1px solid #e5e9f0', whiteSpace: 'nowrap',
   };
   const tdStyle: React.CSSProperties = {
     padding: '0.5rem 0.75rem', fontSize: '0.82rem',
-    borderBottom: '1px solid rgba(255,255,255,0.05)', verticalAlign: 'middle',
+    borderBottom: '1px solid #eaeef4', verticalAlign: 'middle',
   };
 
   return (
@@ -257,14 +257,14 @@ export default function CommissionClient({
 
       {/* ── 검색 입력 ──────────────────────────────────────── */}
       <div style={{
-        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+        background: '#ffffff', border: '1px solid #e5e9f0',
         borderRadius: '14px', padding: '1.4rem 1.6rem', marginBottom: '1.2rem',
         display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end',
       }}>
         <div style={{ flex: '2 1 220px' }}>
           <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
-            성분명 또는 제품명 <span style={{ color: '#f87171' }}>*</span>
-            <span style={{ fontWeight: 400, marginLeft: '0.5rem', color: 'rgba(148,163,184,0.7)' }}>
+            성분명 또는 제품명 <span style={{ color: '#dc2626' }}>*</span>
+            <span style={{ fontWeight: 400, marginLeft: '0.5rem', color: '#94a3b8' }}>
               성분명 입력 시 동일 함량 필터 · 제품명 입력 시 동일 성분+함량의 타사 제품 포함
             </span>
           </label>
@@ -284,7 +284,7 @@ export default function CommissionClient({
           <input
             type="number" value={quantity} min={1}
             onChange={e => handleQuantityChange(parseInt(e.target.value) || 1)}
-            style={{ ...inputStyle, width: '100%', color: '#fbbf24', fontWeight: 600 }}
+            style={{ ...inputStyle, width: '100%', color: '#b45309', fontWeight: 600 }}
           />
         </div>
 
@@ -293,19 +293,19 @@ export default function CommissionClient({
           style={{
             padding: '0.6rem 1.6rem', borderRadius: '8px', fontSize: '0.88rem',
             fontWeight: 700, cursor: searching1 ? 'not-allowed' : 'pointer',
-            border: '1px solid rgba(139,92,246,0.45)', background: 'rgba(139,92,246,0.22)', color: '#c4b5fd',
+            border: '1px solid rgba(139,92,246,0.45)', background: 'rgba(139,92,246,0.15)', color: '#7c3aed',
           }}
         >
           {searching1 ? '검색 중…' : '🔍 검색'}
         </button>
       </div>
 
-      {error && <p style={{ color: '#fca5a5', fontSize: '0.85rem', marginBottom: '1rem' }}>⚠ {error}</p>}
+      {error && <p style={{ color: '#dc2626', fontSize: '0.85rem', marginBottom: '1rem' }}>⚠ {error}</p>}
 
       {/* ── 1단계: 성분명(함량) 선택 ──────────────────────── */}
       {phase1Done && options.length > 0 && (
         <div style={{
-          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+          background: '#ffffff', border: '1px solid #e5e9f0',
           borderRadius: '12px', padding: '1rem 1.2rem', marginBottom: '1.2rem',
         }}>
           <p style={{ margin: '0 0 0.7rem', fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
@@ -322,9 +322,9 @@ export default function CommissionClient({
                   style={{
                     padding: '0.4rem 0.85rem', borderRadius: '100px', fontSize: '0.8rem',
                     fontWeight: isSelected ? 700 : 500, cursor: 'pointer',
-                    border: isSelected ? '1px solid rgba(139,92,246,0.6)' : '1px solid rgba(255,255,255,0.12)',
-                    background: isSelected ? 'rgba(139,92,246,0.25)' : 'rgba(255,255,255,0.05)',
-                    color: isSelected ? '#c4b5fd' : 'var(--text-secondary)',
+                    border: isSelected ? '1px solid rgba(139,92,246,0.6)' : '1px solid #d7dce5',
+                    background: isSelected ? 'rgba(139,92,246,0.18)' : '#f1f5f9',
+                    color: isSelected ? '#7c3aed' : 'var(--text-secondary)',
                     transition: 'all 0.15s',
                   }}
                 >
@@ -348,7 +348,7 @@ export default function CommissionClient({
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div style={{ display: 'flex', gap: '1.2rem', flexWrap: 'wrap', alignItems: 'center' }}>
               <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                <strong style={{ color: '#c4b5fd' }}>{selectedIng}</strong>
+                <strong style={{ color: '#7c3aed' }}>{selectedIng}</strong>
               </span>
               <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                 {rows.length}개 제약사
@@ -357,12 +357,12 @@ export default function CommissionClient({
             <button onClick={exportCsv} style={{
               padding: '0.35rem 0.9rem', borderRadius: '7px', fontSize: '0.78rem',
               border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.12)',
-              color: '#a5b4fc', cursor: 'pointer',
+              color: '#4f46e5', cursor: 'pointer',
             }}>📥 CSV 내보내기</button>
           </div>
 
           {/* 테이블 */}
-          <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ overflowX: 'auto', borderRadius: '12px', border: '1px solid #e5e9f0' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '860px' }}>
               <thead>
                 <tr>
@@ -386,20 +386,20 @@ export default function CommissionClient({
                     const mine = isMyCompany(r.manufacturer, companyName ?? null);
                     return (
                   <tr key={i}
-                    style={mine ? { background: 'rgba(250,204,21,0.07)', borderLeft: '3px solid #facc15' } : {}}
-                    onMouseEnter={e => (e.currentTarget.style.background = mine ? 'rgba(250,204,21,0.13)' : 'rgba(255,255,255,0.03)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = mine ? 'rgba(250,204,21,0.07)' : '')}
+                    style={mine ? { background: 'rgba(250,204,21,0.10)', borderLeft: '3px solid #ca8a04' } : {}}
+                    onMouseEnter={e => (e.currentTarget.style.background = mine ? 'rgba(250,204,21,0.16)' : '#f1f5f9')}
+                    onMouseLeave={e => (e.currentTarget.style.background = mine ? 'rgba(250,204,21,0.10)' : '')}
                   >
-                    <td style={{ ...tdStyle, color: mine ? '#facc15' : '#93c5fd', fontWeight: mine ? 700 : 500 }}>{r.manufacturer ?? '-'}</td>
+                    <td style={{ ...tdStyle, color: mine ? '#b45309' : '#2563eb', fontWeight: mine ? 700 : 500 }}>{r.manufacturer ?? '-'}</td>
                     <td style={{ ...tdStyle, color: 'var(--text-primary)', fontWeight: 500, maxWidth: '200px' }}>{r.item_name}</td>
                     <td style={{ ...tdStyle, color: 'var(--text-muted)', fontSize: '0.78rem' }}>{r.standard ?? '-'}</td>
                     <td style={{ ...tdStyle, textAlign: 'right', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
                       {(r.max_price ?? 0).toLocaleString()}
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'right', color: '#fbbf24', fontWeight: 600 }}>
+                    <td style={{ ...tdStyle, textAlign: 'right', color: '#b45309', fontWeight: 600 }}>
                       {r.quantity.toLocaleString()}
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'right', color: '#60a5fa', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                    <td style={{ ...tdStyle, textAlign: 'right', color: '#2563eb', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                       {Math.round(r.prescription_amount / 1000).toLocaleString()}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'center' }}>
@@ -407,20 +407,20 @@ export default function CommissionClient({
                         <RateInput value={r.commission_rate} onChange={v => handleRateChange(i, v)} />
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>%</span>
                         {!r.rate_matched && (
-                          <span title="수수료율 파일에 미등록" style={{ fontSize: '0.65rem', color: '#f87171', opacity: 0.7 }}>미등록</span>
+                          <span title="수수료율 파일에 미등록" style={{ fontSize: '0.65rem', color: '#dc2626', opacity: 0.7 }}>미등록</span>
                         )}
                       </div>
                     </td>
-                    <td style={{ ...tdStyle, textAlign: 'right', color: '#4ade80', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                    <td style={{ ...tdStyle, textAlign: 'right', color: '#059669', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
                       {r.settlement_amount.toLocaleString()}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'center', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
                       {rank != null
                         ? <span style={{ fontSize: '0.8rem' }}>
-                            <span style={{ fontWeight: 700, color: rank === 1 ? '#fbbf24' : '#ffffff' }}>{rank}</span>
-                            <span style={{ color: '#ffffff', opacity: 0.55 }}>/{nonZeroCount}</span>
+                            <span style={{ fontWeight: 700, color: rank === 1 ? '#b45309' : '#111827' }}>{rank}</span>
+                            <span style={{ color: '#94a3b8', opacity: 0.55 }}>/{nonZeroCount}</span>
                           </span>
-                        : <span style={{ color: 'rgba(255,255,255,0.3)' }}>-</span>
+                        : <span style={{ color: '#94a3b8' }}>-</span>
                       }
                     </td>
                   </tr>

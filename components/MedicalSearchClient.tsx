@@ -6,18 +6,18 @@ import type { MedicalItem } from '@/app/api/medical-search/route';
 /* ── 종별코드 배지 색 ────────────────────────────────────────── */
 function clBadgeStyle(clCdNm: string): React.CSSProperties {
   if (clCdNm.includes('상급종합') || clCdNm.includes('종합병원'))
-    return { background: 'rgba(239,68,68,0.12)',  border: '1px solid rgba(239,68,68,0.28)',  color: '#fca5a5' };
+    return { background: 'rgba(239,68,68,0.12)',  border: '1px solid rgba(239,68,68,0.28)',  color: '#dc2626' };
   if (clCdNm.includes('병원'))
-    return { background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.28)', color: '#fdba74' };
+    return { background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.28)', color: '#c2410c' };
   if (clCdNm.includes('의원'))
-    return { background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.24)', color: '#6ee7b7' };
+    return { background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.24)', color: '#059669' };
   if (clCdNm.includes('한방') || clCdNm.includes('한의원'))
-    return { background: 'rgba(167,139,250,0.12)',border: '1px solid rgba(167,139,250,0.28)',color: '#c4b5fd' };
+    return { background: 'rgba(167,139,250,0.12)',border: '1px solid rgba(167,139,250,0.28)',color: '#7c3aed' };
   if (clCdNm.includes('치과'))
-    return { background: 'rgba(34,211,238,0.10)', border: '1px solid rgba(34,211,238,0.24)', color: '#67e8f9' };
+    return { background: 'rgba(34,211,238,0.10)', border: '1px solid rgba(34,211,238,0.24)', color: '#0891b2' };
   if (clCdNm.includes('약국'))
     return { background: 'rgba(250,204,21,0.10)', border: '1px solid rgba(250,204,21,0.28)', color: '#fde047' };
-  return { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-muted)' };
+  return { background: '#f8fafc', border: '1px solid #e5e9f0', color: 'var(--text-muted)' };
 }
 
 export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: boolean }) {
@@ -97,7 +97,7 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
 
       {/* ── 검색 헤더 ─────────────────────────────────────── */}
       <div style={{
-        background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+        background: '#ffffff', border: '1px solid #f1f5f9',
         borderRadius: 14, padding: '1rem 1.2rem 1.2rem',
       }}>
         <p style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginBottom: '0.8rem' }}>
@@ -112,11 +112,11 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
             placeholder="기관명을 입력하세요 (예: 서울아산병원, 강남의원)"
             style={{
               flex: 1, padding: '0.65rem 1rem', borderRadius: 10,
-              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+              background: '#f8fafc', border: '1px solid #e5e9f0',
               color: 'var(--text-primary)', fontSize: '0.9rem', fontFamily: 'inherit', outline: 'none',
             }}
             onFocus={e => { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.5)'; }}
-            onBlur={e  => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)'; }}
+            onBlur={e  => { e.currentTarget.style.borderColor = '#e5e9f0'; }}
           />
           <button
             type="submit"
@@ -125,7 +125,7 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
               padding: '0.65rem 1.4rem', borderRadius: 10, fontFamily: 'inherit',
               cursor: (isPending || !query.trim()) ? 'not-allowed' : 'pointer',
               background: isPending ? 'rgba(34,211,238,0.06)' : 'rgba(34,211,238,0.14)',
-              border: '1px solid rgba(34,211,238,0.35)', color: '#67e8f9',
+              border: '1px solid rgba(34,211,238,0.35)', color: '#0891b2',
               fontSize: '0.88rem', fontWeight: 600, whiteSpace: 'nowrap',
               opacity: !query.trim() ? 0.45 : 1,
             }}
@@ -138,7 +138,7 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
           <div style={{
             marginTop: '0.9rem', padding: '0.7rem 1rem', borderRadius: 10,
             background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.22)',
-            fontSize: '0.78rem', color: '#fde68a', lineHeight: 1.6,
+            fontSize: '0.78rem', color: '#b45309', lineHeight: 1.6,
           }}>
             <strong>⚠ API 키 미설정</strong> —{' '}
             <code style={{ background: 'rgba(0,0,0,0.3)', padding: '0 4px', borderRadius: 4 }}>
@@ -154,7 +154,7 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
         <div style={{
           padding: '0.8rem 1rem', borderRadius: 10,
           background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)',
-          color: '#f87171', fontSize: '0.82rem',
+          color: '#dc2626', fontSize: '0.82rem',
         }}>
           ⚠ {error}
         </div>
@@ -166,7 +166,7 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} style={{
               borderRadius: 12, height: 120,
-              background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', opacity: 0.5,
+              background: '#ffffff', border: '1px solid #f1f5f9', opacity: 0.5,
             }} />
           ))}
         </div>
@@ -219,7 +219,7 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
                   style={{
                     display: 'flex', alignItems: 'center', gap: '0.3rem',
                     padding: '0.3rem 0.75rem', borderRadius: 8,
-                    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                    background: '#f8fafc', border: '1px solid #e5e9f0',
                     color: 'var(--text-muted)', fontSize: '0.75rem', cursor: 'pointer',
                     fontFamily: 'inherit',
                   }}
@@ -254,13 +254,13 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
       {/* ── 주변 약국 섹션 ──────────────────────────────── */}
       {selectedHosp && (
         <div ref={nearbyRef} style={{
-          borderTop: '1px solid rgba(255,255,255,0.07)',
+          borderTop: '1px solid #f1f5f9',
           paddingTop: '1.2rem',
           display: 'flex', flexDirection: 'column', gap: '0.9rem',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '1rem' }}>💊</span>
-            <p style={{ fontSize: '0.85rem', fontWeight: 700, color: '#67e8f9', margin: 0 }}>
+            <p style={{ fontSize: '0.85rem', fontWeight: 700, color: '#0891b2', margin: 0 }}>
               {selectedHosp.yadmNm} 주변 약국 (1km 이내)
             </p>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', opacity: 0.65 }}>
@@ -273,7 +273,7 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} style={{
                   borderRadius: 10, height: 90,
-                  background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+                  background: '#ffffff', border: '1px solid #f1f5f9',
                   opacity: 0.5, animation: 'pulse 1.5s ease-in-out infinite',
                 }} />
               ))}
@@ -284,7 +284,7 @@ export default function MedicalSearchClient({ apiConfigured }: { apiConfigured: 
             <div style={{
               padding: '0.7rem 1rem', borderRadius: 10,
               background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.2)',
-              color: '#f87171', fontSize: '0.82rem',
+              color: '#dc2626', fontSize: '0.82rem',
             }}>
               ⚠ {nearbyError}
             </div>
@@ -321,8 +321,8 @@ function HospitalCard({ item, selected, onClick }: {
       onClick={onClick}
       style={{
         borderRadius: 12, padding: '1rem', cursor: 'pointer',
-        background: selected ? 'rgba(34,211,238,0.07)' : 'rgba(255,255,255,0.02)',
-        border: `1px solid ${selected ? 'rgba(34,211,238,0.45)' : 'rgba(255,255,255,0.08)'}`,
+        background: selected ? 'rgba(34,211,238,0.07)' : '#ffffff',
+        border: `1px solid ${selected ? 'rgba(34,211,238,0.45)' : '#f1f5f9'}`,
         boxShadow: selected ? '0 0 0 1px rgba(34,211,238,0.2)' : 'none',
         transition: 'border-color 0.15s, background 0.15s',
         display: 'flex', flexDirection: 'column', gap: '0.5rem',
@@ -331,7 +331,7 @@ function HospitalCard({ item, selected, onClick }: {
         if (!selected) e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)';
       }}
       onMouseLeave={e => {
-        if (!selected) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+        if (!selected) e.currentTarget.style.borderColor = '#f1f5f9';
       }}
     >
       {/* 종별 배지 + 기관명 */}
@@ -345,7 +345,7 @@ function HospitalCard({ item, selected, onClick }: {
           {item.yadmNm}
         </p>
         {selected && (
-          <span style={{ marginLeft: 'auto', fontSize: '0.68rem', color: '#67e8f9', fontWeight: 600, flexShrink: 0 }}>
+          <span style={{ marginLeft: 'auto', fontSize: '0.68rem', color: '#0891b2', fontWeight: 600, flexShrink: 0 }}>
             ✓ 선택됨
           </span>
         )}
@@ -360,11 +360,11 @@ function HospitalCard({ item, selected, onClick }: {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
         {item.telno ? (
           <a href={`tel:${item.telno}`} onClick={e => e.stopPropagation()}
-             style={{ fontSize: '0.78rem', color: '#6ee7b7', textDecoration: 'none', fontWeight: 500 }}>
+             style={{ fontSize: '0.78rem', color: '#059669', textDecoration: 'none', fontWeight: 500 }}>
             📞 {item.telno}
           </a>
         ) : (
-          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.25)' }}>전화번호 없음</span>
+          <span style={{ fontSize: '0.75rem', color: '#64748b' }}>전화번호 없음</span>
         )}
         {region && (
           <span style={{ fontSize: '0.69rem', color: 'var(--text-muted)', opacity: 0.7 }}>
@@ -417,11 +417,11 @@ function PharmacyCard({ item }: { item: MedicalItem }) {
 
       {item.telno ? (
         <a href={`tel:${item.telno}`}
-           style={{ fontSize: '0.75rem', color: '#6ee7b7', textDecoration: 'none', fontWeight: 500 }}>
+           style={{ fontSize: '0.75rem', color: '#059669', textDecoration: 'none', fontWeight: 500 }}>
           📞 {item.telno}
         </a>
       ) : (
-        <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.25)' }}>전화번호 없음</span>
+        <span style={{ fontSize: '0.72rem', color: '#64748b' }}>전화번호 없음</span>
       )}
     </div>
   );
@@ -439,9 +439,9 @@ function PageBtn({ label, active, disabled, onClick }: {
         minWidth: 36, height: 36, borderRadius: 8,
         cursor: disabled ? 'not-allowed' : 'pointer',
         fontFamily: 'inherit', fontSize: '0.8rem', fontWeight: active ? 700 : 400,
-        background: active ? 'rgba(34,211,238,0.15)' : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${active ? 'rgba(34,211,238,0.4)' : 'rgba(255,255,255,0.08)'}`,
-        color: active ? '#67e8f9' : disabled ? 'rgba(107,122,153,0.4)' : 'var(--text-muted)',
+        background: active ? 'rgba(34,211,238,0.15)' : '#f8fafc',
+        border: `1px solid ${active ? 'rgba(34,211,238,0.4)' : '#f1f5f9'}`,
+        color: active ? '#0891b2' : disabled ? 'rgba(107,122,153,0.4)' : 'var(--text-muted)',
       }}
     >
       {label}

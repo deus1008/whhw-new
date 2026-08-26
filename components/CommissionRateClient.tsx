@@ -171,12 +171,12 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
 
   if (docs.length === 0) {
     return (
-      <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: '3rem 0' }}>
+      <div style={{ textAlign: 'center', color: '#94a3b8', padding: '3rem 0' }}>
         <p style={{ marginBottom: '0.4rem' }}>📂</p>
         <p style={{ fontSize: '0.88rem' }}>
           문서관리 &gt; <strong>{folderName}</strong> 폴더에 Excel 파일이 없습니다.
         </p>
-        <p style={{ fontSize: '0.78rem', marginTop: '0.3rem', color: 'rgba(255,255,255,0.25)' }}>
+        <p style={{ fontSize: '0.78rem', marginTop: '0.3rem', color: '#94a3b8' }}>
           .xlsx / .xls / .xlsb 파일을 먼저 업로드해 주세요.
         </p>
       </div>
@@ -200,27 +200,27 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
           {loading ? '불러오는 중…' : '📊 파일 불러오기'}
         </button>
       </div>
-      {error && <p style={{ color: '#f87171', fontSize: '0.8rem', marginBottom: '0.8rem' }}>{error}</p>}
+      {error && <p style={{ color: '#dc2626', fontSize: '0.8rem', marginBottom: '0.8rem' }}>{error}</p>}
 
       {/* 데이터 테이블 */}
       {loaded && (
         <div>
           <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem', marginBottom: '0.8rem', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#e2e8f0', flexShrink: 0 }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111827', flexShrink: 0 }}>
               총 {rows.length.toLocaleString()}건
               {appliedQuery && ` · 검색 ${filtered.length.toLocaleString()}건`}
             </span>
             <div style={{ flex: 1, minWidth: '200px', maxWidth: '400px', position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none' }}>🔍</span>
+              <span style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', fontSize: '0.85rem', color: '#94a3b8', pointerEvents: 'none' }}>🔍</span>
               <input
                 type="text" value={query}
                 onChange={e => setQuery(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
                 placeholder="구분·계열·제품군·품목명·성분명·위탁여부 검색"
-                style={{ width: '100%', boxSizing: 'border-box', paddingLeft: '2rem', paddingRight: query ? '2rem' : '0.75rem', paddingTop: '0.42rem', paddingBottom: '0.42rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: '#fff', fontSize: '0.82rem', outline: 'none' }}
+                style={{ width: '100%', boxSizing: 'border-box', paddingLeft: '2rem', paddingRight: query ? '2rem' : '0.75rem', paddingTop: '0.42rem', paddingBottom: '0.42rem', background: '#ffffff', border: '1px solid #d7dce5', borderRadius: '8px', color: '#111827', fontSize: '0.82rem', outline: 'none' }}
               />
               {query && (
-                <button onClick={() => { setQuery(''); setAppliedQuery(''); }} style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.9rem', cursor: 'pointer', lineHeight: 1, padding: 0 }}>×</button>
+                <button onClick={() => { setQuery(''); setAppliedQuery(''); }} style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', fontSize: '0.9rem', cursor: 'pointer', lineHeight: 1, padding: 0 }}>×</button>
               )}
             </div>
             <button
@@ -231,19 +231,19 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
             </button>
             <button
               onClick={() => window.print()}
-              style={{ padding: '0.42rem 1rem', borderRadius: '8px', flexShrink: 0, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.75)', fontSize: '0.82rem', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}
+              style={{ padding: '0.42rem 1rem', borderRadius: '8px', flexShrink: 0, background: '#f1f5f9', border: '1px solid #e5e9f0', color: '#334155', fontSize: '0.82rem', fontWeight: 700, fontFamily: 'inherit', cursor: 'pointer' }}
             >
               🖨️ 인쇄
             </button>
             <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
               {SEARCH_COLS.map(col => (
-                <span key={col} style={{ padding: '0.12rem 0.5rem', borderRadius: '100px', fontSize: '0.67rem', fontWeight: 600, background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.25)', color: '#93c5fd' }}>{col}</span>
+                <span key={col} style={{ padding: '0.12rem 0.5rem', borderRadius: '100px', fontSize: '0.67rem', fontWeight: 600, background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.25)', color: '#2563eb' }}>{col}</span>
               ))}
             </div>
           </div>
 
           {filtered.length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', padding: '2.5rem 0', fontSize: '0.88rem' }}>검색 결과가 없습니다.</div>
+            <div style={{ textAlign: 'center', color: '#94a3b8', padding: '2.5rem 0', fontSize: '0.88rem' }}>검색 결과가 없습니다.</div>
           ) : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', tableLayout: 'fixed', borderCollapse: 'collapse', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
@@ -256,14 +256,14 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
                   <tr>
                     <th style={{ ...TH, textAlign: 'center' }}>No.</th>
                     {displayHeaders.map(h => (
-                      <th key={h} style={{ ...TH, overflow: 'hidden', textOverflow: 'ellipsis', color: SEARCH_COLS.includes(h) ? '#93c5fd' : 'rgba(255,255,255,0.4)', borderBottom: SEARCH_COLS.includes(h) ? '2px solid rgba(96,165,250,0.4)' : '1px solid rgba(255,255,255,0.08)' }}>{h}</th>
+                      <th key={h} style={{ ...TH, overflow: 'hidden', textOverflow: 'ellipsis', color: SEARCH_COLS.includes(h) ? '#2563eb' : 'var(--text-muted)', borderBottom: SEARCH_COLS.includes(h) ? '2px solid rgba(96,165,250,0.4)' : '1px solid #e5e9f0' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((row, i) => (
-                    <tr key={i} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.018)' : 'transparent' }}>
-                      <td style={{ ...TD, textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>{i + 1}</td>
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#fafbfd' : 'transparent' }}>
+                      <td style={{ ...TD, textAlign: 'center', color: '#94a3b8' }}>{i + 1}</td>
                       {displayHeaders.map(h => {
                         const val = row[h] ?? '';
                         const isSearch = SEARCH_COLS.includes(h);
@@ -273,7 +273,7 @@ function FolderView({ docs, folderName }: { docs: CommissionDoc[]; folderName: s
                         const hl = appliedQuery ? highlight(val, appliedQuery) : null;
                         return (
                           <td key={h} style={{ ...TD, overflow: 'hidden', textOverflow: 'ellipsis', textAlign: align }}>
-                            {hl ? <span dangerouslySetInnerHTML={{ __html: hl }} /> : <span style={{ color: isSearch ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.45)' }}>{val}</span>}
+                            {hl ? <span dangerouslySetInnerHTML={{ __html: hl }} /> : <span style={{ color: isSearch ? '#111827' : '#64748b' }}>{val}</span>}
                           </td>
                         );
                       })}
@@ -318,9 +318,9 @@ export default function CommissionRateClient({ folderGroups }: { folderGroups: C
             style={{
               padding: '0.55rem 1.1rem', borderRadius: '10px', cursor: 'pointer',
               fontSize: '0.85rem', fontWeight: 700, fontFamily: 'inherit',
-              border: activeKey === g.key ? '1px solid rgba(96,165,250,0.5)' : '1px solid rgba(255,255,255,0.1)',
-              background: activeKey === g.key ? 'rgba(96,165,250,0.15)' : 'rgba(255,255,255,0.04)',
-              color: activeKey === g.key ? '#93c5fd' : 'rgba(255,255,255,0.5)',
+              border: activeKey === g.key ? '1px solid rgba(96,165,250,0.5)' : '1px solid #e5e9f0',
+              background: activeKey === g.key ? 'rgba(96,165,250,0.15)' : '#f1f5f9',
+              color: activeKey === g.key ? '#2563eb' : 'var(--text-muted)',
               transition: 'all 0.15s',
             }}
           >
@@ -328,8 +328,8 @@ export default function CommissionRateClient({ folderGroups }: { folderGroups: C
             <span style={{
               marginLeft: '0.45rem', padding: '0.1rem 0.5rem', borderRadius: '100px',
               fontSize: '0.68rem', fontWeight: 600,
-              background: activeKey === g.key ? 'rgba(96,165,250,0.2)' : 'rgba(255,255,255,0.06)',
-              color: activeKey === g.key ? '#93c5fd' : 'rgba(255,255,255,0.35)',
+              background: activeKey === g.key ? 'rgba(96,165,250,0.2)' : '#eef2f7',
+              color: activeKey === g.key ? '#2563eb' : '#94a3b8',
             }}>
               {g.docs.length}개
             </span>
@@ -344,7 +344,7 @@ export default function CommissionRateClient({ folderGroups }: { folderGroups: C
           background: activeKey === 'dealer' ? 'rgba(96,165,250,0.07)' : 'rgba(251,191,36,0.07)',
           border: activeKey === 'dealer' ? '1px solid rgba(96,165,250,0.2)' : '1px solid rgba(251,191,36,0.2)',
           fontSize: '0.78rem',
-          color: activeKey === 'dealer' ? '#93c5fd' : '#fde68a',
+          color: activeKey === 'dealer' ? '#2563eb' : '#b45309',
         }}>
           <strong>📁 {active.folderName}</strong>
           <span style={{ marginLeft: '0.6rem', opacity: 0.8 }}>{active.description}</span>
@@ -364,7 +364,7 @@ function highlight(val: string, q: string): string | null {
   if (!val || !q) return null;
   const idx = val.toLowerCase().indexOf(q.toLowerCase());
   if (idx === -1) return null;
-  return `${escHtml(val.slice(0, idx))}<mark style="background:rgba(251,191,36,0.35);color:#fde68a;border-radius:2px;padding:0 1px">${escHtml(val.slice(idx, idx + q.length))}</mark>${escHtml(val.slice(idx + q.length))}`;
+  return `${escHtml(val.slice(0, idx))}<mark style="background:rgba(251,191,36,0.35);color:#b45309;border-radius:2px;padding:0 1px">${escHtml(val.slice(idx, idx + q.length))}</mark>${escHtml(val.slice(idx + q.length))}`;
 }
 
 function escHtml(s: string): string {
@@ -375,7 +375,7 @@ function escHtml(s: string): string {
 const SELECT_STYLE: React.CSSProperties = {
   flex: 1, minWidth: '200px',
   padding: '0.55rem 0.75rem', borderRadius: '10px',
-  background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)',
+  background: '#ffffff', border: '1px solid #d7dce5',
   color: 'var(--text-primary)', fontSize: '0.85rem', fontFamily: 'inherit',
   outline: 'none', cursor: 'pointer',
 };
@@ -389,15 +389,15 @@ const LOAD_BTN: React.CSSProperties = {
 const TH: React.CSSProperties = {
   padding: '0.6rem 0.85rem', textAlign: 'center', fontWeight: 700,
   fontSize: '0.75rem', letterSpacing: '0.02em',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
-  color: 'rgba(255,255,255,0.5)',
-  background: 'rgba(255,255,255,0.03)',
+  borderBottom: '1px solid #e5e9f0',
+  color: 'var(--text-muted)',
+  background: '#f1f4f9',
   position: 'sticky', top: 0, whiteSpace: 'nowrap',
 };
 
 const TD: React.CSSProperties = {
   padding: '0.5rem 0.85rem',
-  borderBottom: '1px solid rgba(255,255,255,0.04)',
-  color: 'rgba(255,255,255,0.75)',
+  borderBottom: '1px solid #eaeef4',
+  color: '#334155',
   verticalAlign: 'middle',
 };

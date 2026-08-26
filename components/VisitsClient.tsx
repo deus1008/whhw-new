@@ -14,8 +14,8 @@ import {
 const CUSTOMER_TYPES = ['CSO법인', '딜러'] as const;
 
 const TYPE_META: Record<string, { color: string; bg: string; bd: string }> = {
-  'CSO법인': { color: '#93c5fd', bg: 'rgba(59,130,246,0.12)',  bd: 'rgba(59,130,246,0.28)'  },
-  '딜러':    { color: '#c084fc', bg: 'rgba(162,89,255,0.12)', bd: 'rgba(162,89,255,0.28)' },
+  'CSO법인': { color: '#2563eb', bg: 'rgba(59,130,246,0.12)',  bd: 'rgba(59,130,246,0.28)'  },
+  '딜러':    { color: '#9333ea', bg: 'rgba(162,89,255,0.12)', bd: 'rgba(162,89,255,0.28)' },
 };
 
 type Period = '전체' | '이번주' | '이번달' | '지난달';
@@ -249,10 +249,10 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
       {/* ── 통계 카드 ── */}
       <div className="visit-stats-grid">
         {[
-          { label: '오늘(6시~)', value: stats.today,  color: '#fde68a', rgba: 'rgba(251,191,36,' },
-          { label: '이번 주', value: stats.thisWeek,  color: '#86efac', rgba: 'rgba(34,197,94,'  },
-          { label: '이번 달', value: stats.thisMonth, color: '#93c5fd', rgba: 'rgba(59,130,246,' },
-          { label: '전체',   value: stats.total,     color: '#c084fc', rgba: 'rgba(162,89,255,' },
+          { label: '오늘(6시~)', value: stats.today,  color: '#b45309', rgba: 'rgba(251,191,36,' },
+          { label: '이번 주', value: stats.thisWeek,  color: '#059669', rgba: 'rgba(34,197,94,'  },
+          { label: '이번 달', value: stats.thisMonth, color: '#2563eb', rgba: 'rgba(59,130,246,' },
+          { label: '전체',   value: stats.total,     color: '#9333ea', rgba: 'rgba(162,89,255,' },
         ].map(({ label, value, color, rgba }) => (
           <div key={label} style={{
             ...statCard,
@@ -367,7 +367,7 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
               {t}
             </button>
           ))}
-          <span style={{ width: '1px', background: 'rgba(255,255,255,0.1)', margin: '0 0.2rem', flexShrink: 0 }} />
+          <span style={{ width: '1px', background: '#e5e9f0', margin: '0 0.2rem', flexShrink: 0 }} />
           {(['전체', '이번주', '이번달', '지난달'] as Period[]).map(p => (
             <button key={p} onClick={() => setFilterPeriod(p)} style={pillBtn(filterPeriod === p)}>
               {p}
@@ -433,7 +433,7 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
 
                   {/* 논의 제품 */}
                   {rec.products && (
-                    <span style={{ fontSize: '0.75rem', color: '#c084fc', background: 'rgba(162,89,255,0.1)', border: '1px solid rgba(162,89,255,0.2)', padding: '2px 8px', borderRadius: '6px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    <span style={{ fontSize: '0.75rem', color: '#9333ea', background: 'rgba(162,89,255,0.1)', border: '1px solid rgba(162,89,255,0.2)', padding: '2px 8px', borderRadius: '6px', whiteSpace: 'nowrap', flexShrink: 0 }}>
                       {rec.products.length > 20 ? rec.products.slice(0, 20) + '…' : rec.products}
                     </span>
                   )}
@@ -447,7 +447,7 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
 
                   {/* 후속 예정 */}
                   {rec.follow_up_date && (
-                    <span style={{ fontSize: '0.72rem', color: '#fde68a', flexShrink: 0 }}>
+                    <span style={{ fontSize: '0.72rem', color: '#b45309', flexShrink: 0 }}>
                       ↻ {rec.follow_up_date.replace(/-/g, '.')}
                     </span>
                   )}
@@ -460,7 +460,7 @@ export default function VisitsClient({ initialRecords, userId, isAdmin }: Props)
 
                 {/* 확장 영역 */}
                 {isExpanded && (
-                  <div style={{ padding: '1rem 1.2rem', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                  <div style={{ padding: '1rem 1.2rem', borderTop: '1px solid #f1f5f9' }}>
 
                     {/* 협의 내용 */}
                     <DetailRow label="협의 내용" value={rec.content} multiline />
@@ -563,14 +563,14 @@ const formGrid2: React.CSSProperties = {
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+  background: '#f8fafc', border: '1px solid #e5e9f0',
   color: 'var(--text-primary)', fontSize: '16px', fontFamily: 'inherit',
   outline: 'none', boxSizing: 'border-box', minHeight: '44px',
 };
 
 const selectStyle: React.CSSProperties = {
   ...inputStyle, cursor: 'pointer',
-  background: '#1e293b',
+  background: '#ffffff',
 };
 
 const primaryBtn: React.CSSProperties = {
@@ -582,7 +582,7 @@ const primaryBtn: React.CSSProperties = {
 
 const cancelBtn: React.CSSProperties = {
   padding: '0.62rem 1.2rem', borderRadius: '10px',
-  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)',
+  border: '1px solid #e5e9f0', background: '#f8fafc',
   color: 'var(--text-muted)', fontSize: '0.92rem', cursor: 'pointer', fontFamily: 'inherit',
   minHeight: '44px',
 };
@@ -590,19 +590,19 @@ const cancelBtn: React.CSSProperties = {
 const editBtn: React.CSSProperties = {
   padding: '0.5rem 1rem', borderRadius: '8px',
   border: '1px solid rgba(59,130,246,0.3)', background: 'rgba(59,130,246,0.1)',
-  color: '#93c5fd', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+  color: '#2563eb', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
   minHeight: '44px',
 };
 
 const dangerBtn: React.CSSProperties = {
   padding: '0.5rem 1rem', borderRadius: '8px',
   border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)',
-  color: '#fca5a5', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+  color: '#dc2626', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
   minHeight: '44px',
 };
 
 const spinnerSt: React.CSSProperties = {
-  width: '13px', height: '13px', border: '2px solid rgba(255,255,255,0.3)',
+  width: '13px', height: '13px', border: '2px solid #94a3b8',
   borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block',
   animation: 'spin 0.7s linear infinite', flexShrink: 0,
 };
@@ -617,9 +617,9 @@ function pillBtn(active: boolean): React.CSSProperties {
   return {
     padding: '0.45rem 0.9rem', borderRadius: '100px', cursor: 'pointer',
     fontSize: '0.82rem', fontWeight: active ? 700 : 500, fontFamily: 'inherit',
-    border: active ? '1px solid rgba(79,142,247,0.5)' : '1px solid rgba(255,255,255,0.09)',
-    background: active ? 'rgba(79,142,247,0.18)' : 'rgba(255,255,255,0.04)',
-    color: active ? '#93c5fd' : 'var(--text-muted)',
+    border: active ? '1px solid rgba(79,142,247,0.5)' : '1px solid #f1f5f9',
+    background: active ? 'rgba(79,142,247,0.18)' : '#f8fafc',
+    color: active ? '#2563eb' : 'var(--text-muted)',
     transition: 'all 0.15s', whiteSpace: 'nowrap', minHeight: '38px', flexShrink: 0,
   };
 }

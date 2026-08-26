@@ -8,7 +8,7 @@ const fyLabel = (fm: number) => `${fm <= 9 ? fm + 3 : fm - 9}월`;
 const FY_HALVES = [[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12]] as const;
 const nf = (n: number) => n.toLocaleString();
 
-function rateColor(r: number) { return r >= 95 ? '#60a5fa' : r >= 85 ? '#fbbf24' : '#f87171'; }
+function rateColor(r: number) { return r >= 95 ? '#1d4ed8' : r >= 85 ? '#b45309' : '#b91c1c'; }
 function rateRgb(r: number)   { return r >= 95 ? '96,165,250' : r >= 85 ? '251,191,36' : '248,113,113'; }
 function rateLabel(r: number) { return r >= 95 ? '순조' : r >= 85 ? '주의' : '미흡'; }
 
@@ -24,7 +24,7 @@ export default function AllianceMbo({
       <div style={{ padding: '2.2rem 1rem', textAlign: 'center', color: 'var(--text-muted)' }}>
         <p style={{ fontSize: '1.6rem', margin: 0 }}>🔍</p>
         <p style={{ fontSize: '0.86rem', margin: '0.5rem 0 0.9rem' }}>
-          <b style={{ color: '#a5b4fc' }}>{memberName}</b> · FY{fyYear} · 목표성장율 <b style={{ color: '#fbbf24' }}>{nf(target)}%</b> · 목표수수료율 <b style={{ color: '#34d399' }}>{nf(commTarget)}%</b>
+          <b style={{ color: '#2563eb' }}>{memberName}</b> · FY{fyYear} · 목표성장율 <b style={{ color: '#b45309' }}>{nf(target)}%</b> · 목표수수료율 <b style={{ color: '#059669' }}>{nf(commTarget)}%</b>
         </p>
         <button onClick={onSearch}
           style={{ padding: '0.45rem 1.3rem', borderRadius: 9, border: 'none', cursor: 'pointer',
@@ -102,20 +102,20 @@ function IndicatorCard({ ind }: { ind: AllianceIndicator }) {
   const rRate   = rActual !== null && rActual > 0 && ind.growthPct > 0 ? Math.round((ind.growthPct / rActual) * 100) : null;
 
   return (
-    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14, padding: '0.9rem 1rem' }}>
+    <div style={{ background: '#ffffff', border: '1px solid #e5e9f0', borderRadius: 14, padding: '0.9rem 1rem' }}>
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: ind.scope === 'all' ? '#c4b5fd' : 'var(--text-primary)' }}>
+        <span style={{ fontSize: '0.9rem', fontWeight: 700, color: ind.scope === 'all' ? '#7c3aed' : 'var(--text-primary)' }}>
           {ind.label}
         </span>
         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{ind.unit}</span>
 
         {isRate ? (
           <>
-            <span style={{ fontSize: '0.72rem', color: '#34d399', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(52,211,153,0.1)' }}>
+            <span style={{ fontSize: '0.72rem', color: '#15803d', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(52,211,153,0.1)' }}>
               목표 {nf(ind.growthPct)}% 이하
             </span>
-            <span style={{ fontSize: '0.72rem', color: '#60a5fa', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(96,165,250,0.1)' }}>
+            <span style={{ fontSize: '0.72rem', color: '#1d4ed8', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(96,165,250,0.1)' }}>
               실제 {rActual === null ? '-' : `${nf(rActual)}%`}
             </span>
             {rRate !== null && (
@@ -126,10 +126,10 @@ function IndicatorCard({ ind }: { ind: AllianceIndicator }) {
           </>
         ) : isGrowth ? (
           <>
-            <span style={{ fontSize: '0.72rem', color: '#fbbf24', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(251,191,36,0.1)' }}>
+            <span style={{ fontSize: '0.72rem', color: '#b45309', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(251,191,36,0.1)' }}>
               목표 성장 {nf(ind.growthPct)}%
             </span>
-            <span style={{ fontSize: '0.72rem', color: '#60a5fa', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(96,165,250,0.1)' }}>
+            <span style={{ fontSize: '0.72rem', color: '#1d4ed8', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(96,165,250,0.1)' }}>
               달성 성장 {gActual === null ? '-' : `${nf(gActual)}%`}
             </span>
             {gRate !== null && (
@@ -140,10 +140,10 @@ function IndicatorCard({ ind }: { ind: AllianceIndicator }) {
           </>
         ) : (
           <>
-            <span style={{ fontSize: '0.72rem', color: '#fbbf24', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(251,191,36,0.1)' }}>
+            <span style={{ fontSize: '0.72rem', color: '#b45309', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(251,191,36,0.1)' }}>
               목표 누적 {nf(sumT)}<span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>· 연간 {nf(annualT)}</span>
             </span>
-            <span style={{ fontSize: '0.72rem', color: '#60a5fa', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(96,165,250,0.1)' }}>
+            <span style={{ fontSize: '0.72rem', color: '#1d4ed8', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(96,165,250,0.1)' }}>
               실적 누적 {nf(sumA)}
             </span>
             {rate !== null && (
@@ -155,7 +155,7 @@ function IndicatorCard({ ind }: { ind: AllianceIndicator }) {
         )}
 
         <button onClick={() => setOpen(o => !o)}
-          style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 7,
+          style={{ marginLeft: 'auto', background: 'none', border: '1px solid #e5e9f0', borderRadius: 7,
             color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.72rem', padding: '0.2rem 0.6rem', fontFamily: 'inherit' }}>
           {open ? '▲ 월별 접기' : '▼ 월별 보기'}
         </button>
@@ -173,12 +173,12 @@ function IndicatorCard({ ind }: { ind: AllianceIndicator }) {
               {(['목표', '실적', '달성률'] as const).map(rowKind => (
                 <div key={rowKind} style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem', marginBottom: '0.2rem' }}>
                   <div style={{ fontSize: '0.66rem', fontWeight: 600, display: 'flex', alignItems: 'center',
-                    color: rowKind === '목표' ? '#fbbf24' : rowKind === '실적' ? '#60a5fa' : 'var(--text-muted)' }}>{rowKind}</div>
+                    color: rowKind === '목표' ? '#b45309' : rowKind === '실적' ? '#1d4ed8' : 'var(--text-muted)' }}>{rowKind}</div>
                   {half.map(fm => {
                     const m = ind.months.find(x => x.fyMonth === fm)!;
                     const pct = isGrowth || isRate;
-                    if (rowKind === '목표') return <Cell key={fm} v={m.target} color={isRate ? '#34d399' : '#fbbf24'} suffix={pct ? '%' : ''} />;
-                    if (rowKind === '실적') return <Cell key={fm} v={m.actual} color="#60a5fa" suffix={pct ? '%' : ''} />;
+                    if (rowKind === '목표') return <Cell key={fm} v={m.target} color={isRate ? '#15803d' : '#b45309'} suffix={pct ? '%' : ''} />;
+                    if (rowKind === '실적') return <Cell key={fm} v={m.actual} color="#1d4ed8" suffix={pct ? '%' : ''} />;
                     const r = isRate
                       ? ((m.target ?? 0) > 0 && (m.actual ?? 0) > 0 ? Math.round(((m.target ?? 0) / (m.actual ?? 1)) * 100) : null)
                       : isGrowth
@@ -190,7 +190,7 @@ function IndicatorCard({ ind }: { ind: AllianceIndicator }) {
                         fontSize: '0.7rem', fontWeight: 700,
                         background: r === null ? 'transparent' : `rgba(${rateRgb(r)},0.12)`,
                         color: r === null ? 'var(--text-muted)' : rateColor(r),
-                        border: r === null ? '1px solid rgba(255,255,255,0.05)' : `1px solid rgba(${rateRgb(r)},0.25)`,
+                        border: r === null ? '1px solid #eaeef4' : `1px solid rgba(${rateRgb(r)},0.25)`,
                       }}>{r === null ? '-' : `${r}%`}</div>
                     );
                   })}
@@ -210,8 +210,8 @@ function Cell({ v, color, suffix = '' }: { v: number | null; color: string; suff
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'flex-end', height: 26, borderRadius: 6, padding: '0 0.4rem',
       fontSize: '0.72rem', fontVariantNumeric: 'tabular-nums',
-      background: has ? 'rgba(255,255,255,0.03)' : 'transparent',
-      border: '1px solid rgba(255,255,255,0.06)',
+      background: has ? '#f8fafc' : 'transparent',
+      border: '1px solid #e5e9f0',
       color: has ? color : 'var(--text-muted)',
     }}>{v === null ? '-' : `${nf(v)}${suffix}`}</div>
   );

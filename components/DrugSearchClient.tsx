@@ -95,13 +95,13 @@ export default function DrugSearchClient(_props: { apiConfigured: boolean }) {
         <input
           value={query} onChange={e => setQuery(e.target.value)}
           placeholder="성분명 또는 제품명으로 검색 (예: clopidogrel, 크레트롤)"
-          style={{ flex: 1, minWidth: 240, padding: '0.55rem 0.85rem', borderRadius: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }} />
+          style={{ flex: 1, minWidth: 240, padding: '0.55rem 0.85rem', borderRadius: 9, background: '#ffffff', border: '1px solid #d7dce5', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }} />
         <button type="submit" disabled={isPending}
-          style={{ padding: '0.55rem 1.4rem', borderRadius: 9, background: 'rgba(59,130,246,0.9)', border: 'none', color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}>
+          style={{ padding: '0.55rem 1.4rem', borderRadius: 9, background: '#2563eb', border: 'none', color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}>
           {isPending ? '검색 중…' : '검색'}
         </button>
       </form>
-      {error && <p style={{ color: '#fca5a5', fontSize: '0.85rem' }}>{error}</p>}
+      {error && <p style={{ color: '#dc2626', fontSize: '0.85rem' }}>{error}</p>}
 
       {searched && rows.length === 0 && !isPending && (
         <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>&ldquo;{searched}&rdquo; 약가표 검색 결과가 없습니다.</p>
@@ -143,12 +143,12 @@ export default function DrugSearchClient(_props: { apiConfigured: boolean }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', margin: '0.9rem 0 0.4rem', flexWrap: 'wrap' }}>
             <input value={listQuery} onChange={e => setListQuery(e.target.value)}
               placeholder="🔍 결과 내 검색 (제품명·성분·회사, 공백/쉼표/+로 여러 개)"
-              style={{ flex: 1, minWidth: 220, padding: '0.42rem 0.7rem', borderRadius: 7, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }} />
+              style={{ flex: 1, minWidth: 220, padding: '0.42rem 0.7rem', borderRadius: 7, background: '#ffffff', border: '1px solid #d7dce5', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }} />
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{view.length.toLocaleString()}건 · 행 클릭 시 상세</span>
           </div>
 
           {/* 테이블 */}
-          <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
+          <div style={{ overflowX: 'auto', border: '1px solid #e5e9f0', borderRadius: 12 }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
               <thead>
                 <tr>
@@ -167,26 +167,26 @@ export default function DrugSearchClient(_props: { apiConfigured: boolean }) {
                 {view.map(r => {
                   const k = r.itemCode + r.productName;
                   return (
-                    <tr key={k} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                    <tr key={k} style={{ borderTop: '1px solid #e5e9f0' }}>
                         <td style={{ ...TD, textAlign: 'center' }}>
                           {r.isBioequiv
-                            ? <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#6ee7b7', background: 'rgba(52,211,153,0.14)', padding: '0.1rem 0.4rem', borderRadius: 4 }}>생동</span>
-                            : <span style={{ color: 'rgba(255,255,255,0.25)' }}>—</span>}
+                            ? <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#15803d', background: 'rgba(52,211,153,0.14)', padding: '0.1rem 0.4rem', borderRadius: 4 }}>생동</span>
+                            : <span style={{ color: '#94a3b8' }}>—</span>}
                         </td>
                         <td style={{ ...TD, textAlign: 'center' }} title={r.maker || undefined}>
                           {r.isConsignment == null
-                            ? <span style={{ color: 'rgba(255,255,255,0.25)' }}>—</span>
+                            ? <span style={{ color: '#94a3b8' }}>—</span>
                             : <span style={{ fontSize: '0.66rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 4,
-                                color: r.isConsignment ? '#fbbf24' : '#34d399',
+                                color: r.isConsignment ? '#b45309' : '#15803d',
                                 background: r.isConsignment ? 'rgba(251,191,36,0.14)' : 'rgba(52,211,153,0.14)' }}>
                                 {r.isConsignment ? '위탁' : '자사'}</span>}
                         </td>
                         <td style={TD}>{r.manufacturer || '—'}</td>
                         <td style={{ ...TD, fontWeight: 600, color: 'var(--text-primary)' }}>{r.productName}</td>
-                        <td style={{ ...TD, fontSize: '0.76rem', color: 'rgba(255,255,255,0.6)' }}>{r.ingredientName || '—'}</td>
+                        <td style={{ ...TD, fontSize: '0.76rem', color: '#475569' }}>{r.ingredientName || '—'}</td>
                         <td style={{ ...TD, textAlign: 'center' }}>{r.form}</td>
-                        <td style={{ ...TD, fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)' }}>{r.packageUnit || '—'}</td>
-                        <td style={{ ...TD, textAlign: 'center', fontSize: '0.76rem', color: 'rgba(255,255,255,0.6)' }}>{r.payType || '—'}</td>
+                        <td style={{ ...TD, fontSize: '0.75rem', color: '#475569' }}>{r.packageUnit || '—'}</td>
+                        <td style={{ ...TD, textAlign: 'center', fontSize: '0.76rem', color: '#475569' }}>{r.payType || '—'}</td>
                         <td style={{ ...TD, textAlign: 'right', fontWeight: 700 }}>{r.maxPrice != null ? r.maxPrice.toLocaleString() : '—'}</td>
                     </tr>
                   );
@@ -203,11 +203,11 @@ export default function DrugSearchClient(_props: { apiConfigured: boolean }) {
 /* ── UI 헬퍼 ── */
 function Panel({ title, children, onClear }: { title: string; children: React.ReactNode; onClear?: () => void }) {
   return (
-    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '0.7rem 0.9rem', marginBottom: '0.6rem' }}>
+    <div style={{ background: '#ffffff', border: '1px solid #e5e9f0', borderRadius: 12, padding: '0.7rem 0.9rem', marginBottom: '0.6rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '0 0 0.5rem' }}>
         <p style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{title}</p>
         {onClear && (
-          <button onClick={onClear} style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.45)', background: 'transparent', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '0.12rem 0.5rem', cursor: 'pointer', fontFamily: 'inherit' }}>✕ 선택해제</button>
+          <button onClick={onClear} style={{ fontSize: '0.68rem', color: '#94a3b8', background: 'transparent', border: '1px solid #e5e9f0', borderRadius: 6, padding: '0.12rem 0.5rem', cursor: 'pointer', fontFamily: 'inherit' }}>✕ 선택해제</button>
         )}
       </div>
       {children}
@@ -221,8 +221,8 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
   return (
     <button onClick={onClick} style={{
       padding: '0.32rem 0.75rem', borderRadius: 8, fontSize: '0.78rem', fontWeight: active ? 700 : 500, cursor: 'pointer', fontFamily: 'inherit',
-      background: active ? 'rgba(59,130,246,0.9)' : 'rgba(255,255,255,0.04)',
-      border: `1px solid ${active ? 'rgba(59,130,246,0.9)' : 'rgba(255,255,255,0.12)'}`,
+      background: active ? '#2563eb' : '#ffffff',
+      border: `1px solid ${active ? '#2563eb' : '#e5e9f0'}`,
       color: active ? '#fff' : 'var(--text-primary)', transition: 'all 0.12s',
     }}>{children}</button>
   );
@@ -236,19 +236,19 @@ function SortTh({ label, k, cur, dir, onClick, w, center, right }: {
   const active = cur === k;
   return (
     <th onClick={() => onClick(k)} style={{
-      padding: '0.5rem 0.7rem', fontSize: '0.74rem', fontWeight: 700, color: active ? '#93c5fd' : 'rgba(255,255,255,0.55)',
-      borderBottom: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none',
-      textAlign: right ? 'right' : center ? 'center' : 'left', width: w, background: 'rgba(255,255,255,0.03)',
+      padding: '0.5rem 0.7rem', fontSize: '0.74rem', fontWeight: 700, color: active ? '#2563eb' : '#475569',
+      borderBottom: '1px solid #e5e9f0', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none',
+      textAlign: right ? 'right' : center ? 'center' : 'left', width: w, background: '#f1f4f9',
     }}>
       {label}{active ? (dir === 'asc' ? ' ▲' : ' ▼') : ' ⇅'}
     </th>
   );
 }
 const TD: React.CSSProperties = {
-  padding: '0.45rem 0.7rem', color: 'rgba(255,255,255,0.85)', verticalAlign: 'middle',
+  padding: '0.45rem 0.7rem', color: '#111827', verticalAlign: 'middle',
 };
 const TH: React.CSSProperties = {
-  padding: '0.5rem 0.7rem', fontSize: '0.74rem', fontWeight: 700, color: 'rgba(255,255,255,0.55)',
-  borderBottom: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap',
-  background: 'rgba(255,255,255,0.03)',
+  padding: '0.5rem 0.7rem', fontSize: '0.74rem', fontWeight: 700, color: '#475569',
+  borderBottom: '1px solid #e5e9f0', whiteSpace: 'nowrap',
+  background: '#f1f4f9',
 };

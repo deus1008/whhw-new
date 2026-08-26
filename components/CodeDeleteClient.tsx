@@ -11,11 +11,11 @@ const fmt  = (v: number) => Math.round(v).toLocaleString();
 const fmtM = (m: string) => (!m || m.length < 6) ? m : `${m.slice(0,4)}.${m.slice(4,6)}`;
 
 function amtColor(v: number) {
-  if (v === 0)      return '#4b5563';
-  if (v < 50_000)  return '#f87171';
-  if (v < 100_000) return '#fb923c';
-  if (v < 150_000) return '#fbbf24';
-  return '#facc15';
+  if (v === 0)      return '#94a3b8';
+  if (v < 50_000)  return '#dc2626';
+  if (v < 100_000) return '#ea580c';
+  if (v < 150_000) return '#d97706';
+  return '#ca8a04';
 }
 
 /* ── 추이 계산 ───────────────────────────────────────────── */
@@ -31,14 +31,14 @@ function calcTrend(months: string[], amounts: Record<string, number>): TrendInfo
   const m1 = amounts[months[0]] ?? 0;
   const mN = amounts[months[months.length - 1]] ?? 0;
 
-  if (m1 === 0 && mN === 0) return { arrow: '→', pct: null, color: '#4b5563', label: '데이터없음' };
-  if (m1 === 0 && mN > 0)  return { arrow: '↗', pct: null, color: '#4ade80', label: '신규' };
-  if (m1 > 0 && mN === 0)  return { arrow: '↘', pct: null, color: '#f87171', label: '소멸' };
+  if (m1 === 0 && mN === 0) return { arrow: '→', pct: null, color: '#94a3b8', label: '데이터없음' };
+  if (m1 === 0 && mN > 0)  return { arrow: '↗', pct: null, color: '#059669', label: '신규' };
+  if (m1 > 0 && mN === 0)  return { arrow: '↘', pct: null, color: '#dc2626', label: '소멸' };
 
   const pct = Math.round(((mN - m1) / m1) * 100);
-  if (pct >=  10) return { arrow: '↗', pct, color: '#4ade80', label: `+${pct}%` };
-  if (pct <= -10) return { arrow: '↘', pct, color: '#f87171', label: `${pct}%` };
-  return { arrow: '→', pct, color: '#fbbf24', label: `${pct > 0 ? '+' : ''}${pct}%` };
+  if (pct >=  10) return { arrow: '↗', pct, color: '#059669', label: `+${pct}%` };
+  if (pct <= -10) return { arrow: '↘', pct, color: '#dc2626', label: `${pct}%` };
+  return { arrow: '→', pct, color: '#b45309', label: `${pct > 0 ? '+' : ''}${pct}%` };
 }
 
 /* ── 스파크라인 (SVG 막대) ──────────────────────────────── */
@@ -53,7 +53,7 @@ function Sparkline({ months, amounts }: { months: string[]; amounts: Record<stri
       {/* 기준선 (20만) */}
       {THRESHOLD <= maxVal && (
         <line x1={0} y1={thresholdY} x2={W} y2={thresholdY}
-          stroke="rgba(255,255,255,0.22)" strokeDasharray="2,2" strokeWidth={1} />
+          stroke="#94a3b8" strokeDasharray="2,2" strokeWidth={1} />
       )}
       {vals.map((v, i) => {
         const barH = maxVal > 0 ? Math.max(Math.round((v / maxVal) * H), v > 0 ? 2 : 0) : 0;
@@ -63,7 +63,7 @@ function Sparkline({ months, amounts }: { months: string[]; amounts: Record<stri
             <rect x={x} y={H - barH} width={BW} height={barH} rx={2}
               fill={amtColor(v)} opacity={v > 0 ? 0.88 : 0.2} />
             {/* 0인 경우 바닥 표시 */}
-            {v === 0 && <rect x={x} y={H - 2} width={BW} height={2} rx={1} fill="#4b5563" opacity={0.4} />}
+            {v === 0 && <rect x={x} y={H - 2} width={BW} height={2} rx={1} fill="#94a3b8" opacity={0.4} />}
           </g>
         );
       })}
@@ -143,7 +143,7 @@ export default function CodeDeleteClient() {
     </div>
   );
   if (error) return (
-    <div style={{ textAlign: 'center', padding: '3rem', color: '#f87171', background: 'rgba(239,68,68,0.07)', borderRadius: 14, border: '1px solid rgba(239,68,68,0.18)', fontSize: '0.85rem' }}>
+    <div style={{ textAlign: 'center', padding: '3rem', color: '#b91c1c', background: 'rgba(239,68,68,0.07)', borderRadius: 14, border: '1px solid rgba(239,68,68,0.18)', fontSize: '0.85rem' }}>
       ⚠ {error}
     </div>
   );
@@ -172,10 +172,10 @@ export default function CodeDeleteClient() {
 
       {/* ── 요약 카드 ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(148px, 1fr))', gap: '0.7rem' }}>
-        <SummaryCard label="분석 기간" value={result.months.map(fmtM).join(' ~ ')} sub="최근 3개월 EDI 데이터" color="#93c5fd" />
-        <SummaryCard label="삭제대상 처방처" value={`${totalCount.toLocaleString()}개`} sub="월평균 20만원 미만" color="#f87171" />
-        <SummaryCard label="↗ 개선 추이" value={`${(trendStats['↗'] ?? 0)}개`} sub="M1→M3 10%↑ 이상" color="#4ade80" />
-        <SummaryCard label="↘ 악화 추이" value={`${(trendStats['↘'] ?? 0)}개`} sub="M1→M3 10%↓ 이상" color="#f87171" />
+        <SummaryCard label="분석 기간" value={result.months.map(fmtM).join(' ~ ')} sub="최근 3개월 EDI 데이터" color="#2563eb" />
+        <SummaryCard label="삭제대상 처방처" value={`${totalCount.toLocaleString()}개`} sub="월평균 20만원 미만" color="#dc2626" />
+        <SummaryCard label="↗ 개선 추이" value={`${(trendStats['↗'] ?? 0)}개`} sub="M1→M3 10%↑ 이상" color="#059669" />
+        <SummaryCard label="↘ 악화 추이" value={`${(trendStats['↘'] ?? 0)}개`} sub="M1→M3 10%↓ 이상" color="#dc2626" />
       </div>
 
       {/* ── 검색 + 범례 ── */}
@@ -186,7 +186,7 @@ export default function CodeDeleteClient() {
           placeholder="🔍 담당자 / CSO / 처방처 검색…"
           style={{
             flex: 1, minWidth: 180, padding: '0.45rem 0.85rem', borderRadius: 9,
-            background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+            background: '#ffffff', border: '1px solid #d7dce5',
             color: 'var(--text-primary)', fontSize: '0.83rem', fontFamily: 'inherit', outline: 'none',
           }}
         />
@@ -197,7 +197,7 @@ export default function CodeDeleteClient() {
       {/* ── 안내 바 ── */}
       <div style={{
         padding: '0.5rem 1rem', borderRadius: 9,
-        background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+        background: '#f8fafc', border: '1px solid #e5e9f0',
         fontSize: '0.73rem', color: 'var(--text-muted)',
         display: 'flex', gap: '1.5rem', flexWrap: 'wrap', alignItems: 'center',
       }}>
@@ -205,7 +205,7 @@ export default function CodeDeleteClient() {
         <span>점선(--) = 20만원 기준선</span>
         <span style={{ marginLeft: 'auto' }}>
           {result.months.map((m, i) => (
-            <span key={m}>{i > 0 && ' → '}<strong style={{ color: '#c4b5fd' }}>{fmtM(m)}</strong></span>
+            <span key={m}>{i > 0 && ' → '}<strong style={{ color: '#7c3aed' }}>{fmtM(m)}</strong></span>
           ))}
         </span>
       </div>
@@ -216,14 +216,14 @@ export default function CodeDeleteClient() {
         : filtered.map(rep => {
           const repOpen = openReps.has(rep.name);
           return (
-            <div key={rep.name} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, overflow: 'hidden' }}>
+            <div key={rep.name} style={{ background: '#ffffff', border: '1px solid #e5e9f0', borderRadius: 14, overflow: 'hidden' }}>
 
               {/* 담당자 헤더 */}
               <div onClick={() => setOpenReps(p => { const n = new Set(p); n.has(rep.name) ? n.delete(rep.name) : n.add(rep.name); return n; })}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1.1rem', cursor: 'pointer', background: 'rgba(168,85,247,0.10)', borderBottom: repOpen ? '1px solid rgba(255,255,255,0.07)' : undefined }}>
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.75rem 1.1rem', cursor: 'pointer', background: 'rgba(168,85,247,0.10)', borderBottom: repOpen ? '1px solid #e5e9f0' : undefined }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <span style={{ fontSize: '0.58rem', color: '#d8b4fe' }}>{repOpen ? '▼' : '▶'}</span>
-                  <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#d8b4fe' }}>👤 {rep.name}</span>
+                  <span style={{ fontSize: '0.58rem', color: '#7c3aed' }}>{repOpen ? '▼' : '▶'}</span>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#7c3aed' }}>👤 {rep.name}</span>
                   <Chip count={rep.count} />
                 </div>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>CSO {rep.csos.length}개</span>
@@ -236,25 +236,25 @@ export default function CodeDeleteClient() {
                   <Fragment key={cso.name}>
                     {/* CSO 헤더 */}
                     <div onClick={() => setOpenCsos(p => { const n = new Set(p); n.has(csoKey) ? n.delete(csoKey) : n.add(csoKey); return n; })}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.55rem 1.1rem 0.55rem 2rem', cursor: 'pointer', background: 'rgba(52,211,153,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.55rem 1.1rem 0.55rem 2rem', cursor: 'pointer', background: 'rgba(52,211,153,0.05)', borderBottom: '1px solid #eaeef4' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: '0.58rem', color: '#6ee7b7' }}>{csoOpen ? '▼' : '▶'}</span>
-                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#6ee7b7' }}>🏢 {cso.name}</span>
+                        <span style={{ fontSize: '0.58rem', color: '#059669' }}>{csoOpen ? '▼' : '▶'}</span>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#059669' }}>🏢 {cso.name}</span>
                         <Chip count={cso.hospitals.length} />
                       </div>
                     </div>
 
                     {/* 처방처 테이블 */}
                     {csoOpen && (
-                      <div style={{ overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ overflowX: 'auto', borderBottom: '1px solid #eaeef4' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', minWidth: 560 }}>
                           <thead>
-                            <tr style={{ background: 'rgba(255,255,255,0.025)' }}>
+                            <tr style={{ background: '#f1f4f9' }}>
                               <th style={TH('left', '2.5rem')}>처방처명</th>
                               {result.months.map((m, mi) => (
                                 <th key={m} style={TH('right')}>
                                   {fmtM(m)}
-                                  {mi < result.months.length - 1 && <span style={{ color: 'rgba(255,255,255,0.2)', marginLeft: '0.2rem' }}>→</span>}
+                                  {mi < result.months.length - 1 && <span style={{ color: '#94a3b8', marginLeft: '0.2rem' }}>→</span>}
                                 </th>
                               ))}
                               <th style={TH('center')}>추이</th>
@@ -266,7 +266,7 @@ export default function CodeDeleteClient() {
                             {cso.hospitals.map((h, hi) => {
                               const tr = calcTrend(result.months, h.monthlyAmounts);
                               return (
-                                <tr key={h.hospitalName} style={{ background: hi % 2 ? 'rgba(255,255,255,0.01)' : undefined, borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                <tr key={h.hospitalName} style={{ background: hi % 2 ? '#fafbfd' : undefined, borderBottom: '1px solid #eaeef4' }}>
                                   {/* 처방처명 */}
                                   <td style={{ ...TD('left'), paddingLeft: '2.5rem', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={h.hospitalName}>
                                     {h.hospitalName}
@@ -281,16 +281,16 @@ export default function CodeDeleteClient() {
                                     return (
                                       <td key={m} style={{ ...TD('right'), verticalAlign: 'top', paddingTop: '0.5rem', paddingBottom: '0.4rem' }}>
                                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.2rem', minWidth: 72 }}>
-                                          <span style={{ fontWeight: amt > 0 ? 600 : undefined, color: amt === 0 ? 'rgba(255,255,255,0.2)' : 'var(--text-primary)' }}>
+                                          <span style={{ fontWeight: amt > 0 ? 600 : undefined, color: amt === 0 ? '#94a3b8' : 'var(--text-primary)' }}>
                                             {amt === 0 ? '—' : fmt(amt)}
                                           </span>
                                           {/* 미니 가로 막대 */}
-                                          <div style={{ width: '100%', height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+                                          <div style={{ width: '100%', height: 3, borderRadius: 2, background: '#e5e9f0', overflow: 'hidden' }}>
                                             <div style={{ width: `${pct}%`, height: '100%', borderRadius: 2, background: amtColor(amt) }} />
                                           </div>
                                           {/* M1 이후 전월 대비 증감 */}
                                           {mi > 0 && diff !== 0 && (
-                                            <span style={{ fontSize: '0.62rem', color: diff > 0 ? '#4ade80' : '#f87171', fontWeight: 600 }}>
+                                            <span style={{ fontSize: '0.62rem', color: diff > 0 ? '#059669' : '#dc2626', fontWeight: 600 }}>
                                               {diff > 0 ? '▲' : '▼'}{fmt(Math.abs(diff))}
                                             </span>
                                           )}
@@ -340,7 +340,7 @@ function AvgBar({ avg }: { avg: number }) {
   const pct = Math.min((avg / THRESHOLD) * 100, 100);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-      <div style={{ flex: 1, height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+      <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#e5e9f0', overflow: 'hidden' }}>
         <div style={{ width: `${pct}%`, height: '100%', borderRadius: 3, background: amtColor(avg) }} />
       </div>
       <span style={{ fontSize: '0.74rem', fontWeight: 700, color: amtColor(avg), minWidth: 58, textAlign: 'right' }}>
@@ -352,7 +352,7 @@ function AvgBar({ avg }: { avg: number }) {
 
 function Chip({ count }: { count: number }) {
   return (
-    <span style={{ fontSize: '0.68rem', fontWeight: 600, padding: '0.08rem 0.45rem', borderRadius: 20, background: 'rgba(248,113,113,0.13)', color: '#f87171' }}>
+    <span style={{ fontSize: '0.68rem', fontWeight: 600, padding: '0.08rem 0.45rem', borderRadius: 20, background: 'rgba(248,113,113,0.13)', color: '#b91c1c' }}>
       {count}개
     </span>
   );
@@ -360,7 +360,7 @@ function Chip({ count }: { count: number }) {
 
 function SummaryCard({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {
   return (
-    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '0.85rem 1rem' }}>
+    <div style={{ background: '#ffffff', border: '1px solid #e5e9f0', borderRadius: 12, padding: '0.85rem 1rem' }}>
       <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '0 0 0.25rem' }}>{label}</p>
       <p style={{ fontSize: '1.1rem', fontWeight: 700, color, margin: '0 0 0.15rem' }}>{value}</p>
       <p style={{ fontSize: '0.67rem', color: 'var(--text-muted)', margin: 0 }}>{sub}</p>
@@ -371,9 +371,9 @@ function SummaryCard({ label, value, sub, color }: { label: string; value: strin
 function TrendLegend() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.7rem', flexShrink: 0, fontSize: '0.7rem' }}>
-      <span style={{ color: '#4ade80' }}>↗ 개선</span>
-      <span style={{ color: '#fbbf24' }}>→ 유지</span>
-      <span style={{ color: '#f87171' }}>↘ 악화</span>
+      <span style={{ color: '#059669' }}>↗ 개선</span>
+      <span style={{ color: '#b45309' }}>→ 유지</span>
+      <span style={{ color: '#dc2626' }}>↘ 악화</span>
       <span style={{ color: 'var(--text-muted)', marginLeft: '0.2rem' }}>/ M1→M3 기준</span>
     </div>
   );
@@ -383,7 +383,7 @@ function TH(align: 'left' | 'right' | 'center', paddingLeft?: string): CSSProper
   return {
     padding: '0.4rem 0.65rem', textAlign: align,
     color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap',
-    borderBottom: '1px solid rgba(255,255,255,0.09)',
+    borderBottom: '1px solid #e5e9f0',
     fontSize: '0.72rem',
     ...(paddingLeft ? { paddingLeft } : {}),
   };

@@ -86,8 +86,8 @@ export default async function EdiPage() {
 const navLinkStyle: React.CSSProperties = {
   padding: '0.35rem 0.9rem',
   borderRadius: '8px',
-  background: 'rgba(255,255,255,0.05)',
-  border: '1px solid rgba(255,255,255,0.09)',
+  background: '#f1f5f9',
+  border: '1px solid #e5e9f0',
   color: 'var(--text-muted)',
   fontSize: '0.8rem',
   fontWeight: 500,

@@ -2,14 +2,14 @@ import type { CSSProperties } from 'react';
 
 export default function InventoryLoading() {
   const shimmer: CSSProperties = {
-    background: 'linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.09) 50%,rgba(255,255,255,0.04) 75%)',
+    background: 'linear-gradient(90deg,#eef1f6 25%,#e5e9f0 50%,#eef1f6 75%)',
     backgroundSize: '400% 100%',
     animation: 'shimmer 1.4s infinite',
     borderRadius: '8px',
   };
   const card: CSSProperties = {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: '#ffffff',
+    border: '1px solid #e5e9f0',
     borderRadius: '14px', padding: '1rem', marginBottom: '0.75rem',
   };
   return (

@@ -12,12 +12,12 @@ import {
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.12)',
+  background: '#f1f5f9',
+  border: '1px solid #e5e9f0',
   borderRadius: '6px',
   padding: '0.42rem 0.65rem',
   fontSize: '0.82rem',
-  color: '#f1f5f9',
+  color: '#111827',
   fontFamily: 'inherit',
   outline: 'none',
   boxSizing: 'border-box',
@@ -29,7 +29,7 @@ const labelStyle: React.CSSProperties = {
   gap: '0.28rem',
   fontSize: '0.68rem',
   fontWeight: 700,
-  color: 'rgba(255,255,255,0.38)',
+  color: '#94a3b8',
   letterSpacing: '0.05em',
   textTransform: 'uppercase',
 };
@@ -57,7 +57,7 @@ function CompanyForm({
       borderRadius: '12px',
       padding: '1.25rem',
     }}>
-      <p style={{ fontSize: '0.78rem', fontWeight: 700, color: '#a5b4fc', marginBottom: '1rem' }}>
+      <p style={{ fontSize: '0.78rem', fontWeight: 700, color: '#4f46e5', marginBottom: '1rem' }}>
         {company ? `'${company.name}' 편집` : '새 위탁사 추가'}
       </p>
       <form onSubmit={handleSubmit}>
@@ -129,13 +129,13 @@ function CompanyForm({
         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
           <button type="button" onClick={onCancel} style={{
             padding: '0.42rem 1rem', borderRadius: '7px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.45)',
+            background: '#f1f5f9', border: '1px solid #e5e9f0', color: '#64748b',
           }}>
             취소
           </button>
           <button type="submit" disabled={isPending} style={{
             padding: '0.42rem 1.1rem', borderRadius: '7px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
-            background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc',
+            background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', color: '#4f46e5',
             opacity: isPending ? 0.6 : 1,
           }}>
             {isPending ? '저장 중…' : company ? '수정 저장' : '추가'}
@@ -150,10 +150,10 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
   if (!value) return null;
   return (
     <div>
-      <div style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.12rem' }}>
+      <div style={{ fontSize: '0.63rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.12rem' }}>
         {label}
       </div>
-      <div style={{ fontSize: '0.8rem', color: '#e2e8f0' }}>{value}</div>
+      <div style={{ fontSize: '0.8rem', color: '#111827' }}>{value}</div>
     </div>
   );
 }
@@ -211,22 +211,22 @@ export default function CompaniesViewClient({
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
           padding: '0.75rem 1rem', borderRadius: '8px', marginBottom: '1rem',
-          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5',
+          background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#dc2626',
           fontSize: '0.82rem',
         }}>
           {error}
-          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: '1rem', lineHeight: 1, padding: '0 0.25rem' }}>✕</button>
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer', fontSize: '1rem', lineHeight: 1, padding: '0 0.25rem' }}>✕</button>
         </div>
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <span style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.3)' }}>
+        <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
           위탁사 {companies.length}곳
         </span>
         {isAdmin && !showAdd && (
           <button onClick={() => { setShowAdd(true); setEditId(null); setError(null); }} style={{
             padding: '0.45rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
-            background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', color: '#a5b4fc',
+            background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', color: '#4f46e5',
           }}>
             + 새 위탁사 추가
           </button>
@@ -245,7 +245,7 @@ export default function CompaniesViewClient({
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
         {companies.length === 0 && !showAdd && (
-          <div style={{ textAlign: 'center', padding: '3rem', color: 'rgba(255,255,255,0.2)', fontSize: '0.85rem' }}>
+          <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b', fontSize: '0.85rem' }}>
             등록된 위탁사가 없습니다.
           </div>
         )}
@@ -266,8 +266,8 @@ export default function CompaniesViewClient({
                 />
               ) : (
                 <div style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: `1px solid ${c.status === 'inactive' ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.1)'}`,
+                  background: '#ffffff',
+                  border: `1px solid ${c.status === 'inactive' ? '#f1f5f9' : '#e5e9f0'}`,
                   borderRadius: '12px',
                   padding: '1rem 1.25rem',
                   opacity: c.status === 'inactive' ? 0.55 : 1,
@@ -276,10 +276,10 @@ export default function CompaniesViewClient({
                   {/* 헤더 행 */}
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.8rem', flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f1f5f9' }}>{c.name}</span>
+                      <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#111827' }}>{c.name}</span>
                       <span style={{
                         fontSize: '0.72rem', fontFamily: 'monospace',
-                        color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.06)',
+                        color: '#94a3b8', background: '#f1f5f9',
                         padding: '2px 8px', borderRadius: '5px',
                       }}>
                         {c.code}
@@ -288,12 +288,12 @@ export default function CompaniesViewClient({
                         fontSize: '0.7rem', fontWeight: 700, padding: '2px 9px', borderRadius: '100px',
                         background: c.status === 'active' ? 'rgba(34,197,94,0.12)' : 'rgba(100,116,139,0.12)',
                         border:    `1px solid ${c.status === 'active' ? 'rgba(34,197,94,0.3)' : 'rgba(100,116,139,0.3)'}`,
-                        color:      c.status === 'active' ? '#86efac' : '#94a3b8',
+                        color:      c.status === 'active' ? '#059669' : '#94a3b8',
                       }}>
                         {c.status === 'active' ? '운영중' : '비활성'}
                       </span>
                       {isAdmin && (
-                        <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.25)' }}>
+                        <span style={{ fontSize: '0.68rem', color: '#64748b' }}>
                           순서 {c.display_order}
                         </span>
                       )}
@@ -306,7 +306,7 @@ export default function CompaniesViewClient({
                           onClick={() => { setEditId(c.id); setShowAdd(false); setError(null); }}
                           style={{
                             padding: '0.3rem 0.7rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer',
-                            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.5)',
+                            background: '#f1f5f9', border: '1px solid #e5e9f0', color: '#64748b',
                           }}>
                           편집
                         </button>
@@ -317,7 +317,7 @@ export default function CompaniesViewClient({
                             padding: '0.3rem 0.7rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer',
                             background: c.status === 'active' ? 'rgba(100,116,139,0.1)' : 'rgba(34,197,94,0.1)',
                             border:    `1px solid ${c.status === 'active' ? 'rgba(100,116,139,0.25)' : 'rgba(34,197,94,0.25)'}`,
-                            color:      c.status === 'active' ? '#94a3b8' : '#86efac',
+                            color:      c.status === 'active' ? '#94a3b8' : '#059669',
                             opacity: isPending ? 0.5 : 1,
                           }}>
                           {c.status === 'active' ? '비활성화' : '활성화'}
@@ -327,7 +327,7 @@ export default function CompaniesViewClient({
                           disabled={isPending}
                           style={{
                             padding: '0.3rem 0.7rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer',
-                            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#fca5a5',
+                            background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#dc2626',
                             opacity: isPending ? 0.5 : 1,
                           }}>
                           삭제
@@ -345,14 +345,14 @@ export default function CompaniesViewClient({
                     <InfoRow label="자동갱신조건" value={c.auto_renewal} />
                     {c.product_list_url && (
                       <div>
-                        <div style={{ fontSize: '0.63rem', color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.12rem' }}>위탁품목리스트</div>
+                        <div style={{ fontSize: '0.63rem', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.12rem' }}>위탁품목리스트</div>
                         {c.product_list_url.startsWith('http') ? (
                           <a href={c.product_list_url} target="_blank" rel="noopener noreferrer"
-                            style={{ fontSize: '0.8rem', color: '#93c5fd', textDecoration: 'none', wordBreak: 'break-all' }}>
+                            style={{ fontSize: '0.8rem', color: '#2563eb', textDecoration: 'none', wordBreak: 'break-all' }}>
                             {c.product_list_url}
                           </a>
                         ) : (
-                          <div style={{ fontSize: '0.8rem', color: '#e2e8f0' }}>{c.product_list_url}</div>
+                          <div style={{ fontSize: '0.8rem', color: '#111827' }}>{c.product_list_url}</div>
                         )}
                       </div>
                     )}

@@ -52,9 +52,9 @@ export default async function MeetingDetailPage({ params }: { params: Promise<{ 
           <a
             href="/meetings"
             style={{
-              fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', textDecoration: 'none',
+              fontSize: '0.78rem', color: '#94a3b8', textDecoration: 'none',
               padding: '0.3rem 0.75rem', borderRadius: '6px',
-              border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)',
+              border: '1px solid #e5e9f0', background: '#f1f5f9',
             }}
           >
             ← Task 목록

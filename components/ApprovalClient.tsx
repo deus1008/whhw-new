@@ -32,19 +32,19 @@ type FileInfo = { id: string; filename: string; createdAt: string };
 
 /* ── 공통 스타일 ── */
 const CARD: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: '#ffffff',
+  border: '1px solid #e5e9f0',
   borderRadius: '14px', padding: '1.25rem', marginBottom: '1rem',
 };
 const TH: React.CSSProperties = {
   padding: '0.5rem 0.75rem', fontSize: '0.72rem',
   color: 'var(--text-muted)', fontWeight: 600,
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  borderBottom: '1px solid #e5e9f0',
   textAlign: 'left', whiteSpace: 'nowrap',
 };
 const TD: React.CSSProperties = {
   padding: '0.45rem 0.75rem', fontSize: '0.8rem',
-  borderBottom: '1px solid rgba(255,255,255,0.04)',
+  borderBottom: '1px solid #eaeef4',
   color: 'var(--text-primary)',
 };
 
@@ -53,7 +53,7 @@ function Skel({ w = '100%', h = '0.85rem' }: { w?: string; h?: string }) {
   return (
     <div style={{
       width: w, height: h, borderRadius: '5px',
-      background: 'rgba(255,255,255,0.09)',
+      background: 'rgba(15,23,42,0.08)',
       animation: 'skel-pulse 1.4s ease-in-out infinite',
     }} />
   );
@@ -63,7 +63,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <h3 style={{
       fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.75rem',
-      background: 'linear-gradient(135deg,#fff 0%,#a8c4ff 100%)',
+      background: 'linear-gradient(135deg,#1e293b 0%,#2563eb 100%)',
       WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
     }}>{children}</h3>
   );
@@ -74,14 +74,14 @@ function SummaryCard({ label, value, unit, sub, color }: {
 }) {
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.05)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      background: '#ffffff',
+      border: '1px solid #e5e9f0',
       borderRadius: '12px', padding: '0.9rem 1rem',
     }}>
       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.25rem' }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem' }}>
-        <span style={{ fontSize: '1.7rem', fontWeight: 700, color: color ?? '#fff', lineHeight: 1 }}>{value}</span>
-        {unit && <span style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.45)' }}>{unit}</span>}
+        <span style={{ fontSize: '1.7rem', fontWeight: 700, color: color ?? '#111827', lineHeight: 1 }}>{value}</span>
+        {unit && <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>{unit}</span>}
       </div>
       {sub && <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.25rem', lineHeight: 1.35 }}>{sub}</div>}
     </div>
@@ -103,7 +103,7 @@ function Chevron({ open }: { open: boolean }) {
   return (
     <span style={{
       display: 'inline-block', width: '1rem', fontSize: '0.6rem',
-      color: 'rgba(126,179,255,0.55)', userSelect: 'none', flexShrink: 0,
+      color: 'rgba(37,99,235,0.6)', userSelect: 'none', flexShrink: 0,
     }}>
       {open ? '▼' : '▶'}
     </span>
@@ -172,7 +172,7 @@ function DrilldownCompanyTable({ drilldownRows, title }: {
                   <tr
                     onClick={() => hasDetail && lvl1.toggle(row.name)}
                     style={{
-                      background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : undefined,
+                      background: i % 2 === 0 ? '#fafbfd' : undefined,
                       cursor: hasDetail ? 'pointer' : 'default',
                     }}
                   >
@@ -185,17 +185,17 @@ function DrilldownCompanyTable({ drilldownRows, title }: {
                       </span>
                     </td>
                     <td style={{ ...TD, paddingRight: '1rem' }}>
-                      <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '3px', height: '6px', overflow: 'hidden' }}>
+                      <div style={{ background: '#eef1f6', borderRadius: '3px', height: '6px', overflow: 'hidden' }}>
                         <div style={{
                           width: `${(row.count / maxCount) * 100}%`, height: '100%',
-                          background: i === 0 ? 'linear-gradient(90deg,#f87171,#fb923c)'
-                            : i < 3 ? 'linear-gradient(90deg,#60a5fa,#818cf8)'
-                            : 'rgba(126,179,255,0.4)',
+                          background: i === 0 ? 'linear-gradient(90deg,#dc2626,#fb923c)'
+                            : i < 3 ? 'linear-gradient(90deg,#2563eb,#4f46e5)'
+                            : 'rgba(37,99,235,0.4)',
                           borderRadius: '3px',
                         }} />
                       </div>
                     </td>
-                    <td style={{ ...TD, textAlign: 'right', color: i === 0 ? '#f87171' : i < 3 ? '#7eb3ff' : 'var(--text-primary)', fontWeight: i < 3 ? 600 : 400, whiteSpace: 'nowrap' }}>
+                    <td style={{ ...TD, textAlign: 'right', color: i === 0 ? '#dc2626' : i < 3 ? '#2563eb' : 'var(--text-primary)', fontWeight: i < 3 ? 600 : 400, whiteSpace: 'nowrap' }}>
                       {fmtNum(row.count)}성분
                       <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> · {fmtNum(row.products)}품목</span>
                     </td>
@@ -214,14 +214,14 @@ function DrilldownCompanyTable({ drilldownRows, title }: {
                           style={{ background: 'rgba(79,142,247,0.05)', cursor: 'pointer' }}
                         >
                           <td style={{ ...TD, borderBottom: '1px solid rgba(79,142,247,0.07)' }} />
-                          <td style={{ ...TD, paddingLeft: '2rem', fontSize: '0.76rem', color: 'rgba(255,255,255,0.6)', borderBottom: '1px solid rgba(79,142,247,0.07)' }}>
+                          <td style={{ ...TD, paddingLeft: '2rem', fontSize: '0.76rem', color: '#475569', borderBottom: '1px solid rgba(79,142,247,0.07)' }}>
                             <span style={{ display: 'inline-flex', alignItems: 'center' }}>
                               <Chevron open={isIngOpen} />
                               {ingName}
                             </span>
                           </td>
                           <td style={{ ...TD, borderBottom: '1px solid rgba(79,142,247,0.07)' }} />
-                          <td style={{ ...TD, textAlign: 'right', fontSize: '0.74rem', color: 'rgba(126,179,255,0.55)', borderBottom: '1px solid rgba(79,142,247,0.07)' }}>
+                          <td style={{ ...TD, textAlign: 'right', fontSize: '0.74rem', color: '#2563eb', borderBottom: '1px solid rgba(79,142,247,0.07)' }}>
                             {products.length}건
                           </td>
                         </tr>
@@ -230,12 +230,12 @@ function DrilldownCompanyTable({ drilldownRows, title }: {
                         {isIngOpen && sorted.map((p, pi) => (
                           <tr key={pi} style={{ background: 'rgba(124,58,237,0.04)' }}>
                             <td style={{ ...TD, borderBottom: '1px solid rgba(124,58,237,0.05)' }} />
-                            <td style={{ ...TD, paddingLeft: '3.5rem', fontSize: '0.73rem', color: 'rgba(255,255,255,0.48)', borderBottom: '1px solid rgba(124,58,237,0.05)' }}>
-                              <span style={{ marginRight: '0.3rem', color: 'rgba(255,255,255,0.18)' }}>•</span>
+                            <td style={{ ...TD, paddingLeft: '3.5rem', fontSize: '0.73rem', color: '#64748b', borderBottom: '1px solid rgba(124,58,237,0.05)' }}>
+                              <span style={{ marginRight: '0.3rem', color: '#64748b' }}>•</span>
                               {p.product}
                             </td>
                             <td style={{ ...TD, borderBottom: '1px solid rgba(124,58,237,0.05)' }} />
-                            <td style={{ ...TD, textAlign: 'right', fontSize: '0.71rem', color: 'rgba(255,255,255,0.32)', borderBottom: '1px solid rgba(124,58,237,0.05)', whiteSpace: 'nowrap' }}>
+                            <td style={{ ...TD, textAlign: 'right', fontSize: '0.71rem', color: '#94a3b8', borderBottom: '1px solid rgba(124,58,237,0.05)', whiteSpace: 'nowrap' }}>
                               {p.approvalDate || '-'}
                             </td>
                           </tr>
@@ -310,7 +310,7 @@ function DrilldownIngredientTable({ rows, drilldownRows, title }: {
                   <tr
                     onClick={() => hasDetail && lvl1.toggle(row.name)}
                     style={{
-                      background: i % 2 === 0 ? 'rgba(255,255,255,0.01)' : undefined,
+                      background: i % 2 === 0 ? '#fafbfd' : undefined,
                       cursor: hasDetail ? 'pointer' : 'default',
                     }}
                   >
@@ -323,17 +323,17 @@ function DrilldownIngredientTable({ rows, drilldownRows, title }: {
                       </span>
                     </td>
                     <td style={{ ...TD, paddingRight: '1rem' }}>
-                      <div style={{ background: 'rgba(255,255,255,0.06)', borderRadius: '3px', height: '6px', overflow: 'hidden' }}>
+                      <div style={{ background: '#eef1f6', borderRadius: '3px', height: '6px', overflow: 'hidden' }}>
                         <div style={{
                           width: `${(row.count / maxCount) * 100}%`, height: '100%',
-                          background: i === 0 ? 'linear-gradient(90deg,#a78bfa,#818cf8)'
-                            : i < 3 ? 'linear-gradient(90deg,#60a5fa,#7c3aed)'
-                            : 'rgba(126,179,255,0.4)',
+                          background: i === 0 ? 'linear-gradient(90deg,#7c3aed,#4f46e5)'
+                            : i < 3 ? 'linear-gradient(90deg,#2563eb,#7c3aed)'
+                            : 'rgba(37,99,235,0.4)',
                           borderRadius: '3px',
                         }} />
                       </div>
                     </td>
-                    <td style={{ ...TD, textAlign: 'right', color: i === 0 ? '#a78bfa' : i < 3 ? '#7eb3ff' : 'var(--text-primary)', fontWeight: i < 3 ? 600 : 400 }}>
+                    <td style={{ ...TD, textAlign: 'right', color: i === 0 ? '#7c3aed' : i < 3 ? '#2563eb' : 'var(--text-primary)', fontWeight: i < 3 ? 600 : 400 }}>
                       {fmtNum(row.count)}건
                     </td>
                   </tr>
@@ -351,14 +351,14 @@ function DrilldownIngredientTable({ rows, drilldownRows, title }: {
                           style={{ background: 'rgba(124,58,237,0.05)', cursor: 'pointer' }}
                         >
                           <td style={{ ...TD, borderBottom: '1px solid rgba(124,58,237,0.07)' }} />
-                          <td style={{ ...TD, paddingLeft: '2rem', fontSize: '0.76rem', color: 'rgba(255,255,255,0.6)', borderBottom: '1px solid rgba(124,58,237,0.07)' }}>
+                          <td style={{ ...TD, paddingLeft: '2rem', fontSize: '0.76rem', color: '#475569', borderBottom: '1px solid rgba(124,58,237,0.07)' }}>
                             <span style={{ display: 'inline-flex', alignItems: 'center' }}>
                               <Chevron open={isCoOpen} />
                               {coName}
                             </span>
                           </td>
                           <td style={{ ...TD, borderBottom: '1px solid rgba(124,58,237,0.07)' }} />
-                          <td style={{ ...TD, textAlign: 'right', fontSize: '0.74rem', color: 'rgba(167,139,250,0.55)', borderBottom: '1px solid rgba(124,58,237,0.07)' }}>
+                          <td style={{ ...TD, textAlign: 'right', fontSize: '0.74rem', color: '#7c3aed', borderBottom: '1px solid rgba(124,58,237,0.07)' }}>
                             {products.length}건
                           </td>
                         </tr>
@@ -367,12 +367,12 @@ function DrilldownIngredientTable({ rows, drilldownRows, title }: {
                         {isCoOpen && sorted.map((p, pi) => (
                           <tr key={pi} style={{ background: 'rgba(79,142,247,0.04)' }}>
                             <td style={{ ...TD, borderBottom: '1px solid rgba(79,142,247,0.05)' }} />
-                            <td style={{ ...TD, paddingLeft: '3.5rem', fontSize: '0.73rem', color: 'rgba(255,255,255,0.48)', borderBottom: '1px solid rgba(79,142,247,0.05)' }}>
-                              <span style={{ marginRight: '0.3rem', color: 'rgba(255,255,255,0.18)' }}>•</span>
+                            <td style={{ ...TD, paddingLeft: '3.5rem', fontSize: '0.73rem', color: '#64748b', borderBottom: '1px solid rgba(79,142,247,0.05)' }}>
+                              <span style={{ marginRight: '0.3rem', color: '#64748b' }}>•</span>
                               {p.product}
                             </td>
                             <td style={{ ...TD, borderBottom: '1px solid rgba(79,142,247,0.05)' }} />
-                            <td style={{ ...TD, textAlign: 'right', fontSize: '0.71rem', color: 'rgba(255,255,255,0.32)', borderBottom: '1px solid rgba(79,142,247,0.05)', whiteSpace: 'nowrap' }}>
+                            <td style={{ ...TD, textAlign: 'right', fontSize: '0.71rem', color: '#94a3b8', borderBottom: '1px solid rgba(79,142,247,0.05)', whiteSpace: 'nowrap' }}>
                               {p.approvalDate || '-'}
                             </td>
                           </tr>
@@ -411,7 +411,7 @@ function ApprovalTypeTable({ rows, title }: { rows: { name: string; count: numbe
             {rows.map((row, i) => (
               <tr key={row.name}>
                 <td style={TD}>{row.name}</td>
-                <td style={{ ...TD, textAlign: 'right', color: i === 0 ? '#f87171' : '#7eb3ff', fontWeight: i === 0 ? 700 : 400 }}>
+                <td style={{ ...TD, textAlign: 'right', color: i === 0 ? '#dc2626' : '#2563eb', fontWeight: i === 0 ? 700 : 400 }}>
                   {fmtNum(row.count)}
                 </td>
               </tr>
@@ -440,7 +440,7 @@ function MonthlyTrend({ trend }: { trend: ViewData['monthlyTrend'] }) {
                 {label}
               </span>
               <div style={{
-                flex: 1, background: 'rgba(255,255,255,0.06)',
+                flex: 1, background: '#eef1f6',
                 borderRadius: '4px', height: '10px', overflow: 'hidden',
               }}>
                 <div style={{
@@ -449,9 +449,9 @@ function MonthlyTrend({ trend }: { trend: ViewData['monthlyTrend'] }) {
                   borderRadius: '4px', transition: 'width 0.5s ease',
                 }} />
               </div>
-              <span style={{ fontSize: '0.75rem', color: '#7eb3ff', minWidth: '92px', textAlign: 'right', flexShrink: 0 }}>
+              <span style={{ fontSize: '0.75rem', color: '#2563eb', minWidth: '92px', textAlign: 'right', flexShrink: 0 }}>
                 {fmtNum(item.count)}품목
-                {item.cancelled > 0 && <span style={{ color: '#f87171', marginLeft: 4 }}>취소{fmtNum(item.cancelled)}</span>}
+                {item.cancelled > 0 && <span style={{ color: '#dc2626', marginLeft: 4 }}>취소{fmtNum(item.cancelled)}</span>}
               </span>
             </div>
           );
@@ -470,16 +470,16 @@ function formatPeriod(key: string): string {
 
 const selStyle: React.CSSProperties = {
   padding: '0.4rem 0.7rem', borderRadius: '8px', fontSize: '0.82rem',
-  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)',
+  background: '#ffffff', border: '1px solid #d7dce5',
   color: 'var(--text-primary)', fontFamily: 'inherit', cursor: 'pointer',
 };
 
 function chipStyle(on: boolean, accent = false): React.CSSProperties {
   return {
     padding: '0.4rem 0.85rem', borderRadius: '100px', cursor: 'pointer', border: '1px solid',
-    borderColor: on ? 'rgba(79,142,247,0.6)' : 'rgba(255,255,255,0.12)',
-    background: on ? 'rgba(79,142,247,0.18)' : (accent ? 'rgba(255,255,255,0.05)' : 'transparent'),
-    color: on ? '#7eb3ff' : 'var(--text-muted)',
+    borderColor: on ? 'rgba(37,99,235,0.5)' : '#e5e9f0',
+    background: on ? '#e8f0fe' : (accent ? '#f1f5f9' : 'transparent'),
+    color: on ? '#2563eb' : 'var(--text-muted)',
     fontSize: '0.8rem', fontWeight: on ? 700 : 400, fontFamily: 'inherit', transition: 'all 0.15s',
   };
 }
@@ -606,7 +606,7 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
             <div style={{ ...CARD, padding: '1rem 1.1rem' }}>
               {/* 기간(허가월) 선택 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'rgba(255,255,255,0.8)', minWidth: '54px' }}>허가월</span>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', minWidth: '54px' }}>허가월</span>
                 <select value={startM} onChange={e => setStartM(e.target.value)} style={selStyle}>
                   {months.map(m => <option key={m} value={m}>{formatPeriod(m)}</option>)}
                 </select>
@@ -619,7 +619,7 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
               {/* 전문일반 복수선택 */}
               {rxTypes.length > 0 && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.85rem' }}>
-                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'rgba(255,255,255,0.8)', minWidth: '54px' }}>전문일반</span>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#334155', minWidth: '54px' }}>전문일반</span>
                   <button onClick={() => setRxSel([])} style={chipStyle(rxSel.length === 0, true)}>전체</button>
                   {rxTypes.map(t => {
                     const on = rxSel.includes(t);
@@ -648,7 +648,7 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
                   <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                     {formatPeriod(applied.start <= applied.end ? applied.start : applied.end)} ~ {formatPeriod(applied.start <= applied.end ? applied.end : applied.start)}
                     {applied.rx.length > 0 && <> · {applied.rx.join('·')}</>}
-                    {' · '}유효 <b style={{ color: '#7eb3ff' }}>{fmtNum(viewData.meta.totalCount)}</b>품목 · <b>{viewData.meta.monthCount}</b>개월
+                    {' · '}유효 <b style={{ color: '#2563eb' }}>{fmtNum(viewData.meta.totalCount)}</b>품목 · <b>{viewData.meta.monthCount}</b>개월
                   </span>
                 )}
               </div>
@@ -661,14 +661,14 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
       {fetchError && !loading && (
         <div style={{ ...CARD, textAlign: 'center', padding: '2rem' }}>
           <div style={{ fontSize: '1.4rem', marginBottom: '0.6rem', opacity: 0.6 }}>⚠️</div>
-          <div style={{ marginBottom: '0.4rem', color: '#fca5a5' }}>파일을 불러오는 중 오류가 발생했습니다.</div>
+          <div style={{ marginBottom: '0.4rem', color: '#dc2626' }}>파일을 불러오는 중 오류가 발생했습니다.</div>
           <div style={{ fontSize: '0.78rem', marginBottom: '1rem', color: 'var(--text-muted)' }}>
             파일 형식이 지원되지 않거나 일시적인 네트워크 오류일 수 있습니다.
           </div>
           <button onClick={loadAll} style={{
             padding: '0.45rem 1.2rem', borderRadius: '8px', cursor: 'pointer',
             background: 'rgba(79,142,247,0.15)', border: '1px solid rgba(79,142,247,0.35)',
-            color: '#7eb3ff', fontSize: '0.82rem',
+            color: '#2563eb', fontSize: '0.82rem',
           }}>다시 시도</button>
         </div>
       )}
@@ -678,7 +678,7 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
             {[...Array(3)].map((_, i) => (
-              <div key={i} style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '0.9rem 1rem' }}>
+              <div key={i} style={{ background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: '12px', padding: '0.9rem 1rem' }}>
                 <Skel w="55%" h="0.65rem" />
                 <div style={{ marginTop: '0.5rem' }}><Skel w="70%" h="1.5rem" /></div>
                 <div style={{ marginTop: '0.35rem' }}><Skel w="80%" h="0.6rem" /></div>
@@ -700,14 +700,14 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
       {!loading && !fetchError && allData && (
         <>
           {allData.failedCount > 0 && (
-            <div style={{ fontSize: '0.72rem', color: '#fbbf24', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(251,191,36,0.08)', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.2)' }}>
+            <div style={{ fontSize: '0.72rem', color: '#b45309', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(251,191,36,0.08)', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.2)' }}>
               ⚠ {allData.failedCount}개 파일을 불러오지 못했습니다.
             </div>
           )}
 
           {/* ═══ 선택 기간 집계 뷰 ═══ */}
           {(allData.undated > 0 || allData.totalMonths > allData.windowMonths) && (
-            <div style={{ fontSize: '0.72rem', color: '#fbbf24', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(251,191,36,0.08)', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.2)' }}>
+            <div style={{ fontSize: '0.72rem', color: '#b45309', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', background: 'rgba(251,191,36,0.08)', borderRadius: '8px', border: '1px solid rgba(251,191,36,0.2)' }}>
               ⚠ {[
                 allData.totalMonths > allData.windowMonths ? `허가일자 기준 최근 ${allData.windowMonths}개월만 조회(전체 ${allData.totalMonths}개월 중)` : '',
                 allData.undated > 0 ? `허가일자 미기재 ${allData.undated}건 제외` : '',
@@ -719,26 +719,26 @@ export default function ApprovalClient({ allFiles }: { allFiles: FileInfo[] }) {
             <SummaryCard
               label="유효 허가 품목" value={fmtNum(viewData.meta.totalCount)} unit="품목"
               sub={`전체 허가 ${fmtNum(viewData.meta.approvedCount)} · ${fmtNum(viewData.companyBreakdown.length)}개사`}
-              color="#7eb3ff"
+              color="#2563eb"
             />
             <SummaryCard
               label="허가 후 취소" value={fmtNum(viewData.meta.cancelledCount)} unit="품목"
               sub={viewData.meta.cancelledCount > 0 ? '취소일자 기재 건' : '취소 없음'}
-              color="#f87171"
+              color="#dc2626"
             />
             <SummaryCard
               label="최다 집중 성분"
               value={viewData.meta.topIngredientTotalCount ? fmtNum(viewData.meta.topIngredientTotalCount) : '-'}
               unit={viewData.meta.topIngredientTotalCount ? '건' : undefined}
               sub={viewData.meta.topIngredientName || '괄호 성분 없음'}
-              color="#a78bfa"
+              color="#7c3aed"
             />
             <SummaryCard
               label="최다 허가 회사"
               value={viewData.companyBreakdown[0] ? fmtNum(viewData.companyBreakdown[0].count) : '-'}
               unit={viewData.companyBreakdown[0] ? '품목' : undefined}
               sub={viewData.companyBreakdown[0]?.name ?? '회사명 컬럼 미탐지'}
-              color="#34d399"
+              color="#059669"
             />
           </div>
 

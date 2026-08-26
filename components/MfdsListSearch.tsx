@@ -59,15 +59,15 @@ export default function MfdsListSearch({ type, columns, placeholder }: {
     <div>
       <form onSubmit={runSearch} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder={placeholder}
-          style={{ flex: 1, minWidth: 240, padding: '0.55rem 0.85rem', borderRadius: 9, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }} />
+          style={{ flex: 1, minWidth: 240, padding: '0.55rem 0.85rem', borderRadius: 9, background: '#ffffff', border: '1px solid #d7dce5', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }} />
         <button type="submit" disabled={isPending}
-          style={{ padding: '0.55rem 1.4rem', borderRadius: 9, background: 'rgba(59,130,246,0.9)', border: 'none', color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}>
+          style={{ padding: '0.55rem 1.4rem', borderRadius: 9, background: '#2563eb', border: 'none', color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}>
           {isPending ? '조회 중…' : '조회'}
         </button>
       </form>
 
       {notice && (
-        <div style={{ padding: '0.7rem 1rem', borderRadius: 10, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fde68a', fontSize: '0.82rem', marginBottom: '0.8rem' }}>
+        <div style={{ padding: '0.7rem 1rem', borderRadius: 10, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#b45309', fontSize: '0.82rem', marginBottom: '0.8rem' }}>
           ⚠ {notice}
         </div>
       )}
@@ -81,10 +81,10 @@ export default function MfdsListSearch({ type, columns, placeholder }: {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
             <input value={listQuery} onChange={e => setListQuery(e.target.value)}
               placeholder="🔍 결과 내 검색 (공백/쉼표/+로 여러 개)"
-              style={{ flex: 1, minWidth: 220, padding: '0.42rem 0.7rem', borderRadius: 7, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }} />
+              style={{ flex: 1, minWidth: 220, padding: '0.42rem 0.7rem', borderRadius: 7, background: '#ffffff', border: '1px solid #d7dce5', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }} />
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{view.length.toLocaleString()}건</span>
           </div>
-          <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12 }}>
+          <div style={{ overflowX: 'auto', border: '1px solid #e5e9f0', borderRadius: 12 }}>
             <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', fontSize: '0.82rem', tableLayout: 'fixed' }}>
               <colgroup>
                 {columns.map(c => <col key={c.key} style={c.w ? { width: c.w } : undefined} />)}
@@ -95,9 +95,9 @@ export default function MfdsListSearch({ type, columns, placeholder }: {
                     const active = sortKey === c.key;
                     return (
                       <th key={c.key} onClick={() => toggleSort(c.key)} style={{
-                        padding: '0.5rem 0.7rem', fontSize: '0.74rem', fontWeight: 700, color: active ? '#93c5fd' : 'rgba(255,255,255,0.55)',
-                        borderBottom: '1px solid rgba(255,255,255,0.1)', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none',
-                        textAlign: 'left', width: c.w, background: 'rgba(255,255,255,0.03)',
+                        padding: '0.5rem 0.7rem', fontSize: '0.74rem', fontWeight: 700, color: active ? '#2563eb' : '#94a3b8',
+                        borderBottom: '1px solid #e5e9f0', whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none',
+                        textAlign: 'left', width: c.w, background: '#f1f4f9',
                       }}>{c.label}{active ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ' ⇅'}</th>
                     );
                   })}
@@ -105,9 +105,9 @@ export default function MfdsListSearch({ type, columns, placeholder }: {
               </thead>
               <tbody>
                 {view.map((r, i) => (
-                  <tr key={i} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                  <tr key={i} style={{ borderTop: '1px solid #e5e9f0' }}>
                     {columns.map(c => (
-                      <td key={c.key} style={{ padding: '0.45rem 0.7rem', color: 'rgba(255,255,255,0.85)', verticalAlign: 'top', wordBreak: 'break-word' }}>{r[c.key] || '—'}</td>
+                      <td key={c.key} style={{ padding: '0.45rem 0.7rem', color: '#111827', verticalAlign: 'top', wordBreak: 'break-word' }}>{r[c.key] || '—'}</td>
                     ))}
                   </tr>
                 ))}

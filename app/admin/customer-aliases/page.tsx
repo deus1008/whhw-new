@@ -34,8 +34,8 @@ export default async function CustomerAliasesPage() {
           
           <Link href="/admin" style={{
             padding: '0.45rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600,
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-            color: 'rgba(255,255,255,0.6)', textDecoration: 'none',
+            background: '#f1f5f9', border: '1px solid #e5e9f0',
+            color: '#475569', textDecoration: 'none',
           }}>← 관리자</Link>
           
         </div>

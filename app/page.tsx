@@ -29,7 +29,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/weekly',
     icon: '📋',
     label: '주간회의',
-    color: '#93c5fd',
+    color: '#2563eb',
     bg:   'rgba(59,130,246,0.10)',
     bd:   'rgba(59,130,246,0.22)',
   },
@@ -38,7 +38,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/visits',
     icon: '📋',
     label: '영업활동',
-    color: '#6ee7b7',
+    color: '#059669',
     bg:   'rgba(16,185,129,0.10)',
     bd:   'rgba(16,185,129,0.22)',
   },
@@ -47,7 +47,7 @@ const NAV_ITEMS: NavItem[] = [
     href: NEWS_URL,
     icon: '📰',
     label: '기사검색',
-    color: '#fda4af',
+    color: '#e11d48',
     bg:   'rgba(244,63,94,0.10)',
     bd:   'rgba(244,63,94,0.22)',
     external: true,
@@ -57,7 +57,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/drug-search',
     icon: '💊',
     label: '약품검색',
-    color: '#6ee7b7',
+    color: '#059669',
     bg:   'rgba(52,211,153,0.10)',
     bd:   'rgba(52,211,153,0.22)',
   },
@@ -66,7 +66,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/medical-search',
     icon: '🏥',
     label: '병원검색',
-    color: '#67e8f9',
+    color: '#0891b2',
     bg:   'rgba(34,211,238,0.10)',
     bd:   'rgba(34,211,238,0.22)',
   },
@@ -75,7 +75,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/contracts',
     icon: '🤝',
     label: '신규계약',
-    color: '#67e8f9',
+    color: '#0891b2',
     bg:   'rgba(34,211,238,0.10)',
     bd:   'rgba(34,211,238,0.22)',
   },
@@ -84,7 +84,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/customers',
     icon: '🏢',
     label: '거래처현황',
-    color: '#fbbf24',
+    color: '#b45309',
     bg:   'rgba(251,191,36,0.10)',
     bd:   'rgba(251,191,36,0.22)',
   },
@@ -93,7 +93,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/products',
     icon: '🚀',
     label: '발매예정',
-    color: '#a5b4fc',
+    color: '#4f46e5',
     bg:   'rgba(99,102,241,0.10)',
     bd:   'rgba(99,102,241,0.22)',
   },
@@ -102,7 +102,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/product-list',
     icon: '📦',
     label: '위탁품목',
-    color: '#6ee7b7',
+    color: '#059669',
     bg:   'rgba(52,211,153,0.10)',
     bd:   'rgba(52,211,153,0.22)',
   },
@@ -111,7 +111,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/dc',
     icon: '🏥',
     label: 'DC현황',
-    color: '#c4b5fd',
+    color: '#7c3aed',
     bg:   'rgba(139,92,246,0.10)',
     bd:   'rgba(139,92,246,0.22)',
   },
@@ -120,7 +120,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/inventory',
     icon: '📦',
     label: '품절현황',
-    color: '#6ee7b7',
+    color: '#059669',
     bg:   'rgba(52,211,153,0.10)',
     bd:   'rgba(52,211,153,0.22)',
   },
@@ -129,7 +129,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/stock',
     icon: '🏭',
     label: '재고현황',
-    color: '#fbbf24',
+    color: '#b45309',
     bg:   'rgba(251,191,36,0.10)',
     bd:   'rgba(251,191,36,0.22)',
   },
@@ -138,7 +138,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/calendar',
     icon: '📅',
     label: '주요일정',
-    color: '#fdba74',
+    color: '#c2410c',
     bg:   'rgba(251,146,60,0.10)',
     bd:   'rgba(251,146,60,0.22)',
   },
@@ -147,7 +147,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/commission',
     icon: '💰',
     label: '수수료시뮬',
-    color: '#6ee7b7',
+    color: '#059669',
     bg:   'rgba(16,185,129,0.10)',
     bd:   'rgba(16,185,129,0.22)',
   },
@@ -156,7 +156,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/mbo',
     icon: '🎯',
     label: '목표관리',
-    color: '#fcd34d',
+    color: '#b45309',
     bg:   'rgba(245,158,11,0.10)',
     bd:   'rgba(245,158,11,0.22)',
   },
@@ -165,7 +165,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/disease-learning',
     icon: '💊',
     label: '질환별의약품',
-    color: '#c4b5fd',
+    color: '#7c3aed',
     bg:   'rgba(139,92,246,0.10)',
     bd:   'rgba(139,92,246,0.22)',
   },
@@ -174,7 +174,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/market-analysis',
     icon: '📈',
     label: '시장분석',
-    color: '#f9a8d4',
+    color: '#db2777',
     bg:   'rgba(236,72,153,0.10)',
     bd:   'rgba(236,72,153,0.22)',
   },
@@ -183,7 +183,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/sales-forecast',
     icon: '📊',
     label: 'SF',
-    color: '#67e8f9',
+    color: '#0891b2',
     bg:   'rgba(34,211,238,0.10)',
     bd:   'rgba(34,211,238,0.22)',
   },
@@ -192,7 +192,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/sales-report',
     icon: '📈',
     label: 'Sales Report',
-    color: '#5eead4',
+    color: '#0d9488',
     bg:   'rgba(45,212,191,0.10)',
     bd:   'rgba(45,212,191,0.22)',
     adminOnly: true,
@@ -202,7 +202,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/competitor-intel',
     icon: '🕵️',
     label: '업계동향',
-    color: '#fca5a5',
+    color: '#dc2626',
     bg:   'rgba(248,113,113,0.10)',
     bd:   'rgba(248,113,113,0.22)',
   },
@@ -211,7 +211,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/edi',
     icon: '🗂',
     label: '처방실적',
-    color: '#d8b4fe',
+    color: '#7c3aed',
     bg:   'rgba(168,85,247,0.10)',
     bd:   'rgba(168,85,247,0.22)',
   },
@@ -220,7 +220,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/settlement',
     icon: '💵',
     label: '수수료정산',
-    color: '#4ade80',
+    color: '#059669',
     bg:   'rgba(74,222,128,0.10)',
     bd:   'rgba(74,222,128,0.22)',
   },
@@ -229,7 +229,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/approval',
     icon: '🔬',
     label: '허가현황',
-    color: '#7dd3fc',
+    color: '#0284c7',
     bg:   'rgba(14,165,233,0.10)',
     bd:   'rgba(14,165,233,0.22)',
   },
@@ -238,7 +238,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/prescription-trend',
     icon: '🩺',
     label: '다처방성분',
-    color: '#fdba74',
+    color: '#c2410c',
     bg:   'rgba(249,115,22,0.10)',
     bd:   'rgba(249,115,22,0.22)',
   },
@@ -247,7 +247,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/prescription',
     icon: '🏥',
     label: '처방처현황',
-    color: '#86efac',
+    color: '#059669',
     bg:   'rgba(74,222,128,0.10)',
     bd:   'rgba(74,222,128,0.22)',
   },
@@ -256,7 +256,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/code-delete',
     icon: '🗑',
     label: '삭제대상처',
-    color: '#f87171',
+    color: '#dc2626',
     bg:   'rgba(239,68,68,0.10)',
     bd:   'rgba(239,68,68,0.22)',
   },
@@ -265,7 +265,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/documents',
     icon: '📁',
     label: '문서관리',
-    color: '#fde68a',
+    color: '#b45309',
     bg:   'rgba(251,191,36,0.10)',
     bd:   'rgba(251,191,36,0.22)',
   },
@@ -274,7 +274,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/reports',
     icon: '📝',
     label: '분석리포트',
-    color: '#a5f3fc',
+    color: '#0891b2',
     bg:   'rgba(6,182,212,0.10)',
     bd:   'rgba(6,182,212,0.22)',
   },
@@ -283,7 +283,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/notices',
     icon: '📢',
     label: '공지사항',
-    color: '#fde68a',
+    color: '#b45309',
     bg:   'rgba(251,191,36,0.10)',
     bd:   'rgba(251,191,36,0.22)',
   },
@@ -292,7 +292,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/meetings',
     icon: '🗒️',
     label: 'Task',
-    color: '#86efac',
+    color: '#059669',
     bg:   'rgba(74,222,128,0.10)',
     bd:   'rgba(74,222,128,0.22)',
   },
@@ -301,7 +301,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/commission-rate',
     icon: '📑',
     label: '수수료율',
-    color: '#fde68a',
+    color: '#b45309',
     bg:   'rgba(251,191,36,0.10)',
     bd:   'rgba(251,191,36,0.22)',
   },
@@ -310,7 +310,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '#',
     icon: '🐛',
     label: '오류신고',
-    color: '#fca5a5',
+    color: '#dc2626',
     bg:   'rgba(239,68,68,0.10)',
     bd:   'rgba(239,68,68,0.22)',
     action: 'error-modal',
@@ -320,7 +320,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/errors',
     icon: '📬',
     label: '오류신고함',
-    color: '#f87171',
+    color: '#dc2626',
     bg:   'rgba(239,68,68,0.08)',
     bd:   'rgba(239,68,68,0.20)',
     adminOnly: true,
@@ -330,7 +330,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/companies',
     icon: '🏢',
     label: '위탁사현황',
-    color: '#7dd3fc',
+    color: '#0284c7',
     bg:   'rgba(14,165,233,0.10)',
     bd:   'rgba(14,165,233,0.22)',
   },
@@ -339,7 +339,7 @@ const NAV_ITEMS: NavItem[] = [
     href: '/admin',
     icon: '⚙️',
     label: '관리자',
-    color: '#c084fc',
+    color: '#9333ea',
     bg:   'rgba(162,89,255,0.10)',
     bd:   'rgba(162,89,255,0.22)',
     adminOnly: true,
@@ -570,7 +570,7 @@ export default function Home() {
       for (const p of particles) {
         ctx!.beginPath();
         ctx!.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx!.fillStyle = `rgba(120, 170, 255, ${p.a})`;
+        ctx!.fillStyle = `rgba(100, 116, 139, ${p.a * 0.4})`;
         ctx!.fill();
         p.x += p.vx; if (p.x < 0) p.x = W; if (p.x > W) p.x = 0;
         p.y += p.vy; if (p.y < 0) p.y = H; if (p.y > H) p.y = 0;
@@ -600,7 +600,7 @@ export default function Home() {
         {isLoggedIn && companyName && !isAllianceUser && !isAdmin && (
           <p style={{
             fontSize: '4.5rem', fontWeight: 700, letterSpacing: '0.04em',
-            color: '#a5b4fc', marginBottom: '0.2rem',
+            color: '#4f46e5', marginBottom: '0.2rem',
           }}>
             {companyName}
           </p>
@@ -689,7 +689,7 @@ export default function Home() {
                 {editMode && (
                   <span style={{
                     position: 'absolute', top: '4px', right: '5px',
-                    fontSize: '0.6rem', color: 'rgba(255,255,255,0.3)',
+                    fontSize: '0.6rem', color: 'rgba(15,23,42,0.3)',
                     lineHeight: 1, pointerEvents: 'none',
                   }}>⠿</span>
                 )}
@@ -701,15 +701,15 @@ export default function Home() {
                     borderRadius: '100px', fontSize: '0.65rem', fontWeight: 700,
                     padding: '0 5px', minWidth: '18px', height: '18px',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    lineHeight: 1, border: '2px solid rgba(10,15,30,0.8)',
-                    boxShadow: '0 0 6px rgba(239,68,68,0.6)',
+                    lineHeight: 1, border: '2px solid #ffffff',
+                    boxShadow: '0 0 6px rgba(239,68,68,0.5)',
                     pointerEvents: 'none',
                   }}>
                     {badge > 99 ? '99+' : badge}
                   </span>
                 )}
                 <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>{icon}</span>
-                <span style={{ fontSize: '0.7rem', fontWeight: 600, color, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#334155', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
                   {label}
                 </span>
               </button>
@@ -725,12 +725,12 @@ export default function Home() {
               style={{
                 padding: '0.22rem 0.8rem', borderRadius: '20px',
                 border: editMode
-                  ? '1px solid rgba(99,102,241,0.5)'
-                  : '1px solid rgba(255,255,255,0.1)',
+                  ? '1px solid #c7d2fe'
+                  : '1px solid #e5e9f0',
                 background: editMode
-                  ? 'rgba(99,102,241,0.18)'
-                  : 'rgba(255,255,255,0.04)',
-                color: editMode ? '#a5b4fc' : 'rgba(255,255,255,0.3)',
+                  ? '#e8f0fe'
+                  : '#f1f5f9',
+                color: editMode ? '#4f46e5' : '#64748b',
                 fontSize: '0.68rem', cursor: 'pointer', fontFamily: 'inherit',
                 transition: 'all 0.15s',
               }}
@@ -747,7 +747,7 @@ export default function Home() {
         }}>
           <p style={{
             fontSize: '0.82rem',
-            color: '#fca5a5',
+            color: '#b91c1c',
             background: 'rgba(239,68,68,0.10)',
             border: '1px solid rgba(239,68,68,0.25)',
             borderRadius: '10px',
@@ -777,7 +777,7 @@ export default function Home() {
               href="/login"
               style={{
                 padding: '0.4rem 1rem', borderRadius: '8px',
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                background: '#f1f5f9', border: '1px solid #e5e9f0',
                 color: 'var(--text-muted)', fontSize: '0.78rem', fontWeight: 500,
                 textDecoration: 'none', letterSpacing: '0.02em',
               }}
@@ -788,8 +788,8 @@ export default function Home() {
               href="/signup"
               style={{
                 padding: '0.4rem 1rem', borderRadius: '8px',
-                background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.3)',
-                color: '#93b8ff', fontSize: '0.78rem', fontWeight: 600,
+                background: '#e8f0fe', border: '1px solid #cdddfb',
+                color: '#2563eb', fontSize: '0.78rem', fontWeight: 600,
                 textDecoration: 'none', letterSpacing: '0.02em',
               }}
             >
@@ -824,8 +824,8 @@ function LogoutButton() {
       onClick={handleLogout}
       style={{
         padding: '0.4rem 1rem', borderRadius: '8px',
-        background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.22)',
-        color: '#fca5a5', fontSize: '0.78rem', fontWeight: 500,
+        background: '#fef2f2', border: '1px solid #ef9a9a',
+        color: '#dc2626', fontSize: '0.78rem', fontWeight: 500,
         cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.02em',
       }}
     >

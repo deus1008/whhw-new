@@ -39,7 +39,7 @@ function writeUrlParams(params: {
 /* ── 스타일 상수 ─────────────────────────────────────────────── */
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+  background: '#f8fafc', border: '1px solid #e5e9f0',
   color: 'var(--text-primary)', fontSize: '16px', fontFamily: 'inherit',
   outline: 'none', boxSizing: 'border-box', minHeight: '44px',
 };
@@ -54,7 +54,7 @@ const primaryBtn: React.CSSProperties = {
 
 const disabledBtn: React.CSSProperties = {
   ...primaryBtn,
-  background: 'rgba(255,255,255,0.1)',
+  background: '#e5e9f0',
   color: 'var(--text-muted)',
   cursor: 'not-allowed',
 };
@@ -97,10 +97,10 @@ function LineChart({ products, periods }: {
         return (
           <g key={t}>
             <line x1={PAD_L} y1={y} x2={W - PAD_R} y2={y}
-              stroke="rgba(255,255,255,0.07)" strokeWidth={1} />
+              stroke="#f1f5f9" strokeWidth={1} />
             {t > 0 && (
               <text x={PAD_L - 5} y={y + 4} textAnchor="end"
-                fontSize={9} fill="rgba(255,255,255,0.4)">
+                fontSize={9} fill="#94a3b8">
                 {fmt천원(maxVal * t)}
               </text>
             )}
@@ -118,15 +118,15 @@ function LineChart({ products, periods }: {
         return (
           <g key={p}>
             <text x={x} y={H - PAD_B + 14} textAnchor="middle"
-              fontSize={8.5} fill="rgba(255,255,255,0.5)">
+              fontSize={8.5} fill="#64748b">
               {label}
             </text>
             {yearChanged && (
               <>
                 <line x1={x} y1={PAD_T} x2={x} y2={PAD_T + chartH}
-                  stroke="rgba(255,255,255,0.15)" strokeWidth={1} strokeDasharray="3,3" />
+                  stroke="#d7dce5" strokeWidth={1} strokeDasharray="3,3" />
                 <text x={x + 3} y={PAD_T + 9} textAnchor="start"
-                  fontSize={8} fill="rgba(255,255,255,0.3)">
+                  fontSize={8} fill="#94a3b8">
                   {thisYear}
                 </text>
               </>
@@ -158,13 +158,13 @@ function LineChart({ products, periods }: {
 
       {/* X축 */}
       <line x1={PAD_L} y1={PAD_T + chartH} x2={W - PAD_R} y2={PAD_T + chartH}
-        stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
+        stroke="#d7dce5" strokeWidth={1} />
       {/* Y축 */}
       <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={PAD_T + chartH}
-        stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
+        stroke="#d7dce5" strokeWidth={1} />
       {/* Y축 레이블 */}
       <text x={12} y={PAD_T + chartH / 2} textAnchor="middle"
-        fontSize={9} fill="rgba(255,255,255,0.4)"
+        fontSize={9} fill="#94a3b8"
         transform={`rotate(-90,12,${PAD_T + chartH / 2})`}>
         천원
       </text>
@@ -173,8 +173,8 @@ function LineChart({ products, periods }: {
 }
 
 const PRODUCT_COLORS = [
-  '#93c5fd','#86efac','#fde68a','#f9a8d4','#c4b5fd',
-  '#6ee7b7','#fca5a5','#fdba74','#a5f3fc','#d9f99d',
+  '#2563eb','#059669','#b45309','#db2777','#7c3aed',
+  '#059669','#dc2626','#c2410c','#0891b2','#d9f99d',
 ];
 
 /* ── 메인 컴포넌트 ───────────────────────────────────────────── */
@@ -373,9 +373,9 @@ export default function MarketAnalysisClient() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600, margin: 0 }}>
                 {(!ingrPickMode && selectedIngr.size > 0)
-                  ? <>선택 성분 <span style={{ color: '#86efac' }}>{selectedIngr.size}개</span></>
+                  ? <>선택 성분 <span style={{ color: '#059669' }}>{selectedIngr.size}개</span></>
                   : <>성분 선택{selectedIngr.size > 0 && (
-                      <span style={{ marginLeft: '0.5rem', color: '#86efac' }}>— {selectedIngr.size}개 선택됨</span>
+                      <span style={{ marginLeft: '0.5rem', color: '#059669' }}>— {selectedIngr.size}개 선택됨</span>
                     )}</>}
                 {isLoadingProducts && (
                   <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)', fontWeight: 400 }}>품목 조회 중…</span>
@@ -385,7 +385,7 @@ export default function MarketAnalysisClient() {
                 (!ingrPickMode)
                   ? <button
                       onClick={() => { setSelectedIngr(new Set()); setResults([]); setSelected(new Set()); setAnalysis(null); setIngrPickMode(true); setPickMode(true); }}
-                      style={{ padding: '0.3rem 0.7rem', borderRadius: '8px', fontSize: '0.75rem', fontFamily: 'inherit', cursor: 'pointer', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-muted)', minHeight: 'auto' }}
+                      style={{ padding: '0.3rem 0.7rem', borderRadius: '8px', fontSize: '0.75rem', fontFamily: 'inherit', cursor: 'pointer', background: '#f1f5f9', border: '1px solid #e5e9f0', color: 'var(--text-muted)', minHeight: 'auto' }}
                     >↺ 초기화</button>
                   : <button
                       onClick={() => setIngrPickMode(false)}
@@ -404,9 +404,9 @@ export default function MarketAnalysisClient() {
                     onClick={() => toggleIngredient(opt.ingredient_name)}
                     style={{
                       padding: '0.3rem 0.65rem', borderRadius: '999px',
-                      border: active ? '1px solid rgba(99,102,241,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                      border: active ? '1px solid rgba(99,102,241,0.5)' : '1px solid #f1f5f9',
                       fontSize: '0.75rem', fontFamily: 'inherit', cursor: 'pointer',
-                      background: active ? 'rgba(99,102,241,0.45)' : 'rgba(255,255,255,0.07)',
+                      background: active ? 'rgba(99,102,241,0.45)' : '#f1f5f9',
                       color: active ? '#c7d2fe' : 'var(--text-muted)',
                       fontWeight: active ? 700 : 400,
                       transition: 'all 0.12s',
@@ -430,9 +430,9 @@ export default function MarketAnalysisClient() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
               {(!pickMode && selected.size > 0)
-                ? <>선택 품목 <span style={{ color: '#86efac' }}>{selected.size}개</span></>
+                ? <>선택 품목 <span style={{ color: '#059669' }}>{selected.size}개</span></>
                 : <>품목 {results.length}개{selected.size > 0 && (
-                    <span style={{ marginLeft: '0.6rem', color: '#86efac' }}>— {selected.size}개 선택됨</span>
+                    <span style={{ marginLeft: '0.6rem', color: '#059669' }}>— {selected.size}개 선택됨</span>
                   )}</>}
             </span>
             <div style={{ display: 'flex', gap: '0.4rem' }}>
@@ -440,7 +440,7 @@ export default function MarketAnalysisClient() {
                 /* 선택 품목만 보이는 상태 — 초기화로 다시 선택 */
                 <button
                   onClick={() => { setSelected(new Set()); setPickMode(true); }}
-                  style={{ ...disabledBtn, background: 'rgba(255,255,255,0.08)', cursor: 'pointer', color: 'var(--text-muted)', border: '1px solid rgba(255,255,255,0.12)', fontSize: '0.8rem', padding: '0.4rem 0.8rem', minHeight: 'auto' }}
+                  style={{ ...disabledBtn, background: '#f1f5f9', cursor: 'pointer', color: 'var(--text-muted)', border: '1px solid #e5e9f0', fontSize: '0.8rem', padding: '0.4rem 0.8rem', minHeight: 'auto' }}
                 >
                   ↺ 초기화
                 </button>
@@ -448,7 +448,7 @@ export default function MarketAnalysisClient() {
                 /* 전체 목록에서 선택하는 상태 */
                 <>
                   <button
-                    style={{ ...disabledBtn, ...(results.length > 0 ? { background: 'rgba(129,140,248,0.15)', cursor: 'pointer', color: '#a5b4fc', border: '1px solid rgba(129,140,248,0.35)' } : {}), fontSize: '0.8rem', padding: '0.4rem 0.8rem', minHeight: 'auto' }}
+                    style={{ ...disabledBtn, ...(results.length > 0 ? { background: 'rgba(129,140,248,0.15)', cursor: 'pointer', color: '#4f46e5', border: '1px solid rgba(129,140,248,0.35)' } : {}), fontSize: '0.8rem', padding: '0.4rem 0.8rem', minHeight: 'auto' }}
                     onClick={selectCsoCompetitors}
                     title="아주약품·대웅바이오·셀트리온·안국약품·동구바이오제약·마더스제약 품목 선택"
                   >
@@ -487,17 +487,17 @@ export default function MarketAnalysisClient() {
               <label key={item.product_name} style={{
                 display: 'flex', alignItems: 'center', gap: '0.6rem',
                 padding: '0.5rem 0.7rem', borderRadius: '8px', cursor: 'pointer',
-                background: selected.has(item.product_name) ? 'rgba(99,102,241,0.15)' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${selected.has(item.product_name) ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.07)'}`,
+                background: selected.has(item.product_name) ? 'rgba(99,102,241,0.15)' : '#ffffff',
+                border: `1px solid ${selected.has(item.product_name) ? 'rgba(99,102,241,0.4)' : '#f1f5f9'}`,
                 transition: 'all 0.1s',
               }}>
                 <input
                   type="checkbox"
                   checked={selected.has(item.product_name)}
                   onChange={() => toggle(item.product_name)}
-                  style={{ accentColor: '#818cf8', width: 16, height: 16, flexShrink: 0 }}
+                  style={{ accentColor: '#4f46e5', width: 16, height: 16, flexShrink: 0 }}
                 />
-                <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#fff' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#111827' }}>
                   {item.product_name}
                 </span>
                 {item.ingredient_name && (
@@ -509,7 +509,7 @@ export default function MarketAnalysisClient() {
                   <span style={{
                     marginLeft: 'auto', fontSize: '0.7rem', padding: '0.1rem 0.45rem',
                     background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
-                    borderRadius: '999px', color: '#a5b4fc', whiteSpace: 'nowrap', flexShrink: 0,
+                    borderRadius: '999px', color: '#4f46e5', whiteSpace: 'nowrap', flexShrink: 0,
                   }}>
                     {item.manufacturer}
                   </span>
@@ -524,7 +524,7 @@ export default function MarketAnalysisClient() {
 
       {/* ── 오류 메시지 ── */}
       {error && (
-        <div style={{ padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5', fontSize: '0.85rem', marginBottom: '1rem' }}>
+        <div style={{ padding: '0.75rem 1rem', borderRadius: '10px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#dc2626', fontSize: '0.85rem', marginBottom: '1rem' }}>
           {error}
         </div>
       )}
@@ -541,7 +541,7 @@ export default function MarketAnalysisClient() {
               {/* 기간 선택 — 세그먼트 컨트롤 */}
               <div style={{
                 display: 'inline-flex',
-                background: 'rgba(255,255,255,0.06)',
+                background: '#f1f5f9',
                 borderRadius: '8px',
                 padding: '2px',
                 gap: '2px',
@@ -577,7 +577,7 @@ export default function MarketAnalysisClient() {
             {sortedAnalysis.map((p, i) => (
               <span key={p.product_name} style={{
                 display: 'flex', alignItems: 'center', gap: '0.3rem',
-                fontSize: '0.72rem', color: 'rgba(255,255,255,0.7)',
+                fontSize: '0.72rem', color: '#475569',
               }}>
                 <span style={{ width: 10, height: 10, borderRadius: 2, background: PRODUCT_COLORS[i % PRODUCT_COLORS.length], flexShrink: 0 }} />
                 {p.product_name}
@@ -626,37 +626,37 @@ export default function MarketAnalysisClient() {
                           )}
                         </th>
                       ))}
-                      <th style={{ ...TH_R, color: '#fde68a' }}>합계</th>
+                      <th style={{ ...TH_R, color: '#b45309' }}>합계</th>
                     </tr>
                   </thead>
                   <tbody>
                     {displayPeriods.map((p, pi) => (
-                      <tr key={p} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      <tr key={p} style={{ borderBottom: '1px solid #f8fafc' }}>
                         <td style={{ ...TD_L, color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{p}</td>
                         {sortedAnalysis.map((_, i) => (
                           <td key={i} style={TD_R}>
                             {prodMaps[i][p] != null ? fmt천원(prodMaps[i][p]) : '-'}
                           </td>
                         ))}
-                        <td style={{ ...TD_R, fontWeight: 700, color: '#fde68a' }}>
+                        <td style={{ ...TD_R, fontWeight: 700, color: '#b45309' }}>
                           {fmt천원(rowTotals[pi])}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-                      <td style={{ ...TD_L, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>합계</td>
+                    <tr style={{ borderTop: '1px solid #d7dce5' }}>
+                      <td style={{ ...TD_L, fontWeight: 700, color: '#475569' }}>합계</td>
                       {colTotals.map((v, i) => (
-                        <td key={i} style={{ ...TD_R, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>
+                        <td key={i} style={{ ...TD_R, fontWeight: 700, color: '#475569' }}>
                           {fmt천원(v)}
                         </td>
                       ))}
-                      <td style={{ ...TD_R, fontWeight: 700, color: '#fde68a' }}>
+                      <td style={{ ...TD_R, fontWeight: 700, color: '#b45309' }}>
                         {fmt천원(grandTotal)}
                       </td>
                     </tr>
-                    <tr style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+                    <tr style={{ borderTop: '1px solid #f1f5f9' }}>
                       <td style={{ ...TD_L, color: 'var(--text-muted)', fontWeight: 600 }}>점유율</td>
                       {colTotals.map((v, i) => (
                         <td key={i} style={{ ...TD_R, color: 'var(--text-muted)' }}>
@@ -687,14 +687,14 @@ export default function MarketAnalysisClient() {
 const TH_L: React.CSSProperties = {
   textAlign: 'left', padding: '0.5rem 0.6rem',
   color: 'var(--text-muted)', fontWeight: 600,
-  borderBottom: '1px solid rgba(255,255,255,0.1)',
+  borderBottom: '1px solid #e5e9f0',
   whiteSpace: 'nowrap',
 };
 const TH_R: React.CSSProperties = {
   ...TH_L, textAlign: 'right', minWidth: 72,
 };
 const TD_L: React.CSSProperties = {
-  padding: '0.45rem 0.6rem', color: '#fff', fontSize: '0.78rem',
+  padding: '0.45rem 0.6rem', color: '#111827', fontSize: '0.78rem',
   whiteSpace: 'nowrap',
 };
 const TD_R: React.CSSProperties = {

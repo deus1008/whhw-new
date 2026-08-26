@@ -62,7 +62,7 @@ export default async function IngredientReviewPage() {
           <Link href="/disease-learning" style={{
             padding: '0.4rem 0.9rem', borderRadius: '8px', textDecoration: 'none',
             background: 'rgba(147,197,253,0.12)', border: '1px solid rgba(147,197,253,0.28)',
-            color: '#93c5fd', fontSize: '0.82rem', fontWeight: 600,
+            color: '#2563eb', fontSize: '0.82rem', fontWeight: 600,
           }}>질환별의약품</Link>
           
         </div>

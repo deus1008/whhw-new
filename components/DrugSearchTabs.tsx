@@ -20,8 +20,8 @@ export default function DrugSearchTabs({ apiConfigured }: { apiConfigured: boole
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
             padding: '0.5rem 1.1rem', borderRadius: 10, fontSize: '0.85rem', fontWeight: tab === t.key ? 700 : 500, cursor: 'pointer', fontFamily: 'inherit',
-            background: tab === t.key ? 'rgba(59,130,246,0.9)' : 'rgba(255,255,255,0.04)',
-            border: `1px solid ${tab === t.key ? 'rgba(59,130,246,0.9)' : 'rgba(255,255,255,0.12)'}`,
+            background: tab === t.key ? 'rgba(59,130,246,0.9)' : '#f1f5f9',
+            border: `1px solid ${tab === t.key ? 'rgba(59,130,246,0.9)' : '#e5e9f0'}`,
             color: tab === t.key ? '#fff' : 'var(--text-primary)', transition: 'all 0.12s',
           }}>{t.label}</button>
         ))}

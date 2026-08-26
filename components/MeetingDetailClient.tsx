@@ -23,24 +23,24 @@ function fmtSize(b: number) {
 function genId() { return Math.random().toString(36).slice(2, 11); }
 
 const CAT_STYLE: Record<string, { color: string; bg: string }> = {
-  '마케팅관련': { color: '#f9a8d4', bg: 'rgba(236,72,153,0.13)' },
-  '영업관련':   { color: '#6ee7b7', bg: 'rgba(16,185,129,0.13)' },
-  '정책관련':   { color: '#93c5fd', bg: 'rgba(59,130,246,0.13)' },
-  '공급관련':   { color: '#fcd34d', bg: 'rgba(245,158,11,0.13)' },
-  '기타':       { color: '#c4b5fd', bg: 'rgba(139,92,246,0.13)' },
+  '마케팅관련': { color: '#db2777', bg: 'rgba(236,72,153,0.13)' },
+  '영업관련':   { color: '#059669', bg: 'rgba(16,185,129,0.13)' },
+  '정책관련':   { color: '#2563eb', bg: 'rgba(59,130,246,0.13)' },
+  '공급관련':   { color: '#b45309', bg: 'rgba(245,158,11,0.13)' },
+  '기타':       { color: '#7c3aed', bg: 'rgba(139,92,246,0.13)' },
 };
-function cs(cat: string) { return CAT_STYLE[cat] ?? { color: '#94a3b8', bg: 'rgba(148,163,184,0.13)' }; }
+function cs(cat: string) { return CAT_STYLE[cat] ?? { color: '#475569', bg: 'rgba(148,163,184,0.13)' }; }
 
 const STATUS_META: Record<TaskStatus, { color: string; bg: string }> = {
-  '대기':   { color: '#94a3b8', bg: 'rgba(148,163,184,0.14)' },
-  '진행중': { color: '#fbbf24', bg: 'rgba(251,191,36,0.14)'  },
-  '완료':   { color: '#4ade80', bg: 'rgba(74,222,128,0.14)'  },
+  '대기':   { color: '#475569', bg: 'rgba(148,163,184,0.14)' },
+  '진행중': { color: '#b45309', bg: 'rgba(251,191,36,0.14)'  },
+  '완료':   { color: '#15803d', bg: 'rgba(74,222,128,0.14)'  },
 };
 const PRIORITY_META: Record<TaskPriority, { color: string; bg: string }> = {
-  '중요': { color: '#fb923c', bg: 'rgba(251,146,60,0.13)'  },
-  '긴급': { color: '#f87171', bg: 'rgba(248,113,113,0.13)' },
-  '보통': { color: '#fcd34d', bg: 'rgba(252,211,77,0.13)'  },
-  '낮음': { color: '#94a3b8', bg: 'rgba(148,163,184,0.11)' },
+  '중요': { color: '#c2410c', bg: 'rgba(251,146,60,0.13)'  },
+  '긴급': { color: '#dc2626', bg: 'rgba(248,113,113,0.13)' },
+  '보통': { color: '#b45309', bg: 'rgba(252,211,77,0.13)'  },
+  '낮음': { color: '#475569', bg: 'rgba(148,163,184,0.11)' },
 };
 
 /* ── 콘텐츠 변환 헬퍼 ────────────────────────────────────────── */
@@ -72,12 +72,12 @@ function AttachmentView({ attachments, onRemove }: {
           {images.map(a => (
             <div key={a.id} style={{ position: 'relative' }}>
               <img src={a.url} alt={a.name}
-                style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.1)', display: 'block' }}
+                style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer', border: '1px solid #e5e9f0', display: 'block' }}
                 onClick={() => window.open(a.url, '_blank')}
               />
               {onRemove && (
                 <button onClick={() => onRemove(a.id)}
-                  style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#1a1f2e', border: '1px solid rgba(248,113,113,0.5)', borderRadius: '50%', width: '18px', height: '18px', cursor: 'pointer', color: '#f87171', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, lineHeight: 1, fontFamily: 'inherit' }}>
+                  style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ffffff', border: '1px solid #ef9a9a', borderRadius: '50%', width: '18px', height: '18px', cursor: 'pointer', color: '#dc2626', fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, lineHeight: 1, fontFamily: 'inherit' }}>
                   ×
                 </button>
               )}
@@ -86,16 +86,16 @@ function AttachmentView({ attachments, onRemove }: {
         </div>
       )}
       {files.map(a => (
-        <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.65rem', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', marginBottom: '0.25rem' }}>
+        <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.35rem 0.65rem', borderRadius: '6px', background: '#f8fafc', border: '1px solid #e5e9f0', marginBottom: '0.25rem' }}>
           <span style={{ fontSize: '0.85rem' }}>📎</span>
           <a href={a.url} download={a.name} target="_blank" rel="noreferrer"
-            style={{ flex: 1, fontSize: '0.78rem', color: '#94a3b8', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            style={{ flex: 1, fontSize: '0.78rem', color: '#475569', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {a.name}
           </a>
-          <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.2)', flexShrink: 0 }}>{fmtSize(a.size)}</span>
+          <span style={{ fontSize: '0.68rem', color: '#94a3b8', flexShrink: 0 }}>{fmtSize(a.size)}</span>
           {onRemove && (
             <button onClick={() => onRemove(a.id)}
-              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: '1rem', padding: '0 0.1rem', lineHeight: 1, flexShrink: 0, fontFamily: 'inherit' }}>
+              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1rem', padding: '0 0.1rem', lineHeight: 1, flexShrink: 0, fontFamily: 'inherit' }}>
               ×
             </button>
           )}
@@ -177,12 +177,12 @@ function RichEditor({ initialValue, onChange, onImageUpload }: {
   const TB: React.CSSProperties = {
     padding: '0.18rem 0.5rem', borderRadius: '4px', fontSize: '0.8rem',
     fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', lineHeight: 1.5,
-    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-    color: 'rgba(255,255,255,0.65)',
+    background: '#f1f5f9', border: '1px solid #e5e9f0',
+    color: '#475569',
   };
   const SEP: React.CSSProperties = {
     display: 'inline-block', width: '1px', alignSelf: 'stretch',
-    background: 'rgba(255,255,255,0.1)', margin: '0 0.1rem',
+    background: '#e5e9f0', margin: '0 0.1rem',
   };
 
   return (
@@ -191,9 +191,9 @@ function RichEditor({ initialValue, onChange, onImageUpload }: {
       <div className="editor-toolbar no-print" style={{
         display: 'flex', gap: '0.22rem', flexWrap: 'wrap', alignItems: 'center',
         padding: '0.35rem 0.55rem',
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        background: '#f8fafc',
+        border: '1px solid #e5e9f0',
+        borderBottom: '1px solid #e5e9f0',
         borderRadius: '8px 8px 0 0',
       }}>
         <button onMouseDown={e => { e.preventDefault(); exec('bold'); }} style={TB} title="굵게 (Ctrl+B)"><b>B</b></button>
@@ -210,9 +210,9 @@ function RichEditor({ initialValue, onChange, onImageUpload }: {
         <button onMouseDown={e => { e.preventDefault(); exec('insertOrderedList'); }} style={TB} title="번호 목록">① 목록</button>
 
         {uploading && (
-          <span style={{ fontSize: '0.72rem', color: '#a5b4fc', marginLeft: '0.2rem' }}>이미지 업로드 중…</span>
+          <span style={{ fontSize: '0.72rem', color: '#2563eb', marginLeft: '0.2rem' }}>이미지 업로드 중…</span>
         )}
-        <span style={{ marginLeft: 'auto', fontSize: '0.65rem', color: 'rgba(255,255,255,0.22)', whiteSpace: 'nowrap' }}>
+        <span style={{ marginLeft: 'auto', fontSize: '0.65rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
           이미지: Ctrl+V
         </span>
       </div>
@@ -229,11 +229,11 @@ function RichEditor({ initialValue, onChange, onImageUpload }: {
         style={{
           minHeight: '1680px', maxHeight: '3600px', overflowY: 'auto',
           padding: '0.75rem 0.85rem',
-          background: 'rgba(255,255,255,0.05)',
-          border: '1px solid rgba(255,255,255,0.12)',
+          background: '#ffffff',
+          border: '1px solid #e5e9f0',
           borderTop: 'none',
           borderRadius: '0 0 8px 8px',
-          color: '#fff', fontSize: '0.88rem', outline: 'none',
+          color: '#111827', fontSize: '0.88rem', outline: 'none',
           fontFamily: 'inherit', lineHeight: 1.8, wordBreak: 'break-word',
         }}
       />
@@ -389,9 +389,9 @@ export default function MeetingDetailClient({
         @media screen {
           .print-meta-row { display: none !important; }
         }
-        .rich-content a { color: #93c5fd; text-decoration: underline; word-break: break-all; }
-        .rich-content a:hover { color: #bfdbfe; }
-        .rich-content img { max-width: 100%; max-height: 480px; object-fit: contain; border-radius: 8px; cursor: pointer; margin: 0.5rem 0; display: block; border: 1px solid rgba(255,255,255,0.08); }
+        .rich-content a { color: #2563eb; text-decoration: underline; word-break: break-all; }
+        .rich-content a:hover { color: #1d4ed8; }
+        .rich-content img { max-width: 100%; max-height: 480px; object-fit: contain; border-radius: 8px; cursor: pointer; margin: 0.5rem 0; display: block; border: 1px solid #e5e9f0; }
         .rich-content ul, .rich-content ol { padding-left: 1.5rem; margin: 0.4rem 0; }
         .rich-content li { margin-bottom: 0.15rem; }
       `}</style>
@@ -426,7 +426,7 @@ export default function MeetingDetailClient({
         </div>
 
         {/* 수정일 표시 */}
-        <div className="no-print" style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.22)', marginBottom: '0.75rem' }}>
+        <div className="no-print" style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: '0.75rem' }}>
           최종 저장: {fmtDate(meeting.updated_at)}
         </div>
 
@@ -442,29 +442,29 @@ export default function MeetingDetailClient({
 
         {/* 상태 + 우선순위 */}
         <div className="no-print" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
-          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginRight: '0.1rem' }}>상태</span>
+          <span style={{ fontSize: '0.7rem', color: '#94a3b8', alignSelf: 'center', marginRight: '0.1rem' }}>상태</span>
           {STATUSES.map(s => {
             const meta = STATUS_META[s];
             const active = (meeting.status ?? '대기') === s;
             return (
               <button key={s} onClick={() => handleStatusChange(s)} disabled={metaPending}
                 style={{ padding: '0.2rem 0.7rem', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-                  background: active ? meta.bg : 'rgba(255,255,255,0.03)',
-                  border: active ? `1px solid ${meta.color}88` : '1px solid rgba(255,255,255,0.1)',
-                  color: active ? meta.color : 'rgba(255,255,255,0.32)',
+                  background: active ? meta.bg : '#f1f5f9',
+                  border: active ? `1px solid ${meta.color}88` : '1px solid #e5e9f0',
+                  color: active ? meta.color : '#64748b',
                 }}>{s}</button>
             );
           })}
-          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginLeft: '0.4rem', marginRight: '0.1rem' }}>우선순위</span>
+          <span style={{ fontSize: '0.7rem', color: '#94a3b8', alignSelf: 'center', marginLeft: '0.4rem', marginRight: '0.1rem' }}>우선순위</span>
           {PRIORITIES.map(p => {
             const meta = PRIORITY_META[p];
             const active = (meeting.priority ?? '보통') === p;
             return (
               <button key={p} onClick={() => handlePriorityChange(p)} disabled={metaPending}
                 style={{ padding: '0.2rem 0.7rem', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-                  background: active ? meta.bg : 'rgba(255,255,255,0.03)',
-                  border: active ? `1px solid ${meta.color}88` : '1px solid rgba(255,255,255,0.1)',
-                  color: active ? meta.color : 'rgba(255,255,255,0.32)',
+                  background: active ? meta.bg : '#f1f5f9',
+                  border: active ? `1px solid ${meta.color}88` : '1px solid #e5e9f0',
+                  color: active ? meta.color : '#64748b',
                 }}>{p}</button>
             );
           })}
@@ -472,7 +472,7 @@ export default function MeetingDetailClient({
 
         {/* 보안등급 */}
         <div className="no-print" style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', alignSelf: 'center', marginRight: '0.1rem' }}>보안등급</span>
+          <span style={{ fontSize: '0.7rem', color: '#94a3b8', alignSelf: 'center', marginRight: '0.1rem' }}>보안등급</span>
           {isAdmin ? (
             SECURITY_LEVELS.map(sl => {
               const m = SECURITY_META[sl];
@@ -480,9 +480,9 @@ export default function MeetingDetailClient({
               return (
                 <button key={sl} onClick={() => handleSecurityChange(sl)} disabled={metaPending}
                   style={{ padding: '0.2rem 0.7rem', borderRadius: '20px', fontSize: '0.73rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-                    background: active ? m.bg : 'rgba(255,255,255,0.03)',
-                    border: active ? `1px solid ${m.border}` : '1px solid rgba(255,255,255,0.1)',
-                    color: active ? m.color : 'rgba(255,255,255,0.32)',
+                    background: active ? m.bg : '#f1f5f9',
+                    border: active ? `1px solid ${m.border}` : '1px solid #e5e9f0',
+                    color: active ? m.color : '#64748b',
                   }}>{sl}</button>
               );
             })
@@ -501,7 +501,7 @@ export default function MeetingDetailClient({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
           <span style={SEC_LABEL}>📝 내용 / 메모</span>
           <div className="no-print" style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
-            {saveMsg && <span style={{ fontSize: '0.72rem', color: '#4ade80' }}>{saveMsg}</span>}
+            {saveMsg && <span style={{ fontSize: '0.72rem', color: '#15803d' }}>{saveMsg}</span>}
             <button onClick={handleSave} style={BTN_SAVE} disabled={isPending}>
               {isPending ? '저장 중…' : '저장'}
             </button>
@@ -510,7 +510,7 @@ export default function MeetingDetailClient({
         </div>
 
         {/* 리치 텍스트 에디터 (항상 활성) */}
-        <div className="print-content-box" style={{ borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+        <div className="print-content-box" style={{ borderRadius: '8px', border: '1px solid #e5e9f0', overflow: 'hidden' }}>
           <RichEditor
             initialValue={draft.content}
             onChange={html => setDraft(d => ({ ...d, content: html }))}
@@ -526,10 +526,10 @@ export default function MeetingDetailClient({
           onClick={() => fileInputRef.current?.click()}
           className="no-print"
           style={{
-            border: `1px dashed ${dragOver ? 'rgba(99,102,241,0.6)' : 'rgba(255,255,255,0.12)'}`,
+            border: `1px dashed ${dragOver ? 'rgba(99,102,241,0.6)' : '#d7dce5'}`,
             borderRadius: '8px', padding: '0.65rem 1rem', textAlign: 'center', cursor: 'pointer',
-            color: 'rgba(255,255,255,0.3)', fontSize: '0.78rem',
-            background: dragOver ? 'rgba(99,102,241,0.06)' : 'transparent',
+            color: '#94a3b8', fontSize: '0.78rem',
+            background: dragOver ? '#eef2ff' : 'transparent',
             transition: 'all 0.15s', marginTop: '0.65rem',
             marginBottom: attachments.length ? '0.65rem' : 0,
           }}
@@ -546,7 +546,7 @@ export default function MeetingDetailClient({
 
         {attachments.length > 0 && (
           <div style={{ marginTop: '0.5rem' }}>
-            <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', fontWeight: 600, marginBottom: '0.4rem', letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, marginBottom: '0.4rem', letterSpacing: '0.04em' }}>
               📎 첨부파일
             </div>
             <AttachmentView attachments={attachments} onRemove={removeAttachment} />
@@ -559,30 +559,30 @@ export default function MeetingDetailClient({
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.75rem' }}>
           <span style={SEC_LABEL}>✅ 체크리스트</span>
           {meeting.todos.length > 0 && (
-            <span style={{ fontSize: '0.72rem', color: pendingCount > 0 ? '#fbbf24' : '#4ade80' }}>
+            <span style={{ fontSize: '0.72rem', color: pendingCount > 0 ? '#b45309' : '#15803d' }}>
               {pendingCount > 0 ? `${pendingCount}/${meeting.todos.length} 미완료` : '모두 완료'}
             </span>
           )}
-          {todosPending && <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)' }}>저장 중…</span>}
+          {todosPending && <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>저장 중…</span>}
         </div>
 
         {sortedTodos.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.75rem' }}>
             {sortedTodos.map(todo => (
-              <div key={todo.id} className="print-todo-row" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.55rem 0.8rem', borderRadius: '8px', background: todo.done ? 'rgba(255,255,255,0.02)' : 'rgba(251,191,36,0.05)', border: todo.done ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(251,191,36,0.18)', transition: 'all 0.15s' }}>
+              <div key={todo.id} className="print-todo-row" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', padding: '0.55rem 0.8rem', borderRadius: '8px', background: todo.done ? '#fafbfd' : 'rgba(251,191,36,0.08)', border: todo.done ? '1px solid #e5e9f0' : '1px solid rgba(251,191,36,0.28)', transition: 'all 0.15s' }}>
                 <input type="checkbox" checked={todo.done} onChange={() => toggleTodo(todo.id)}
-                  style={{ accentColor: '#4ade80', width: '1rem', height: '1rem', flexShrink: 0, cursor: 'pointer' }}
+                  style={{ accentColor: '#15803d', width: '1rem', height: '1rem', flexShrink: 0, cursor: 'pointer' }}
                 />
-                <span style={{ flex: 1, fontSize: '0.85rem', color: todo.done ? 'rgba(255,255,255,0.28)' : '#e2e8f0', textDecoration: todo.done ? 'line-through' : 'none' }}>
+                <span style={{ flex: 1, fontSize: '0.85rem', color: todo.done ? '#94a3b8' : '#111827', textDecoration: todo.done ? 'line-through' : 'none' }}>
                   {todo.text}
                 </span>
                 {todo.due_date && (
-                  <span style={{ fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0, padding: '0.1rem 0.4rem', borderRadius: '100px', color: todo.done ? 'rgba(167,139,250,0.4)' : '#a78bfa', background: todo.done ? 'rgba(167,139,250,0.04)' : 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.2)' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0, padding: '0.1rem 0.4rem', borderRadius: '100px', color: todo.done ? '#94a3b8' : '#7c3aed', background: todo.done ? '#f5f3ff' : 'rgba(167,139,250,0.14)', border: '1px solid rgba(167,139,250,0.3)' }}>
                     📅 {fmtDue(todo.due_date)}
                   </span>
                 )}
                 <button onClick={() => deleteTodo(todo.id)} className="no-print"
-                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.2)', cursor: 'pointer', fontSize: '1rem', padding: '0 0.2rem', lineHeight: 1, flexShrink: 0 }}>×</button>
+                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1rem', padding: '0 0.2rem', lineHeight: 1, flexShrink: 0 }}>×</button>
               </div>
             ))}
           </div>
@@ -601,7 +601,7 @@ export default function MeetingDetailClient({
           <button onClick={addTodo} style={{ ...BTN_SAVE, flexShrink: 0 }}>추가</button>
         </div>
         {calMsg && (
-          <p className="no-print" style={{ margin: '0.4rem 0 0', fontSize: '0.72rem', color: calMsg.includes('실패') ? '#f87171' : '#4ade80' }}>{calMsg}</p>
+          <p className="no-print" style={{ margin: '0.4rem 0 0', fontSize: '0.72rem', color: calMsg.includes('실패') ? '#dc2626' : '#15803d' }}>{calMsg}</p>
         )}
       </div>
     </div>
@@ -610,25 +610,25 @@ export default function MeetingDetailClient({
 
 /* ── 스타일 상수 ── */
 const SEC_LABEL: React.CSSProperties = {
-  fontSize: '0.75rem', fontWeight: 700, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.05em', textTransform: 'uppercase',
+  fontSize: '0.75rem', fontWeight: 700, color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase',
 };
 const INPUT: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
-  borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.88rem',
+  background: '#ffffff', border: '1px solid #d7dce5',
+  borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#111827', fontSize: '0.88rem',
   outline: 'none', marginBottom: '0.75rem', fontFamily: 'inherit',
 };
 const INPUT_SM: React.CSSProperties = {
   boxSizing: 'border-box',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
-  borderRadius: '8px', padding: '0.48rem 0.75rem', color: '#fff', fontSize: '0.83rem',
+  background: '#ffffff', border: '1px solid #d7dce5',
+  borderRadius: '8px', padding: '0.48rem 0.75rem', color: '#111827', fontSize: '0.83rem',
   outline: 'none', marginBottom: '0.75rem', fontFamily: 'inherit',
 };
 const BTN_SAVE: React.CSSProperties = {
   padding: '0.45rem 1rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
-  background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc', fontFamily: 'inherit',
+  background: '#eaf1fe', border: '1px solid #cdddfb', color: '#2563eb', fontFamily: 'inherit',
 };
 const BTN_PRINT: React.CSSProperties = {
   padding: '0.28rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer',
-  background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', color: '#6ee7b7', fontFamily: 'inherit',
+  background: '#ecfdf5', border: '1px solid #a7f3d0', color: '#059669', fontFamily: 'inherit',
 };

@@ -82,8 +82,8 @@ export default async function CommissionPage() {
           <p style={{ margin: '0.4rem 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
             성분명 검색 → 약가 × 처방예상수량 = 처방액 → 수수료율 적용 → 정산액 산출
             {rates.length > 0
-              ? <span style={{ marginLeft: '0.6rem', color: '#4ade80' }}>· {sourceFile} 기준</span>
-              : <span style={{ marginLeft: '0.6rem', color: '#fbbf24' }}>· 문서관리 &gt; 수수료율(딜러) 폴더에 파일을 업로드/처리하면 수수료율이 자동 적용됩니다</span>
+              ? <span style={{ marginLeft: '0.6rem', color: '#059669' }}>· {sourceFile} 기준</span>
+              : <span style={{ marginLeft: '0.6rem', color: '#b45309' }}>· 문서관리 &gt; 수수료율(딜러) 폴더에 파일을 업로드/처리하면 수수료율이 자동 적용됩니다</span>
             }
           </p>
         </div>

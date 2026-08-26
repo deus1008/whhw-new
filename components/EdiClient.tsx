@@ -26,8 +26,8 @@ const TH = (align: 'left' | 'right' = 'left'): CSSProperties => ({
   color: 'var(--text-muted)',
   fontWeight: 500,
   whiteSpace: 'nowrap',
-  borderBottom: '1px solid rgba(255,255,255,0.10)',
-  background: 'rgba(255,255,255,0.02)',
+  borderBottom: '1px solid #e5e9f0',
+  background: '#ffffff',
 });
 
 const TD = (align: 'left' | 'right' = 'left', bold?: boolean): CSSProperties => ({
@@ -36,7 +36,7 @@ const TD = (align: 'left' | 'right' = 'left', bold?: boolean): CSSProperties => 
   color: 'var(--text-primary)',
   fontWeight: bold ? 600 : undefined,
   whiteSpace: 'nowrap',
-  borderBottom: '1px solid rgba(255,255,255,0.04)',
+  borderBottom: '1px solid #f8fafc',
 });
 
 const TD_MUTED = (align: 'left' | 'right' = 'left'): CSSProperties => ({
@@ -44,7 +44,7 @@ const TD_MUTED = (align: 'left' | 'right' = 'left'): CSSProperties => ({
   textAlign: align,
   color: 'var(--text-muted)',
   whiteSpace: 'nowrap',
-  borderBottom: '1px solid rgba(255,255,255,0.04)',
+  borderBottom: '1px solid #f8fafc',
 });
 
 const TR_TOTAL: CSSProperties = { background: 'rgba(168,85,247,0.12)', fontWeight: 700 };
@@ -114,7 +114,7 @@ export default function EdiClient({ files, isAdmin }: Props) {
       {(analyzing || isPending) && <LoadingOverlay />}
 
       {/* 파일 선택 + 분석 버튼 */}
-      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+      <div style={{ background: '#ffffff', border: '1px solid #f1f5f9', borderRadius: 14, padding: '1rem 1.2rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div>
             <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>🗂 EDI 분석 대시보드</h2>
@@ -123,7 +123,7 @@ export default function EdiClient({ files, isAdmin }: Props) {
           {isAdmin && (
             <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
               <button onClick={handleRefresh} disabled={isPending}
-                style={{ padding: '0.38rem 0.9rem', borderRadius: 8, cursor: isPending ? 'not-allowed' : 'pointer', background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.28)', color: isPending ? 'rgba(251,191,36,0.4)' : '#fbbf24', fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: 600 }}>
+                style={{ padding: '0.38rem 0.9rem', borderRadius: 8, cursor: isPending ? 'not-allowed' : 'pointer', background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.28)', color: isPending ? 'rgba(251,191,36,0.4)' : '#b45309', fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: 600 }}>
                 {isPending ? '처리 중…' : '🔄 캐시 초기화'}
               </button>
             </div>
@@ -136,27 +136,27 @@ export default function EdiClient({ files, isAdmin }: Props) {
               <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                 {(!pickMode && selectedIds.size > 0) ? '선택한 파일' : '파일 선택'}
                 {selectedIds.size > 0 && (
-                  <span style={{ marginLeft: '0.5rem', color: '#c4b5fd', fontWeight: 600 }}>{selectedIds.size}개 선택됨</span>
+                  <span style={{ marginLeft: '0.5rem', color: '#7c3aed', fontWeight: 600 }}>{selectedIds.size}개 선택됨</span>
                 )}
               </span>
               {(!pickMode && selectedIds.size > 0) ? (
                 <button
                   onClick={() => { setSelectedIds(new Set()); setPickMode(true); setReports([]); setAnalyzeErr(''); }}
-                  style={{ padding: '0.28rem 0.7rem', borderRadius: 7, cursor: 'pointer', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', color: 'var(--text-muted)', fontSize: '0.74rem', fontFamily: 'inherit', fontWeight: 600 }}>
+                  style={{ padding: '0.28rem 0.7rem', borderRadius: 7, cursor: 'pointer', background: '#f1f5f9', border: '1px solid #d7dce5', color: 'var(--text-muted)', fontSize: '0.74rem', fontFamily: 'inherit', fontWeight: 600 }}>
                   ↺ 초기화
                 </button>
               ) : (
                 <button
                   onClick={() => setPickMode(false)}
                   disabled={selectedIds.size === 0}
-                  style={{ padding: '0.28rem 0.7rem', borderRadius: 7, cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer', background: selectedIds.size === 0 ? 'rgba(168,85,247,0.06)' : 'rgba(168,85,247,0.16)', border: '1px solid rgba(168,85,247,0.35)', color: selectedIds.size === 0 ? 'rgba(196,181,253,0.4)' : '#c4b5fd', fontSize: '0.74rem', fontFamily: 'inherit', fontWeight: 600 }}>
+                  style={{ padding: '0.28rem 0.7rem', borderRadius: 7, cursor: selectedIds.size === 0 ? 'not-allowed' : 'pointer', background: selectedIds.size === 0 ? 'rgba(168,85,247,0.06)' : 'rgba(168,85,247,0.16)', border: '1px solid rgba(168,85,247,0.35)', color: selectedIds.size === 0 ? 'rgba(196,181,253,0.4)' : '#7c3aed', fontSize: '0.74rem', fontFamily: 'inherit', fontWeight: 600 }}>
                   선택 완료 ({selectedIds.size})
                 </button>
               )}
             </div>
             <div style={{
-              border: '1px solid rgba(255,255,255,0.12)', borderRadius: 9,
-              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid #e5e9f0', borderRadius: 9,
+              background: '#ffffff',
               maxHeight: visibleFiles.length > 5 ? '12rem' : undefined,
               overflowY: visibleFiles.length > 5 ? 'auto' : undefined,
             }}>
@@ -164,7 +164,7 @@ export default function EdiClient({ files, isAdmin }: Props) {
                 <label key={f.id} style={{
                   display: 'flex', alignItems: 'center', gap: '0.6rem',
                   padding: '0.48rem 0.85rem', cursor: 'pointer',
-                  borderBottom: i < visibleFiles.length - 1 ? '1px solid rgba(255,255,255,0.05)' : undefined,
+                  borderBottom: i < visibleFiles.length - 1 ? '1px solid #f8fafc' : undefined,
                   background: selectedIds.has(f.id) ? 'rgba(168,85,247,0.08)' : undefined,
                   transition: 'background 0.12s',
                 }}>
@@ -172,7 +172,7 @@ export default function EdiClient({ files, isAdmin }: Props) {
                     type="checkbox"
                     checked={selectedIds.has(f.id)}
                     onChange={() => toggleFile(f.id)}
-                    style={{ accentColor: '#c4b5fd', width: 14, height: 14, flexShrink: 0, cursor: 'pointer' }}
+                    style={{ accentColor: '#7c3aed', width: 14, height: 14, flexShrink: 0, cursor: 'pointer' }}
                   />
                   <span style={{ fontSize: '0.84rem', color: 'var(--text-primary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {f.filename}
@@ -187,7 +187,7 @@ export default function EdiClient({ files, isAdmin }: Props) {
           <button
             onClick={handleAnalyze}
             disabled={analyzing || selectedIds.size === 0}
-            style={{ padding: '0.55rem 1.4rem', borderRadius: 9, cursor: (analyzing || selectedIds.size === 0) ? 'not-allowed' : 'pointer', background: (analyzing || selectedIds.size === 0) ? 'rgba(168,85,247,0.08)' : 'rgba(168,85,247,0.18)', border: '1px solid rgba(168,85,247,0.4)', color: '#c4b5fd', fontSize: '0.88rem', fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+            style={{ padding: '0.55rem 1.4rem', borderRadius: 9, cursor: (analyzing || selectedIds.size === 0) ? 'not-allowed' : 'pointer', background: (analyzing || selectedIds.size === 0) ? 'rgba(168,85,247,0.08)' : 'rgba(168,85,247,0.18)', border: '1px solid rgba(168,85,247,0.4)', color: '#7c3aed', fontSize: '0.88rem', fontWeight: 700, fontFamily: 'inherit', whiteSpace: 'nowrap' }}
           >
             {analyzing ? '⏳ 분석 중…' : '▶ 분석'}
           </button>
@@ -216,7 +216,7 @@ export default function EdiClient({ files, isAdmin }: Props) {
 function ComparisonSummary({ reports }: { reports: EdiReport[] }) {
   const maxAmt = Math.max(...reports.map(r => r.data.totalAmount));
   return (
-    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem 1.2rem' }}>
+    <div style={{ background: '#ffffff', border: '1px solid #f1f5f9', borderRadius: 14, padding: '1rem 1.2rem' }}>
       <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.85rem' }}>📊 비교 요약 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400 }}>(단위: 천원)</span></h3>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
@@ -233,12 +233,12 @@ function ComparisonSummary({ reports }: { reports: EdiReport[] }) {
           </thead>
           <tbody>
             {reports.map((r, i) => (
-              <tr key={r.doc_id} style={{ background: i % 2 ? 'rgba(255,255,255,0.01)' : undefined }}>
+              <tr key={r.doc_id} style={{ background: i % 2 ? '#ffffff' : undefined }}>
                 <td style={{ ...TD('left'), maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis' }} title={r.filename}>
                   {r.filename}
                 </td>
-                <td style={{ ...TD('left'), color: '#93c5fd' }}>{r.period}</td>
-                <td style={{ ...TD('right'), color: r.data.totalAmount === maxAmt ? '#4ade80' : undefined, fontWeight: r.data.totalAmount === maxAmt ? 700 : undefined }}>
+                <td style={{ ...TD('left'), color: '#2563eb' }}>{r.period}</td>
+                <td style={{ ...TD('right'), color: r.data.totalAmount === maxAmt ? '#059669' : undefined, fontWeight: r.data.totalAmount === maxAmt ? 700 : undefined }}>
                   {fmt(r.data.totalAmount)}
                 </td>
                 <td style={TD('right')}>{(r.data.totalSpCount ?? r.data.salesPersonStats.length).toLocaleString()}</td>
@@ -281,7 +281,7 @@ function CompareSection({ title, reports, getStats }: {
   const display = showAll ? allNames : allNames.slice(0, 20);
   const periods = reports.map(r => r.period || r.filename.replace(/\.[^.]+$/, ''));
   const nFiles  = reports.length;
-  const BL: CSSProperties = { borderLeft: '1px solid rgba(255,255,255,0.08)' };
+  const BL: CSSProperties = { borderLeft: '1px solid #f1f5f9' };
 
   return (
     <Section title={title}>
@@ -293,9 +293,9 @@ function CompareSection({ title, reports, getStats }: {
               {periods.map((p, pi) => (
                 <th key={pi} style={{
                   padding: '0.35rem 0.7rem', textAlign: 'center',
-                  color: '#93c5fd', fontWeight: 700, fontSize: '0.8rem', whiteSpace: 'nowrap',
-                  borderBottom: '1px solid rgba(255,255,255,0.10)',
-                  background: 'rgba(255,255,255,0.02)', ...BL,
+                  color: '#2563eb', fontWeight: 700, fontSize: '0.8rem', whiteSpace: 'nowrap',
+                  borderBottom: '1px solid #e5e9f0',
+                  background: '#ffffff', ...BL,
                 }}>{p}</th>
               ))}
               {nFiles >= 2 && (
@@ -317,7 +317,7 @@ function CompareSection({ title, reports, getStats }: {
               const lastAmt  = vals[nFiles - 1]?.amount ?? 0;
               const delta    = firstAmt > 0 ? (lastAmt - firstAmt) / firstAmt * 100 : null;
               return (
-                <tr key={name} style={{ background: ni % 2 ? 'rgba(255,255,255,0.01)' : undefined, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                <tr key={name} style={{ background: ni % 2 ? '#ffffff' : undefined, borderBottom: '1px solid #f8fafc' }}>
                   <td style={{ ...TD('left'), width: 120, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }} title={name}>{name}</td>
                   {vals.map((v, fi) => (
                     <td key={fi} style={{ ...TD('right'), ...BL, fontSize: '0.78rem', fontWeight: v?.amount ? 600 : undefined }}>
@@ -327,7 +327,7 @@ function CompareSection({ title, reports, getStats }: {
                   {nFiles >= 2 && (
                     <td style={{
                       ...TD('right'), ...BL, fontSize: '0.78rem', fontWeight: delta !== null ? 600 : undefined,
-                      color: delta === null ? 'var(--text-muted)' : delta > 0 ? '#4ade80' : delta < 0 ? '#f87171' : 'var(--text-muted)',
+                      color: delta === null ? 'var(--text-muted)' : delta > 0 ? '#059669' : delta < 0 ? '#dc2626' : 'var(--text-muted)',
                     }}>
                       {delta === null
                         ? <span style={{ opacity: 0.25 }}>—</span>
@@ -352,7 +352,7 @@ function CompareSection({ title, reports, getStats }: {
                 return (
                   <td style={{
                     ...TD('right', true), ...BL, fontSize: '0.78rem', fontWeight: 700,
-                    color: d === null ? undefined : d > 0 ? '#4ade80' : d < 0 ? '#f87171' : undefined,
+                    color: d === null ? undefined : d > 0 ? '#059669' : d < 0 ? '#dc2626' : undefined,
                   }}>
                     {d === null ? '—' : `${d > 0 ? '+' : ''}${d.toFixed(1)}%`}
                   </td>
@@ -407,9 +407,9 @@ function MultiReport({ reports, activeTab, setActiveTab }: {
             <button key={String(mode)} onClick={() => setCompareMode(mode)} style={{
               padding: '0.32rem 0.85rem', borderRadius: '7px', fontSize: '0.8rem',
               fontWeight: active ? 700 : 400,
-              background: active ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${active ? 'rgba(59,130,246,0.45)' : 'rgba(255,255,255,0.1)'}`,
-              color: active ? '#93c5fd' : 'var(--text-muted)',
+              background: active ? 'rgba(59,130,246,0.18)' : '#f8fafc',
+              border: `1px solid ${active ? 'rgba(59,130,246,0.45)' : '#e5e9f0'}`,
+              color: active ? '#2563eb' : 'var(--text-muted)',
               cursor: 'pointer', fontFamily: 'inherit',
             }}>{label}</button>
           );
@@ -419,15 +419,15 @@ function MultiReport({ reports, activeTab, setActiveTab }: {
       {compareMode ? (
         <CompareView reports={reports} />
       ) : (
-        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1rem 1.2rem' }}>
+        <div style={{ background: '#ffffff', border: '1px solid #f1f5f9', borderRadius: 14, padding: '1rem 1.2rem' }}>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
             {reports.map((r, i) => (
               <button key={r.doc_id} onClick={() => setActiveTab(i)} style={{
                 padding: '0.35rem 0.9rem', borderRadius: '8px', fontSize: '0.8rem',
                 fontWeight: activeTab === i ? 700 : 400,
-                background: activeTab === i ? 'rgba(168,85,247,0.2)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${activeTab === i ? 'rgba(168,85,247,0.45)' : 'rgba(255,255,255,0.1)'}`,
-                color: activeTab === i ? '#c4b5fd' : 'var(--text-muted)',
+                background: activeTab === i ? 'rgba(168,85,247,0.2)' : '#f8fafc',
+                border: `1px solid ${activeTab === i ? 'rgba(168,85,247,0.45)' : '#e5e9f0'}`,
+                color: activeTab === i ? '#7c3aed' : 'var(--text-muted)',
                 cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
               }}>
                 {r.period || r.filename.replace(/\.[^.]+$/, '')}
@@ -471,13 +471,13 @@ function EdiDashboard({ data }: { data: EdiData }) {
       {!hasSP && !hasCso && !hasHos && !hasItem && (
         <div style={{
           padding: '2rem', textAlign: 'center', borderRadius: 14,
-          background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+          background: '#ffffff', border: '1px solid #f1f5f9',
           color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: 1.7,
         }}>
           <p>담당자·CSO·거래처 컬럼을 자동으로 감지하지 못했습니다.</p>
           <p style={{ marginTop: '0.5rem', fontSize: '0.78rem' }}>
             감지된 헤더:{' '}
-            <code style={{ background: 'rgba(255,255,255,0.07)', padding: '2px 6px', borderRadius: 4 }}>
+            <code style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: 4 }}>
               {data.headers.slice(0, 20).join(', ')}{data.headers.length > 20 ? ' …' : ''}
             </code>
           </p>
@@ -526,13 +526,13 @@ function SalesPersonAccordion({ stats, totalAmount }: {
                 <Fragment key={sp.name}>
                   <tr
                     onClick={() => hasCsos && toggleSp(sp.name)}
-                    style={{ background: 'rgba(168,85,247,0.07)', cursor: hasCsos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                    style={{ background: 'rgba(168,85,247,0.07)', cursor: hasCsos ? 'pointer' : 'default', borderBottom: '1px solid #f1f5f9' }}
                   >
-                    <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#d8b4fe', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#7c3aed', borderBottom: '1px solid #f1f5f9' }}>
                       {hasCsos && <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>{isSpOpen ? '▼' : '▶'}</span>}
                       {sp.name}
                     </td>
-                    <td style={{ ...TD('right', true), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>{fmt(sp.amount)}</td>
+                    <td style={{ ...TD('right', true), borderBottom: '1px solid #f1f5f9' }}>{fmt(sp.amount)}</td>
                   </tr>
 
                   {isSpOpen && sp.csos.map(cso => {
@@ -543,9 +543,9 @@ function SalesPersonAccordion({ stats, totalAmount }: {
                       <Fragment key={cso.name}>
                         <tr
                           onClick={() => hasHos && toggleCso(sp.name, cso.name)}
-                          style={{ background: 'rgba(52,211,153,0.05)', cursor: hasHos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                          style={{ background: 'rgba(52,211,153,0.05)', cursor: hasHos ? 'pointer' : 'default', borderBottom: '1px solid #f8fafc' }}
                         >
-                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#6ee7b7' }}>
+                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#059669' }}>
                             {hasHos && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isCsoOpen ? '▼' : '▶'}</span>}
                             {cso.name}
                           </td>
@@ -553,7 +553,7 @@ function SalesPersonAccordion({ stats, totalAmount }: {
                         </tr>
 
                         {isCsoOpen && cso.hospitals.map(h => (
-                          <tr key={h.name} style={{ background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                          <tr key={h.name} style={{ background: '#ffffff', borderBottom: '1px solid #ffffff' }}>
                             <td colSpan={3} style={{ ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={h.name}>
                               {h.name}
                             </td>
@@ -620,13 +620,13 @@ function CsoAccordion({ stats, totalAmount }: {
                 <Fragment key={cso.name}>
                   <tr
                     onClick={() => hasHos && toggleCso(cso.name)}
-                    style={{ background: 'rgba(52,211,153,0.07)', cursor: hasHos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                    style={{ background: 'rgba(52,211,153,0.07)', cursor: hasHos ? 'pointer' : 'default', borderBottom: '1px solid #f1f5f9' }}
                   >
-                    <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#6ee7b7', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#059669', borderBottom: '1px solid #f1f5f9' }}>
                       {hasHos && <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>{isCsoOpen ? '▼' : '▶'}</span>}
                       {cso.name}
                     </td>
-                    <td style={{ ...TD('right', true), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>{fmt(cso.amount)}</td>
+                    <td style={{ ...TD('right', true), borderBottom: '1px solid #f1f5f9' }}>{fmt(cso.amount)}</td>
                   </tr>
 
                   {isCsoOpen && cso.hospitals.map(h => {
@@ -637,9 +637,9 @@ function CsoAccordion({ stats, totalAmount }: {
                       <Fragment key={h.name}>
                         <tr
                           onClick={() => hasItems && toggleHos(cso.name, h.name)}
-                          style={{ background: 'rgba(251,146,60,0.05)', cursor: hasItems ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                          style={{ background: 'rgba(251,146,60,0.05)', cursor: hasItems ? 'pointer' : 'default', borderBottom: '1px solid #f8fafc' }}
                         >
-                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#fdba74' }}>
+                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#c2410c' }}>
                             {hasItems && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isHosOpen ? '▼' : '▶'}</span>}
                             {h.name}
                           </td>
@@ -647,7 +647,7 @@ function CsoAccordion({ stats, totalAmount }: {
                         </tr>
 
                         {isHosOpen && h.items.map(it => (
-                          <tr key={it.name} style={{ background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                          <tr key={it.name} style={{ background: '#ffffff', borderBottom: '1px solid #ffffff' }}>
                             <td colSpan={3} style={{ ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
                               {it.name}
                             </td>
@@ -717,13 +717,13 @@ function HospitalAccordion({ stats, totalAmount }: {
                 <Fragment key={h.name}>
                   <tr
                     onClick={() => hasItems && toggleHos(h.name)}
-                    style={{ background: 'rgba(251,146,60,0.07)', cursor: hasItems ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                    style={{ background: 'rgba(251,146,60,0.07)', cursor: hasItems ? 'pointer' : 'default', borderBottom: '1px solid #f1f5f9' }}
                   >
-                    <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#fdba74', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#c2410c', borderBottom: '1px solid #f1f5f9' }}>
                       {hasItems && <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>{isHosOpen ? '▼' : '▶'}</span>}
                       {h.name}
                     </td>
-                    <td style={{ ...TD('right', true), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>{fmt(h.amount)}</td>
+                    <td style={{ ...TD('right', true), borderBottom: '1px solid #f1f5f9' }}>{fmt(h.amount)}</td>
                   </tr>
 
                   {isHosOpen && h.items.map(it => {
@@ -734,9 +734,9 @@ function HospitalAccordion({ stats, totalAmount }: {
                       <Fragment key={it.name}>
                         <tr
                           onClick={() => hasCsos && toggleItem(h.name, it.name)}
-                          style={{ background: 'rgba(59,130,246,0.05)', cursor: hasCsos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                          style={{ background: 'rgba(59,130,246,0.05)', cursor: hasCsos ? 'pointer' : 'default', borderBottom: '1px solid #f8fafc' }}
                         >
-                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#93c5fd', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
+                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#2563eb', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
                             {hasCsos && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isItemOpen ? '▼' : '▶'}</span>}
                             {it.name}
                           </td>
@@ -744,7 +744,7 @@ function HospitalAccordion({ stats, totalAmount }: {
                         </tr>
 
                         {isItemOpen && it.csos.map(c => (
-                          <tr key={c.name} style={{ background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                          <tr key={c.name} style={{ background: '#ffffff', borderBottom: '1px solid #ffffff' }}>
                             <td colSpan={3} style={{ ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={c.name}>
                               {c.name}
                             </td>
@@ -783,7 +783,7 @@ function ItemSection({ stats, hospStats, totalAmount }: {
   const [search, setSearch] = useState('');
   const TABS = ['품목 → CSO → 요양기관', '품목 → 요양기관 → 담당자 → CSO'] as const;
   return (
-    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 14, padding: '1.1rem 1.2rem' }}>
+    <div style={{ background: '#ffffff', border: '1px solid #f1f5f9', borderRadius: 14, padding: '1.1rem 1.2rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>품목별 현황</h3>
         <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0 }}>(단위: 천원)</span>
@@ -795,9 +795,9 @@ function ItemSection({ stats, hospStats, totalAmount }: {
         {TABS.map((label, i) => (
           <button key={i} onClick={() => setTab(i as 0 | 1)} style={{
             padding: '0.28rem 0.75rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: tab === i ? 700 : 400,
-            background: tab === i ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.04)',
-            border: `1px solid ${tab === i ? 'rgba(59,130,246,0.45)' : 'rgba(255,255,255,0.1)'}`,
-            color: tab === i ? '#93c5fd' : 'var(--text-muted)',
+            background: tab === i ? 'rgba(59,130,246,0.18)' : '#f8fafc',
+            border: `1px solid ${tab === i ? 'rgba(59,130,246,0.45)' : '#e5e9f0'}`,
+            color: tab === i ? '#2563eb' : 'var(--text-muted)',
             cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
           }}>{label}</button>
         ))}
@@ -851,13 +851,13 @@ function ItemCsoAccordion({ stats, search, totalAmount }: {
                 <Fragment key={it.name}>
                   <tr
                     onClick={() => hasCsos && toggleItem(it.name)}
-                    style={{ background: 'rgba(59,130,246,0.07)', cursor: hasCsos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                    style={{ background: 'rgba(59,130,246,0.07)', cursor: hasCsos ? 'pointer' : 'default', borderBottom: '1px solid #f1f5f9' }}
                   >
-                    <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#93c5fd', borderBottom: '1px solid rgba(255,255,255,0.06)', maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
+                    <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#2563eb', borderBottom: '1px solid #f1f5f9', maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
                       {hasCsos && <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>{isItemOpen ? '▼' : '▶'}</span>}
                       {it.name}
                     </td>
-                    <td style={{ ...TD('right', true), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>{fmt(it.amount)}</td>
+                    <td style={{ ...TD('right', true), borderBottom: '1px solid #f1f5f9' }}>{fmt(it.amount)}</td>
                   </tr>
 
                   {isItemOpen && it.csos.map(cso => {
@@ -868,9 +868,9 @@ function ItemCsoAccordion({ stats, search, totalAmount }: {
                       <Fragment key={cso.name}>
                         <tr
                           onClick={() => hasHos && toggleCso(it.name, cso.name)}
-                          style={{ background: 'rgba(52,211,153,0.05)', cursor: hasHos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.04)' }}
+                          style={{ background: 'rgba(52,211,153,0.05)', cursor: hasHos ? 'pointer' : 'default', borderBottom: '1px solid #f8fafc' }}
                         >
-                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#6ee7b7' }}>
+                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#059669' }}>
                             {hasHos && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isCsoOpen ? '▼' : '▶'}</span>}
                             {cso.name}
                           </td>
@@ -878,7 +878,7 @@ function ItemCsoAccordion({ stats, search, totalAmount }: {
                         </tr>
 
                         {isCsoOpen && cso.hospitals.map(h => (
-                          <tr key={h.name} style={{ background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                          <tr key={h.name} style={{ background: '#ffffff', borderBottom: '1px solid #ffffff' }}>
                             <td colSpan={3} style={{ ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={h.name}>
                               {h.name}
                             </td>
@@ -942,12 +942,12 @@ function ItemHospAccordion({ stats, search, totalAmount }: {
               return (
                 <Fragment key={it.name}>
                   <tr onClick={() => hasHos && toggle(setExpandedItems, it.name)}
-                    style={{ background: 'rgba(59,130,246,0.07)', cursor: hasHos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                    <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#93c5fd', borderBottom: '1px solid rgba(255,255,255,0.06)', maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
+                    style={{ background: 'rgba(59,130,246,0.07)', cursor: hasHos ? 'pointer' : 'default', borderBottom: '1px solid #f1f5f9' }}>
+                    <td colSpan={3} style={{ ...TD('left'), fontWeight: 600, color: '#2563eb', borderBottom: '1px solid #f1f5f9', maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>
                       {hasHos && <span style={{ marginRight: '0.4rem', fontSize: '0.65rem', opacity: 0.7 }}>{isItemOpen ? '▼' : '▶'}</span>}
                       {it.name}
                     </td>
-                    <td style={{ ...TD('right', true), borderBottom: '1px solid rgba(255,255,255,0.06)' }}>{fmt(it.amount)}</td>
+                    <td style={{ ...TD('right', true), borderBottom: '1px solid #f1f5f9' }}>{fmt(it.amount)}</td>
                   </tr>
 
                   {isItemOpen && it.hospitals.map(h => {
@@ -957,8 +957,8 @@ function ItemHospAccordion({ stats, search, totalAmount }: {
                     return (
                       <Fragment key={h.name}>
                         <tr onClick={() => hasSps && toggle(setExpandedHos, hosKey)}
-                          style={{ background: 'rgba(251,146,60,0.05)', cursor: hasSps ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#fdba74', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={h.name}>
+                          style={{ background: 'rgba(251,146,60,0.05)', cursor: hasSps ? 'pointer' : 'default', borderBottom: '1px solid #f8fafc' }}>
+                          <td colSpan={3} style={{ ...TD('left'), paddingLeft: '1.5rem', fontSize: '0.78rem', color: '#c2410c', maxWidth: 440, overflow: 'hidden', textOverflow: 'ellipsis' }} title={h.name}>
                             {hasSps && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isHosOpen ? '▼' : '▶'}</span>}
                             {h.name}
                           </td>
@@ -972,8 +972,8 @@ function ItemHospAccordion({ stats, search, totalAmount }: {
                           return (
                             <Fragment key={sp.name}>
                               <tr onClick={() => hasCsos && toggle(setExpandedSps, spKey)}
-                                style={{ background: 'rgba(168,85,247,0.05)', cursor: hasCsos ? 'pointer' : 'default', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                <td colSpan={3} style={{ ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem', color: '#d8b4fe' }}>
+                                style={{ background: 'rgba(168,85,247,0.05)', cursor: hasCsos ? 'pointer' : 'default', borderBottom: '1px solid #ffffff' }}>
+                                <td colSpan={3} style={{ ...TD('left'), paddingLeft: '3rem', fontSize: '0.76rem', color: '#7c3aed' }}>
                                   {hasCsos && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.7 }}>{isSpOpen ? '▼' : '▶'}</span>}
                                   {sp.name}
                                 </td>
@@ -981,8 +981,8 @@ function ItemHospAccordion({ stats, search, totalAmount }: {
                               </tr>
 
                               {isSpOpen && sp.csos.map(cso => (
-                                <tr key={cso.name} style={{ background: 'rgba(255,255,255,0.01)', borderBottom: '1px solid rgba(255,255,255,0.025)' }}>
-                                  <td colSpan={3} style={{ ...TD('left'), paddingLeft: '4.5rem', fontSize: '0.74rem', color: '#6ee7b7', maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis' }} title={cso.name}>
+                                <tr key={cso.name} style={{ background: '#ffffff', borderBottom: '1px solid #ffffff' }}>
+                                  <td colSpan={3} style={{ ...TD('left'), paddingLeft: '4.5rem', fontSize: '0.74rem', color: '#059669', maxWidth: 400, overflow: 'hidden', textOverflow: 'ellipsis' }} title={cso.name}>
                                     {cso.name}
                                   </td>
                                   <td style={{ ...TD('right', true), fontSize: '0.74rem' }}>{fmt(cso.amount)}</td>
@@ -1022,7 +1022,7 @@ function DrugPriceTable({ prices }: { prices: DrugPrice[] }) {
 
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+      background: '#ffffff', border: '1px solid #f1f5f9',
       borderRadius: 14, padding: '1.1rem 1.2rem',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
@@ -1065,7 +1065,7 @@ function DrugPriceTable({ prices }: { prices: DrugPrice[] }) {
 function Section({ title, children, searchSlot }: { title: string; children: React.ReactNode; searchSlot?: React.ReactNode }) {
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+      background: '#ffffff', border: '1px solid #f1f5f9',
       borderRadius: 14, padding: '1.1rem 1.2rem',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: searchSlot ? '0.5rem' : '0.85rem' }}>
@@ -1087,8 +1087,8 @@ function SearchInput({ value, onChange }: { value: string; onChange: (v: string)
       style={{
         width: '100%', boxSizing: 'border-box',
         padding: '0.42rem 0.75rem', borderRadius: '7px',
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid rgba(255,255,255,0.1)',
+        background: '#f8fafc',
+        border: '1px solid #e5e9f0',
         color: 'var(--text-primary)', fontSize: '0.8rem',
         outline: 'none', fontFamily: 'inherit',
       }}
@@ -1103,7 +1103,7 @@ function MoreButton({ showAll, total, onClick }: { showAll: boolean; total: numb
       style={{
         marginTop: '0.6rem', width: '100%', padding: '0.4rem', borderRadius: 8,
         cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.75rem',
-        background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)',
+        background: '#ffffff', border: '1px solid #f1f5f9',
         color: 'var(--text-muted)',
       }}
     >
@@ -1116,7 +1116,7 @@ function EmptyState({ errors }: { errors: { filename: string; message: string }[
   return (
     <div style={{
       maxWidth: 560, margin: '0 auto', padding: '3rem 1rem', textAlign: 'center',
-      background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)',
+      background: '#ffffff', border: '1px solid #f1f5f9',
       borderRadius: 16,
     }}>
       <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🗂</div>
@@ -1124,7 +1124,7 @@ function EmptyState({ errors }: { errors: { filename: string; message: string }[
         EDI 분석 대시보드
       </h2>
       <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.7 }}>
-        <strong style={{ color: '#fbbf24' }}>문서관리 → EDI</strong> 폴더에<br />
+        <strong style={{ color: '#b45309' }}>문서관리 → EDI</strong> 폴더에<br />
         Excel·CSV·TXT 파일을 업로드하면<br />
         이 화면에 자동으로 분석 결과가 표시됩니다.
       </p>
@@ -1140,7 +1140,7 @@ function EmptyState({ errors }: { errors: { filename: string; message: string }[
 function ErrorMsg({ msg }: { msg: string }) {
   return (
     <p style={{
-      color: '#f87171', fontSize: '0.78rem',
+      color: '#dc2626', fontSize: '0.78rem',
       background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.18)',
       borderRadius: 8, padding: '0.45rem 0.8rem', margin: 0,
     }}>{msg}</p>
@@ -1152,7 +1152,7 @@ function LoadingOverlay() {
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9998,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(8,12,20,0.65)', backdropFilter: 'blur(4px)',
+      background: '#f1f4f9', backdropFilter: 'blur(4px)',
     }}>
       <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
         <div style={{ fontSize: '2rem', marginBottom: '0.6rem' }}>⏳</div>

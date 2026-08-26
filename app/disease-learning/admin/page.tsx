@@ -29,9 +29,9 @@ function useSync(url: string) {
 const BTN = (active: boolean): React.CSSProperties => ({
   padding: '0.55rem 1.2rem', borderRadius: '10px', fontSize: '0.85rem',
   fontWeight: 600, cursor: active ? 'pointer' : 'not-allowed', fontFamily: 'inherit',
-  background: active ? 'rgba(96,165,250,0.15)' : 'rgba(255,255,255,0.04)',
-  border: `1px solid ${active ? 'rgba(96,165,250,0.4)' : 'rgba(255,255,255,0.1)'}`,
-  color: active ? '#93c5fd' : 'rgba(255,255,255,0.3)',
+  background: active ? 'rgba(96,165,250,0.15)' : '#f1f5f9',
+  border: `1px solid ${active ? 'rgba(96,165,250,0.4)' : '#e5e9f0'}`,
+  color: active ? '#2563eb' : '#94a3b8',
   opacity: active ? 1 : 0.7,
 });
 
@@ -43,7 +43,7 @@ function ResultBox({ result, status }: { result: SyncResult | null; status: stri
       marginTop: '0.75rem', padding: '0.75rem 1rem', borderRadius: '8px', fontSize: '0.78rem',
       background: isError ? 'rgba(239,68,68,0.08)' : 'rgba(52,211,153,0.08)',
       border: `1px solid ${isError ? 'rgba(239,68,68,0.2)' : 'rgba(52,211,153,0.2)'}`,
-      color: isError ? '#f87171' : '#6ee7b7',
+      color: isError ? '#b91c1c' : '#15803d',
       whiteSpace: 'pre-wrap', fontFamily: 'monospace', lineHeight: 1.6,
     }}>
       {JSON.stringify(result, null, 2)}
@@ -58,10 +58,10 @@ export default function DiseaseAdminPage() {
   return (
     <div style={{ maxWidth: '800px', margin: '2rem auto', padding: '0 1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-        <Link href="/disease-learning" style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', textDecoration: 'none' }}>
+        <Link href="/disease-learning" style={{ color: '#94a3b8', fontSize: '0.82rem', textDecoration: 'none' }}>
           ← 질환별의약품
         </Link>
-        <h1 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fff', margin: 0 }}>질환별의약품 데이터 관리</h1>
+        <h1 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#111827', margin: 0 }}>질환별의약품 데이터 관리</h1>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -91,17 +91,17 @@ export default function DiseaseAdminPage() {
         {/* 안내 */}
         <div style={{
           padding: '1rem 1.25rem',
-          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+          background: '#f8fafc', border: '1px solid #e5e9f0',
           borderRadius: '12px',
         }}>
-          <h3 style={{ fontSize: '0.85rem', color: '#fde68a', fontWeight: 600, margin: '0 0 0.5rem' }}>
+          <h3 style={{ fontSize: '0.85rem', color: '#b45309', fontWeight: 600, margin: '0 0 0.5rem' }}>
             실행 순서
           </h3>
-          <ol style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', lineHeight: 2 }}>
+          <ol style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.78rem', color: '#94a3b8', lineHeight: 2 }}>
             <li>Step 1 — 질환DB 임포트 (엑셀 파일 기반, API 키 불필요)</li>
             <li>Step 2 — HIRA 동기화 (ATC 코드·약가 보강, DRUG_API_KEY 사용)</li>
           </ol>
-          <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>
+          <p style={{ margin: '0.5rem 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
             대조약명은 엑셀 데이터 내 오리지널 여부(오리지널여부=오리지널)를 기준으로 동일 성분 제네릭에 자동 표시됩니다.
           </p>
         </div>
@@ -125,7 +125,7 @@ function SyncCard({
   return (
     <div style={{
       padding: '1rem 1.25rem',
-      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+      background: '#ffffff', border: '1px solid #e5e9f0',
       borderRadius: '12px',
     }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem' }}>
@@ -133,22 +133,22 @@ function SyncCard({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
             <span style={{
               width: '22px', height: '22px', borderRadius: '50%',
-              background: 'rgba(96,165,250,0.2)', color: '#93c5fd',
+              background: 'rgba(96,165,250,0.2)', color: '#2563eb',
               fontSize: '0.72rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
             }}>{step}</span>
-            <span style={{ fontSize: '0.92rem', fontWeight: 700, color: '#fff' }}>{title}</span>
-            {status === 'done' && <span style={{ fontSize: '0.72rem', color: '#6ee7b7' }}>✓ 완료</span>}
-            {status === 'running' && <span style={{ fontSize: '0.72rem', color: '#fbbf24' }}>⏳ 진행 중…</span>}
+            <span style={{ fontSize: '0.92rem', fontWeight: 700, color: '#111827' }}>{title}</span>
+            {status === 'done' && <span style={{ fontSize: '0.72rem', color: '#15803d' }}>✓ 완료</span>}
+            {status === 'running' && <span style={{ fontSize: '0.72rem', color: '#b45309' }}>⏳ 진행 중…</span>}
           </div>
-          <p style={{ margin: '0 0 6px 30px', fontSize: '0.78rem', color: 'rgba(255,255,255,0.45)', lineHeight: 1.6 }}>
+          <p style={{ margin: '0 0 6px 30px', fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.6 }}>
             {desc}
           </p>
           {warning && (
             <div style={{
               margin: '0 0 0 30px', padding: '6px 10px', borderRadius: '6px',
               background: 'rgba(251,146,60,0.08)', border: '1px solid rgba(251,146,60,0.2)',
-              fontSize: '0.72rem', color: 'rgba(251,146,60,0.8)', lineHeight: 1.5,
+              fontSize: '0.72rem', color: '#b45309', lineHeight: 1.5,
             }}>
               ⚠️ {warning}
             </div>

@@ -6,18 +6,18 @@ import { createAlias, deleteAlias } from '@/app/admin/customer-aliases/actions';
 
 /* ── 스타일 상수 ── */
 const CARD: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.03)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: '#ffffff',
+  border: '1px solid #f1f5f9',
   borderRadius: '12px',
   padding: '1.25rem 1.5rem',
   marginBottom: '1.25rem',
 };
 const INPUT: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.06)',
-  border: '1px solid rgba(255,255,255,0.12)',
+  background: '#f1f5f9',
+  border: '1px solid #e5e9f0',
   borderRadius: '7px',
   padding: '0.45rem 0.7rem',
-  color: '#fff',
+  color: '#111827',
   fontSize: '0.82rem',
   outline: 'none',
   fontFamily: 'inherit',
@@ -32,7 +32,7 @@ const BTN_PRIMARY: React.CSSProperties = {
   cursor: 'pointer',
   background: 'rgba(99,102,241,0.2)',
   border: '1px solid rgba(99,102,241,0.45)',
-  color: '#a5b4fc',
+  color: '#4f46e5',
   fontFamily: 'inherit',
   whiteSpace: 'nowrap' as const,
 };
@@ -44,12 +44,12 @@ const BTN_DANGER: React.CSSProperties = {
   cursor: 'pointer',
   background: 'rgba(239,68,68,0.08)',
   border: '1px solid rgba(239,68,68,0.25)',
-  color: '#fca5a5',
+  color: '#dc2626',
   fontFamily: 'inherit',
 };
 const LABEL: React.CSSProperties = {
   fontSize: '0.68rem',
-  color: 'rgba(255,255,255,0.35)',
+  color: '#94a3b8',
   marginBottom: '0.25rem',
   display: 'block',
 };
@@ -124,7 +124,7 @@ function CustomerSearchInput({
       {open && filtered.length > 0 && (
         <div style={{
           position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-          background: '#1e293b', border: '1px solid rgba(255,255,255,0.15)',
+          background: '#f8fafc', border: '1px solid #d7dce5',
           borderRadius: '8px', marginTop: '2px',
           maxHeight: '200px', overflowY: 'auto',
         }}>
@@ -134,7 +134,7 @@ function CustomerSearchInput({
               onMouseDown={() => { onSelect(c); setQuery(c.customer_name); setOpen(false); }}
               style={{
                 padding: '0.45rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem',
-                color: '#e2e8f0', borderBottom: '1px solid rgba(255,255,255,0.05)',
+                color: '#111827', borderBottom: '1px solid #f8fafc',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               }}
               onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.15)')}
@@ -190,7 +190,7 @@ function UnmappedRowItem({
     <a href={`/visits?q=${encodeURIComponent(row.name)}`} target="_blank" rel="noreferrer"
       style={{ fontSize: '0.65rem', fontWeight: 700, padding: '1px 7px', borderRadius: '100px',
         background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.25)',
-        color: '#fbbf24', textDecoration: 'none' }}>
+        color: '#b45309', textDecoration: 'none' }}>
       방문 {row.visit_count}건 →
     </a>
   );
@@ -200,11 +200,11 @@ function UnmappedRowItem({
     return (
       <div style={{
         padding: '0.65rem 1rem', marginBottom: '0.35rem',
-        background: 'rgba(255,255,255,0.015)',
-        border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px',
+        background: '#ffffff',
+        border: '1px solid #f8fafc', borderRadius: '8px',
         display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap',
       }}>
-        <span style={{ fontSize: '0.83rem', fontWeight: 600, color: 'rgba(255,255,255,0.35)' }}>{row.name}</span>
+        <span style={{ fontSize: '0.83rem', fontWeight: 600, color: '#94a3b8' }}>{row.name}</span>
         {visitBadge}
         <span style={{ fontSize: '0.63rem', padding: '1px 8px', borderRadius: '100px',
           background: 'rgba(100,116,139,0.12)', border: '1px solid rgba(100,116,139,0.2)', color: '#4b5563' }}>
@@ -214,7 +214,7 @@ function UnmappedRowItem({
         <button onClick={onUndefer} style={{
           fontSize: '0.72rem', padding: '0.25rem 0.7rem', borderRadius: '6px',
           cursor: 'pointer', fontFamily: 'inherit',
-          background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.22)', color: '#818cf8',
+          background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.22)', color: '#4f46e5',
         }}>매핑하기</button>
       </div>
     );
@@ -229,20 +229,20 @@ function UnmappedRowItem({
         border: '1px solid rgba(74,222,128,0.18)', borderRadius: '9px',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#fde68a' }}>{row.name}</span>
+          <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#b45309' }}>{row.name}</span>
           {visitBadge}
           <span style={{ fontSize: '0.65rem', color: '#475569', marginLeft: 'auto' }}>최근: {row.last_visit}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.7rem', color: '#34d399' }}>🤖 자동 매핑 제안</span>
+          <span style={{ fontSize: '0.7rem', color: '#059669' }}>🤖 자동 매핑 제안</span>
           <span style={{
-            fontSize: '0.82rem', fontWeight: 600, color: '#6ee7b7',
+            fontSize: '0.82rem', fontWeight: 600, color: '#059669',
             padding: '0.18rem 0.65rem', borderRadius: '6px',
             background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.18)',
           }}>
             {suggestedMatch.customer_name}
             {suggestedMatch.customer_type && (
-              <span style={{ marginLeft: '0.4rem', fontSize: '0.64rem', color: '#4ade80', fontWeight: 400 }}>
+              <span style={{ marginLeft: '0.4rem', fontSize: '0.64rem', color: '#059669', fontWeight: 400 }}>
                 {suggestedMatch.customer_type}
               </span>
             )}
@@ -253,13 +253,13 @@ function UnmappedRowItem({
             style={{
               padding: '0.3rem 0.85rem', borderRadius: '7px', fontSize: '0.78rem', fontWeight: 700,
               cursor: 'pointer', fontFamily: 'inherit',
-              background: 'rgba(74,222,128,0.18)', border: '1px solid rgba(74,222,128,0.38)', color: '#4ade80',
+              background: 'rgba(74,222,128,0.18)', border: '1px solid rgba(74,222,128,0.38)', color: '#059669',
               opacity: pending ? 0.6 : 1,
             }}>✓ 확인</button>
           <button onClick={onSwitchToManual} style={{
             padding: '0.28rem 0.65rem', borderRadius: '7px', fontSize: '0.72rem',
             cursor: 'pointer', fontFamily: 'inherit',
-            background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.35)',
+            background: 'transparent', border: '1px solid #e5e9f0', color: '#94a3b8',
           }}>직접 선택</button>
           <button onClick={onDefer} style={{
             padding: '0.28rem 0.65rem', borderRadius: '7px', fontSize: '0.72rem',
@@ -267,7 +267,7 @@ function UnmappedRowItem({
             background: 'transparent', border: '1px solid rgba(100,116,139,0.25)', color: '#4b5563',
           }}>매핑 보류</button>
         </div>
-        {msg && <p style={{ margin: '0.4rem 0 0', fontSize: '0.72rem', color: '#fca5a5' }}>{msg}</p>}
+        {msg && <p style={{ margin: '0.4rem 0 0', fontSize: '0.72rem', color: '#dc2626' }}>{msg}</p>}
       </div>
     );
   }
@@ -280,7 +280,7 @@ function UnmappedRowItem({
       border: '1px solid rgba(251,191,36,0.14)', borderRadius: '9px',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.7rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#fde68a' }}>{row.name}</span>
+        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#b45309' }}>{row.name}</span>
         {visitBadge}
         <span style={{ fontSize: '0.65rem', color: '#64748b', marginLeft: 'auto' }}>최근: {row.last_visit}</span>
       </div>
@@ -312,7 +312,7 @@ function UnmappedRowItem({
           background: 'transparent', border: '1px solid rgba(100,116,139,0.25)', color: '#4b5563',
         }}>보류</button>
       </div>
-      {msg && <p style={{ margin: '0.4rem 0 0', fontSize: '0.72rem', color: '#fca5a5' }}>{msg}</p>}
+      {msg && <p style={{ margin: '0.4rem 0 0', fontSize: '0.72rem', color: '#dc2626' }}>{msg}</p>}
     </div>
   );
 }
@@ -418,7 +418,7 @@ export default function CustomerAliasesClient({
     <div style={{ width: '100%', maxWidth: '800px', padding: '2rem 1rem' }}>
 
       {/* 헤더 */}
-      <h1 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#f1f5f9', marginBottom: '0.3rem' }}>
+      <h1 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#111827', marginBottom: '0.3rem' }}>
         거래처 별칭 매핑 관리
       </h1>
       <p style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '1.5rem', lineHeight: 1.6 }}>
@@ -429,10 +429,10 @@ export default function CustomerAliasesClient({
       {/* 통계 카드 */}
       <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.75rem', flexWrap: 'wrap' }}>
         {[
-          { label: '자동 매핑 제안', value: autoItems.length,    color: '#4ade80', bg: 'rgba(74,222,128,0.08)',  border: 'rgba(74,222,128,0.2)' },
-          { label: '수동 매핑 필요', value: manualItems.length,  color: '#fbbf24', bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.2)' },
+          { label: '자동 매핑 제안', value: autoItems.length,    color: '#059669', bg: 'rgba(74,222,128,0.08)',  border: 'rgba(74,222,128,0.2)' },
+          { label: '수동 매핑 필요', value: manualItems.length,  color: '#b45309', bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.2)' },
           { label: '매핑 보류',      value: deferredItems.length, color: '#64748b', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.2)' },
-          { label: '매핑 완료',      value: aliases.length,       color: '#a5b4fc', bg: 'rgba(99,102,241,0.08)', border: 'rgba(99,102,241,0.2)' },
+          { label: '매핑 완료',      value: aliases.length,       color: '#4f46e5', bg: 'rgba(99,102,241,0.08)', border: 'rgba(99,102,241,0.2)' },
           { label: '정규 거래처',    value: customers.length,     color: '#38bdf8', bg: 'rgba(56,189,248,0.08)', border: 'rgba(56,189,248,0.2)' },
         ].map(s => (
           <div key={s.label} style={{
@@ -448,7 +448,7 @@ export default function CustomerAliasesClient({
       {/* ── 미매핑 목록 ── */}
       <div style={CARD}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
-          <h2 style={{ fontSize: '0.88rem', fontWeight: 700, color: '#fbbf24', margin: 0 }}>
+          <h2 style={{ fontSize: '0.88rem', fontWeight: 700, color: '#b45309', margin: 0 }}>
             ⚠ 미매핑 거래처
           </h2>
           <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
@@ -457,7 +457,7 @@ export default function CustomerAliasesClient({
         </div>
 
         {unmapped.length === 0 ? (
-          <p style={{ fontSize: '0.82rem', color: '#4ade80' }}>✅ 모든 거래처가 매핑되었습니다.</p>
+          <p style={{ fontSize: '0.82rem', color: '#059669' }}>✅ 모든 거래처가 매핑되었습니다.</p>
         ) : (
           <>
             {/* 자동 매핑 제안 */}
@@ -500,7 +500,7 @@ export default function CustomerAliasesClient({
             )}
 
             {activeCount === 0 && deferredItems.length > 0 && (
-              <p style={{ fontSize: '0.82rem', color: '#4ade80', marginBottom: '0.75rem' }}>
+              <p style={{ fontSize: '0.82rem', color: '#059669', marginBottom: '0.75rem' }}>
                 ✅ 매핑 대기 거래처 없음 (보류 {deferredItems.length}건)
               </p>
             )}
@@ -510,7 +510,7 @@ export default function CustomerAliasesClient({
               <div style={{ marginTop: activeCount > 0 ? '1.25rem' : 0 }}>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.6rem',
-                  paddingBottom: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.04)',
+                  paddingBottom: '0.5rem', borderBottom: '1px solid #f8fafc',
                 }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#475569' }}>
                     매핑 보류
@@ -539,7 +539,7 @@ export default function CustomerAliasesClient({
       {/* ── 매핑 현황 ── */}
       <div style={CARD}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.9rem', flexWrap: 'wrap' }}>
-          <h2 style={{ fontSize: '0.88rem', fontWeight: 700, color: '#a5b4fc', margin: 0 }}>
+          <h2 style={{ fontSize: '0.88rem', fontWeight: 700, color: '#4f46e5', margin: 0 }}>
             매핑 현황 ({aliases.length}건)
           </h2>
           <input
@@ -560,7 +560,7 @@ export default function CustomerAliasesClient({
                   {['입력명 (별칭)', '→ 정규 거래처명', '종별', '메모', '등록일', ''].map(h => (
                     <th key={h} style={{
                       padding: '0.5rem 0.7rem', textAlign: 'left',
-                      borderBottom: '1px solid rgba(255,255,255,0.08)',
+                      borderBottom: '1px solid #f1f5f9',
                       fontSize: '0.68rem', color: '#475569', fontWeight: 600,
                       whiteSpace: 'nowrap',
                     }}>{h}</th>
@@ -569,9 +569,9 @@ export default function CustomerAliasesClient({
               </thead>
               <tbody>
                 {filteredAliases.map((a, i) => (
-                  <tr key={a.id} style={{ background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
-                    <td style={{ padding: '0.5rem 0.7rem', color: '#fde68a', fontWeight: 600 }}>{a.alias}</td>
-                    <td style={{ padding: '0.5rem 0.7rem', color: '#e2e8f0' }}>{a.canonical_name}</td>
+                  <tr key={a.id} style={{ background: i % 2 === 0 ? 'transparent' : '#ffffff' }}>
+                    <td style={{ padding: '0.5rem 0.7rem', color: '#b45309', fontWeight: 600 }}>{a.alias}</td>
+                    <td style={{ padding: '0.5rem 0.7rem', color: '#111827' }}>{a.canonical_name}</td>
                     <td style={{ padding: '0.5rem 0.7rem', color: '#94a3b8' }}>{a.customer_type ?? '—'}</td>
                     <td style={{ padding: '0.5rem 0.7rem', color: '#64748b', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.note ?? '—'}</td>
                     <td style={{ padding: '0.5rem 0.7rem', color: '#475569', whiteSpace: 'nowrap' }}>{a.created_at.slice(0, 10)}</td>

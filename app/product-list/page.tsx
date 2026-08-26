@@ -134,8 +134,8 @@ export default async function ProductListPage() {
         )}
 
         <div style={{
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#ffffff',
+          border: '1px solid #e5e9f0',
           borderRadius: '16px',
           padding: '1.25rem 1.5rem',
           marginBottom: '1rem',
@@ -146,15 +146,15 @@ export default async function ProductListPage() {
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.2rem 0 0' }}>
             위탁 계약 품목 목록
             {sourceLabel && (
-              <span style={{ marginLeft: '0.5rem', color: 'rgba(255,255,255,0.2)' }}>— {sourceLabel}</span>
+              <span style={{ marginLeft: '0.5rem', color: '#94a3b8' }}>— {sourceLabel}</span>
             )}
           </p>
         </div>
 
         {productRows.length === 0 ? (
           <div style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: '#ffffff',
+            border: '1px solid #e5e9f0',
             borderRadius: '16px',
             padding: '3rem 1rem',
             textAlign: 'center',
@@ -166,8 +166,8 @@ export default async function ProductListPage() {
           </div>
         ) : (
           <div style={{
-            background: 'rgba(255,255,255,0.02)',
-            border: '1px solid rgba(255,255,255,0.07)',
+            background: '#ffffff',
+            border: '1px solid #e5e9f0',
             borderRadius: '16px',
             padding: '1rem 1.25rem',
           }}>

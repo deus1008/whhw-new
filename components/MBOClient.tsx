@@ -49,9 +49,9 @@ const FY_MONTH_LABEL: Record<number, string> = {
 
 /* ── 달성률 색상 ── */
 function rateColor(rate: number) {
-  if (rate >= 95) return '#60a5fa';  // 파랑
-  if (rate >= 85) return '#fbbf24';  // 노랑
-  return '#f87171';                  // 빨강
+  if (rate >= 95) return '#2563eb';  // 파랑
+  if (rate >= 85) return '#b45309';  // 노랑
+  return '#dc2626';                  // 빨강
 }
 
 function rateLabel(rate: number) {
@@ -379,7 +379,7 @@ export default function MBOClient({
               style={{
                 padding: '0.38rem 0.85rem', borderRadius: 8, cursor: importing ? 'not-allowed' : 'pointer',
                 background: 'rgba(251,191,36,0.10)', border: '1px solid rgba(251,191,36,0.30)',
-                color: importing ? 'rgba(251,191,36,0.4)' : '#fbbf24',
+                color: importing ? 'rgba(251,191,36,0.4)' : '#b45309',
                 fontSize: '0.78rem', fontFamily: 'inherit', fontWeight: 600, whiteSpace: 'nowrap',
               }}
             >
@@ -427,7 +427,7 @@ export default function MBOClient({
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
               <thead>
-                <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
+                <tr style={{ background: '#ffffff' }}>
                   {['목표 항목', '단위', '목표', '실적', '달성률', '진행', ...(isAdmin ? ['순서', '관리'] : [])].map(h => (
                     <th key={h} style={thStyle}>{h}</th>
                   ))}
@@ -478,7 +478,7 @@ export default function MBOClient({
           position: 'fixed', bottom: '1.5rem', left: '50%', transform: 'translateX(-50%)',
           padding: '0.65rem 1.4rem', borderRadius: 10, zIndex: 9999,
           background: 'rgba(30,30,50,0.95)', border: '1px solid rgba(99,102,241,0.4)',
-          color: '#a5b4fc', fontSize: '0.85rem', fontWeight: 600,
+          color: '#4f46e5', fontSize: '0.85rem', fontWeight: 600,
           boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
         }}>
           {toast}
@@ -492,7 +492,7 @@ export default function MBOClient({
           background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
         }} onClick={() => setImportResult(null)}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#0f172a', border: '1px solid rgba(255,255,255,0.12)',
+            background: '#ffffff', border: '1px solid #e5e9f0',
             borderRadius: 14, padding: '1.4rem 1.6rem', maxWidth: 480, width: '90vw',
             maxHeight: '70vh', overflowY: 'auto',
           }}>
@@ -507,13 +507,13 @@ export default function MBOClient({
                 <p key={i} style={{
                   margin: 0, fontSize: '0.78rem', padding: '0.3rem 0.5rem', borderRadius: 6,
                   background: msg.startsWith('✅') ? 'rgba(74,222,128,0.07)' : 'rgba(251,191,36,0.07)',
-                  color: msg.startsWith('✅') ? '#4ade80' : '#fbbf24',
+                  color: msg.startsWith('✅') ? '#059669' : '#b45309',
                 }}>{msg}</p>
               ))}
             </div>
             <button onClick={() => setImportResult(null)} style={{
               marginTop: '1rem', width: '100%', padding: '0.5rem', borderRadius: 8,
-              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+              background: '#f1f5f9', border: '1px solid #e5e9f0',
               color: 'var(--text-muted)', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit',
             }}>닫기</button>
           </div>
@@ -617,11 +617,11 @@ function TargetRow({
     });
   }
 
-  const rowBg = isOdd ? 'rgba(255,255,255,0.015)' : 'transparent';
+  const rowBg = isOdd ? '#ffffff' : 'transparent';
 
   if (editMode && isAdmin) {
     return (
-      <tr style={{ background: 'rgba(99,102,241,0.07)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <tr style={{ background: 'rgba(99,102,241,0.07)', borderTop: '1px solid #f1f5f9' }}>
         <td style={tdStyle}>
           <input
             value={editName}
@@ -659,7 +659,7 @@ function TargetRow({
 
   return (
     <>
-      <tr style={{ background: rowBg, borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+      <tr style={{ background: rowBg, borderTop: '1px solid #f8fafc' }}>
         <td style={{ ...tdStyle, fontWeight: 600, color: 'var(--text-primary)' }}>
           {target.item_name}
         </td>
@@ -685,7 +685,7 @@ function TargetRow({
                 onClick={() => { setActualVal(target.actual_value); setActualNote(target.note ?? ''); setActualMode(true); }}
                 title="실적 입력"
                 style={{
-                  background: 'none', border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'none', border: '1px solid #e5e9f0',
                   borderRadius: 4, padding: '0.1rem 0.35rem', cursor: 'pointer',
                   color: 'var(--text-muted)', fontSize: '0.65rem',
                 }}
@@ -698,9 +698,9 @@ function TargetRow({
                 style={{
                   padding: '0.1rem 0.45rem', borderRadius: 4, cursor: 'pointer',
                   fontSize: '0.65rem', fontWeight: 600, fontFamily: 'inherit',
-                  background: monthlyOpen ? 'rgba(99,102,241,0.22)' : 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${monthlyOpen ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.12)'}`,
-                  color: monthlyOpen ? '#a5b4fc' : 'var(--text-muted)',
+                  background: monthlyOpen ? 'rgba(99,102,241,0.22)' : '#f8fafc',
+                  border: `1px solid ${monthlyOpen ? 'rgba(99,102,241,0.5)' : '#e5e9f0'}`,
+                  color: monthlyOpen ? '#4f46e5' : 'var(--text-muted)',
                 }}
               >
                 {monthlyOpen ? '▲ 월별' : '▼ 월별'}
@@ -733,7 +733,7 @@ function TargetRow({
         </td>
         <td style={{ ...tdStyle, minWidth: 100 }}>
           {rate !== null ? (
-            <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.07)', overflow: 'hidden' }}>
+            <div style={{ height: 8, borderRadius: 4, background: '#f1f5f9', overflow: 'hidden' }}>
               <div style={{
                 height: '100%', width: `${Math.min(rate, 100)}%`,
                 background: rateColor(rate), borderRadius: 4, transition: 'width 0.4s ease',
@@ -879,7 +879,7 @@ function AddTargetForm({
         display: 'flex', alignItems: 'center', gap: '0.4rem',
         padding: '0.65rem 1.2rem', borderRadius: 10, cursor: 'pointer',
         background: 'rgba(99,102,241,0.12)', border: '1px dashed rgba(99,102,241,0.4)',
-        color: '#a5b4fc', fontSize: '0.85rem', fontWeight: 600,
+        color: '#4f46e5', fontSize: '0.85rem', fontWeight: 600,
         fontFamily: 'inherit', width: '100%', justifyContent: 'center',
       }}>
         + 목표 추가
@@ -889,7 +889,7 @@ function AddTargetForm({
 
   return (
     <div style={cardStyle}>
-      <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#a5b4fc', marginBottom: '0.8rem' }}>
+      <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#4f46e5', marginBottom: '0.8rem' }}>
         + 새 목표 항목
         <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', fontWeight: 400, color: 'var(--text-muted)' }}>
           FY{fyYear} {fyMonth ? FY_MONTH_LABEL[fyMonth] : '연간'}
@@ -927,13 +927,13 @@ function AddTargetForm({
           <button onClick={handleAdd} disabled={isPending} style={{
             padding: '0.5rem 1.2rem', borderRadius: 8, cursor: 'pointer',
             background: 'rgba(99,102,241,0.22)', border: '1px solid rgba(99,102,241,0.4)',
-            color: '#a5b4fc', fontWeight: 700, fontSize: '0.85rem', fontFamily: 'inherit',
+            color: '#4f46e5', fontWeight: 700, fontSize: '0.85rem', fontFamily: 'inherit',
           }}>
             {isPending ? '저장 중…' : '추가'}
           </button>
           <button onClick={() => setOpen(false)} style={{
             padding: '0.5rem 0.9rem', borderRadius: 8, cursor: 'pointer',
-            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+            background: '#f8fafc', border: '1px solid #e5e9f0',
             color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.85rem', fontFamily: 'inherit',
           }}>
             취소
@@ -1026,8 +1026,8 @@ function MonthlyGrid({
   const cellStyle = (val: string): React.CSSProperties => ({
     ...inlineInputStyle,
     width: '100%', textAlign: 'right', boxSizing: 'border-box' as const,
-    background: val ? 'rgba(96,165,250,0.07)' : 'rgba(255,255,255,0.03)',
-    borderColor: val ? 'rgba(96,165,250,0.28)' : 'rgba(255,255,255,0.08)',
+    background: val ? 'rgba(96,165,250,0.07)' : '#ffffff',
+    borderColor: val ? 'rgba(96,165,250,0.28)' : '#f1f5f9',
     fontSize: '0.8rem',
   });
 
@@ -1035,9 +1035,9 @@ function MonthlyGrid({
     <div>
       {/* 헤더 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.73rem', fontWeight: 700, color: '#a5b4fc' }}>📅 월별 목표·실적</span>
+        <span style={{ fontSize: '0.73rem', fontWeight: 700, color: '#4f46e5' }}>📅 월별 목표·실적</span>
         {cumTarget !== null && (
-          <span style={{ fontSize: '0.72rem', color: '#fbbf24', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)' }}>
+          <span style={{ fontSize: '0.72rem', color: '#b45309', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)' }}>
             목표 {isAvg ? '평균' : '누적'} {numFmt(cumTarget)}{unit ? ` ${unit}` : ''}
             {!isAvg && tSum !== null && (
               <span style={{ color: 'var(--text-muted)', marginLeft: 4 }}>· 연간 {tSum.toLocaleString()}</span>
@@ -1045,7 +1045,7 @@ function MonthlyGrid({
           </span>
         )}
         {aSum !== null && (
-          <span style={{ fontSize: '0.72rem', color: '#60a5fa', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.25)' }}>
+          <span style={{ fontSize: '0.72rem', color: '#2563eb', padding: '0.1rem 0.5rem', borderRadius: 5, background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.25)' }}>
             실적 {isAvg ? '평균' : '합계'} {aSum.toLocaleString()}{unit ? ` ${unit}` : ''}
           </span>
         )}
@@ -1062,7 +1062,7 @@ function MonthlyGrid({
             marginLeft: 'auto', padding: '0.32rem 1rem', borderRadius: 7, cursor: saving ? 'not-allowed' : 'pointer',
             background: saving ? 'rgba(99,102,241,0.1)' : 'rgba(99,102,241,0.22)',
             border: '1px solid rgba(99,102,241,0.45)',
-            color: '#a5b4fc', fontSize: '0.78rem', fontWeight: 700, fontFamily: 'inherit',
+            color: '#4f46e5', fontSize: '0.78rem', fontWeight: 700, fontFamily: 'inherit',
             whiteSpace: 'nowrap',
           }}
         >
@@ -1084,7 +1084,7 @@ function MonthlyGrid({
           </div>
           {/* 목표 행 */}
           <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem', marginBottom: '0.25rem' }}>
-            <div style={{ fontSize: '0.68rem', color: '#fbbf24', fontWeight: 600, display: 'flex', alignItems: 'center' }}>목표</div>
+            <div style={{ fontSize: '0.68rem', color: '#b45309', fontWeight: 600, display: 'flex', alignItems: 'center' }}>목표</div>
             {fyMs.map(fm => (
               <input key={fm} value={fmtInput(tVals[fm] ?? '')} placeholder="-"
                 onChange={e => setTVals(prev => ({ ...prev, [fm]: parseInput(e.target.value) }))}
@@ -1093,7 +1093,7 @@ function MonthlyGrid({
           </div>
           {/* 실적 행 */}
           <div style={{ display: 'grid', gridTemplateColumns: '44px repeat(6, 1fr)', gap: '0.3rem', marginBottom: '0.25rem' }}>
-            <div style={{ fontSize: '0.68rem', color: '#60a5fa', fontWeight: 600, display: 'flex', alignItems: 'center' }}>실적</div>
+            <div style={{ fontSize: '0.68rem', color: '#2563eb', fontWeight: 600, display: 'flex', alignItems: 'center' }}>실적</div>
             {fyMs.map(fm => (
               <input key={fm} value={fmtInput(aVals[fm] ?? '')} placeholder="-"
                 onChange={e => setAVals(prev => ({ ...prev, [fm]: parseInput(e.target.value) }))}
@@ -1113,7 +1113,7 @@ function MonthlyGrid({
                   height: 28, borderRadius: 6, fontSize: '0.72rem', fontWeight: 700,
                   background: r === null ? 'transparent' : `rgba(${rateRgb(r)},0.12)`,
                   color: r === null ? 'var(--text-muted)' : rateColor(r),
-                  border: r === null ? '1px solid rgba(255,255,255,0.05)' : `1px solid rgba(${rateRgb(r)},0.25)`,
+                  border: r === null ? '1px solid #f8fafc' : `1px solid rgba(${rateRgb(r)},0.25)`,
                 }}>
                   {r === null ? '-' : `${r}%`}
                 </div>
@@ -1141,7 +1141,7 @@ function TargetPctInput({ label, tone, value, canEdit, onSave }: {
     onSave(Math.round(n * 100) / 100);
   };
   const rgb = tone === 'comm' ? '52,211,153' : '251,191,36'; // 수수료율=민트, 성장율=앰버
-  const col = tone === 'comm' ? '#34d399' : '#fbbf24';
+  const col = tone === 'comm' ? '#059669' : '#b45309';
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -1210,7 +1210,7 @@ function CopyPanel({
         title="이 멤버의 목표 항목을 다른 멤버에게 복사"
         style={{
           padding: '0.38rem 0.8rem', borderRadius: 8, cursor: 'pointer',
-          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)',
+          background: '#f8fafc', border: '1px solid #e5e9f0',
           color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 600, fontFamily: 'inherit',
           whiteSpace: 'nowrap',
         }}
@@ -1226,7 +1226,7 @@ function CopyPanel({
       padding: '0.45rem 0.8rem', borderRadius: 9,
       background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.28)',
     }}>
-      <span style={{ fontSize: '0.75rem', color: '#a5b4fc', fontWeight: 600, whiteSpace: 'nowrap' }}>
+      <span style={{ fontSize: '0.75rem', color: '#4f46e5', fontWeight: 600, whiteSpace: 'nowrap' }}>
         📋 복사 대상:
       </span>
       <select
@@ -1244,7 +1244,7 @@ function CopyPanel({
         style={{
           padding: '0.3rem 0.85rem', borderRadius: 7, cursor: copying ? 'not-allowed' : 'pointer',
           background: 'rgba(99,102,241,0.22)', border: '1px solid rgba(99,102,241,0.5)',
-          color: '#a5b4fc', fontSize: '0.78rem', fontWeight: 700, fontFamily: 'inherit',
+          color: '#4f46e5', fontSize: '0.78rem', fontWeight: 700, fontFamily: 'inherit',
           whiteSpace: 'nowrap',
         }}
       >
@@ -1254,7 +1254,7 @@ function CopyPanel({
         onClick={() => setOpen(false)}
         style={{
           padding: '0.3rem 0.65rem', borderRadius: 7, cursor: 'pointer',
-          background: 'transparent', border: '1px solid rgba(255,255,255,0.1)',
+          background: 'transparent', border: '1px solid #e5e9f0',
           color: 'var(--text-muted)', fontSize: '0.78rem', fontFamily: 'inherit',
         }}
       >
@@ -1268,9 +1268,9 @@ function CopyPanel({
    현수준 위젯
 ════════════════════════════════════════════ */
 const STATUS_OPTIONS = [
-  { key: 'blue',   label: '양호', hex: '#60a5fa', rgb: '96,165,250' },
-  { key: 'yellow', label: '주의', hex: '#fbbf24', rgb: '251,191,36' },
-  { key: 'red',    label: '위험', hex: '#f87171', rgb: '248,113,113' },
+  { key: 'blue',   label: '양호', hex: '#2563eb', rgb: '96,165,250' },
+  { key: 'yellow', label: '주의', hex: '#b45309', rgb: '251,191,36' },
+  { key: 'red',    label: '위험', hex: '#dc2626', rgb: '248,113,113' },
 ] as const;
 
 function CurrentLevelWidget({
@@ -1332,22 +1332,22 @@ function CurrentLevelWidget({
 
 /* ── 스타일 상수 ── */
 const cardStyle: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.02)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: '#ffffff',
+  border: '1px solid #f1f5f9',
   borderRadius: 14,
   padding: '1.2rem 1.4rem',
 };
 
 const selectStyle: React.CSSProperties = {
   padding: '0.38rem 0.7rem', borderRadius: 8, fontSize: '0.82rem',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+  background: '#f8fafc', border: '1px solid #e5e9f0',
   color: 'var(--text-primary)', fontFamily: 'inherit', cursor: 'pointer',
 };
 
 const thStyle: React.CSSProperties = {
   padding: '0.5rem 0.7rem', textAlign: 'left', fontWeight: 600,
   color: 'var(--text-muted)', fontSize: '0.75rem', letterSpacing: '0.02em',
-  borderBottom: '1px solid rgba(255,255,255,0.08)', whiteSpace: 'nowrap',
+  borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap',
 };
 
 const tdStyle: React.CSSProperties = {
@@ -1358,13 +1358,13 @@ const tdStyle: React.CSSProperties = {
 
 const inlineInputStyle: React.CSSProperties = {
   padding: '0.3rem 0.55rem', borderRadius: 6, fontSize: '0.82rem',
-  background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
+  background: '#f1f5f9', border: '1px solid #d7dce5',
   color: 'var(--text-primary)', fontFamily: 'inherit', width: '100%',
 };
 
 const inputStyle: React.CSSProperties = {
   padding: '0.5rem 0.75rem', borderRadius: 8, fontSize: '0.85rem',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+  background: '#f8fafc', border: '1px solid #e5e9f0',
   color: 'var(--text-primary)', fontFamily: 'inherit', width: '100%',
   boxSizing: 'border-box',
 };
@@ -1375,9 +1375,9 @@ const labelStyle: React.CSSProperties = {
 
 function btnSm(variant: 'primary' | 'muted' | 'danger'): React.CSSProperties {
   const map = {
-    primary: { bg: 'rgba(99,102,241,0.18)', border: 'rgba(99,102,241,0.4)', color: '#a5b4fc' },
-    muted:   { bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.12)', color: 'var(--text-muted)' },
-    danger:  { bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)', color: '#fca5a5' },
+    primary: { bg: 'rgba(99,102,241,0.18)', border: 'rgba(99,102,241,0.4)', color: '#4f46e5' },
+    muted:   { bg: '#f8fafc', border: '#e5e9f0', color: 'var(--text-muted)' },
+    danger:  { bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)', color: '#dc2626' },
   }[variant];
   return {
     padding: '0.25rem 0.6rem', borderRadius: 6, cursor: 'pointer',

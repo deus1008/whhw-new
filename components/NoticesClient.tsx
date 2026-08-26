@@ -106,7 +106,7 @@ export default function NoticesClient({
         <div style={{ position: 'relative', flex: 1 }}>
           <span style={{
             position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)',
-            fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', pointerEvents: 'none',
+            fontSize: '0.85rem', color: '#94a3b8', pointerEvents: 'none',
           }}>🔍</span>
           <input
             value={query}
@@ -117,8 +117,8 @@ export default function NoticesClient({
               width: '100%', boxSizing: 'border-box',
               paddingLeft: '2.2rem', paddingRight: query ? '2rem' : '0.8rem',
               paddingTop: '0.5rem', paddingBottom: '0.5rem',
-              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '8px', color: '#e2e8f0', fontSize: '0.85rem',
+              background: '#ffffff', border: '1px solid #d7dce5',
+              borderRadius: '8px', color: '#111827', fontSize: '0.85rem',
               outline: 'none', fontFamily: 'inherit',
             }}
           />
@@ -127,7 +127,7 @@ export default function NoticesClient({
               onClick={() => { setQuery(''); setAppliedQuery(''); }}
               style={{
                 position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)',
-                background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)',
+                background: 'none', border: 'none', color: '#94a3b8',
                 cursor: 'pointer', fontSize: '0.85rem', padding: '2px 4px',
               }}
             >✕</button>
@@ -141,7 +141,7 @@ export default function NoticesClient({
 
       {/* 검색 결과 카운트 */}
       {aq && (
-        <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)', marginBottom: '0.5rem' }}>
+        <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.5rem' }}>
           &quot;{appliedQuery}&quot; 검색 결과 {filtered.length}건 / 전체 {total}건
         </div>
       )}
@@ -149,12 +149,12 @@ export default function NoticesClient({
       {/* 카드 목록 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {notices.length === 0 && (
-          <div style={{ padding: '3rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.88rem' }}>
+          <div style={{ padding: '3rem 0', textAlign: 'center', color: '#94a3b8', fontSize: '0.88rem' }}>
             등록된 공지사항이 없습니다.
           </div>
         )}
         {aq && filtered.length === 0 && notices.length > 0 && (
-          <div style={{ padding: '2.5rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.88rem' }}>
+          <div style={{ padding: '2.5rem 0', textAlign: 'center', color: '#94a3b8', fontSize: '0.88rem' }}>
             검색 결과가 없습니다.
           </div>
         )}
@@ -187,7 +187,7 @@ export default function NoticesClient({
       {modal && (
         <div style={OVERLAY} onClick={() => setModal(null)}>
           <div style={MODAL} onClick={e => e.stopPropagation()}>
-            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', margin: '0 0 1.2rem' }}>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', margin: '0 0 1.2rem' }}>
               {modal.mode === 'create' ? '공지 작성' : '공지 수정'}
             </h2>
 
@@ -213,12 +213,12 @@ export default function NoticesClient({
                 type="checkbox"
                 checked={form.is_pinned}
                 onChange={e => setForm(f => ({ ...f, is_pinned: e.target.checked }))}
-                style={{ accentColor: '#fbbf24', width: '1rem', height: '1rem' }}
+                style={{ accentColor: '#b45309', width: '1rem', height: '1rem' }}
               />
-              <span style={{ fontSize: '0.83rem', color: 'rgba(255,255,255,0.7)' }}>📌 중요 공지로 고정</span>
+              <span style={{ fontSize: '0.83rem', color: '#475569' }}>📌 중요 공지로 고정</span>
             </label>
 
-            {err && <p style={{ color: '#f87171', fontSize: '0.8rem', marginBottom: '0.8rem' }}>{err}</p>}
+            {err && <p style={{ color: '#dc2626', fontSize: '0.8rem', marginBottom: '0.8rem' }}>{err}</p>}
 
             <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
               <button onClick={() => setModal(null)} style={BTN_CANCEL} disabled={isPending}>취소</button>
@@ -257,10 +257,10 @@ function NoticeCard({
         borderRadius: '10px',
         border: pinned
           ? '1px solid rgba(251,191,36,0.3)'
-          : '1px solid rgba(255,255,255,0.08)',
+          : '1px solid #e5e9f0',
         background: hover
-          ? (pinned ? 'rgba(251,191,36,0.07)' : 'rgba(255,255,255,0.05)')
-          : (pinned ? 'rgba(251,191,36,0.04)' : 'rgba(255,255,255,0.02)'),
+          ? (pinned ? 'rgba(251,191,36,0.07)' : '#f1f5f9')
+          : (pinned ? 'rgba(251,191,36,0.04)' : '#ffffff'),
         padding: '0.65rem 0.45rem',
         transition: 'background 0.12s',
         display: 'flex',
@@ -270,7 +270,7 @@ function NoticeCard({
     >
       {/* 번호 */}
       <span style={{
-        fontSize: '0.72rem', color: 'rgba(255,255,255,0.28)',
+        fontSize: '0.72rem', color: '#94a3b8',
         flexShrink: 0, width: '2.2rem', textAlign: 'center',
       }}>
         {pinned ? '📌' : (no !== undefined ? no : '')}
@@ -282,7 +282,7 @@ function NoticeCard({
         style={{
           flex: 1,
           minWidth: 0,
-          color: pinned ? '#fde68a' : '#e2e8f0',
+          color: pinned ? '#b45309' : '#111827',
           textDecoration: 'none',
           fontWeight: pinned ? 600 : 400,
           fontSize: '0.88rem',
@@ -296,7 +296,7 @@ function NoticeCard({
       </a>
 
       {/* 날짜 */}
-      <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', flexShrink: 0 }}>
+      <span style={{ fontSize: '0.75rem', color: '#94a3b8', flexShrink: 0 }}>
         {fmtDate(notice.created_at)}
       </span>
 
@@ -318,37 +318,37 @@ const OVERLAY: React.CSSProperties = {
 };
 
 const MODAL: React.CSSProperties = {
-  background: '#1a1f2e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px',
+  background: '#ffffff', border: '1px solid #e5e9f0', borderRadius: '16px',
   padding: '1.5rem', width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto',
 };
 
 const LABEL: React.CSSProperties = {
-  display: 'block', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.35rem', fontWeight: 600,
+  display: 'block', fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.35rem', fontWeight: 600,
 };
 
 const INPUT: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
-  borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.88rem',
+  background: '#ffffff', border: '1px solid #d7dce5',
+  borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#111827', fontSize: '0.88rem',
   outline: 'none', marginBottom: '1rem',
 };
 
 const BTN_PRIMARY: React.CSSProperties = {
   padding: '0.5rem 1.1rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
-  background: 'rgba(96,165,250,0.18)', border: '1px solid rgba(96,165,250,0.4)', color: '#93c5fd',
+  background: '#eaf1fe', border: '1px solid #cdddfb', color: '#2563eb',
 };
 
 const BTN_CANCEL: React.CSSProperties = {
   padding: '0.5rem 1rem', borderRadius: '8px', fontSize: '0.82rem', cursor: 'pointer',
-  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)',
+  background: '#f1f5f9', border: '1px solid #e5e9f0', color: '#334155',
 };
 
 const BTN_SM_EDIT: React.CSSProperties = {
   padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit',
-  background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.3)', color: '#93c5fd',
+  background: '#eaf1fe', border: '1px solid #cdddfb', color: '#2563eb',
 };
 
 const BTN_SM_DEL: React.CSSProperties = {
   padding: '0.25rem 0.6rem', borderRadius: '6px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit',
-  background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171',
+  background: '#fef2f2', border: '1px solid #ef9a9a', color: '#dc2626',
 };

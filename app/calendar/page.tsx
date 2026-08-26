@@ -102,11 +102,11 @@ export default async function MarketingPage() {
   }));
 
   const DEFAULT_CATEGORIES: ScheduleCategory[] = [
-    { id: 'default-0', name: '학술대회',   color: '#a78bfa', sort_order: 0 },
-    { id: 'default-1', name: '심포지엄',   color: '#22d3ee', sort_order: 1 },
-    { id: 'default-2', name: '제품설명회', color: '#34d399', sort_order: 2 },
+    { id: 'default-0', name: '학술대회',   color: '#7c3aed', sort_order: 0 },
+    { id: 'default-1', name: '심포지엄',   color: '#0891b2', sort_order: 1 },
+    { id: 'default-2', name: '제품설명회', color: '#059669', sort_order: 2 },
     { id: 'default-3', name: '영업관리',   color: '#fb923c', sort_order: 3 },
-    { id: 'default-4', name: '영업미팅',   color: '#60a5fa', sort_order: 4 },
+    { id: 'default-4', name: '영업미팅',   color: '#2563eb', sort_order: 4 },
     { id: 'default-5', name: '기타',       color: '#94a3b8', sort_order: 5 },
   ];
   const categories: ScheduleCategory[] = (categoryRows && categoryRows.length > 0)
@@ -152,6 +152,6 @@ export default async function MarketingPage() {
 
 const navLink: React.CSSProperties = {
   padding: '0.35rem 0.9rem', borderRadius: '8px',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)',
+  background: '#f1f5f9', border: '1px solid #e5e9f0',
   color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 500, textDecoration: 'none',
 };

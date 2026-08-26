@@ -3,14 +3,14 @@ import type { CSSProperties } from 'react';
 
 export default function VisitsLoading() {
   const shimmer: CSSProperties = {
-    background: 'linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.09) 50%,rgba(255,255,255,0.04) 75%)',
+    background: 'linear-gradient(90deg,rgba(15,23,42,0.05) 25%,rgba(15,23,42,0.10) 50%,rgba(15,23,42,0.05) 75%)',
     backgroundSize: '400% 100%',
     animation: 'shimmer 1.4s infinite',
     borderRadius: '8px',
   };
   const card: CSSProperties = {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: '#ffffff',
+    border: '1px solid #e5e9f0',
     borderRadius: '14px', padding: '1rem', marginBottom: '0.75rem',
   };
 

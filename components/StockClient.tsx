@@ -20,19 +20,19 @@ export type StockPeriod = {
 
 /* ── 스타일 ── */
 const CARD: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.04)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: '#f8fafc',
+  border: '1px solid #f1f5f9',
   borderRadius: '14px', padding: '1rem', marginBottom: '0.75rem',
 };
 const TH: React.CSSProperties = {
   padding: '0.45rem 0.7rem', fontSize: '0.72rem', color: 'var(--text-muted)',
   fontWeight: 600, whiteSpace: 'nowrap', textAlign: 'right',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  borderBottom: '1px solid #f1f5f9',
 };
 const TH_L: React.CSSProperties = { ...TH, textAlign: 'left' };
 const TD: React.CSSProperties = {
   padding: '0.4rem 0.7rem', fontSize: '0.8rem', whiteSpace: 'nowrap',
-  textAlign: 'right', borderBottom: '1px solid rgba(255,255,255,0.04)',
+  textAlign: 'right', borderBottom: '1px solid #f8fafc',
 };
 const TD_L: React.CSSProperties = { ...TD, textAlign: 'left' };
 
@@ -54,7 +54,7 @@ type TrendCat = 'shortage' | 'excess' | 'normal';
 type TrendMeta = { cat: TrendCat; label: string; color: string; rank: number };
 
 const CAT_META: Record<TrendCat, TrendMeta> = {
-  shortage: { cat: 'shortage', label: '🔴 재고 급감', color: '#f87171', rank: 0 },
+  shortage: { cat: 'shortage', label: '🔴 재고 급감', color: '#dc2626', rank: 0 },
   excess:   { cat: 'excess',   label: '🟠 재고 과다', color: '#fb923c', rank: 1 },
   normal:   { cat: 'normal',   label: '⚪ 정상',      color: '#94a3b8', rank: 2 },
 };
@@ -70,8 +70,8 @@ function classifyStock(current: number, annualAvg: number): { ratio: number | nu
 function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
     <div style={{
-      flex: 1, minWidth: '130px', background: 'rgba(255,255,255,0.05)',
-      border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '0.85rem 1rem',
+      flex: 1, minWidth: '130px', background: '#f8fafc',
+      border: '1px solid #f1f5f9', borderRadius: '12px', padding: '0.85rem 1rem',
     }}>
       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>{label}</div>
       <div style={{ fontSize: '1rem', fontWeight: 700, color: color ?? '#fff' }}>{value}</div>
@@ -186,9 +186,9 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
             style={{
               padding: '0.5rem 1.1rem', borderRadius: '9px', border: '1px solid',
               cursor: 'pointer', fontSize: '0.85rem', fontFamily: 'inherit', fontWeight: view === k ? 700 : 500,
-              borderColor: view === k ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.12)',
-              background: view === k ? 'rgba(99,102,241,0.22)' : 'rgba(255,255,255,0.04)',
-              color: view === k ? '#c4b5fd' : 'var(--text-muted)',
+              borderColor: view === k ? 'rgba(99,102,241,0.5)' : '#e5e9f0',
+              background: view === k ? 'rgba(99,102,241,0.22)' : '#f8fafc',
+              color: view === k ? '#7c3aed' : 'var(--text-muted)',
             }}>
             {label}
           </button>
@@ -207,13 +207,13 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
             onChange={e => { setSelIdx(Number(e.target.value)); setSearch(''); }}
             style={{
               padding: '0.5rem 0.9rem', borderRadius: '8px',
-              border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(99,102,241,0.18)',
-              color: '#c4b5fd', fontSize: '0.85rem', fontWeight: 700, fontFamily: 'inherit',
+              border: '1px solid #d7dce5', background: 'rgba(99,102,241,0.18)',
+              color: '#7c3aed', fontSize: '0.85rem', fontWeight: 700, fontFamily: 'inherit',
               cursor: 'pointer', outline: 'none', minWidth: '150px',
             }}
           >
             {periods.map((p, i) => (
-              <option key={`${p.year}-${p.period}`} value={i} style={{ color: '#e2e8f0', background: '#1a2030' }}>
+              <option key={`${p.year}-${p.period}`} value={i} style={{ color: '#111827', background: '#1a2030' }}>
                 {p.year}년 {p.period}월
               </option>
             ))}
@@ -227,9 +227,9 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
       </div>
       <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
         <StatCard label="품목 수"      value={`${rows.length.toLocaleString()}개`} />
-        <StatCard label="가용 합계"    value={totalAvail.toLocaleString()}   color="#4ade80" />
+        <StatCard label="가용 합계"    value={totalAvail.toLocaleString()}   color="#059669" />
         <StatCard label="운송중 합계"  value={totalTransit.toLocaleString()} color="#a8c4ff" />
-        <StatCard label="총재고 합계"  value={totalAll.toLocaleString()}     color="#fbbf24" />
+        <StatCard label="총재고 합계"  value={totalAll.toLocaleString()}     color="#b45309" />
       </div>
 
       {/* 검색 */}
@@ -241,8 +241,8 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
           onChange={e => setSearch(e.target.value)}
           style={{
             width: '100%', padding: '0.5rem 0.9rem', fontSize: '0.82rem',
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: '9px', color: '#e2e8f0', outline: 'none', fontFamily: 'inherit',
+            background: '#f1f5f9', border: '1px solid #e5e9f0',
+            borderRadius: '9px', color: '#111827', outline: 'none', fontFamily: 'inherit',
           }}
         />
       </div>
@@ -279,18 +279,18 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
             </thead>
             <tbody>
               {rows.map((r, i) => (
-                <tr key={r.material_code} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.015)' : undefined }}>
+                <tr key={r.material_code} style={{ background: i % 2 === 0 ? '#ffffff' : undefined }}>
                   <td style={{ ...TD_L, maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {r.material_name}
                   </td>
                   <td style={{ ...TD, color: 'var(--text-muted)', fontSize: '0.73rem' }}>{r.material_code}</td>
-                  <td style={{ ...TD, color: r.available_qty > 0 ? '#4ade80' : 'rgba(255,255,255,0.2)' }}>
+                  <td style={{ ...TD, color: r.available_qty > 0 ? '#059669' : '#d7dce5' }}>
                     {fmt(r.available_qty)}
                   </td>
-                  <td style={{ ...TD, color: r.transit_qty > 0 ? '#a8c4ff' : 'rgba(255,255,255,0.2)' }}>
+                  <td style={{ ...TD, color: r.transit_qty > 0 ? '#a8c4ff' : '#d7dce5' }}>
                     {fmt(r.transit_qty)}
                   </td>
-                  <td style={{ ...TD, color: r.total_qty > 0 ? '#fbbf24' : 'rgba(255,255,255,0.2)', fontWeight: 600 }}>
+                  <td style={{ ...TD, color: r.total_qty > 0 ? '#b45309' : '#d7dce5', fontWeight: 600 }}>
                     {fmt(r.total_qty)}
                   </td>
                   <td style={{ ...TD, color: 'var(--text-muted)', fontSize: '0.73rem' }}>{r.unit ?? '-'}</td>
@@ -306,12 +306,12 @@ export default function StockClient({ periods }: { periods: StockPeriod[] }) {
             </tbody>
             {rows.length > 0 && (
               <tfoot>
-                <tr style={{ borderTop: '1px solid rgba(255,255,255,0.15)' }}>
-                  <td style={{ ...TD_L, fontWeight: 700, color: '#fff' }}>합계</td>
+                <tr style={{ borderTop: '1px solid #d7dce5' }}>
+                  <td style={{ ...TD_L, fontWeight: 700, color: '#111827' }}>합계</td>
                   <td style={TD} />
-                  <td style={{ ...TD, color: '#4ade80', fontWeight: 700 }}>{totalAvail.toLocaleString()}</td>
+                  <td style={{ ...TD, color: '#059669', fontWeight: 700 }}>{totalAvail.toLocaleString()}</td>
                   <td style={{ ...TD, color: '#a8c4ff', fontWeight: 700 }}>{totalTransit.toLocaleString()}</td>
-                  <td style={{ ...TD, color: '#fbbf24', fontWeight: 700 }}>{totalAll.toLocaleString()}</td>
+                  <td style={{ ...TD, color: '#b45309', fontWeight: 700 }}>{totalAll.toLocaleString()}</td>
                   <td style={TD} />
                 </tr>
               </tfoot>
@@ -345,8 +345,8 @@ function TrendView({ trend, rows, filter, setFilter, search, setSearch }: {
     <button key={key} onClick={() => setFilter(key)}
       style={{
         padding: '0.4rem 0.8rem', borderRadius: '8px', cursor: 'pointer', fontSize: '0.78rem', fontFamily: 'inherit',
-        border: '1px solid', borderColor: filter === key ? color : 'rgba(255,255,255,0.12)',
-        background: filter === key ? `${color}22` : 'rgba(255,255,255,0.04)',
+        border: '1px solid', borderColor: filter === key ? color : '#e5e9f0',
+        background: filter === key ? `${color}22` : '#f8fafc',
         color: filter === key ? color : 'var(--text-muted)', fontWeight: filter === key ? 700 : 500,
       }}>
       {label} <b style={{ marginLeft: 3 }}>{n}</b>
@@ -356,14 +356,14 @@ function TrendView({ trend, rows, filter, setFilter, search, setSearch }: {
   return (
     <div>
       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.6rem', lineHeight: 1.6 }}>
-        총재고 기준 · 매월 1일자 · 3개월 추이({monthLabels.join('→')})와 <b style={{ color: '#c4b5fd' }}>년간평균</b>(최근 {trend.months12}개월)을 함께 표시.
+        총재고 기준 · 매월 1일자 · 3개월 추이({monthLabels.join('→')})와 <b style={{ color: '#7c3aed' }}>년간평균</b>(최근 {trend.months12}개월)을 함께 표시.
         기준점 = 년간평균, <b style={{ color: CAT_META.excess.color }}>과다</b>=기준 120% 초과 · <b style={{ color: CAT_META.shortage.color }}>급감</b>=기준 30% 이하.
         (신규출시·재생산 왜곡을 완화하기 위해 년간평균을 기준으로 판정)
       </div>
 
       {/* 분류 칩 */}
       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.8rem' }}>
-        {chip('all', '전체', trend.items.length, '#c4b5fd')}
+        {chip('all', '전체', trend.items.length, '#7c3aed')}
         {chip('shortage', CAT_META.shortage.label, trend.counts.shortage, CAT_META.shortage.color)}
         {chip('excess',   CAT_META.excess.label,   trend.counts.excess,   CAT_META.excess.color)}
         {chip('normal',   CAT_META.normal.label,   trend.counts.normal,   CAT_META.normal.color)}
@@ -371,7 +371,7 @@ function TrendView({ trend, rows, filter, setFilter, search, setSearch }: {
 
       <div style={{ marginBottom: '0.6rem' }}>
         <input type="text" placeholder="품목명 / 자재코드 검색…" value={search} onChange={e => setSearch(e.target.value)}
-          style={{ width: '100%', padding: '0.5rem 0.9rem', fontSize: '0.82rem', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '9px', color: '#e2e8f0', outline: 'none', fontFamily: 'inherit' }} />
+          style={{ width: '100%', padding: '0.5rem 0.9rem', fontSize: '0.82rem', background: '#f1f5f9', border: '1px solid #e5e9f0', borderRadius: '9px', color: '#111827', outline: 'none', fontFamily: 'inherit' }} />
       </div>
 
       <div style={CARD}>
@@ -381,19 +381,19 @@ function TrendView({ trend, rows, filter, setFilter, search, setSearch }: {
               <tr>
                 <th style={TH_L}>자재내역</th>
                 {monthLabels.map(m => <th key={m} style={TH}>{m}</th>)}
-                <th style={{ ...TH, color: '#c4b5fd' }}>년간평균</th>
+                <th style={{ ...TH, color: '#7c3aed' }}>년간평균</th>
                 <th style={TH}>기준대비</th>
                 <th style={TH_L}>판정</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((it, i) => (
-                <tr key={it.code} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.015)' : undefined }}>
+                <tr key={it.code} style={{ background: i % 2 === 0 ? '#ffffff' : undefined }}>
                   <td style={{ ...TD_L, maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis' }} title={it.name}>{it.name}</td>
                   {it.series.map((v, j) => (
-                    <td key={j} style={{ ...TD, color: v > 0 ? '#fbbf24' : 'rgba(255,255,255,0.2)', fontWeight: j === it.series.length - 1 ? 700 : 400 }}>{fmt(v)}</td>
+                    <td key={j} style={{ ...TD, color: v > 0 ? '#b45309' : '#d7dce5', fontWeight: j === it.series.length - 1 ? 700 : 400 }}>{fmt(v)}</td>
                   ))}
-                  <td style={{ ...TD, color: '#c4b5fd' }}>{it.annualAvg > 0 ? Math.round(it.annualAvg).toLocaleString() : '-'}</td>
+                  <td style={{ ...TD, color: '#7c3aed' }}>{it.annualAvg > 0 ? Math.round(it.annualAvg).toLocaleString() : '-'}</td>
                   <td style={{ ...TD, color: it.meta.color, fontWeight: 700 }}>
                     {it.ratio == null ? '-' : `${Math.round(it.ratio * 100)}%`}
                   </td>

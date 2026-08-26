@@ -28,8 +28,8 @@ export type SavedForecast = {
 };
 
 /* ── 표 스타일(DiseaseLearningClient 이식) ── */
-const TH: React.CSSProperties = { padding: '0.4rem 0.6rem', textAlign: 'left', fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', fontWeight: 600, whiteSpace: 'nowrap', borderBottom: '1px solid rgba(255,255,255,0.1)' };
-const TD: React.CSSProperties = { padding: '0.45rem 0.6rem', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '0.76rem', verticalAlign: 'middle' };
+const TH: React.CSSProperties = { padding: '0.4rem 0.6rem', textAlign: 'left', fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600, whiteSpace: 'nowrap', borderBottom: '1px solid #e5e9f0' };
+const TD: React.CSSProperties = { padding: '0.45rem 0.6rem', borderBottom: '1px solid #f8fafc', fontSize: '0.76rem', verticalAlign: 'middle' };
 const NUM: React.CSSProperties = { textAlign: 'right', fontVariantNumeric: 'tabular-nums' };
 
 const eok = (n: number | null | undefined) => n == null ? '-' : (n / 1e8).toLocaleString('ko-KR', { maximumFractionDigits: 1 });
@@ -54,9 +54,9 @@ export default function SalesForecastClient({ saved, canEdit }: { saved: SavedFo
             style={{
               padding: '0.5rem 1.1rem', borderRadius: '9px', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit',
               border: '1px solid', fontWeight: tab === k ? 700 : 500,
-              borderColor: tab === k ? 'rgba(147,197,253,0.45)' : 'rgba(255,255,255,0.12)',
-              background: tab === k ? 'rgba(147,197,253,0.14)' : 'rgba(255,255,255,0.03)',
-              color: tab === k ? '#93c5fd' : 'rgba(255,255,255,0.5)',
+              borderColor: tab === k ? 'rgba(147,197,253,0.45)' : '#e5e9f0',
+              background: tab === k ? 'rgba(147,197,253,0.14)' : '#ffffff',
+              color: tab === k ? '#2563eb' : '#64748b',
             }}>
             {label}
           </button>
@@ -114,9 +114,9 @@ function MarketTab({ ingredientKey, setIngredientKey, market, setMarket, onGoBui
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
         <input value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && search()}
           placeholder="성분 검색 (예: finasteride, rosuvastatin)"
-          style={{ flex: 1, minWidth: 240, padding: '0.55rem 0.9rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '9px', color: '#e2e8f0', fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit' }} />
+          style={{ flex: 1, minWidth: 240, padding: '0.55rem 0.9rem', background: '#f8fafc', border: '1px solid #e5e9f0', borderRadius: '9px', color: '#111827', fontSize: '0.85rem', outline: 'none', fontFamily: 'inherit' }} />
         <button onClick={search} disabled={searching}
-          style={{ padding: '0.55rem 1.1rem', borderRadius: '9px', border: '1px solid rgba(147,197,253,0.4)', background: 'rgba(147,197,253,0.14)', color: '#93c5fd', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+          style={{ padding: '0.55rem 1.1rem', borderRadius: '9px', border: '1px solid rgba(147,197,253,0.4)', background: 'rgba(147,197,253,0.14)', color: '#2563eb', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
           {searching ? '검색 중…' : '검색'}
         </button>
       </div>
@@ -126,17 +126,17 @@ function MarketTab({ ingredientKey, setIngredientKey, market, setMarket, onGoBui
           {list.map(ing => (
             <button key={ing} onClick={() => loadMarket(ing)}
               style={{ padding: '0.35rem 0.7rem', borderRadius: '7px', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit',
-                border: '1px solid', borderColor: ingredientKey === ing ? 'rgba(110,231,183,0.45)' : 'rgba(255,255,255,0.12)',
-                background: ingredientKey === ing ? 'rgba(110,231,183,0.14)' : 'rgba(255,255,255,0.03)',
-                color: ingredientKey === ing ? '#6ee7b7' : 'rgba(255,255,255,0.55)' }}>
+                border: '1px solid', borderColor: ingredientKey === ing ? 'rgba(110,231,183,0.45)' : '#e5e9f0',
+                background: ingredientKey === ing ? 'rgba(110,231,183,0.14)' : '#ffffff',
+                color: ingredientKey === ing ? '#059669' : '#64748b' }}>
               {ing}
             </button>
           ))}
         </div>
       )}
 
-      {err && <div style={{ color: '#fca5a5', fontSize: '0.8rem' }}>{err}</div>}
-      {loading && <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem', padding: '1rem 0' }}>시장 데이터 집계 중…</div>}
+      {err && <div style={{ color: '#dc2626', fontSize: '0.8rem' }}>{err}</div>}
+      {loading && <div style={{ color: '#94a3b8', fontSize: '0.85rem', padding: '1rem 0' }}>시장 데이터 집계 중…</div>}
 
       {market && <MarketTable market={market} onGoBuild={onGoBuild} />}
     </div>
@@ -148,19 +148,19 @@ function MarketTable({ market, onGoBuild }: { market: MarketData; onGoBuild: () 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <Stat label="경쟁 품목" value={`${products.length}개`} color="#93c5fd" />
-        <Stat label={`${years[years.length - 1] ?? '-'}년 시장`} value={`${eok(marketTotalByYear[years[years.length - 1]])}억`} color="#6ee7b7" />
-        <Stat label="대조약 점유율" value={pct(referenceShare)} color="#fbbf24" />
-        <Stat label="평균 수수료율" value={pct(avgCommission, 0)} color="#f9a8d4" />
-        <button onClick={onGoBuild} style={{ marginLeft: 'auto', padding: '0.4rem 0.9rem', borderRadius: '8px', border: '1px solid rgba(147,197,253,0.4)', background: 'rgba(147,197,253,0.14)', color: '#93c5fd', fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit' }}>이 성분으로 SF 산출 →</button>
+        <Stat label="경쟁 품목" value={`${products.length}개`} color="#2563eb" />
+        <Stat label={`${years[years.length - 1] ?? '-'}년 시장`} value={`${eok(marketTotalByYear[years[years.length - 1]])}억`} color="#059669" />
+        <Stat label="대조약 점유율" value={pct(referenceShare)} color="#b45309" />
+        <Stat label="평균 수수료율" value={pct(avgCommission, 0)} color="#db2777" />
+        <button onClick={onGoBuild} style={{ marginLeft: 'auto', padding: '0.4rem 0.9rem', borderRadius: '8px', border: '1px solid rgba(147,197,253,0.4)', background: 'rgba(147,197,253,0.14)', color: '#2563eb', fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit' }}>이 성분으로 SF 산출 →</button>
       </div>
 
       {note && <div style={{ fontSize: '0.75rem', color: 'rgba(251,191,36,0.85)', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.18)', borderRadius: '8px', padding: '0.55rem 0.8rem' }}>⚠ {note}</div>}
 
-      <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px' }}>
+      <div style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: '10px' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.76rem' }}>
           <thead>
-            <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
+            <tr style={{ background: '#ffffff' }}>
               <th style={{ ...TH, textAlign: 'center' }}>#</th>
               <th style={TH}>제품</th>
               <th style={TH}>제조사</th>
@@ -175,23 +175,23 @@ function MarketTable({ market, onGoBuild }: { market: MarketData; onGoBuild: () 
             {/* 시장 합계 — 헤더 바로 밑에 고정 */}
             <tr style={{ background: 'rgba(147,197,253,0.08)', fontWeight: 700, borderBottom: '2px solid rgba(147,197,253,0.25)' }}>
               <td style={TD}></td>
-              <td style={{ ...TD, color: '#93c5fd' }} colSpan={3}>시장 합계</td>
+              <td style={{ ...TD, color: '#2563eb' }} colSpan={3}>시장 합계</td>
               <td style={TD}></td>
-              {years.map(y => <td key={y} style={{ ...TD, ...NUM, color: '#93c5fd' }}>{eok(marketTotalByYear[y])}</td>)}
+              {years.map(y => <td key={y} style={{ ...TD, ...NUM, color: '#2563eb' }}>{eok(marketTotalByYear[y])}</td>)}
               <td style={TD} colSpan={2}></td>
             </tr>
             {products.map((p, i) => (
-              <tr key={`${p.product_name}|${p.manufacturer}`} style={{ background: p.is_reference ? 'rgba(251,191,36,0.08)' : i % 2 ? 'rgba(255,255,255,0.015)' : 'transparent' }}>
-                <td style={{ ...TD, textAlign: 'center', color: 'rgba(255,255,255,0.3)' }}>{i + 1}</td>
-                <td style={{ ...TD, color: p.is_reference ? '#fbbf24' : '#e2e8f0', fontWeight: p.is_reference ? 600 : 400 }}>
+              <tr key={`${p.product_name}|${p.manufacturer}`} style={{ background: p.is_reference ? 'rgba(251,191,36,0.08)' : i % 2 ? '#ffffff' : 'transparent' }}>
+                <td style={{ ...TD, textAlign: 'center', color: '#94a3b8' }}>{i + 1}</td>
+                <td style={{ ...TD, color: p.is_reference ? '#b45309' : '#e2e8f0', fontWeight: p.is_reference ? 600 : 400 }}>
                   {p.product_name}{p.is_reference && <span style={{ fontSize: '0.62rem', marginLeft: 4 }}>대조약</span>}
                 </td>
-                <td style={{ ...TD, color: 'rgba(255,255,255,0.5)' }}>{p.manufacturer ?? '-'}</td>
+                <td style={{ ...TD, color: '#64748b' }}>{p.manufacturer ?? '-'}</td>
                 <td style={{ ...TD, ...NUM }}>{p.price != null ? `${won(p.price)}원` : '-'}</td>
-                <td style={{ ...TD, ...NUM, color: p.commission_rate != null ? '#f9a8d4' : 'rgba(255,255,255,0.25)' }}>{pct(p.commission_rate, 0)}</td>
+                <td style={{ ...TD, ...NUM, color: p.commission_rate != null ? '#db2777' : '#cbd5e1' }}>{pct(p.commission_rate, 0)}</td>
                 {years.map(y => <td key={y} style={{ ...TD, ...NUM }}>{p.amountByYear[y] ? eok(p.amountByYear[y]) : '-'}</td>)}
-                <td style={{ ...TD, ...NUM, color: '#a5f3fc' }}>{pct(p.share)}</td>
-                <td style={{ ...TD, ...NUM, color: p.cagr != null ? (p.cagr >= 0 ? '#6ee7b7' : '#fca5a5') : 'rgba(255,255,255,0.25)' }}>{p.cagr != null ? pct(p.cagr, 0) : '-'}</td>
+                <td style={{ ...TD, ...NUM, color: '#0891b2' }}>{pct(p.share)}</td>
+                <td style={{ ...TD, ...NUM, color: p.cagr != null ? (p.cagr >= 0 ? '#059669' : '#dc2626') : '#cbd5e1' }}>{p.cagr != null ? pct(p.cagr, 0) : '-'}</td>
               </tr>
             ))}
           </tbody>
@@ -317,23 +317,23 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
   }
 
   if (!ingredientKey) {
-    return <div style={{ padding: '2rem', textAlign: 'center', color: 'rgba(255,255,255,0.4)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: '12px' }}>
-      먼저 <b style={{ color: '#93c5fd' }}>시장분석</b> 탭에서 성분을 선택하세요.
+    return <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', border: '1px dashed #e5e9f0', borderRadius: '12px' }}>
+      먼저 <b style={{ color: '#2563eb' }}>시장분석</b> 탭에서 성분을 선택하세요.
     </div>;
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>대상 성분: <b style={{ color: '#6ee7b7' }}>{ingredientKey}</b></div>
+      <div style={{ fontSize: '0.78rem', color: '#64748b' }}>대상 성분: <b style={{ color: '#059669' }}>{ingredientKey}</b></div>
 
       {/* 유형 선택 */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {([['new', '신규 발매품목', '예상약가·원가·수수료 입력 → AI 시장 제안'], ['existing', '기존 품목', '제품 선택 → 처방트렌드 자동산출']] as [typeof mode, string, string][]).map(([k, label, hint]) => (
           <button key={k} onClick={() => { setMode(k); setYears([]); setRationale(''); setMsg(null); }} title={hint}
             style={{ padding: '0.45rem 1rem', borderRadius: 9, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit', border: '1px solid', fontWeight: mode === k ? 700 : 500,
-              borderColor: mode === k ? 'rgba(110,231,183,0.45)' : 'rgba(255,255,255,0.12)',
-              background: mode === k ? 'rgba(110,231,183,0.14)' : 'rgba(255,255,255,0.03)',
-              color: mode === k ? '#6ee7b7' : 'rgba(255,255,255,0.5)' }}>
+              borderColor: mode === k ? 'rgba(110,231,183,0.45)' : '#e5e9f0',
+              background: mode === k ? 'rgba(110,231,183,0.14)' : '#ffffff',
+              color: mode === k ? '#059669' : '#64748b' }}>
             {label}
           </button>
         ))}
@@ -346,7 +346,7 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
             <Field label="출시 유형">
               <select value={launchType} onChange={e => setLaunchType(e.target.value as LaunchType)} style={{ ...inp, cursor: 'pointer' }}>
                 {(['same', 'formulation', 'salt', 'other'] as LaunchType[]).map(t => (
-                  <option key={t} value={t} style={{ color: '#e2e8f0', background: '#1a2030' }}>{LAUNCH_TYPE_LABEL[t]}</option>
+                  <option key={t} value={t} style={{ color: '#111827', background: '#1a2030' }}>{LAUNCH_TYPE_LABEL[t]}</option>
                 ))}
               </select>
             </Field>
@@ -358,10 +358,10 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button onClick={onPropose} disabled={proposing}
-              style={{ padding: '0.55rem 1.2rem', borderRadius: '9px', border: '1px solid rgba(167,139,250,0.45)', background: 'rgba(167,139,250,0.16)', color: '#c4b5fd', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+              style={{ padding: '0.55rem 1.2rem', borderRadius: '9px', border: '1px solid rgba(167,139,250,0.45)', background: 'rgba(167,139,250,0.16)', color: '#7c3aed', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
               {proposing ? 'AI 분석 중…' : '🤖 AI 예측 제안'}
             </button>
-            <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>순공급가 = {won(priceBasis / 1.1 * priceFactor)}원 / 정 (발매예상약가 기준)</span>
+            <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>순공급가 = {won(priceBasis / 1.1 * priceFactor)}원 / 정 (발매예상약가 기준)</span>
           </div>
         </>
       ) : (
@@ -369,7 +369,7 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
           {/* 기존품목: 제품 선택 → 약가·수수료율 자동, 트렌드 산출 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.6rem' }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 3, gridColumn: '1 / -1' }}>
-              <span style={{ fontSize: '0.66rem', color: 'rgba(255,255,255,0.45)' }}>대상 제품(시장 목록에서 선택)</span>
+              <span style={{ fontSize: '0.66rem', color: '#64748b' }}>대상 제품(시장 목록에서 선택)</span>
               <select value={selProdIdx} onChange={e => pickExisting(+e.target.value)} style={{ ...inp, cursor: 'pointer' }}>
                 <option value={-1}>— 제품 선택 —</option>
                 {(market?.products ?? []).map((p, i) => (
@@ -382,15 +382,15 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button onClick={onTrend} disabled={selProdIdx < 0}
-              style={{ padding: '0.55rem 1.2rem', borderRadius: '9px', border: '1px solid rgba(110,231,183,0.45)', background: 'rgba(110,231,183,0.16)', color: '#6ee7b7', fontSize: '0.85rem', cursor: selProdIdx < 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 600, opacity: selProdIdx < 0 ? 0.5 : 1 }}>
+              style={{ padding: '0.55rem 1.2rem', borderRadius: '9px', border: '1px solid rgba(110,231,183,0.45)', background: 'rgba(110,231,183,0.16)', color: '#059669', fontSize: '0.85rem', cursor: selProdIdx < 0 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 600, opacity: selProdIdx < 0 ? 0.5 : 1 }}>
               📈 처방트렌드 자동산출
             </button>
             <button onClick={onRefine} disabled={!years.length || proposing}
-              style={{ padding: '0.55rem 1.2rem', borderRadius: '9px', border: '1px solid rgba(167,139,250,0.45)', background: 'rgba(167,139,250,0.16)', color: '#c4b5fd', fontSize: '0.85rem', cursor: !years.length ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 600, opacity: !years.length ? 0.5 : 1 }}>
+              style={{ padding: '0.55rem 1.2rem', borderRadius: '9px', border: '1px solid rgba(167,139,250,0.45)', background: 'rgba(167,139,250,0.16)', color: '#7c3aed', fontSize: '0.85rem', cursor: !years.length ? 'not-allowed' : 'pointer', fontFamily: 'inherit', fontWeight: 600, opacity: !years.length ? 0.5 : 1 }}>
               {proposing ? 'AI 보정 중…' : '🤖 AI 보정'}
             </button>
             {selProdIdx >= 0 && market?.products[selProdIdx] && (
-              <span style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>
+              <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
                 최근 실적: {market.years.map(y => `${y} ${eok(market.products[selProdIdx].amountByYear[y] ?? 0)}억`).join(' · ')}
               </span>
             )}
@@ -398,42 +398,42 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
         </>
       )}
 
-      {msg && <div style={{ color: '#fca5a5', fontSize: '0.8rem' }}>{msg}</div>}
+      {msg && <div style={{ color: '#dc2626', fontSize: '0.8rem' }}>{msg}</div>}
 
       {rationale && (
-        <div style={{ fontSize: '0.78rem', lineHeight: 1.7, color: 'rgba(255,255,255,0.65)', background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: '10px', padding: '0.7rem 0.95rem', whiteSpace: 'pre-wrap' }}>
-          <b style={{ color: '#c4b5fd' }}>산출 근거</b><br />{rationale}
+        <div style={{ fontSize: '0.78rem', lineHeight: 1.7, color: '#475569', background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: '10px', padding: '0.7rem 0.95rem', whiteSpace: 'pre-wrap' }}>
+          <b style={{ color: '#7c3aed' }}>산출 근거</b><br />{rationale}
         </div>
       )}
 
       {years.length > 0 && (
-        <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px' }}>
+        <div style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: '10px' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
             <thead>
-              <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <tr style={{ background: '#ffffff' }}>
                 <th style={TH}>구분</th>
                 {derived.map(d => <th key={d.y} style={{ ...TH, ...NUM }}>{d.y}Y</th>)}
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td style={{ ...TD, color: '#93c5fd', fontWeight: 600 }}>금액(원)</td>
+                <td style={{ ...TD, color: '#2563eb', fontWeight: 600 }}>금액(원)</td>
                 {derived.map(d => (
                   <td key={d.y} style={{ ...TD, ...NUM }}>
                     <CommaNumberInput value={d.amount} onChange={v => editAmount(d.y, v)}
-                      style={{ width: 110, textAlign: 'right', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, color: '#e2e8f0', fontSize: '0.74rem', padding: '2px 6px', fontFamily: 'inherit' }} />
+                      style={{ width: 110, textAlign: 'right', background: '#f8fafc', border: '1px solid #e5e9f0', borderRadius: 6, color: '#111827', fontSize: '0.74rem', padding: '2px 6px', fontFamily: 'inherit' }} />
                   </td>
                 ))}
               </tr>
-              <tr><td style={{ ...TD, color: 'rgba(255,255,255,0.5)' }}>금액(억)</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM }}>{eok(d.amount)}</td>)}</tr>
-              <tr><td style={{ ...TD, color: 'rgba(255,255,255,0.5)' }}>성장률</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM, color: d.growth == null ? 'rgba(255,255,255,0.25)' : d.growth >= 0 ? '#6ee7b7' : '#fca5a5' }}>{d.growth == null ? '-' : pct(d.growth, 0)}</td>)}</tr>
+              <tr><td style={{ ...TD, color: '#64748b' }}>금액(억)</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM }}>{eok(d.amount)}</td>)}</tr>
+              <tr><td style={{ ...TD, color: '#64748b' }}>성장률</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM, color: d.growth == null ? '#cbd5e1' : d.growth >= 0 ? '#059669' : '#dc2626' }}>{d.growth == null ? '-' : pct(d.growth, 0)}</td>)}</tr>
               {/* 정 수량·박스·마진은 순공급가·원가율·포장 입력이 필요한 신규발매 전용 */}
               {mode === 'new' && <>
-                <tr><td style={{ ...TD, color: 'rgba(255,255,255,0.5)' }}>정 수량</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM }}>{won(d.tablets)}</td>)}</tr>
+                <tr><td style={{ ...TD, color: '#64748b' }}>정 수량</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM }}>{won(d.tablets)}</td>)}</tr>
                 {packs.map(pk => (
-                  <tr key={pk.label}><td style={{ ...TD, color: 'rgba(255,255,255,0.4)' }}>{pk.label} 박스</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM }}>{won(d.boxesByPack[pk.label])}</td>)}</tr>
+                  <tr key={pk.label}><td style={{ ...TD, color: '#94a3b8' }}>{pk.label} 박스</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM }}>{won(d.boxesByPack[pk.label])}</td>)}</tr>
                 ))}
-                <tr><td style={{ ...TD, color: 'rgba(255,255,255,0.5)' }}>마진(억)</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM, color: '#a5f3fc' }}>{eok(d.grossProfit)}</td>)}</tr>
+                <tr><td style={{ ...TD, color: '#64748b' }}>마진(억)</td>{derived.map(d => <td key={d.y} style={{ ...TD, ...NUM, color: '#0891b2' }}>{eok(d.grossProfit)}</td>)}</tr>
               </>}
             </tbody>
           </table>
@@ -442,16 +442,16 @@ function BuildTab({ market, ingredientKey, canEdit, onSaved }: {
 
       {years.length > 0 && (
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <Stat label="5년 누적매출" value={`${eok(derived.reduce((s, d) => s + d.amount, 0))}억`} color="#93c5fd" />
+          <Stat label="5년 누적매출" value={`${eok(derived.reduce((s, d) => s + d.amount, 0))}억`} color="#2563eb" />
           {mode === 'new' && (
-            <Stat label="개발비 회수" value={payback == null ? '5년내 미회수' : payback <= 0 ? '즉시' : `${payback.toFixed(1)}년`} color="#fbbf24" />
+            <Stat label="개발비 회수" value={payback == null ? '5년내 미회수' : payback <= 0 ? '즉시' : `${payback.toFixed(1)}년`} color="#b45309" />
           )}
           {canEdit ? (
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-              <button onClick={() => onSave('draft')} disabled={saving} style={btn('#93c5fd')}>{saving ? '저장 중…' : '초안 저장'}</button>
-              <button onClick={() => onSave('confirmed')} disabled={saving} style={btn('#6ee7b7')}>확정 저장</button>
+              <button onClick={() => onSave('draft')} disabled={saving} style={btn('#2563eb')}>{saving ? '저장 중…' : '초안 저장'}</button>
+              <button onClick={() => onSave('confirmed')} disabled={saving} style={btn('#059669')}>확정 저장</button>
             </div>
-          ) : <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>저장 권한 없음(조회 전용)</span>}
+          ) : <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#94a3b8' }}>저장 권한 없음(조회 전용)</span>}
         </div>
       )}
     </div>
@@ -516,7 +516,7 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
   }, []);
 
   if (!saved.length) {
-    return <div style={{ padding: '2rem', textAlign: 'center', color: 'rgba(255,255,255,0.4)', border: '1px dashed rgba(255,255,255,0.12)', borderRadius: '12px' }}>저장된 SF가 없습니다. <b style={{ color: '#93c5fd' }}>SF 산출</b> 탭에서 먼저 저장하세요.</div>;
+    return <div style={{ padding: '2rem', textAlign: 'center', color: '#94a3b8', border: '1px dashed #e5e9f0', borderRadius: '12px' }}>저장된 SF가 없습니다. <b style={{ color: '#2563eb' }}>SF 산출</b> 탭에서 먼저 저장하세요.</div>;
   }
 
   const actualYears = actuals ? Object.keys(actuals.byYear).sort() : [];
@@ -527,32 +527,32 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
         {saved.map(s => (
           <button key={s.id} onClick={() => { setSelId(s.id); load(s); }}
             style={{ padding: '0.4rem 0.8rem', borderRadius: 8, fontSize: '0.75rem', cursor: 'pointer', fontFamily: 'inherit', border: '1px solid',
-              borderColor: selId === s.id ? 'rgba(147,197,253,0.45)' : 'rgba(255,255,255,0.12)',
-              background: selId === s.id ? 'rgba(147,197,253,0.14)' : 'rgba(255,255,255,0.03)',
-              color: selId === s.id ? '#93c5fd' : 'rgba(255,255,255,0.55)' }}>
+              borderColor: selId === s.id ? 'rgba(147,197,253,0.45)' : '#e5e9f0',
+              background: selId === s.id ? 'rgba(147,197,253,0.14)' : '#ffffff',
+              color: selId === s.id ? '#2563eb' : '#64748b' }}>
             {s.product_name}<span style={{ marginLeft: 5, fontSize: '0.62rem', opacity: 0.6 }}>{s.status === 'confirmed' ? '확정' : '초안'}</span>
           </button>
         ))}
       </div>
 
       {sel && (
-        <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>
-          성분 <b style={{ color: '#6ee7b7' }}>{sel.ingredient_key}</b> · 품목 <b style={{ color: '#e2e8f0' }}>{sel.product_name}</b>
-          <span style={{ marginLeft: 6, color: '#c4b5fd' }}>· {LAUNCH_TYPE_LABEL[sel.launch_type ?? 'same']}</span>
-          {sel.insurance_code && <span style={{ marginLeft: 6, color: 'rgba(255,255,255,0.4)' }}>· 보험코드 {sel.insurance_code}</span>}
-          {sel.ai_rationale && <div style={{ marginTop: 6, lineHeight: 1.6, color: 'rgba(255,255,255,0.55)' }}>{sel.ai_rationale}</div>}
+        <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+          성분 <b style={{ color: '#059669' }}>{sel.ingredient_key}</b> · 품목 <b style={{ color: '#111827' }}>{sel.product_name}</b>
+          <span style={{ marginLeft: 6, color: '#7c3aed' }}>· {LAUNCH_TYPE_LABEL[sel.launch_type ?? 'same']}</span>
+          {sel.insurance_code && <span style={{ marginLeft: 6, color: '#94a3b8' }}>· 보험코드 {sel.insurance_code}</span>}
+          {sel.ai_rationale && <div style={{ marginTop: 6, lineHeight: 1.6, color: '#64748b' }}>{sel.ai_rationale}</div>}
         </div>
       )}
 
       {/* 입력값 수정 — 예측 결과(연도별 금액)는 유지, 제품명·보험코드 등 입력만 수정 */}
       {sel && editing && (
         <div style={{ border: '1px solid rgba(147,197,253,0.25)', background: 'rgba(147,197,253,0.05)', borderRadius: 10, padding: '0.8rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-          <div style={{ fontSize: '0.75rem', color: '#93c5fd', fontWeight: 600 }}>입력값 수정 (예측 결과는 그대로 유지됩니다)</div>
+          <div style={{ fontSize: '0.75rem', color: '#2563eb', fontWeight: 600 }}>입력값 수정 (예측 결과는 그대로 유지됩니다)</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '0.6rem' }}>
             <Field label="출시 유형">
               <select value={eType} onChange={e => setEType(e.target.value as LaunchType)} style={{ ...inp, cursor: 'pointer' }}>
                 {(['same', 'formulation', 'salt', 'other'] as LaunchType[]).map(t => (
-                  <option key={t} value={t} style={{ color: '#e2e8f0', background: '#1a2030' }}>{LAUNCH_TYPE_LABEL[t]}</option>
+                  <option key={t} value={t} style={{ color: '#111827', background: '#1a2030' }}>{LAUNCH_TYPE_LABEL[t]}</option>
                 ))}
               </select>
             </Field>
@@ -564,40 +564,40 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
             <Field label="수수료율(0~1)"><input type="number" step="0.01" value={eComm} onChange={e => setEComm(+e.target.value)} style={inp} /></Field>
             <Field label="개발비(원)"><CommaNumberInput value={eDev} onChange={setEDev} style={inp} allowEmpty /></Field>
           </div>
-          {editErr && <div style={{ color: '#fca5a5', fontSize: '0.78rem' }}>{editErr}</div>}
+          {editErr && <div style={{ color: '#dc2626', fontSize: '0.78rem' }}>{editErr}</div>}
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={saveEdit} disabled={savingEdit} style={btn('#6ee7b7')}>{savingEdit ? '저장 중…' : '저장'}</button>
-            <button onClick={() => setEditing(false)} disabled={savingEdit} style={btn('rgba(255,255,255,0.4)')}>취소</button>
+            <button onClick={saveEdit} disabled={savingEdit} style={btn('#059669')}>{savingEdit ? '저장 중…' : '저장'}</button>
+            <button onClick={() => setEditing(false)} disabled={savingEdit} style={btn('#94a3b8')}>취소</button>
           </div>
         </div>
       )}
 
-      {err && <div style={{ color: '#fca5a5', fontSize: '0.8rem' }}>{err}</div>}
-      {loading && <div style={{ color: 'rgba(255,255,255,0.4)' }}>실측 집계 중…</div>}
+      {err && <div style={{ color: '#dc2626', fontSize: '0.8rem' }}>{err}</div>}
+      {loading && <div style={{ color: '#94a3b8' }}>실측 집계 중…</div>}
 
       {/* 예측 vs 실측 */}
       {sel && (
-        <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10 }}>
+        <div style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: 10 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
             <thead>
-              <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
+              <tr style={{ background: '#ffffff' }}>
                 <th style={TH}>구분</th>
                 {sel.years.map(y => <th key={y.y} style={{ ...TH, ...NUM }}>{y.y}Y</th>)}
               </tr>
             </thead>
             <tbody>
-              <tr><td style={{ ...TD, color: '#93c5fd', fontWeight: 600 }}>예측(억)</td>{sel.years.map(y => <td key={y.y} style={{ ...TD, ...NUM }}>{eok(y.amount)}</td>)}</tr>
+              <tr><td style={{ ...TD, color: '#2563eb', fontWeight: 600 }}>예측(억)</td>{sel.years.map(y => <td key={y.y} style={{ ...TD, ...NUM }}>{eok(y.amount)}</td>)}</tr>
               {actuals && (() => {
                 // 실측 연도를 예측 연차에 순서대로 정렬(1Y=가장 이른 실측연도)
                 const actArr = actualYears.map(y => actuals.byYear[y]);
                 return <>
-                  <tr><td style={{ ...TD, color: '#6ee7b7', fontWeight: 600 }}>실측(억)</td>{sel.years.map((y, i) => <td key={y.y} style={{ ...TD, ...NUM }}>{actArr[i] != null ? eok(actArr[i]) : '-'}</td>)}</tr>
-                  <tr><td style={{ ...TD, color: 'rgba(255,255,255,0.5)' }}>편차</td>{sel.years.map((y, i) => {
+                  <tr><td style={{ ...TD, color: '#059669', fontWeight: 600 }}>실측(억)</td>{sel.years.map((y, i) => <td key={y.y} style={{ ...TD, ...NUM }}>{actArr[i] != null ? eok(actArr[i]) : '-'}</td>)}</tr>
+                  <tr><td style={{ ...TD, color: '#64748b' }}>편차</td>{sel.years.map((y, i) => {
                     const a = actArr[i];
-                    if (a == null || !y.amount) return <td key={y.y} style={{ ...TD, ...NUM, color: 'rgba(255,255,255,0.25)' }}>-</td>;
+                    if (a == null || !y.amount) return <td key={y.y} style={{ ...TD, ...NUM, color: '#64748b' }}>-</td>;
                     const dev = (a - y.amount) / y.amount;
                     const alert = Math.abs(dev) > 0.2;
-                    return <td key={y.y} style={{ ...TD, ...NUM, color: alert ? '#fbbf24' : dev >= 0 ? '#6ee7b7' : '#fca5a5', fontWeight: alert ? 700 : 400 }}>{dev >= 0 ? '+' : ''}{pct(dev, 0)}{alert && ' ⚠'}</td>;
+                    return <td key={y.y} style={{ ...TD, ...NUM, color: alert ? '#b45309' : dev >= 0 ? '#059669' : '#dc2626', fontWeight: alert ? 700 : 400 }}>{dev >= 0 ? '+' : ''}{pct(dev, 0)}{alert && ' ⚠'}</td>;
                   })}</tr>
                 </>;
               })()}
@@ -606,7 +606,7 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
         </div>
       )}
       {actuals && (
-        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.4)' }}>
+        <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
           실측 연도: {actualYears.join(', ') || '없음'} (연차 1Y부터 순서대로 대응). |편차|&gt;20%는 이상징후(⚠)로 표시 — 재예측을 검토하세요.
         </div>
       )}
@@ -614,11 +614,11 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
       {sel && canEdit && !editing && (
         <div style={{ display: 'flex', gap: 6 }}>
           <button onClick={() => startEdit(sel)}
-            style={{ padding: '0.35rem 0.8rem', borderRadius: 7, border: '1px solid rgba(147,197,253,0.4)', background: 'rgba(147,197,253,0.1)', color: '#93c5fd', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '0.35rem 0.8rem', borderRadius: 7, border: '1px solid rgba(147,197,253,0.4)', background: 'rgba(147,197,253,0.1)', color: '#2563eb', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>
             입력값 수정
           </button>
           <button onClick={async () => { if (confirm('이 SF를 삭제할까요?')) { const r = await deleteForecast(sel.id); if (r.ok) { onDeleted(sel.id); setSelId(null); setActuals(null); } } }}
-            style={{ padding: '0.35rem 0.8rem', borderRadius: 7, border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: '#fca5a5', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '0.35rem 0.8rem', borderRadius: 7, border: '1px solid rgba(248,113,113,0.3)', background: 'transparent', color: '#dc2626', fontSize: '0.72rem', cursor: 'pointer', fontFamily: 'inherit' }}>
             삭제
           </button>
         </div>
@@ -630,18 +630,18 @@ function CompareTab({ saved, canEdit, onDeleted, onUpdated }: { saved: SavedFore
 /* ── 소품 ── */
 function Stat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div style={{ padding: '0.4rem 0.8rem', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-      <div style={{ fontSize: '0.62rem', color: 'rgba(255,255,255,0.4)' }}>{label}</div>
+    <div style={{ padding: '0.4rem 0.8rem', borderRadius: 8, background: '#ffffff', border: '1px solid #f1f5f9' }}>
+      <div style={{ fontSize: '0.62rem', color: '#94a3b8' }}>{label}</div>
       <div style={{ fontSize: '0.92rem', fontWeight: 700, color }}>{value}</div>
     </div>
   );
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return <label style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-    <span style={{ fontSize: '0.66rem', color: 'rgba(255,255,255,0.45)' }}>{label}</span>{children}
+    <span style={{ fontSize: '0.66rem', color: '#64748b' }}>{label}</span>{children}
   </label>;
 }
-const inp: React.CSSProperties = { width: '100%', padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 7, color: '#e2e8f0', fontSize: '0.78rem', outline: 'none', fontFamily: 'inherit' };
+const inp: React.CSSProperties = { width: '100%', padding: '0.4rem 0.6rem', background: '#f8fafc', border: '1px solid #e5e9f0', borderRadius: 7, color: '#111827', fontSize: '0.78rem', outline: 'none', fontFamily: 'inherit' };
 function btn(color: string): React.CSSProperties {
-  return { padding: '0.4rem 0.9rem', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 };
+  return { padding: '0.4rem 0.9rem', borderRadius: 8, border: '1px solid #d7dce5', background: '#f8fafc', color, fontSize: '0.78rem', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 };
 }

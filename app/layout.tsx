@@ -11,7 +11,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",   // 아이폰 노치·Dynamic Island 대응
-  themeColor: "#080c14",
+  themeColor: "#f1f4f9",
 };
 
 export default function RootLayout({

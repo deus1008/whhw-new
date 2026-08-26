@@ -13,19 +13,19 @@ const ALLOWED_EXTS = new Set(['pdf', 'docx', 'xlsx', 'xls', 'xlsb', 'html']);
 const MAX_BYTES    = 200 * 1024 * 1024; // 200 MB
 
 const FILE_META: Record<string, { label: string; color: string; bg: string; bd: string }> = {
-  pdf:  { label: 'PDF',  color: '#fca5a5', bg: 'rgba(239,68,68,0.12)',   bd: 'rgba(239,68,68,0.28)'   },
-  docx: { label: 'DOCX', color: '#93c5fd', bg: 'rgba(59,130,246,0.12)',  bd: 'rgba(59,130,246,0.28)'  },
-  xlsx: { label: 'XLSX', color: '#86efac', bg: 'rgba(34,197,94,0.12)',   bd: 'rgba(34,197,94,0.28)'   },
-  xls:  { label: 'XLS',  color: '#6ee7b7', bg: 'rgba(16,185,129,0.12)',  bd: 'rgba(16,185,129,0.28)'  },
-  xlsb: { label: 'XLSB', color: '#4ade80', bg: 'rgba(74,222,128,0.12)',  bd: 'rgba(74,222,128,0.28)'  },
-  html: { label: 'HTML', color: '#fdba74', bg: 'rgba(251,146,60,0.12)',  bd: 'rgba(251,146,60,0.28)'  },
+  pdf:  { label: 'PDF',  color: '#dc2626', bg: 'rgba(239,68,68,0.12)',   bd: 'rgba(239,68,68,0.28)'   },
+  docx: { label: 'DOCX', color: '#2563eb', bg: 'rgba(59,130,246,0.12)',  bd: 'rgba(59,130,246,0.28)'  },
+  xlsx: { label: 'XLSX', color: '#059669', bg: 'rgba(34,197,94,0.12)',   bd: 'rgba(34,197,94,0.28)'   },
+  xls:  { label: 'XLS',  color: '#059669', bg: 'rgba(16,185,129,0.12)',  bd: 'rgba(16,185,129,0.28)'  },
+  xlsb: { label: 'XLSB', color: '#059669', bg: 'rgba(74,222,128,0.12)',  bd: 'rgba(74,222,128,0.28)'  },
+  html: { label: 'HTML', color: '#c2410c', bg: 'rgba(251,146,60,0.12)',  bd: 'rgba(251,146,60,0.28)'  },
 };
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; bd: string }> = {
-  processing: { label: '대기',    color: '#fde68a', bg: 'rgba(251,191,36,0.12)', bd: 'rgba(251,191,36,0.28)' },
-  running:    { label: '처리 중', color: '#93c5fd', bg: 'rgba(59,130,246,0.12)', bd: 'rgba(59,130,246,0.28)' },
-  ready:      { label: '완료',    color: '#86efac', bg: 'rgba(34,197,94,0.12)',  bd: 'rgba(34,197,94,0.28)'  },
-  error:      { label: '오류',    color: '#fca5a5', bg: 'rgba(239,68,68,0.12)',  bd: 'rgba(239,68,68,0.28)'  },
+  processing: { label: '대기',    color: '#b45309', bg: 'rgba(251,191,36,0.12)', bd: 'rgba(251,191,36,0.28)' },
+  running:    { label: '처리 중', color: '#2563eb', bg: 'rgba(59,130,246,0.12)', bd: 'rgba(59,130,246,0.28)' },
+  ready:      { label: '완료',    color: '#059669', bg: 'rgba(34,197,94,0.12)',  bd: 'rgba(34,197,94,0.28)'  },
+  error:      { label: '오류',    color: '#dc2626', bg: 'rgba(239,68,68,0.12)',  bd: 'rgba(239,68,68,0.28)'  },
 };
 
 /* ── 유틸 ───────────────────────────────────────────────── */
@@ -428,8 +428,8 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
           onClick={() => { if (!requireAdmin()) return; fileInputRef.current?.click(); }}
           style={{
             ...dropZone,
-            borderColor: isDragging ? 'rgba(79,142,247,0.6)' : 'rgba(255,255,255,0.12)',
-            background:  isDragging ? 'rgba(79,142,247,0.07)' : 'rgba(255,255,255,0.02)',
+            borderColor: isDragging ? 'rgba(79,142,247,0.6)' : '#e5e9f0',
+            background:  isDragging ? 'rgba(79,142,247,0.07)' : '#ffffff',
             boxShadow:   isDragging ? '0 0 0 3px rgba(79,142,247,0.15)' : 'none',
           }}
         >
@@ -551,7 +551,7 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
               marginLeft: '0.5rem',
               background: 'rgba(79,142,247,0.12)', border: '1px solid rgba(79,142,247,0.25)',
               borderRadius: '100px', padding: '2px 10px',
-              fontSize: '0.73rem', fontWeight: 600, color: '#93c5fd',
+              fontSize: '0.73rem', fontWeight: 600, color: '#2563eb',
             }}>
               {visibleDocs.length}{activeFolder !== null && `/${documents.length}`}
             </span>
@@ -595,7 +595,7 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
                       }}
                       style={{
                         padding: '0.28rem 0.6rem', borderRadius: '8px', fontSize: '0.78rem',
-                        background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(79,142,247,0.5)',
+                        background: '#f1f5f9', border: '1px solid rgba(79,142,247,0.5)',
                         color: 'var(--text-primary)', fontFamily: 'inherit', outline: 'none', width: '110px',
                       }}
                       autoFocus
@@ -612,7 +612,7 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
                       취소
                     </button>
                     {renameError && (
-                      <span style={{ fontSize: '0.72rem', color: '#fca5a5' }}>{renameError}</span>
+                      <span style={{ fontSize: '0.72rem', color: '#dc2626' }}>{renameError}</span>
                     )}
                   </span>
                 );
@@ -684,7 +684,7 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
 
                     {/* 상태 배지 */}
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-                      {isRunning && <span style={{ ...spinnerStyle, width: '10px', height: '10px', borderWidth: '1.5px', borderColor: 'rgba(147,197,253,0.35)', borderTopColor: '#93c5fd' }} />}
+                      {isRunning && <span style={{ ...spinnerStyle, width: '10px', height: '10px', borderWidth: '1.5px', borderColor: 'rgba(147,197,253,0.35)', borderTopColor: '#2563eb' }} />}
                       <Badge label={statusMeta.label} color={statusMeta.color} bg={statusMeta.bg} bd={statusMeta.bd} />
                     </span>
 
@@ -733,17 +733,17 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
                   </div>
 
                   {isStuck && (
-                    <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#fde68a', lineHeight: 1.5 }}>
+                    <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#b45309', lineHeight: 1.5 }}>
                       ↳ 처리가 중단된 상태입니다. "재처리" 버튼을 눌러 학습을 다시 시작하세요.
                     </p>
                   )}
                   {isStuckRunning && (
-                    <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#93c5fd', lineHeight: 1.5 }}>
+                    <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#2563eb', lineHeight: 1.5 }}>
                       ↳ 처리 중 서버가 중단된 것 같습니다. "재처리" 버튼을 눌러 다시 시작하세요.
                     </p>
                   )}
                   {isError && doc.error_message && (
-                    <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#fca5a5', lineHeight: 1.5, wordBreak: 'break-word' }}>
+                    <p style={{ margin: '0 0.9rem 0.3rem', fontSize: '0.74rem', color: '#dc2626', lineHeight: 1.5, wordBreak: 'break-word' }}>
                       ↳ {doc.error_message}
                     </p>
                   )}
@@ -766,24 +766,24 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
         >
           <div
             style={{
-              background: '#1a1f2e', border: '1px solid rgba(255,255,255,0.12)',
+              background: '#1a1f2e', border: '1px solid #e5e9f0',
               borderRadius: '16px', padding: '1.8rem 2rem', maxWidth: '320px', width: '100%',
               textAlign: 'center',
             }}
             onClick={e => e.stopPropagation()}
           >
             <div style={{ fontSize: '2rem', marginBottom: '0.75rem' }}>🔒</div>
-            <p style={{ color: '#e2e8f0', fontSize: '1rem', fontWeight: 600, margin: '0 0 0.4rem' }}>
+            <p style={{ color: '#111827', fontSize: '1rem', fontWeight: 600, margin: '0 0 0.4rem' }}>
               권한이 없습니다.
             </p>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.82rem', margin: '0 0 1.4rem' }}>
+            <p style={{ color: '#94a3b8', fontSize: '0.82rem', margin: '0 0 1.4rem' }}>
               파일 업로드 및 관리는 관리자만 가능합니다.
             </p>
             <button
               onClick={() => setNoPermModal(false)}
               style={{
                 padding: '0.5rem 1.6rem', borderRadius: '8px', border: 'none',
-                background: 'rgba(255,255,255,0.1)', color: '#e2e8f0',
+                background: '#e5e9f0', color: '#111827',
                 fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
               }}
             >
@@ -836,7 +836,7 @@ function DownloadButton({ storagePath, filename }: { storagePath: string; filena
       style={{
         padding: '0.22rem 0.6rem', borderRadius: '6px', cursor: loading ? 'not-allowed' : 'pointer',
         background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)',
-        color: '#a5b4fc', fontSize: '0.72rem', fontWeight: 600, fontFamily: 'inherit',
+        color: '#4f46e5', fontSize: '0.72rem', fontWeight: 600, fontFamily: 'inherit',
         flexShrink: 0, opacity: loading ? 0.5 : 1,
       }}
     >
@@ -863,19 +863,19 @@ const dropZone: React.CSSProperties = {
 const selectedFileRow: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: '0.5rem',
   padding: '0.5rem 0.8rem',
-  background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '8px',
+  background: '#ffffff', border: '1px solid #f1f5f9', borderRadius: '8px',
 };
 
 const removeBtn: React.CSSProperties = {
   flexShrink: 0, width: '20px', height: '20px', borderRadius: '50%',
-  border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#fca5a5',
+  border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#dc2626',
   fontSize: '0.85rem', cursor: 'pointer',
   display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1,
 };
 
 const selectStyle: React.CSSProperties = {
   flex: 1, padding: '0.55rem 0.75rem', borderRadius: '10px',
-  background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)',
+  background: '#ffffff', border: '1px solid #e5e9f0',
   color: 'var(--text-primary)', fontSize: '0.85rem', fontFamily: 'inherit',
   outline: 'none', cursor: 'pointer',
 };
@@ -883,13 +883,13 @@ const selectStyle: React.CSSProperties = {
 const newFolderBtn: React.CSSProperties = {
   padding: '0.55rem 0.9rem', borderRadius: '10px', flexShrink: 0,
   border: '1px solid rgba(79,142,247,0.3)', background: 'rgba(79,142,247,0.1)',
-  color: '#93c5fd', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+  color: '#2563eb', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
   whiteSpace: 'nowrap',
 };
 
 const cancelSmallBtn: React.CSSProperties = {
   padding: '0.55rem 0.75rem', borderRadius: '10px', flexShrink: 0,
-  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)',
+  border: '1px solid #e5e9f0', background: '#f8fafc',
   color: 'var(--text-muted)', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit',
 };
 
@@ -903,7 +903,7 @@ const uploadBtn: React.CSSProperties = {
 
 const spinnerStyle: React.CSSProperties = {
   width: '14px', height: '14px', flexShrink: 0,
-  border: '2px solid rgba(255,255,255,0.35)', borderTopColor: '#fff',
+  border: '2px solid #94a3b8', borderTopColor: '#fff',
   borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite',
 };
 
@@ -911,9 +911,9 @@ function tabStyle(active: boolean): React.CSSProperties {
   return {
     padding: '0.32rem 0.85rem', borderRadius: '100px', cursor: 'pointer',
     fontSize: '0.78rem', fontWeight: active ? 700 : 500,
-    border: active ? '1px solid rgba(79,142,247,0.5)' : '1px solid rgba(255,255,255,0.09)',
-    background: active ? 'rgba(79,142,247,0.18)' : 'rgba(255,255,255,0.04)',
-    color: active ? '#93c5fd' : 'var(--text-muted)',
+    border: active ? '1px solid rgba(79,142,247,0.5)' : '1px solid #f1f5f9',
+    background: active ? 'rgba(79,142,247,0.18)' : '#f8fafc',
+    color: active ? '#2563eb' : 'var(--text-muted)',
     transition: 'background 0.15s, border-color 0.15s, color 0.15s',
     fontFamily: 'inherit', whiteSpace: 'nowrap',
   };
@@ -923,50 +923,50 @@ const folderBadge: React.CSSProperties = {
   display: 'inline-block', padding: '2px 8px', borderRadius: '6px',
   fontSize: '0.7rem', fontWeight: 500, cursor: 'pointer',
   background: 'rgba(162,89,255,0.1)', border: '1px solid rgba(162,89,255,0.2)',
-  color: '#c084fc', whiteSpace: 'nowrap', flexShrink: 0,
+  color: '#9333ea', whiteSpace: 'nowrap', flexShrink: 0,
 };
 
 const docRow: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: '0.6rem',
   padding: '0.7rem 0.9rem',
-  background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.06)',
+  background: '#ffffff', border: '1px solid #f1f5f9',
   borderRadius: '10px', flexWrap: 'wrap',
 };
 
 const retryBtn: React.CSSProperties = {
   padding: '0.28rem 0.7rem', borderRadius: '6px',
-  border: '1px solid rgba(251,191,36,0.3)', background: 'rgba(251,191,36,0.1)', color: '#fde68a',
+  border: '1px solid rgba(251,191,36,0.3)', background: 'rgba(251,191,36,0.1)', color: '#b45309',
   fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
 };
 
 const reprocessNeededBtn: React.CSSProperties = {
   padding: '0.28rem 0.7rem', borderRadius: '6px',
-  border: '1px solid rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.14)', color: '#fca5a5',
+  border: '1px solid rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.14)', color: '#dc2626',
   fontSize: '0.74rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
 };
 
 const reprocessIconBtn: React.CSSProperties = {
-  padding: '0.18rem 0.4rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.03)', color: 'var(--text-muted)',
+  padding: '0.18rem 0.4rem', borderRadius: '6px', border: '1px solid #f1f5f9',
+  background: '#ffffff', color: 'var(--text-muted)',
   fontSize: '0.8rem', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
   lineHeight: 1, transition: 'opacity 0.15s',
 };
 
 const deleteBtn: React.CSSProperties = {
   padding: '0.28rem 0.7rem', borderRadius: '6px',
-  border: '1px solid rgba(239,68,68,0.22)', background: 'rgba(239,68,68,0.09)', color: '#fca5a5',
+  border: '1px solid rgba(239,68,68,0.22)', background: 'rgba(239,68,68,0.09)', color: '#dc2626',
   fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
 };
 
 const confirmDeleteBtn: React.CSSProperties = {
   padding: '0.28rem 0.65rem', borderRadius: '6px',
-  border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.18)', color: '#fca5a5',
+  border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.18)', color: '#dc2626',
   fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
 };
 
 const cancelBtn: React.CSSProperties = {
   padding: '0.28rem 0.65rem', borderRadius: '6px',
-  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-muted)',
+  border: '1px solid #e5e9f0', background: '#f8fafc', color: 'var(--text-muted)',
   fontSize: '0.74rem', fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit',
 };
 
@@ -978,6 +978,6 @@ const renameIconBtn: React.CSSProperties = {
 
 const renameSaveBtn: React.CSSProperties = {
   padding: '0.25rem 0.6rem', borderRadius: '6px', border: 'none', fontFamily: 'inherit',
-  background: 'rgba(79,142,247,0.25)', color: '#93c5fd',
+  background: 'rgba(79,142,247,0.25)', color: '#2563eb',
   fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
 };

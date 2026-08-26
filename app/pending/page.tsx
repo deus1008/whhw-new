@@ -62,14 +62,14 @@ export default async function PendingPage() {
                 border: '1px solid rgba(251,191,36,0.22)',
                 borderRadius: '10px',
                 padding: '1.2rem',
-                color: '#fde68a',
+                color: '#b45309',
                 marginBottom: '1.5rem',
                 lineHeight: 1.6,
               }}>
                 <p style={{ fontWeight: 700, marginBottom: '0.4rem' }}>
                   회원가입이 완료되었습니다.
                 </p>
-                <p style={{ fontSize: '0.85rem', color: '#fcd34d' }}>
+                <p style={{ fontSize: '0.85rem', color: '#b45309' }}>
                   관리자 승인을 기다리고 있습니다.
                 </p>
               </div>

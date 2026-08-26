@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 
 export default function SettlementLoading() {
   const shimmer: CSSProperties = {
-    background: 'linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.04) 75%)',
+    background: 'linear-gradient(90deg, rgba(15,23,42,0.05) 25%, rgba(15,23,42,0.10) 50%, rgba(15,23,42,0.05) 75%)',
     backgroundSize: '400% 100%',
     animation: 'shimmer 1.4s infinite',
     borderRadius: '8px',
@@ -40,7 +40,7 @@ export default function SettlementLoading() {
           <div style={{
             ...shimmer,
             height: '56px', borderRadius: '10px', marginBottom: '1rem',
-            border: '1px solid rgba(99,102,241,0.2)',
+            border: '1px solid #cdddfb',
           }} />
 
           {/* 요약 카드 스켈레톤 */}
@@ -48,7 +48,7 @@ export default function SettlementLoading() {
             {[140, 130, 120, 110].map((w, i) => (
               <div key={i} style={{
                 ...shimmer, flex: 1, minWidth: `${w}px`, height: '72px',
-                borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: '12px', border: '1px solid #e5e9f0',
               }} />
             ))}
           </div>
@@ -56,8 +56,8 @@ export default function SettlementLoading() {
           {/* 아코디언 섹션 스켈레톤 × 3 */}
           {[1, 2, 3].map(i => (
             <div key={i} style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: '#ffffff',
+              border: '1px solid #e5e9f0',
               borderRadius: '14px', padding: '1rem', marginBottom: '0.75rem',
             }}>
               <div style={{ ...shimmer, width: '120px', height: '14px', marginBottom: '0.9rem' }} />

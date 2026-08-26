@@ -25,9 +25,9 @@ type Profile = {
 };
 
 const sectionMeta: Record<Status, { label: string; color: string; rgba: string }> = {
-  pending:  { label: '승인 대기', color: '#fde68a', rgba: 'rgba(251,191,36,' },
-  approved: { label: '승인됨',   color: '#86efac', rgba: 'rgba(34,197,94,'  },
-  rejected: { label: '거부됨',   color: '#fca5a5', rgba: 'rgba(239,68,68,'  },
+  pending:  { label: '승인 대기', color: '#b45309', rgba: 'rgba(251,191,36,' },
+  approved: { label: '승인됨',   color: '#15803d', rgba: 'rgba(34,197,94,'  },
+  rejected: { label: '거부됨',   color: '#b91c1c', rgba: 'rgba(239,68,68,'  },
 };
 
 /** 역할 정렬 우선순위 (숫자가 낮을수록 상단) */
@@ -92,8 +92,8 @@ function ActionButtons({ profile, companies }: { profile: Profile; companies: Cl
           defaultValue={profile.company_id ?? ''}
           style={{
             flex: 1,
-            background: 'rgba(255,255,255,0.06)',
-            border: '1px solid rgba(255,255,255,0.12)',
+            background: '#ffffff',
+            border: '1px solid #d7dce5',
             borderRadius: '6px',
             padding: '0.3rem 0.65rem',
             fontSize: '0.8rem',
@@ -109,8 +109,8 @@ function ActionButtons({ profile, companies }: { profile: Profile; companies: Cl
         </select>
         <button type="submit" style={{
           padding: '0.3rem 0.65rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600,
-          border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.1)',
-          color: '#a5b4fc', cursor: 'pointer', flexShrink: 0,
+          border: '1px solid #cdddfb', background: '#eaf1fe',
+          color: '#2563eb', cursor: 'pointer', flexShrink: 0,
         }}>저장</button>
       </form>
       {/* 역할 변경 — 체크박스 다중 선택 */}
@@ -119,8 +119,8 @@ function ActionButtons({ profile, companies }: { profile: Profile; companies: Cl
         <div style={{
           display: 'flex', flexWrap: 'wrap', gap: '0.35rem 0.6rem',
           padding: '0.5rem 0.7rem',
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.1)',
+          background: '#f8fafc',
+          border: '1px solid #e5e9f0',
           borderRadius: '8px',
         }}>
           {editableRoles.map(r => {
@@ -147,8 +147,8 @@ function ActionButtons({ profile, companies }: { profile: Profile; companies: Cl
         <button type="submit" style={{
           alignSelf: 'flex-end',
           padding: '0.32rem 0.8rem', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600,
-          cursor: 'pointer', border: '1px solid rgba(99,102,241,0.35)',
-          background: 'rgba(99,102,241,0.15)', color: '#a5b4fc',
+          cursor: 'pointer', border: '1px solid #cdddfb',
+          background: '#eaf1fe', color: '#2563eb',
         }}>
           역할 저장
         </button>
@@ -163,7 +163,7 @@ function ActionButtons({ profile, companies }: { profile: Profile; companies: Cl
             <input type="hidden" name="status" value="approved" />
             <button type="submit" style={{
               padding: '0.38rem 0.9rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
-              border: '1px solid rgba(34,197,94,0.35)', background: 'rgba(34,197,94,0.12)', color: '#86efac',
+              border: '1px solid rgba(34,197,94,0.35)', background: 'rgba(34,197,94,0.12)', color: '#15803d',
             }}>
               승인
             </button>
@@ -176,7 +176,7 @@ function ActionButtons({ profile, companies }: { profile: Profile; companies: Cl
             <input type="hidden" name="status" value="pending" />
             <button type="submit" style={{
               padding: '0.38rem 0.9rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
-              border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.09)', color: '#fca5a5',
+              border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.09)', color: '#b91c1c',
             }}>
               승인 취소
             </button>
@@ -189,7 +189,7 @@ function ActionButtons({ profile, companies }: { profile: Profile; companies: Cl
             <input type="hidden" name="status" value="pending" />
             <button type="submit" style={{
               padding: '0.38rem 0.9rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
-              border: '1px solid rgba(251,191,36,0.3)', background: 'rgba(251,191,36,0.09)', color: '#fde68a',
+              border: '1px solid rgba(251,191,36,0.3)', background: 'rgba(251,191,36,0.09)', color: '#b45309',
             }}>
               대기로
             </button>
@@ -202,7 +202,7 @@ function ActionButtons({ profile, companies }: { profile: Profile; companies: Cl
             <input type="hidden" name="status" value="rejected" />
             <button type="submit" style={{
               padding: '0.38rem 0.9rem', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
-              border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.09)', color: '#fca5a5',
+              border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.09)', color: '#b91c1c',
             }}>
               거부
             </button>
@@ -261,8 +261,8 @@ function Section({ title, profiles, status, companies, signupMetaMap }: {
             return (
               <div key={p.id} style={{
                 display: 'flex', flexDirection: 'column', gap: '0.5rem',
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.07)',
+                background: '#f8fafc',
+                border: '1px solid #e5e9f0',
                 borderRadius: '10px',
                 padding: '0.75rem 1rem',
               }}>
@@ -278,12 +278,12 @@ function Section({ title, profiles, status, companies, signupMetaMap }: {
 
                 {/* 가입 시 입력한 연락처 · 위탁사명 */}
                 {(signupMeta?.company_name || signupMeta?.phone) && (
-                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', fontSize: '0.73rem', color: 'rgba(255,255,255,0.35)' }}>
+                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', fontSize: '0.73rem', color: '#94a3b8' }}>
                     {signupMeta.company_name && (
-                      <span>위탁사: <strong style={{ color: 'rgba(255,255,255,0.65)', fontWeight: 600 }}>{signupMeta.company_name}</strong></span>
+                      <span>위탁사: <strong style={{ color: '#475569', fontWeight: 600 }}>{signupMeta.company_name}</strong></span>
                     )}
                     {signupMeta.phone && (
-                      <span>연락처: <strong style={{ color: 'rgba(255,255,255,0.65)', fontWeight: 600 }}>{signupMeta.phone}</strong></span>
+                      <span>연락처: <strong style={{ color: '#475569', fontWeight: 600 }}>{signupMeta.phone}</strong></span>
                     )}
                   </div>
                 )}
@@ -298,8 +298,8 @@ function Section({ title, profiles, status, companies, signupMetaMap }: {
                     placeholder="이름 입력..."
                     style={{
                       flex: 1, minWidth: 0,
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.12)',
+                      background: '#ffffff',
+                      border: '1px solid #d7dce5',
                       borderRadius: '6px',
                       padding: '0.3rem 0.65rem',
                       fontSize: '0.85rem', fontWeight: 600,
@@ -309,7 +309,7 @@ function Section({ title, profiles, status, companies, signupMetaMap }: {
                   />
                   <button type="submit" style={{
                     padding: '0.3rem 0.65rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600,
-                    border: '1px solid rgba(255,255,255,0.14)', background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid #e5e9f0', background: '#f1f5f9',
                     color: 'var(--text-muted)', cursor: 'pointer', flexShrink: 0,
                   }}>저장</button>
                 </form>
@@ -447,10 +447,10 @@ export default async function AdminPage() {
   /* ── 페이지별 활동량 (상위 3) ── */
   const sum = (m: Map<string, number>) => [...m.values()].reduce((a, b) => a + b, 0);
   const pageStats = [
-    { label: '방문관리',    count: sum(visitMap),    color: '#fde68a' },
-    { label: '마케팅 일정', count: sum(scheduleMap), color: '#86efac' },
-    { label: '문서관리',    count: sum(docMap),      color: '#93c5fd' },
-    { label: '계약관리',    count: sum(contractMap), color: '#c4b5fd' },
+    { label: '방문관리',    count: sum(visitMap),    color: '#b45309' },
+    { label: '마케팅 일정', count: sum(scheduleMap), color: '#059669' },
+    { label: '문서관리',    count: sum(docMap),      color: '#2563eb' },
+    { label: '계약관리',    count: sum(contractMap), color: '#7c3aed' },
   ].sort((a, b) => b.count - a.count).slice(0, 3);
   const maxPageCount = pageStats[0]?.count || 1;
 
@@ -486,7 +486,7 @@ export default async function AdminPage() {
 
         {/* 관리 도구 */}
         <div style={{
-          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+          background: '#ffffff', border: '1px solid #e5e9f0',
           borderRadius: '12px', padding: '1rem 1.25rem', marginBottom: '1.5rem',
         }}>
           <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#475569', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 0.65rem' }}>관리 도구</p>
@@ -494,24 +494,24 @@ export default async function AdminPage() {
             <Link href="/companies" style={{
               padding: '0.48rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600,
               background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.25)',
-              color: '#a5b4fc', textDecoration: 'none',
+              color: '#1d4ed8', textDecoration: 'none',
             }}>🏢 위탁사현황</Link>
             <Link href="/admin/customer-aliases" style={{
               padding: '0.48rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600,
               background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.25)',
-              color: '#fde68a', textDecoration: 'none',
+              color: '#b45309', textDecoration: 'none',
             }}>🔗 거래처 별칭 매핑</Link>
             <Link href="/admin/security" style={{
               padding: '0.48rem 1rem', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 600,
               background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)',
-              color: '#fca5a5', textDecoration: 'none',
+              color: '#b91c1c', textDecoration: 'none',
             }}>🔒 Task 보안등급 관리</Link>
           </div>
         </div>
 
         {/* ── 사용자 활동 통계 ── */}
         <div style={{
-          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+          background: '#ffffff', border: '1px solid #e5e9f0',
           borderRadius: '12px', padding: '1rem 1.25rem', marginBottom: '1.5rem',
         }}>
           <p style={{ fontSize: '0.68rem', fontWeight: 700, color: '#475569', letterSpacing: '0.06em', textTransform: 'uppercase', margin: '0 0 0.85rem' }}>
@@ -521,15 +521,15 @@ export default async function AdminPage() {
           {/* 요약 카드 */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', marginBottom: '1rem' }}>
             {([
-              { label: '승인된 사용자',  value: approved.length, color: '#86efac' },
-              { label: '오늘 로그인',    value: loggedInToday,   color: '#4ade80' },
-              { label: '7일 내 로그인',  value: loggedIn7Days,   color: '#93c5fd' },
-              { label: '30일 방문 입력', value: totalVisits30d,  color: '#fde68a' },
-              { label: '30일 문서 업로드', value: totalDocs30d,  color: '#c4b5fd' },
-              { label: '대기 중',        value: pending.length,  color: '#fb923c' },
+              { label: '승인된 사용자',  value: approved.length, color: '#059669' },
+              { label: '오늘 로그인',    value: loggedInToday,   color: '#059669' },
+              { label: '7일 내 로그인',  value: loggedIn7Days,   color: '#2563eb' },
+              { label: '30일 방문 입력', value: totalVisits30d,  color: '#b45309' },
+              { label: '30일 문서 업로드', value: totalDocs30d,  color: '#7c3aed' },
+              { label: '대기 중',        value: pending.length,  color: '#b45309' },
             ] as { label: string; value: number; color: string }[]).map(({ label, value, color }) => (
               <div key={label} style={{
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)',
+                background: '#f8fafc', border: '1px solid #e5e9f0',
                 borderRadius: '10px', padding: '0.65rem 0.85rem',
               }}>
                 <div style={{ fontSize: '0.67rem', color: 'var(--text-muted)', marginBottom: '0.2rem' }}>{label}</div>
@@ -547,7 +547,7 @@ export default async function AdminPage() {
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', width: 14, textAlign: 'right', flexShrink: 0 }}>{rank + 1}</span>
                 <span style={{ fontSize: '0.78rem', fontWeight: 600, width: 80, flexShrink: 0 }}>{label}</span>
-                <div style={{ flex: 1, background: 'rgba(255,255,255,0.06)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+                <div style={{ flex: 1, background: '#f1f5f9', borderRadius: 4, height: 8, overflow: 'hidden' }}>
                   <div style={{ width: `${Math.round(count / maxPageCount * 100)}%`, height: '100%', background: color, borderRadius: 4, transition: 'width 0.3s' }} />
                 </div>
                 <span style={{ fontSize: '0.73rem', fontWeight: 700, color, width: 40, textAlign: 'right', flexShrink: 0 }}>{count.toLocaleString()}</span>
@@ -559,7 +559,7 @@ export default async function AdminPage() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.09)' }}>
+                <tr style={{ borderBottom: '1px solid #e5e9f0' }}>
                   {([
                     { h: '이름',          align: 'left'  },
                     { h: '최근 로그인',   align: 'right' },
@@ -587,7 +587,7 @@ export default async function AdminPage() {
                   return (
                     <>
                       {/* 역할 그룹 헤더 */}
-                      <tr key={`group-${role}`} style={{ background: 'rgba(255,255,255,0.04)' }}>
+                      <tr key={`group-${role}`} style={{ background: '#f1f4f9' }}>
                         <td colSpan={7} style={{
                           padding: '0.3rem 0.55rem', fontSize: '0.67rem', fontWeight: 700,
                           color: meta?.color ?? 'var(--text-muted)',
@@ -612,25 +612,25 @@ export default async function AdminPage() {
                             : signInDate.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', timeZone: 'Asia/Seoul' })
                           : '—';
                         const cell = (val: number, color: string, noData = false) => (
-                          <td style={{ padding: '0.42rem 0.45rem', textAlign: 'right', fontWeight: val > 0 ? 700 : undefined, color: val > 0 ? color : 'rgba(255,255,255,0.18)', fontSize: '0.75rem' }}>
+                          <td style={{ padding: '0.42rem 0.45rem', textAlign: 'right', fontWeight: val > 0 ? 700 : undefined, color: val > 0 ? color : '#cbd5e1', fontSize: '0.75rem' }}>
                             {noData ? <span style={{ opacity: 0.3 }}>—</span> : val > 0 ? val : '—'}
                           </td>
                         );
                         const loginNoData = loginCountMap.size === 0;
                         return (
-                          <tr key={p.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                          <tr key={p.id} style={{ borderBottom: '1px solid #eaeef4' }}>
                             <td style={{ padding: '0.42rem 0.55rem', fontWeight: 600, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {p.full_name ?? <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{p.email.split('@')[0]}</span>}
                             </td>
                             <td style={{ padding: '0.42rem 0.45rem', textAlign: 'right', whiteSpace: 'nowrap', fontSize: '0.72rem',
-                              color: isToday ? '#4ade80' : isThisWeek ? '#93c5fd' : 'rgba(255,255,255,0.3)' }}>
+                              color: isToday ? '#059669' : isThisWeek ? '#2563eb' : '#94a3b8' }}>
                               {signInLabel}
                             </td>
-                            {cell(logins,    '#f9a8d4', loginNoData)}
-                            {cell(visits,    '#fde68a')}
-                            {cell(schedules, '#86efac')}
-                            {cell(docs,      '#93c5fd')}
-                            {cell(contracts, '#c4b5fd')}
+                            {cell(logins,    '#db2777', loginNoData)}
+                            {cell(visits,    '#b45309')}
+                            {cell(schedules, '#059669')}
+                            {cell(docs,      '#2563eb')}
+                            {cell(contracts, '#7c3aed')}
                           </tr>
                         );
                       })}

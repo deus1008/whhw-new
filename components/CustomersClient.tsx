@@ -84,9 +84,9 @@ export default function CustomersClient() {
   const totalPages = Math.ceil(total / 50);
   const prevMap = new Map((meta.prev?.levelCounts ?? []).map(l => [l.level, l.count]));
   const LEVEL_COLORS: Record<string, string> = {
-    '1차': '#a78bfa', '2차': '#34d399', '3차': '#fbbf24',
-    '4차': '#f87171', '5차': '#60a5fa', '6차': '#f472b6',
-    '7차': '#a3e635', '8차': '#fb923c', '9차': '#94a3b8',
+    '1차': '#7c3aed', '2차': '#059669', '3차': '#b45309',
+    '4차': '#dc2626', '5차': '#2563eb', '6차': '#db2777',
+    '7차': '#65a30d', '8차': '#ea580c', '9차': '#64748b',
   };
 
   return (
@@ -106,9 +106,9 @@ export default function CustomersClient() {
                   📊 재위탁 차수별 현황
                 </h3>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  전체 <strong style={{ color: '#a5b4fc' }}>{meta.totalCount.toLocaleString()}</strong>개
+                  전체 <strong style={{ color: '#2563eb' }}>{meta.totalCount.toLocaleString()}</strong>개
                   {meta.prev && <DeltaBadge d={meta.totalCount - meta.prev.totalCount} style={{ marginLeft: '0.4rem' }} />}
-                  {meta.filename && <span style={{ marginLeft: '0.5rem', color: 'rgba(255,255,255,0.2)' }}>— {meta.filename}</span>}
+                  {meta.filename && <span style={{ marginLeft: '0.5rem', color: '#94a3b8' }}>— {meta.filename}</span>}
                 </span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
@@ -122,8 +122,8 @@ export default function CustomersClient() {
                       onClick={() => { const nl = level === lc.level ? '' : lc.level; setLevel(nl); search(1, { level: nl }); }}
                       style={{
                         cursor: 'pointer', borderRadius: '10px', padding: '0.55rem 1rem',
-                        background: level === lc.level ? `rgba(${hexToRgb(color)},0.15)` : 'rgba(255,255,255,0.04)',
-                        border: `1px solid ${level === lc.level ? color : 'rgba(255,255,255,0.08)'}`,
+                        background: level === lc.level ? `rgba(${hexToRgb(color)},0.15)` : '#f8fafc',
+                        border: `1px solid ${level === lc.level ? color : '#e5e9f0'}`,
                         display: 'flex', flexDirection: 'column', gap: '0.15rem', minWidth: '80px',
                       }}
                     >
@@ -138,10 +138,10 @@ export default function CustomersClient() {
                 })}
               </div>
               {meta.updatedAt && (
-                <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.25)', margin: '0.6rem 0 0', textAlign: 'right' }}>
+                <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0.6rem 0 0', textAlign: 'right' }}>
                   기준: {meta.updatedAt}
                   {meta.prev
-                    ? <span> · 직전 업로드({meta.prev.updatedAt}) 대비 <span style={{ color: '#4ade80' }}>▲증가</span>/<span style={{ color: '#f87171' }}>▼감소</span></span>
+                    ? <span> · 직전 업로드({meta.prev.updatedAt}) 대비 <span style={{ color: '#059669' }}>▲증가</span>/<span style={{ color: '#dc2626' }}>▼감소</span></span>
                     : <span> · 직전 업로드 없음(변동 비교 불가)</span>}
                 </p>
               )}
@@ -173,14 +173,14 @@ export default function CustomersClient() {
             <button type="submit" disabled={loading}
               style={{ padding: '0.55rem 1.4rem', borderRadius: 9, cursor: loading ? 'not-allowed' : 'pointer',
                 background: 'rgba(52,211,153,0.18)', border: '1px solid rgba(52,211,153,0.4)',
-                color: '#34d399', fontWeight: 700, fontSize: '0.88rem', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                color: '#059669', fontWeight: 700, fontSize: '0.88rem', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
               {loading ? '⏳' : '🔍 검색'}
             </button>
             {searched && (
               <button type="button" onClick={reset}
                 style={{ padding: '0.55rem 0.9rem', borderRadius: 9, cursor: 'pointer',
                   background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
-                  color: '#f87171', fontWeight: 600, fontSize: '0.82rem', fontFamily: 'inherit' }}>
+                  color: '#dc2626', fontWeight: 600, fontSize: '0.82rem', fontFamily: 'inherit' }}>
                 초기화
               </button>
             )}
@@ -229,10 +229,10 @@ export default function CustomersClient() {
             )}
           </div>
 
-          <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
+          <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid #e5e9f0' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
-                <tr style={{ background: 'rgba(255,255,255,0.04)' }}>
+                <tr style={{ background: '#f1f4f9' }}>
                   {['No','업체명','구분','1차업체','개인/법인','계약기간','사업자번호','대표자','담당자','주소'].map(h => (
                     <th key={h} style={th}>{h}</th>
                   ))}
@@ -244,8 +244,8 @@ export default function CustomersClient() {
                   const isExpired = c.end && new Date(c.end) < new Date();
                   return (
                     <tr key={`${c.no}-${i}`} style={{
-                      borderTop: '1px solid rgba(255,255,255,0.04)',
-                      background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)',
+                      borderTop: '1px solid #e5e9f0',
+                      background: i % 2 === 0 ? 'transparent' : '#fafbfd',
                     }}>
                       <td style={{ ...td, color: 'var(--text-muted)', width: 36, textAlign: 'center' }}>{c.no}</td>
                       <td style={{ ...td, fontWeight: 600, color: 'var(--text-primary)', minWidth: 120 }}>{c.name || '—'}</td>
@@ -256,29 +256,29 @@ export default function CustomersClient() {
                           border: `1px solid ${color}40`, color,
                         }}>{c.level}</span>
                       </td>
-                      <td style={{ ...td, fontSize: '0.74rem', color: 'rgba(255,255,255,0.5)', minWidth: 100 }}>
+                      <td style={{ ...td, fontSize: '0.74rem', color: '#94a3b8', minWidth: 100 }}>
                         {c.root !== c.name ? c.root : '—'}
                       </td>
                       <td style={{ ...td, whiteSpace: 'nowrap', fontSize: '0.74rem' }}>
                         {c.bizType === '법인' ? (
-                          <span style={{ color: '#60a5fa' }}>법인</span>
+                          <span style={{ color: '#2563eb' }}>법인</span>
                         ) : c.bizType === '개인' || c.bizType === '개인사업자' ? (
-                          <span style={{ color: '#34d399' }}>개인</span>
+                          <span style={{ color: '#059669' }}>개인</span>
                         ) : c.bizType || '—'}
                       </td>
                       <td style={{ ...td, whiteSpace: 'nowrap', fontSize: '0.74rem' }}>
                         {c.start && c.end ? (
-                          <span style={{ color: isExpired ? '#f87171' : 'var(--text-muted)' }}>
-                            {c.start}<br /><span style={{ color: 'rgba(255,255,255,0.2)' }}>~</span> {c.end}
-                            {isExpired && <span style={{ color: '#f87171', fontSize: '0.65rem', marginLeft: '0.3rem' }}>만료</span>}
+                          <span style={{ color: isExpired ? '#dc2626' : 'var(--text-muted)' }}>
+                            {c.start}<br /><span style={{ color: '#94a3b8' }}>~</span> {c.end}
+                            {isExpired && <span style={{ color: '#dc2626', fontSize: '0.65rem', marginLeft: '0.3rem' }}>만료</span>}
                           </span>
                         ) : '—'}
                       </td>
-                      <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.74rem', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>
+                      <td style={{ ...td, fontFamily: 'monospace', fontSize: '0.74rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
                         {c.bizNo || '—'}
                       </td>
                       <td style={{ ...td, whiteSpace: 'nowrap' }}>{c.rep || '—'}</td>
-                      <td style={{ ...td, whiteSpace: 'nowrap', color: 'rgba(255,255,255,0.65)' }}>{c.manager || '—'}</td>
+                      <td style={{ ...td, whiteSpace: 'nowrap', color: '#475569' }}>{c.manager || '—'}</td>
                       <td style={{ ...td, fontSize: '0.72rem', color: 'var(--text-muted)', maxWidth: 180,
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                         title={c.address}>{c.address || '—'}</td>
@@ -328,10 +328,10 @@ function pageRange(current: number, total: number): (number | '…')[] {
 /* 직전 업로드 대비 증감 배지 */
 function DeltaBadge({ d, style }: { d: number; style?: React.CSSProperties }) {
   if (d === 0) {
-    return <span style={{ fontSize: '0.62rem', fontWeight: 700, color: 'rgba(255,255,255,0.3)', ...style }}>±0</span>;
+    return <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#94a3b8', ...style }}>±0</span>;
   }
   const up = d > 0;
-  const col = up ? '#4ade80' : '#f87171';
+  const col = up ? '#059669' : '#dc2626';
   const rgb = up ? '74,222,128' : '248,113,113';
   return (
     <span style={{
@@ -351,32 +351,32 @@ function PgBtn({ label, active, disabled, onClick }: {
       style={{ minWidth: 32, height: 32, borderRadius: 7,
         cursor: disabled ? 'not-allowed' : 'pointer',
         fontFamily: 'inherit', fontSize: '0.78rem', fontWeight: active ? 700 : 400,
-        background: active ? 'rgba(52,211,153,0.18)' : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${active ? 'rgba(52,211,153,0.4)' : 'rgba(255,255,255,0.08)'}`,
-        color: active ? '#34d399' : disabled ? 'rgba(107,122,153,0.4)' : 'var(--text-muted)' }}>
+        background: active ? 'rgba(52,211,153,0.18)' : '#f1f5f9',
+        border: `1px solid ${active ? 'rgba(52,211,153,0.4)' : '#e5e9f0'}`,
+        color: active ? '#059669' : disabled ? 'rgba(107,122,153,0.4)' : 'var(--text-muted)' }}>
       {label}
     </button>
   );
 }
 
 const card: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.02)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  background: '#ffffff',
+  border: '1px solid #e5e9f0',
   borderRadius: 14,
   padding: '1.2rem 1.4rem',
 };
 const inputSel: React.CSSProperties = {
   padding: '0.5rem 0.8rem', borderRadius: 9, fontSize: '0.85rem',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+  background: '#ffffff', border: '1px solid #d7dce5',
   color: 'var(--text-primary)', fontFamily: 'inherit', cursor: 'pointer',
 };
 const th: React.CSSProperties = {
   padding: '0.45rem 0.65rem', textAlign: 'left', fontWeight: 600,
   color: 'var(--text-muted)', fontSize: '0.72rem', whiteSpace: 'nowrap',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  borderBottom: '1px solid #e5e9f0',
 };
 const td: React.CSSProperties = {
   padding: '0.45rem 0.65rem',
-  color: 'rgba(240,244,255,0.85)',
+  color: '#111827',
   verticalAlign: 'middle',
 };

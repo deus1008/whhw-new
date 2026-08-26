@@ -165,7 +165,7 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
               <tr>
                 <th style={{ ...th, textAlign: 'left' }}>지역장</th>
                 {visitMonths.map(m => <th key={m} style={th}>{mLabel(m)}</th>)}
-                <th style={{ ...th, color: '#67e8f9' }}>합계</th>
+                <th style={{ ...th, color: '#0891b2' }}>합계</th>
                 <th style={th}>고객</th>
                 <th style={th}>품목</th>
               </tr>
@@ -179,7 +179,7 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
                   {visitMonths.map(mo => (
                     <td key={mo} style={td}>{m.byMonth[mo] ? m.byMonth[mo] : <span style={{ opacity: 0.25 }}>·</span>}</td>
                   ))}
-                  <td style={{ ...td, color: '#67e8f9', fontWeight: 700 }}>{m.visits}</td>
+                  <td style={{ ...td, color: '#0891b2', fontWeight: 700 }}>{m.visits}</td>
                   <td style={td}>{m.customers.size}</td>
                   <td style={td}>{m.products.size}</td>
                 </tr>
@@ -194,7 +194,7 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
         <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 600 }}>지역장 선택</span>
         <select value={selUid} onChange={e => setSelUid(e.target.value)} style={selectStyle}>
           {perManager.map(m => (
-            <option key={m.uid} value={m.uid} style={{ color: '#e2e8f0', background: '#1a2030' }}>
+            <option key={m.uid} value={m.uid} style={{ color: '#111827', background: '#1a2030' }}>
               {m.name} ({m.visits}건)
             </option>
           ))}
@@ -281,10 +281,10 @@ function RankTable({ rows, unit, trendDelta, rxMonths, colName }: {
             return (
               <tr key={r.name}>
                 <td style={{ ...td, textAlign: 'left' }}>{r.name}</td>
-                <td style={{ ...td, fontWeight: 700, color: '#67e8f9' }}>{r.cnt}</td>
+                <td style={{ ...td, fontWeight: 700, color: '#0891b2' }}>{r.cnt}</td>
                 <td style={td}>
                   {r.trend
-                    ? <span style={badge('#6ee7b7', 'rgba(52,211,153,0.14)')}>매칭</span>
+                    ? <span style={badge('#059669', 'rgba(52,211,153,0.14)')}>매칭</span>
                     : <span style={badge('#64748b', 'rgba(100,116,139,0.12)')}>미매칭</span>}
                 </td>
                 <td style={td}>{r.trend ? eok(recent) : '—'}</td>
@@ -319,7 +319,7 @@ function TrendMatrix({ rxMonths, visitMonths, rows, unmatched, colName }: {
             <tr>
               <th style={{ ...th, textAlign: 'left', minWidth: '120px' }}>{colName}</th>
               {rxMonths.map(m => (
-                <th key={m} style={{ ...th, ...(visitSet.has(m) ? { color: '#fbbf24' } : {}) }}>
+                <th key={m} style={{ ...th, ...(visitSet.has(m) ? { color: '#b45309' } : {}) }}>
                   {mLabel(m)}{visitSet.has(m) ? '★' : ''}
                 </th>
               ))}
@@ -352,7 +352,7 @@ function TrendMatrix({ rxMonths, visitMonths, rows, unmatched, colName }: {
 function Section({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
   return (
     <section style={{ background: 'rgba(15,20,35,0.55)', border: '1px solid rgba(148,163,184,0.15)', borderRadius: '14px', padding: '1.1rem 1.2rem' }}>
-      <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 700, color: '#e2e8f0' }}>{title}</h3>
+      <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: 700, color: '#111827' }}>{title}</h3>
       {desc && <p style={{ margin: '0.25rem 0 0.9rem', fontSize: '0.8rem', color: '#94a3b8' }}>{desc}</p>}
       {children}
     </section>
@@ -363,14 +363,14 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ background: 'rgba(15,20,35,0.6)', border: '1px solid rgba(148,163,184,0.15)', borderRadius: '12px', padding: '0.75rem 0.9rem', textAlign: 'center' }}>
       <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginBottom: '0.25rem' }}>{label}</div>
-      <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#e2e8f0' }}>{value}</div>
+      <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#111827' }}>{value}</div>
     </div>
   );
 }
 
 function Delta({ v }: { v: number }) {
   const up = v >= 0;
-  return <span style={{ color: up ? '#6ee7b7' : '#fca5a5', fontWeight: 700 }}>{up ? '▲' : '▼'} {Math.abs(v).toFixed(0)}%</span>;
+  return <span style={{ color: up ? '#059669' : '#dc2626', fontWeight: 700 }}>{up ? '▲' : '▼'} {Math.abs(v).toFixed(0)}%</span>;
 }
 
 function Empty({ text = '데이터가 없습니다.' }: { text?: string }) {
@@ -381,9 +381,9 @@ const note: React.CSSProperties = { fontSize: '0.8rem', color: '#94a3b8', backgr
 const noteSm: React.CSSProperties = { fontSize: '0.75rem', color: '#64748b' };
 const tbl: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' };
 const th: React.CSSProperties = { padding: '0.45rem 0.5rem', textAlign: 'center', color: '#94a3b8', fontWeight: 600, borderBottom: '1px solid rgba(148,163,184,0.2)', whiteSpace: 'nowrap', fontSize: '0.76rem' };
-const td: React.CSSProperties = { padding: '0.4rem 0.5rem', textAlign: 'center', color: '#cbd5e1', borderBottom: '1px solid rgba(148,163,184,0.08)', whiteSpace: 'nowrap' };
-const selectStyle: React.CSSProperties = { padding: '0.4rem 0.7rem', borderRadius: '8px', background: '#1a2030', color: '#e2e8f0', border: '1px solid rgba(148,163,184,0.3)', fontSize: '0.85rem', fontWeight: 600 };
-const linkBtn: React.CSSProperties = { background: 'none', border: 'none', color: '#93c5fd', cursor: 'pointer', padding: 0, fontSize: '0.82rem', fontWeight: 600, minHeight: 'auto', textDecoration: 'underline' };
+const td: React.CSSProperties = { padding: '0.4rem 0.5rem', textAlign: 'center', color: '#64748b', borderBottom: '1px solid rgba(148,163,184,0.08)', whiteSpace: 'nowrap' };
+const selectStyle: React.CSSProperties = { padding: '0.4rem 0.7rem', borderRadius: '8px', background: '#1a2030', color: '#111827', border: '1px solid rgba(148,163,184,0.3)', fontSize: '0.85rem', fontWeight: 600 };
+const linkBtn: React.CSSProperties = { background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0, fontSize: '0.82rem', fontWeight: 600, minHeight: 'auto', textDecoration: 'underline' };
 function badge(color: string, bg: string): React.CSSProperties {
   return { color, background: bg, padding: '0.1rem 0.5rem', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700 };
 }

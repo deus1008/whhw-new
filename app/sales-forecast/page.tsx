@@ -61,8 +61,8 @@ export default async function SalesForecastPage() {
         </p>
         <div className="page-nav">
           
-          <Link href="/disease-learning" style={nl('#93c5fd', 'rgba(147,197,253,0.12)', 'rgba(147,197,253,0.28)')}>질환별의약품</Link>
-          <Link href="/market-analysis" style={nl('#f9a8d4', 'rgba(236,72,153,0.12)', 'rgba(236,72,153,0.28)')}>시장분석</Link>
+          <Link href="/disease-learning" style={nl('#2563eb', 'rgba(147,197,253,0.12)', 'rgba(147,197,253,0.28)')}>질환별의약품</Link>
+          <Link href="/market-analysis" style={nl('#db2777', 'rgba(236,72,153,0.12)', 'rgba(236,72,153,0.28)')}>시장분석</Link>
           
         </div>
 

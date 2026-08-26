@@ -39,11 +39,11 @@ const STATUS_LIST = ['개발검토', '개발승인', '허가예정', '발매예�
 const PUBLIC_STATUS = ['발매예정', '발매완료'];
 
 const STATUS_COLOR: Record<string, { bg: string; bd: string; color: string }> = {
-  '개발검토': { bg: 'rgba(148,163,184,0.12)', bd: 'rgba(148,163,184,0.3)', color: '#94a3b8' },
-  '개발승인': { bg: 'rgba(59,130,246,0.12)',  bd: 'rgba(59,130,246,0.3)',  color: '#60a5fa' },
-  '허가예정': { bg: 'rgba(251,191,36,0.12)',  bd: 'rgba(251,191,36,0.3)',  color: '#fbbf24' },
-  '발매예정': { bg: 'rgba(167,139,250,0.12)', bd: 'rgba(167,139,250,0.3)', color: '#a78bfa' },
-  '발매완료': { bg: 'rgba(52,211,153,0.12)',  bd: 'rgba(52,211,153,0.3)',  color: '#34d399' },
+  '개발검토': { bg: 'rgba(148,163,184,0.12)', bd: 'rgba(148,163,184,0.3)', color: '#475569' },
+  '개발승인': { bg: 'rgba(59,130,246,0.12)',  bd: 'rgba(59,130,246,0.3)',  color: '#2563eb' },
+  '허가예정': { bg: 'rgba(251,191,36,0.12)',  bd: 'rgba(251,191,36,0.3)',  color: '#b45309' },
+  '발매예정': { bg: 'rgba(167,139,250,0.12)', bd: 'rgba(167,139,250,0.3)', color: '#7c3aed' },
+  '발매완료': { bg: 'rgba(52,211,153,0.12)',  bd: 'rgba(52,211,153,0.3)',  color: '#059669' },
 };
 
 const EMPTY_FORM: ProductInput = {
@@ -276,7 +276,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
     <>
       {/* ── 헤더 ───────────────────────────────────────────────── */}
       <div style={{ textAlign: 'center', marginBottom: '1.8rem' }}>
-        <h2 style={{ fontSize: 'clamp(1.1rem,3vw,1.5rem)', fontWeight: 700, color: '#e2e8f0', margin: 0 }}>
+        <h2 style={{ fontSize: 'clamp(1.1rem,3vw,1.5rem)', fontWeight: 700, color: '#111827', margin: 0 }}>
           🚀 발매예정품목
         </h2>
         <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.3rem' }}>
@@ -297,7 +297,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
         />
         <button
           onClick={handleSearch}
-          style={{ padding: '0.5rem 1.1rem', borderRadius: '8px', background: 'rgba(79,142,247,0.18)', border: '1px solid rgba(79,142,247,0.4)', color: '#7eb3ff', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+          style={{ padding: '0.5rem 1.1rem', borderRadius: '8px', background: 'rgba(79,142,247,0.18)', border: '1px solid rgba(79,142,247,0.4)', color: '#2563eb', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >검색</button>
 
         {/* 회사 검색 */}
@@ -316,7 +316,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
           {filterCompany && (
             <button
               onClick={() => setFilterCompany('')}
-              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1 }}
+              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.9rem', lineHeight: 1 }}
             >×</button>
           )}
         </div>
@@ -325,7 +325,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
-          style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', fontSize: '0.82rem', cursor: 'pointer' }}
+          style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', background: '#ffffff', border: '1px solid #d7dce5', color: '#111827', fontSize: '0.82rem', cursor: 'pointer' }}
         >
           <option value="">전체 상태</option>
           {visibleStatusList.map(s => <option key={s} value={s}>{s}</option>)}
@@ -333,7 +333,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
 
         {isAdmin && (
           <button onClick={openCreate}
-            style={{ padding: '0.5rem 1.1rem', borderRadius: '8px', background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            style={{ padding: '0.5rem 1.1rem', borderRadius: '8px', background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.4)', color: '#4f46e5', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
             + 품목 추가
           </button>
         )}
@@ -353,7 +353,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
         {(filterStatus || filterCompany || appliedSearch) && (
           <button
             onClick={() => { setFilterStatus(''); setFilterCompany(''); setSearch(''); setAppliedSearch(''); }}
-            style={{ padding: '0.2rem 0.65rem', borderRadius: '20px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#f87171', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '0.2rem 0.65rem', borderRadius: '20px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#dc2626', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             필터 초기화
           </button>
         )}
@@ -361,14 +361,14 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
 
       {/* ── 테이블 ─────────────────────────────────────────────── */}
       {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', background: 'rgba(255,255,255,0.02)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.06)', color: '#475569' }}>
+        <div style={{ textAlign: 'center', padding: '3rem', background: '#ffffff', borderRadius: '16px', border: '1px solid #e5e9f0', color: '#475569' }}>
           {appliedSearch || filterStatus || filterCompany ? '검색 결과가 없습니다.' : '등록된 품목이 없습니다.'}
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', background: '#ffffff', borderRadius: '12px', overflow: 'hidden', border: '1px solid #e5e9f0' }}>
             <thead>
-              <tr style={{ background: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+              <tr style={{ background: '#f1f4f9', borderBottom: '1px solid #e5e9f0' }}>
                 {([
                   { label: '성분명',      key: 'memo'         },
                   { label: '제품명',      key: 'title'        },
@@ -385,7 +385,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
                     onClick={key ? () => toggleSort(key) : undefined}
                     style={{
                       padding: '0.65rem 0.9rem', textAlign: 'left',
-                      color: key && sortKey === key ? '#e2e8f0' : '#64748b',
+                      color: key && sortKey === key ? '#111827' : '#64748b',
                       fontWeight: 700, fontSize: '0.78rem', whiteSpace: 'nowrap',
                       cursor: key ? 'pointer' : 'default',
                       userSelect: 'none',
@@ -405,32 +405,32 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
             <tbody>
               {filtered.map((p, i) => {
                 const sc = STATUS_COLOR[p.status ?? ''] ?? STATUS_COLOR['개발검토'];
-                const rowBg = i % 2 === 0 ? 'rgba(255,255,255,0.01)' : 'transparent';
+                const rowBg = i % 2 === 0 ? '#fafbfd' : 'transparent';
                 return (
                   <tr key={p.id}
-                    style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: rowBg }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                    style={{ borderBottom: '1px solid #eaeef4', background: rowBg }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#f1f5f9')}
                     onMouseLeave={e => (e.currentTarget.style.background = rowBg)}>
 
                     {/* ① 성분명 — 주요 */}
-                    <td style={{ padding: '0.7rem 0.9rem', color: '#e2e8f0', fontWeight: 700, minWidth: '80px', maxWidth: '160px' }}>
+                    <td style={{ padding: '0.7rem 0.9rem', color: '#111827', fontWeight: 700, minWidth: '80px', maxWidth: '160px' }}>
                       <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>
-                        {p.memo || <span style={{ color: '#475569' }}>—</span>}
+                        {p.memo || <span style={{ color: '#94a3b8' }}>—</span>}
                       </span>
                     </td>
 
                     {/* ② 제품명 */}
-                    <td style={{ padding: '0.7rem 0.9rem', color: '#93c5fd', minWidth: '120px', fontWeight: 500 }}>
+                    <td style={{ padding: '0.7rem 0.9rem', color: '#2563eb', minWidth: '120px', fontWeight: 500 }}>
                       {p.title}
                     </td>
 
                     {/* ③ 발매(예정)일 */}
-                    <td style={{ padding: '0.7rem 0.9rem', color: '#a78bfa', whiteSpace: 'nowrap', fontWeight: 600 }}>
+                    <td style={{ padding: '0.7rem 0.9rem', color: '#7c3aed', whiteSpace: 'nowrap', fontWeight: 600 }}>
                       {fmtDate(p.launch_date)}
                     </td>
 
                     {/* ④ 계열 */}
-                    <td style={{ padding: '0.7rem 0.9rem', color: '#94a3b8', maxWidth: '150px' }}>
+                    <td style={{ padding: '0.7rem 0.9rem', color: '#475569', maxWidth: '150px' }}>
                       <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {p.indication ?? '—'}
                       </span>
@@ -443,11 +443,11 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
                           display: 'inline-block', padding: '0.12rem 0.5rem', borderRadius: '5px',
                           fontSize: '0.72rem', fontWeight: 600,
                           background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)',
-                          color: '#6ee7b7',
+                          color: '#059669',
                         }}>
                           {p.manufacturer}
                         </span>
-                      ) : <span style={{ color: '#475569' }}>—</span>}
+                      ) : <span style={{ color: '#94a3b8' }}>—</span>}
                     </td>
 
                     {/* ⑥ 보험코드 */}
@@ -456,7 +456,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
                     </td>
 
                     {/* ⑦ 보험가 */}
-                    <td style={{ padding: '0.7rem 0.9rem', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '0.7rem 0.9rem', color: '#475569', whiteSpace: 'nowrap' }}>
                       {/^\d+$/.test(String(p.insurance_price ?? '')) ? Number(p.insurance_price).toLocaleString('ko-KR') : (p.insurance_price ?? '—')}
                     </td>
 
@@ -473,9 +473,9 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
                     <td style={{ padding: '0.7rem 0.75rem', whiteSpace: 'nowrap' }}>
                       {isAdmin && (
                         <>
-                          <button onClick={() => openEdit(p)} style={actionBtn('#60a5fa', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.3)')}>수정</button>
+                          <button onClick={() => openEdit(p)} style={actionBtn('#2563eb', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.3)')}>수정</button>
                           <button onClick={() => handleDelete(p.id)} disabled={isPending}
-                            style={{ ...actionBtn('#f87171', 'rgba(239,68,68,0.1)', 'rgba(239,68,68,0.3)'), marginLeft: '0.35rem' }}>삭제</button>
+                            style={{ ...actionBtn('#dc2626', 'rgba(239,68,68,0.1)', 'rgba(239,68,68,0.3)'), marginLeft: '0.35rem' }}>삭제</button>
                         </>
                       )}
                     </td>
@@ -492,8 +492,8 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
       {modalOpen && isAdmin && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
           onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
-          <div style={{ background: '#111827', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '20px', padding: '2rem', width: '100%', maxWidth: '520px', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.5)' }}>
-            <h3 style={{ margin: '0 0 1.5rem', color: '#e2e8f0', fontWeight: 700, fontSize: '1.05rem' }}>
+          <div style={{ background: '#ffffff', border: '1px solid #e5e9f0', borderRadius: '20px', padding: '2rem', width: '100%', maxWidth: '520px', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(15,23,42,0.18)' }}>
+            <h3 style={{ margin: '0 0 1.5rem', color: '#111827', fontWeight: 700, fontSize: '1.05rem' }}>
               {editing ? '품목 수정' : '신규 품목 등록'}
             </h3>
 
@@ -560,7 +560,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
                 <input ref={fileInputRef} type="file" accept="image/*" multiple
                   onChange={e => handleImageSelect(e.target.files)} style={{ display: 'none' }} />
                 <button type="button" onClick={() => fileInputRef.current?.click()} disabled={imgUploading}
-                  style={{ padding: '0.35rem 0.8rem', borderRadius: '8px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', color: '#a5b4fc', fontSize: '0.78rem', fontWeight: 600, cursor: imgUploading ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
+                  style={{ padding: '0.35rem 0.8rem', borderRadius: '8px', background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)', color: '#4f46e5', fontSize: '0.78rem', fontWeight: 600, cursor: imgUploading ? 'wait' : 'pointer', fontFamily: 'inherit' }}>
                   {imgUploading ? '업로드 중…' : '🖼 이미지 삽입'}
                 </button>
               </div>
@@ -575,18 +575,18 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
             </Field>
 
             {formError && (
-              <p style={{ color: '#fca5a5', fontSize: '0.8rem', margin: '0 0 0.8rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', padding: '0.5rem 0.8rem' }}>
+              <p style={{ color: '#b91c1c', fontSize: '0.8rem', margin: '0 0 0.8rem', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', padding: '0.5rem 0.8rem' }}>
                 {formError}
               </p>
             )}
 
             <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
               <button onClick={closeModal} disabled={isPending}
-                style={{ padding: '0.5rem 1.2rem', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#94a3b8', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '0.5rem 1.2rem', borderRadius: '8px', background: '#f1f5f9', border: '1px solid #e5e9f0', color: '#334155', fontSize: '0.85rem', cursor: 'pointer', fontFamily: 'inherit' }}>
                 취소
               </button>
               <button onClick={handleSubmit} disabled={isPending}
-                style={{ padding: '0.5rem 1.4rem', borderRadius: '8px', background: 'rgba(99,102,241,0.25)', border: '1px solid rgba(99,102,241,0.5)', color: '#a5b4fc', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '0.5rem 1.4rem', borderRadius: '8px', background: 'rgba(99,102,241,0.25)', border: '1px solid rgba(99,102,241,0.5)', color: '#4f46e5', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {isPending ? '처리 중…' : editing ? '저장' : '등록'}
               </button>
             </div>
@@ -596,7 +596,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
       <style>{`
         [contenteditable][data-placeholder]:empty:before {
           content: attr(data-placeholder);
-          color: rgba(255,255,255,0.28);
+          color: #94a3b8;
           pointer-events: none;
         }
         [contenteditable]:focus { border-color: rgba(99,102,241,0.5); }
@@ -618,8 +618,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '0.5rem 0.75rem', borderRadius: '8px',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-  color: '#e2e8f0', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
+  background: '#ffffff', border: '1px solid #d7dce5',
+  color: '#111827', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit',
 };
 
 function actionBtn(color: string, bg: string, bd: string): React.CSSProperties {

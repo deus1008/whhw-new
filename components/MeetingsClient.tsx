@@ -10,30 +10,30 @@ const DEPRECATED_CATS = ['마케팅관련', '영업관련', '정책관련', '공
 
 /* ── 상태 스타일 ─────────────────────────────────────────────────── */
 const STATUS_META: Record<TaskStatus, { color: string; bg: string }> = {
-  '대기':   { color: '#94a3b8', bg: 'rgba(148,163,184,0.14)' },
-  '진행중': { color: '#fbbf24', bg: 'rgba(251,191,36,0.14)'  },
-  '완료':   { color: '#4ade80', bg: 'rgba(74,222,128,0.14)'  },
+  '대기':   { color: '#475569', bg: 'rgba(148,163,184,0.14)' },
+  '진행중': { color: '#b45309', bg: 'rgba(251,191,36,0.14)'  },
+  '완료':   { color: '#15803d', bg: 'rgba(74,222,128,0.14)'  },
 };
 
 /* ── 우선순위 스타일 ─────────────────────────────────────────────── */
 const PRIORITY_META: Record<TaskPriority, { color: string; bg: string; border: string }> = {
-  '중요': { color: '#fb923c', bg: 'rgba(251,146,60,0.13)',  border: '#fb923c' },
-  '긴급': { color: '#f87171', bg: 'rgba(248,113,113,0.13)', border: '#f87171' },
-  '보통': { color: '#fcd34d', bg: 'rgba(252,211,77,0.13)',  border: '#fbbf24' },
-  '낮음': { color: '#94a3b8', bg: 'rgba(148,163,184,0.11)', border: 'rgba(255,255,255,0.1)' },
+  '중요': { color: '#c2410c', bg: 'rgba(251,146,60,0.13)',  border: '#fb923c' },
+  '긴급': { color: '#dc2626', bg: 'rgba(248,113,113,0.13)', border: '#dc2626' },
+  '보통': { color: '#b45309', bg: 'rgba(252,211,77,0.13)',  border: '#b45309' },
+  '낮음': { color: '#475569', bg: 'rgba(148,163,184,0.11)', border: '#e5e9f0' },
 };
 
 /* ── 분류 스타일 ─────────────────────────────────────────────────── */
 const CAT_STYLE: Record<string, { color: string; bg: string }> = {
-  '마케팅관련': { color: '#f9a8d4', bg: 'rgba(236,72,153,0.13)' },
-  '영업관련':   { color: '#6ee7b7', bg: 'rgba(16,185,129,0.13)' },
-  '정책관련':   { color: '#93c5fd', bg: 'rgba(59,130,246,0.13)' },
-  '공급관련':   { color: '#fcd34d', bg: 'rgba(245,158,11,0.13)' },
-  '기타':       { color: '#c4b5fd', bg: 'rgba(139,92,246,0.13)' },
+  '마케팅관련': { color: '#db2777', bg: 'rgba(236,72,153,0.13)' },
+  '영업관련':   { color: '#059669', bg: 'rgba(16,185,129,0.13)' },
+  '정책관련':   { color: '#2563eb', bg: 'rgba(59,130,246,0.13)' },
+  '공급관련':   { color: '#b45309', bg: 'rgba(245,158,11,0.13)' },
+  '기타':       { color: '#7c3aed', bg: 'rgba(139,92,246,0.13)' },
 };
 function cs(cat?: string | null) {
-  if (!cat) return { color: '#94a3b8', bg: 'rgba(148,163,184,0.13)' };
-  return CAT_STYLE[cat] ?? { color: '#94a3b8', bg: 'rgba(148,163,184,0.13)' };
+  if (!cat) return { color: '#475569', bg: 'rgba(148,163,184,0.13)' };
+  return CAT_STYLE[cat] ?? { color: '#475569', bg: 'rgba(148,163,184,0.13)' };
 }
 
 function todayStr() {
@@ -82,11 +82,11 @@ function TaskCard({ task, onDelete, onStatusChange }: {
     const sl = task.security_level ?? '기밀';
     const sm = SECURITY_META[sl as TaskSecurity] ?? SECURITY_META['기밀'];
     return (
-      <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${sm.border}44`, borderLeft: `3px solid ${sm.border}`, borderRadius: '8px', padding: '0.7rem 0.8rem', marginBottom: '0.5rem', opacity: 0.65 }}>
+      <div style={{ background: '#ffffff', border: `1px solid ${sm.border}44`, borderLeft: `3px solid ${sm.border}`, borderRadius: '8px', padding: '0.7rem 0.8rem', marginBottom: '0.5rem', opacity: 0.65 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <span style={{ fontSize: '0.62rem', padding: '0.1rem 0.45rem', borderRadius: '20px', fontWeight: 700, background: sm.bg, color: sm.color, border: `1px solid ${sm.border}66` }}>{sl}</span>
         </div>
-        <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.25)', marginTop: '0.4rem', fontWeight: 500 }}>🔒 보안 과제 — 열람 권한 없음</div>
+        <div style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '0.4rem', fontWeight: 500 }}>🔒 보안 과제 — 열람 권한 없음</div>
       </div>
     );
   }
@@ -104,8 +104,8 @@ function TaskCard({ task, onDelete, onStatusChange }: {
     <div
       onClick={() => router.push(`/meetings/${task.id}`)}
       style={{
-        background: isComplete ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.035)',
-        border: '1px solid rgba(255,255,255,0.08)',
+        background: isComplete ? '#fafbfd' : '#ffffff',
+        border: '1px solid #e5e9f0',
         borderLeft: `3px solid ${pr.border}`,
         borderRadius: '8px',
         padding: '0.7rem 0.8rem',
@@ -114,8 +114,8 @@ function TaskCard({ task, onDelete, onStatusChange }: {
         transition: 'background 0.12s',
         opacity: isComplete ? 0.7 : 1,
       }}
-      onMouseEnter={e => (e.currentTarget.style.background = isComplete ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.06)')}
-      onMouseLeave={e => (e.currentTarget.style.background = isComplete ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.035)')}
+      onMouseEnter={e => (e.currentTarget.style.background = isComplete ? '#f8fafc' : '#f1f5f9')}
+      onMouseLeave={e => (e.currentTarget.style.background = isComplete ? '#fafbfd' : '#ffffff')}
     >
       {/* 상단: 분류 + 우선순위 + 보안등급 + 삭제 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.4rem', flexWrap: 'wrap' }}>
@@ -134,21 +134,21 @@ function TaskCard({ task, onDelete, onStatusChange }: {
         )}
         <button
           onClick={e => { e.stopPropagation(); onDelete(); }}
-          style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.18)', fontSize: '0.78rem', padding: 0, lineHeight: 1, flexShrink: 0 }}
+          style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '0.78rem', padding: 0, lineHeight: 1, flexShrink: 0 }}
         >✕</button>
       </div>
 
       {/* 제목 */}
-      <div style={{ fontWeight: 600, fontSize: '0.84rem', color: isComplete ? 'rgba(255,255,255,0.45)' : '#e2e8f0', marginBottom: '0.35rem', lineHeight: 1.4, textDecoration: isComplete ? 'line-through' : 'none' }}>
+      <div style={{ fontWeight: 600, fontSize: '0.84rem', color: isComplete ? '#94a3b8' : '#111827', marginBottom: '0.35rem', lineHeight: 1.4, textDecoration: isComplete ? 'line-through' : 'none' }}>
         {task.title}
       </div>
 
       {/* 마감일 + 체크리스트 */}
       {(task.meeting_date || todos.length > 0) && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.69rem', color: 'rgba(255,255,255,0.3)', marginBottom: '0.45rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '0.69rem', color: '#94a3b8', marginBottom: '0.45rem' }}>
           {task.meeting_date && <span>📅 {fmtShort(task.meeting_date)}</span>}
           {todos.length > 0 && (
-            <span style={{ color: done === todos.length ? '#4ade80' : 'rgba(255,255,255,0.3)' }}>
+            <span style={{ color: done === todos.length ? '#15803d' : '#94a3b8' }}>
               ✓ {done}/{todos.length}
             </span>
           )}
@@ -159,7 +159,7 @@ function TaskCard({ task, onDelete, onStatusChange }: {
       <div style={{ display: 'flex', gap: '0.3rem' }} onClick={e => e.stopPropagation()}>
         {statusIdx > 0 && (
           <button onClick={() => onStatusChange(STATUSES[statusIdx - 1])}
-            style={{ fontSize: '0.62rem', padding: '0.14rem 0.48rem', borderRadius: '4px', cursor: 'pointer', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)', fontFamily: 'inherit', lineHeight: 1.4 }}>
+            style={{ fontSize: '0.62rem', padding: '0.14rem 0.48rem', borderRadius: '4px', cursor: 'pointer', background: '#f1f5f9', border: '1px solid #e5e9f0', color: '#64748b', fontFamily: 'inherit', lineHeight: 1.4 }}>
             ← {STATUSES[statusIdx - 1]}
           </button>
         )}
@@ -195,7 +195,7 @@ function KanbanColumn({ status, tasks, onDelete, onStatusChange }: {
         />
       ))}
       {tasks.length === 0 && (
-        <div style={{ padding: '2rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.12)', fontSize: '0.75rem' }}>비어있음</div>
+        <div style={{ padding: '2rem 0', textAlign: 'center', color: '#94a3b8', fontSize: '0.75rem' }}>비어있음</div>
       )}
     </div>
   );
@@ -353,10 +353,10 @@ export default function MeetingsClient({ meetings: initial, isAdmin = false }: {
               <div key={cat} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
                 <input autoFocus value={editValue} onChange={e => setEditValue(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') confirmEditCat(); if (e.key === 'Escape') setEditingCat(null); }}
-                  style={{ padding: '0.25rem 0.6rem', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600, background: style ? style.bg : 'rgba(255,255,255,0.08)', border: style ? `1px solid ${style.color}88` : '1px solid rgba(255,255,255,0.3)', color: style ? style.color : '#e2e8f0', outline: 'none', fontFamily: 'inherit', width: '7rem' }}
+                  style={{ padding: '0.25rem 0.6rem', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600, background: style ? style.bg : '#f1f5f9', border: style ? `1px solid ${style.color}88` : '1px solid #d7dce5', color: style ? style.color : '#111827', outline: 'none', fontFamily: 'inherit', width: '7rem' }}
                 />
-                <button onClick={confirmEditCat} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6ee7b7', fontSize: '1rem', padding: 0, lineHeight: 1, fontWeight: 700 }}>✓</button>
-                <button onClick={() => setEditingCat(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', fontSize: '0.9rem', padding: 0, lineHeight: 1 }}>✕</button>
+                <button onClick={confirmEditCat} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#059669', fontSize: '1rem', padding: 0, lineHeight: 1, fontWeight: 700 }}>✓</button>
+                <button onClick={() => setEditingCat(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '0.9rem', padding: 0, lineHeight: 1 }}>✕</button>
               </div>
             );
 
@@ -367,9 +367,9 @@ export default function MeetingsClient({ meetings: initial, isAdmin = false }: {
               >
                 <button onClick={() => setActiveCategory(cat)} style={{
                   padding: '0.3rem 0.8rem', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                  border: active ? (style ? `1px solid ${style.color}88` : '1px solid rgba(255,255,255,0.3)') : '1px solid rgba(255,255,255,0.1)',
-                  background: active ? (style ? style.bg : 'rgba(255,255,255,0.08)') : 'rgba(255,255,255,0.03)',
-                  color: active ? (style ? style.color : '#e2e8f0') : 'rgba(255,255,255,0.4)',
+                  border: active ? (style ? `1px solid ${style.color}88` : '1px solid #cdddfb') : '1px solid #e5e9f0',
+                  background: active ? (style ? style.bg : '#e8f0fe') : '#f8fafc',
+                  color: active ? (style ? style.color : '#111827') : '#64748b',
                   transition: 'all 0.12s', paddingRight: canManage && isHovered ? '2.3rem' : '0.8rem',
                 }}>
                   {cat}<span style={{ marginLeft: '0.3rem', opacity: 0.65, fontSize: '0.72rem' }}>{count}</span>
@@ -377,9 +377,9 @@ export default function MeetingsClient({ meetings: initial, isAdmin = false }: {
                 {canManage && isHovered && (
                   <>
                     <button onClick={() => startEditCat(cat)} title="분류명 수정"
-                      style={{ position: 'absolute', top: '50%', right: '1.3rem', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'rgba(148,163,184,0.85)', fontSize: '0.72rem', lineHeight: 1 }}>✎</button>
+                      style={{ position: 'absolute', top: '50%', right: '1.3rem', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#64748b', fontSize: '0.72rem', lineHeight: 1 }}>✎</button>
                     <button onClick={() => handleDeleteCategory(cat, count)} title="분류 삭제"
-                      style={{ position: 'absolute', top: '50%', right: '0.35rem', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: '0 0.1rem', cursor: 'pointer', color: 'rgba(248,113,113,0.9)', fontSize: '0.8rem', lineHeight: 1, fontWeight: 700 }}>×</button>
+                      style={{ position: 'absolute', top: '50%', right: '0.35rem', transform: 'translateY(-50%)', background: 'none', border: 'none', padding: '0 0.1rem', cursor: 'pointer', color: '#dc2626', fontSize: '0.8rem', lineHeight: 1, fontWeight: 700 }}>×</button>
                   </>
                 )}
               </div>
@@ -391,16 +391,16 @@ export default function MeetingsClient({ meetings: initial, isAdmin = false }: {
 
       {/* ── 검색 ─────────────────────────────────────────────── */}
       <div style={{ position: 'relative', marginBottom: '1.1rem' }}>
-        <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.28)', fontSize: '0.85rem', pointerEvents: 'none' }}>🔍</span>
+        <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#64748b', fontSize: '0.85rem', pointerEvents: 'none' }}>🔍</span>
         <input
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           placeholder="키워드로 검색…"
-          style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.5rem 0.8rem 0.5rem 2.1rem', color: '#e2e8f0', fontSize: '0.83rem', outline: 'none', fontFamily: 'inherit' }}
+          style={{ width: '100%', boxSizing: 'border-box', background: '#f8fafc', border: '1px solid #e5e9f0', borderRadius: '8px', padding: '0.5rem 0.8rem 0.5rem 2.1rem', color: '#111827', fontSize: '0.83rem', outline: 'none', fontFamily: 'inherit' }}
         />
         {searchQuery && (
           <button onClick={() => setSearchQuery('')}
-            style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', fontSize: '0.85rem', padding: 0, lineHeight: 1 }}>✕</button>
+            style={{ position: 'absolute', right: '0.6rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '0.85rem', padding: 0, lineHeight: 1 }}>✕</button>
         )}
       </div>
 
@@ -422,7 +422,7 @@ export default function MeetingsClient({ meetings: initial, isAdmin = false }: {
                     onStatusChange={s => handleStatusChange(task.id, s)}
                   />
                 ))}
-                {tasks.length === 0 && <div style={{ padding: '1.2rem 0', textAlign: 'center', color: 'rgba(255,255,255,0.12)', fontSize: '0.75rem' }}>비어있음</div>}
+                {tasks.length === 0 && <div style={{ padding: '1.2rem 0', textAlign: 'center', color: '#94a3b8', fontSize: '0.75rem' }}>비어있음</div>}
               </div>
             );
           })}
@@ -441,7 +441,7 @@ export default function MeetingsClient({ meetings: initial, isAdmin = false }: {
       {modal && (
         <div style={OVERLAY} onClick={() => setModal(false)}>
           <div style={MODAL} onClick={e => e.stopPropagation()}>
-            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', margin: '0 0 1.2rem' }}>새 Task</h2>
+            <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#111827', margin: '0 0 1.2rem' }}>새 Task</h2>
 
             <label style={LABEL}>과업명</label>
             <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -472,9 +472,9 @@ export default function MeetingsClient({ meetings: initial, isAdmin = false }: {
                 return (
                   <button key={p} onClick={() => setForm(f => ({ ...f, priority: p }))}
                     style={{ flex: 1, padding: '0.45rem 0', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-                      background: form.priority === p ? m.bg : 'rgba(255,255,255,0.03)',
-                      border: form.priority === p ? `1px solid ${m.color}88` : '1px solid rgba(255,255,255,0.1)',
-                      color: form.priority === p ? m.color : 'rgba(255,255,255,0.35)',
+                      background: form.priority === p ? m.bg : '#ffffff',
+                      border: form.priority === p ? `1px solid ${m.color}88` : '1px solid #e5e9f0',
+                      color: form.priority === p ? m.color : '#94a3b8',
                     }}>{p}</button>
                 );
               })}
@@ -489,9 +489,9 @@ export default function MeetingsClient({ meetings: initial, isAdmin = false }: {
                     return (
                       <button key={sl} onClick={() => setForm(f => ({ ...f, security_level: sl }))}
                         style={{ flex: 1, padding: '0.4rem 0', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-                          background: form.security_level === sl ? m.bg : 'rgba(255,255,255,0.03)',
-                          border: form.security_level === sl ? `1px solid ${m.border}` : '1px solid rgba(255,255,255,0.1)',
-                          color: form.security_level === sl ? m.color : 'rgba(255,255,255,0.35)',
+                          background: form.security_level === sl ? m.bg : '#ffffff',
+                          border: form.security_level === sl ? `1px solid ${m.border}` : '1px solid #e5e9f0',
+                          color: form.security_level === sl ? m.color : '#94a3b8',
                         }}>{sl}</button>
                     );
                   })}
@@ -500,14 +500,14 @@ export default function MeetingsClient({ meetings: initial, isAdmin = false }: {
             )}
 
             <label style={LABEL}>작성일</label>
-            <div style={{ width: '100%', boxSizing: 'border-box', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '0.6rem 0.8rem', color: 'rgba(255,255,255,0.35)', fontSize: '0.88rem', marginBottom: '1rem' }}>
+            <div style={{ width: '100%', boxSizing: 'border-box', background: '#ffffff', border: '1px solid #f1f5f9', borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#94a3b8', fontSize: '0.88rem', marginBottom: '1rem' }}>
               {todayStr()}
             </div>
 
             <label style={LABEL}>마감일 (선택)</label>
             <input type="date" value={form.meeting_date} onChange={e => setForm(f => ({ ...f, meeting_date: e.target.value }))} style={INPUT} />
 
-            {err && <p style={{ color: '#f87171', fontSize: '0.8rem', marginBottom: '0.8rem' }}>{err}</p>}
+            {err && <p style={{ color: '#dc2626', fontSize: '0.8rem', marginBottom: '0.8rem' }}>{err}</p>}
 
             <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
               <button onClick={() => setModal(false)} style={BTN_CANCEL} disabled={isPending}>취소</button>
@@ -528,23 +528,23 @@ const OVERLAY: React.CSSProperties = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: '1rem',
 };
 const MODAL: React.CSSProperties = {
-  background: '#1a1f2e', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px',
+  background: '#1a1f2e', border: '1px solid #e5e9f0', borderRadius: '16px',
   padding: '1.5rem', width: '100%', maxWidth: '420px', maxHeight: '90vh', overflowY: 'auto',
 };
 const LABEL: React.CSSProperties = {
-  display: 'block', fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.35rem', fontWeight: 600,
+  display: 'block', fontSize: '0.75rem', color: '#64748b', marginBottom: '0.35rem', fontWeight: 600,
 };
 const INPUT: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box',
-  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
-  borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#fff', fontSize: '0.88rem',
+  background: '#f8fafc', border: '1px solid #e5e9f0',
+  borderRadius: '8px', padding: '0.6rem 0.8rem', color: '#111827', fontSize: '0.88rem',
   outline: 'none', marginBottom: '1rem', fontFamily: 'inherit',
 };
 const BTN_PRIMARY: React.CSSProperties = {
   padding: '0.48rem 1rem', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
-  background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.4)', color: '#a5b4fc', fontFamily: 'inherit',
+  background: 'rgba(99,102,241,0.18)', border: '1px solid rgba(99,102,241,0.4)', color: '#4f46e5', fontFamily: 'inherit',
 };
 const BTN_CANCEL: React.CSSProperties = {
   padding: '0.48rem 0.9rem', borderRadius: '8px', fontSize: '0.82rem', cursor: 'pointer',
-  background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)', fontFamily: 'inherit',
+  background: '#f1f5f9', border: '1px solid #e5e9f0', color: '#475569', fontFamily: 'inherit',
 };

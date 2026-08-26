@@ -15,10 +15,10 @@ export type Trend = {
 
 const TYPES = ['신제품출시', '정책변경', '이슈사항', '현장동향', '기타'] as const;
 const TYPE_STYLE: Record<string, { c: string; bg: string }> = {
-  '신제품출시': { c: '#6ee7b7', bg: 'rgba(52,211,153,0.14)' },
-  '정책변경':   { c: '#93c5fd', bg: 'rgba(59,130,246,0.14)' },
-  '이슈사항':   { c: '#fca5a5', bg: 'rgba(248,113,113,0.14)' },
-  '현장동향':   { c: '#fcd34d', bg: 'rgba(251,191,36,0.14)' },
+  '신제품출시': { c: '#059669', bg: 'rgba(52,211,153,0.14)' },
+  '정책변경':   { c: '#2563eb', bg: 'rgba(59,130,246,0.14)' },
+  '이슈사항':   { c: '#dc2626', bg: 'rgba(248,113,113,0.14)' },
+  '현장동향':   { c: '#b45309', bg: 'rgba(251,191,36,0.14)' },
   '기타':       { c: '#cbd5e1', bg: 'rgba(148,163,184,0.14)' },
 };
 const fmtYmd = (s?: string | null) => (s ? s.replace(/-/g, '.').slice(2) : '');
@@ -109,10 +109,10 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
             </button>
             {showTrash && deletedCompanies.map(c => (
               <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0.15rem 0.3rem' }}>
-                <span style={{ flex: 1, fontSize: '0.76rem', color: 'rgba(255,255,255,0.3)', textDecoration: 'line-through' }}>{c.name}</span>
+                <span style={{ flex: 1, fontSize: '0.76rem', color: '#94a3b8', textDecoration: 'line-through' }}>{c.name}</span>
                 <button title="복원" disabled={pending}
                   onClick={() => run(() => restoreCompany(c.id), `${c.name} 복원되었습니다.`)}
-                  style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 6, color: '#6ee7b7', cursor: 'pointer', fontSize: '0.66rem', padding: '0.1rem 0.4rem', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 6, color: '#059669', cursor: 'pointer', fontSize: '0.66rem', padding: '0.1rem 0.4rem', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                   ↩ 복원
                 </button>
               </div>
@@ -127,8 +127,8 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
         {manageMedia && (
           <div style={{ padding: '0 0.2rem' }}>
             {sources.map(s => (
-              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.74rem', color: 'rgba(255,255,255,0.6)', padding: '0.2rem 0.3rem' }}>
-                {s.base_url ? <a href={s.base_url} target="_blank" rel="noreferrer" style={{ color: '#93c5fd', textDecoration: 'none', flex: 1 }}>{s.name}</a> : <span style={{ flex: 1 }}>{s.name}</span>}
+              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.74rem', color: '#475569', padding: '0.2rem 0.3rem' }}>
+                {s.base_url ? <a href={s.base_url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'none', flex: 1 }}>{s.name}</a> : <span style={{ flex: 1 }}>{s.name}</span>}
                 {isAdmin && <button title="삭제" onClick={() => run(() => removeSource(s.id))} style={xBtn}>✕</button>}
               </div>
             ))}
@@ -142,7 +142,7 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
         {notice && (
           <div style={{ marginBottom: '0.6rem', padding: '0.5rem 0.8rem', borderRadius: 8, fontSize: '0.8rem',
             background: notice.startsWith('⚠') ? 'rgba(248,113,113,0.12)' : 'rgba(52,211,153,0.12)',
-            color: notice.startsWith('⚠') ? '#fca5a5' : '#6ee7b7' }}>{notice}</div>
+            color: notice.startsWith('⚠') ? '#dc2626' : '#059669' }}>{notice}</div>
         )}
 
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.7rem', flexWrap: 'wrap' }}>
@@ -151,7 +151,7 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
           </h2>
           <div style={{ flex: 1 }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 검색"
-            style={{ minWidth: 160, padding: '0.4rem 0.7rem', borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }} />
+            style={{ minWidth: 160, padding: '0.4rem 0.7rem', borderRadius: 8, background: '#f8fafc', border: '1px solid #e5e9f0', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }} />
           {isAdmin && (
             <button disabled={pending} onClick={() => start(async () => { setNotice('뉴스 수집 중…(최대 1~2분)'); const r = await crawlNow(); setNotice((r.error ? '⚠ ' + r.error : r.message) ?? ''); router.refresh(); })}
               style={ghostBtn} title="자동수집 매체에서 최신 기사 수집">🔄 뉴스 수집</button>
@@ -171,7 +171,7 @@ export default function CompetitorIntelClient({ companies, deletedCompanies = []
           </div>
         ) : groups.map(([month, items]) => (
           <div key={month} style={{ marginBottom: '1.2rem' }}>
-            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#a5b4fc', margin: '0 0 0.5rem', paddingLeft: '0.2rem' }}>
+            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#4f46e5', margin: '0 0 0.5rem', paddingLeft: '0.2rem' }}>
               {month === '기타' ? '날짜미상' : `${month.slice(0, 4)}년 ${month.slice(5, 7)}월`}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -197,28 +197,28 @@ function TrendCard({ t, showCompany, canDelete, onDelete }: {
   return (
     <div style={{ ...card, padding: '0.7rem 0.9rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: 'rgba(255,255,255,0.45)', minWidth: 46 }}>{fmtYmd(t.event_date) || '—'}</span>
+        <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: '#64748b', minWidth: 46 }}>{fmtYmd(t.event_date) || '—'}</span>
         <span style={{ fontSize: '0.66rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 4, color: ts.c, background: ts.bg }}>{t.trend_type}</span>
-        {t.is_field && <span style={{ fontSize: '0.64rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 4, color: '#fcd34d', background: 'rgba(251,191,36,0.14)' }}>현장</span>}
-        {t.crawled && <span style={{ fontSize: '0.6rem', color: 'rgba(255,255,255,0.35)' }}>자동수집</span>}
-        {showCompany && <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#93c5fd' }}>{t.company_name}</span>}
+        {t.is_field && <span style={{ fontSize: '0.64rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 4, color: '#b45309', background: 'rgba(251,191,36,0.14)' }}>현장</span>}
+        {t.crawled && <span style={{ fontSize: '0.6rem', color: '#94a3b8' }}>자동수집</span>}
+        {showCompany && <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#2563eb' }}>{t.company_name}</span>}
         <div style={{ flex: 1 }} />
-        {canDelete && <button onClick={onDelete} style={{ ...miniBtn, color: '#fca5a5' }}>삭제</button>}
+        {canDelete && <button onClick={onDelete} style={{ ...miniBtn, color: '#dc2626' }}>삭제</button>}
       </div>
       <div onClick={() => (t.content || t.supplement) && setOpen(o => !o)} style={{ cursor: (t.content || t.supplement) ? 'pointer' : 'default', marginTop: '0.35rem' }}>
         <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{t.title}</p>
-        {t.summary && <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>{t.summary}</p>}
+        {t.summary && <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: '#475569' }}>{t.summary}</p>}
       </div>
       {open && (
-        <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.07)', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', whiteSpace: 'pre-wrap' }}>
+        <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9', fontSize: '0.8rem', color: '#475569', whiteSpace: 'pre-wrap' }}>
           {t.content && <div>{t.content}</div>}
           {t.supplement && <div style={{ marginTop: '0.5rem', padding: '0.5rem 0.7rem', borderRadius: 8, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
-            <b style={{ color: '#a5b4fc', fontSize: '0.72rem' }}>보완내용</b><br />{t.supplement}</div>}
+            <b style={{ color: '#4f46e5', fontSize: '0.72rem' }}>보완내용</b><br />{t.supplement}</div>}
         </div>
       )}
-      <div style={{ display: 'flex', gap: '0.7rem', marginTop: '0.4rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '0.7rem', marginTop: '0.4rem', fontSize: '0.7rem', color: '#94a3b8', flexWrap: 'wrap' }}>
         {t.source_name && <span>📰 {t.source_name}</span>}
-        {t.url && <a href={t.url} target="_blank" rel="noreferrer" style={{ color: '#93c5fd', textDecoration: 'none' }}>기사 링크 ↗</a>}
+        {t.url && <a href={t.url} target="_blank" rel="noreferrer" style={{ color: '#2563eb', textDecoration: 'none' }}>기사 링크 ↗</a>}
         {t.author_name && <span>✍ {t.author_name}</span>}
       </div>
     </div>
@@ -232,7 +232,7 @@ function AddInline({ placeholder, onAdd }: { placeholder: string; onAdd: (v: str
     <input value={v} placeholder={placeholder}
       onChange={e => setV(e.target.value)}
       onKeyDown={e => { if (e.key === 'Enter' && v.trim()) { onAdd(v.trim()); setV(''); } }}
-      style={{ width: '100%', marginTop: '0.3rem', padding: '0.35rem 0.5rem', borderRadius: 7, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', fontSize: '0.74rem', outline: 'none', boxSizing: 'border-box' }} />
+      style={{ width: '100%', marginTop: '0.3rem', padding: '0.35rem 0.5rem', borderRadius: 7, background: '#f8fafc', border: '1px solid #e5e9f0', color: 'var(--text-primary)', fontSize: '0.74rem', outline: 'none', boxSizing: 'border-box' }} />
   );
 }
 
@@ -241,24 +241,24 @@ function Chip({ active, color, onClick, children }: { active: boolean; color?: s
     <button onClick={onClick} style={{
       padding: '0.28rem 0.7rem', borderRadius: 100, fontSize: '0.76rem', fontWeight: active ? 700 : 500, cursor: 'pointer', fontFamily: 'inherit',
       background: active ? (color ? color + '22' : 'rgba(59,130,246,0.9)') : 'transparent',
-      border: `1px solid ${active ? (color ?? 'rgba(59,130,246,0.9)') + '70' : 'rgba(255,255,255,0.14)'}`,
-      color: active ? (color ?? '#fff') : 'rgba(255,255,255,0.5)',
+      border: `1px solid ${active ? (color ?? 'rgba(59,130,246,0.9)') + '70' : '#d7dce5'}`,
+      color: active ? (color ?? '#fff') : '#64748b',
     }}>{children}</button>
   );
 }
 
 /* ── 스타일 ── */
-const card: React.CSSProperties = { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 14 };
-const sideHdr: React.CSSProperties = { fontSize: '0.68rem', color: 'rgba(255,255,255,0.35)', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '0 0.4rem', margin: '0 0 0.4rem' };
+const card: React.CSSProperties = { background: '#ffffff', border: '1px solid #f1f5f9', borderRadius: 14 };
+const sideHdr: React.CSSProperties = { fontSize: '0.68rem', color: '#94a3b8', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', padding: '0 0.4rem', margin: '0 0 0.4rem' };
 // globals.css 의 전역 터치타겟(button{min-height:44px; justify-content:center}) 을
 // 사이드바에서만 완화 — 목록이 세로로 과도하게 길어지고 텍스트가 가운데 정렬되는 문제 해소.
 const sideBtn = (active: boolean): React.CSSProperties => ({
   width: '100%', textAlign: 'left', padding: '0.3rem 0.5rem', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.8rem', marginBottom: 1,
-  background: active ? 'rgba(59,130,246,0.16)' : 'transparent', color: active ? '#93c5fd' : 'rgba(255,255,255,0.6)', fontWeight: active ? 700 : 400, fontFamily: 'inherit',
+  background: active ? 'rgba(59,130,246,0.16)' : 'transparent', color: active ? '#2563eb' : '#475569', fontWeight: active ? 700 : 400, fontFamily: 'inherit',
   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
   minHeight: 30, justifyContent: 'flex-start', display: 'flex', alignItems: 'center',
 });
-const xBtn: React.CSSProperties = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: '0.7rem', padding: '0 0.2rem', minHeight: 22, flexShrink: 0 };
-const ordBtn: React.CSSProperties = { background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', fontSize: '0.6rem', padding: '0 2px', lineHeight: 1, fontFamily: 'inherit', flexShrink: 0, minHeight: 22 };
-const miniBtn: React.CSSProperties = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: 'rgba(255,255,255,0.6)', cursor: 'pointer', fontSize: '0.7rem', padding: '0.12rem 0.5rem', fontFamily: 'inherit' };
-const ghostBtn: React.CSSProperties = { padding: '0.42rem 1rem', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.6)', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' };
+const xBtn: React.CSSProperties = { background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.7rem', padding: '0 0.2rem', minHeight: 22, flexShrink: 0 };
+const ordBtn: React.CSSProperties = { background: 'none', border: 'none', color: '#475569', cursor: 'pointer', fontSize: '0.6rem', padding: '0 2px', lineHeight: 1, fontFamily: 'inherit', flexShrink: 0, minHeight: 22 };
+const miniBtn: React.CSSProperties = { background: '#f1f5f9', border: '1px solid #e5e9f0', borderRadius: 6, color: '#475569', cursor: 'pointer', fontSize: '0.7rem', padding: '0.12rem 0.5rem', fontFamily: 'inherit' };
+const ghostBtn: React.CSSProperties = { padding: '0.42rem 1rem', borderRadius: 8, background: 'transparent', border: '1px solid #d7dce5', color: '#475569', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' };

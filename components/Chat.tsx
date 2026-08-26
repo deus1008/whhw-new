@@ -271,8 +271,8 @@ function TypingDots() {
 
 const styles: Record<string, React.CSSProperties> = {
   wrapper: {
-    background: 'rgba(13, 21, 38, 0.65)',
-    border: '1px solid rgba(255,255,255,0.09)',
+    background: '#f1f4f9',
+    border: '1px solid #f1f5f9',
     backdropFilter: 'blur(24px)',
     WebkitBackdropFilter: 'blur(24px)',
     borderRadius: '20px',
@@ -287,7 +287,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '0.85rem 1.4rem',
-    borderBottom: '1px solid rgba(255,255,255,0.07)',
+    borderBottom: '1px solid #f1f5f9',
     flexShrink: 0,
     gap: '0.8rem',
   },
@@ -312,8 +312,8 @@ const styles: Record<string, React.CSSProperties> = {
   clearBtn: {
     padding: '0.3rem 0.75rem',
     borderRadius: '8px',
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.09)',
+    background: '#f8fafc',
+    border: '1px solid #f1f5f9',
     color: 'var(--text-muted)',
     fontSize: '0.75rem',
     fontWeight: 500,
@@ -335,8 +335,8 @@ const styles: Record<string, React.CSSProperties> = {
   confirmBtn: {
     padding: '0.28rem 0.65rem',
     borderRadius: '7px',
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.1)',
+    background: '#f8fafc',
+    border: '1px solid #e5e9f0',
     color: 'var(--text-muted)',
     fontSize: '0.75rem',
     fontWeight: 500,
@@ -346,7 +346,7 @@ const styles: Record<string, React.CSSProperties> = {
   confirmBtnDanger: {
     background: 'rgba(239,68,68,0.15)',
     border: '1px solid rgba(239,68,68,0.3)',
-    color: '#fca5a5',
+    color: '#dc2626',
   },
   messageList: {
     flex: 1,
@@ -397,8 +397,8 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottomRightRadius: '4px',
   },
   bubbleAI: {
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.08)',
+    background: '#f8fafc',
+    border: '1px solid #f1f5f9',
     color: 'var(--text-primary)',
     borderBottomLeftRadius: '4px',
   },
@@ -409,21 +409,21 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid rgba(239,68,68,0.22)',
     borderRadius: '10px',
     fontSize: '0.8rem',
-    color: '#fca5a5',
+    color: '#dc2626',
     flexShrink: 0,
   },
   form: {
     display: 'flex',
     gap: '0.6rem',
     padding: '0.9rem 1.2rem',
-    borderTop: '1px solid rgba(255,255,255,0.07)',
+    borderTop: '1px solid #f1f5f9',
     alignItems: 'flex-end',
     flexShrink: 0,
   },
   textarea: {
     flex: 1,
-    background: 'rgba(255,255,255,0.04)',
-    border: '1px solid rgba(255,255,255,0.1)',
+    background: '#f8fafc',
+    border: '1px solid #e5e9f0',
     borderRadius: '12px',
     color: 'var(--text-primary)',
     padding: '0.65rem 0.9rem',
@@ -452,7 +452,7 @@ const styles: Record<string, React.CSSProperties> = {
   spinner: {
     width: '16px',
     height: '16px',
-    border: '2px solid rgba(255,255,255,0.3)',
+    border: '2px solid #94a3b8',
     borderTopColor: '#fff',
     borderRadius: '50%',
     display: 'inline-block',

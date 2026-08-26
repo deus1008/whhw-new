@@ -4,9 +4,9 @@ import { useState, useTransition, useRef } from 'react';
 import { updateErrorReport, type ErrorReport } from '@/app/errors/actions';
 
 const STATUS_META: Record<string, { color: string; bg: string; border: string; label: string }> = {
-  '접수':  { color: '#f87171', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.3)',   label: '접수' },
-  '처리중': { color: '#fbbf24', bg: 'rgba(251,191,36,0.1)', border: 'rgba(251,191,36,0.3)',  label: '처리중' },
-  '완료':  { color: '#4ade80', bg: 'rgba(74,222,128,0.1)',  border: 'rgba(74,222,128,0.3)',  label: '완료' },
+  '접수':  { color: '#b91c1c', bg: 'rgba(239,68,68,0.1)',   border: 'rgba(239,68,68,0.3)',   label: '접수' },
+  '처리중': { color: '#b45309', bg: 'rgba(251,191,36,0.1)', border: 'rgba(251,191,36,0.3)',  label: '처리중' },
+  '완료':  { color: '#15803d', bg: 'rgba(74,222,128,0.1)',  border: 'rgba(74,222,128,0.3)',  label: '완료' },
 };
 
 function fmt(iso: string) {
@@ -43,7 +43,7 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
 
   return (
     <div style={{
-      background: 'rgba(15,23,42,0.6)',
+      background: '#ffffff',
       border: `1px solid ${meta.border}`,
       borderLeft: `3px solid ${meta.color}`,
       borderRadius: '12px',
@@ -73,7 +73,7 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
           <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', display: 'flex', gap: '0.8rem', flexWrap: 'wrap' }}>
             <span>📅 {fmt(report.created_at)}</span>
             {report.reporter_email && <span>✉ {report.reporter_email}</span>}
-            {report.admin_comment  && <span style={{ color: '#4ade80' }}>✔ 조치완료</span>}
+            {report.admin_comment  && <span style={{ color: '#15803d' }}>✔ 조치완료</span>}
           </div>
         </div>
 
@@ -84,12 +84,12 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
 
       {/* 상세 펼침 */}
       {expanded && (
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: '1rem 1.1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ borderTop: '1px solid #e5e9f0', padding: '1rem 1.1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* 오류 내용 */}
           <div>
             <div style={{ fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.4rem' }}>오류 내용</div>
             <div style={{
-              background: 'rgba(255,255,255,0.03)', borderRadius: '8px',
+              background: '#f8fafc', borderRadius: '8px',
               padding: '0.75rem 1rem', fontSize: '0.83rem',
               color: 'var(--text-secondary)', lineHeight: 1.65, whiteSpace: 'pre-wrap',
             }}>
@@ -100,11 +100,11 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
           {/* 기존 조치결과 (편집 모드가 아닐 때) */}
           {!editing && report.admin_comment && (
             <div>
-              <div style={{ fontSize: '0.73rem', fontWeight: 600, color: '#4ade80', marginBottom: '0.4rem' }}>조치 결과</div>
+              <div style={{ fontSize: '0.73rem', fontWeight: 600, color: '#15803d', marginBottom: '0.4rem' }}>조치 결과</div>
               <div style={{
                 background: 'rgba(74,222,128,0.05)', border: '1px solid rgba(74,222,128,0.2)',
                 borderRadius: '8px', padding: '0.75rem 1rem',
-                fontSize: '0.83rem', color: '#86efac', lineHeight: 1.65, whiteSpace: 'pre-wrap',
+                fontSize: '0.83rem', color: '#15803d', lineHeight: 1.65, whiteSpace: 'pre-wrap',
               }}>
                 {report.admin_comment}
               </div>
@@ -146,29 +146,29 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
                   placeholder="조치한 내용을 입력하세요..."
                   style={{
                     width: '100%', padding: '0.6rem 0.8rem', boxSizing: 'border-box',
-                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+                    background: '#ffffff', border: '1px solid #d7dce5',
                     borderRadius: '8px', color: 'var(--text-primary)', fontSize: '0.85rem',
                     fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.6,
                   }}
                 />
               </div>
 
-              {err && <p style={{ color: '#fca5a5', fontSize: '0.8rem', margin: 0 }}>⚠ {err}</p>}
+              {err && <p style={{ color: '#dc2626', fontSize: '0.8rem', margin: 0 }}>⚠ {err}</p>}
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                  💡 저장하면 신고자의 <b style={{ color: '#a5b4fc' }}>오류신고</b> 화면에 조치결과가 표시됩니다.
+                  💡 저장하면 신고자의 <b style={{ color: '#2563eb' }}>오류신고</b> 화면에 조치결과가 표시됩니다.
                 </span>
                 <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
                   <button type="button" onClick={() => setEditing(false)} style={{
                     padding: '0.45rem 1rem', borderRadius: '7px', fontSize: '0.82rem',
-                    border: '1px solid rgba(255,255,255,0.1)', background: 'transparent',
+                    border: '1px solid #e5e9f0', background: 'transparent',
                     color: 'var(--text-muted)', cursor: 'pointer',
                   }}>취소</button>
                   <button type="submit" disabled={pending} style={{
                     padding: '0.45rem 1.2rem', borderRadius: '7px', fontSize: '0.82rem', fontWeight: 700,
                     border: '1px solid rgba(74,222,128,0.35)', background: 'rgba(74,222,128,0.15)',
-                    color: '#4ade80', cursor: pending ? 'not-allowed' : 'pointer',
+                    color: '#15803d', cursor: pending ? 'not-allowed' : 'pointer',
                   }}>
                     {pending ? '저장 중…' : '✔ 저장'}
                   </button>
@@ -182,7 +182,7 @@ function ReportCard({ report, onUpdated }: { report: ErrorReport; onUpdated: (r:
                 style={{
                   padding: '0.4rem 1rem', borderRadius: '7px', fontSize: '0.8rem', fontWeight: 600,
                   border: '1px solid rgba(99,102,241,0.3)', background: 'rgba(99,102,241,0.1)',
-                  color: '#a5b4fc', cursor: 'pointer',
+                  color: '#2563eb', cursor: 'pointer',
                 }}
               >
                 ✏️ {report.admin_comment ? '조치결과 수정' : '조치결과 입력'}
@@ -221,13 +221,13 @@ export default function ErrorsClient({ initialReports }: { initialReports: Error
       {/* 요약 통계 */}
       <div style={{ display: 'flex', gap: '0.7rem', flexWrap: 'wrap' }}>
         {(['전체','접수','처리중','완료'] as const).map(s => {
-          const sm   = s === '전체' ? { color: '#c4b5fd', bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.25)' } : STATUS_META[s];
+          const sm   = s === '전체' ? { color: '#7c3aed', bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.25)' } : STATUS_META[s];
           const isOn = statusFilter === s;
           return (
             <button key={s} onClick={() => setFilter(s)} style={{
               flex: '1 1 100px', padding: '0.8rem 1rem', borderRadius: '12px', cursor: 'pointer',
-              background: isOn ? sm.bg : 'rgba(255,255,255,0.03)',
-              border: `1px solid ${isOn ? sm.border : 'rgba(255,255,255,0.08)'}`,
+              background: isOn ? sm.bg : '#ffffff',
+              border: `1px solid ${isOn ? sm.border : '#e5e9f0'}`,
               color: isOn ? sm.color : 'var(--text-muted)',
               textAlign: 'left', transition: 'all 0.15s',
             }}>

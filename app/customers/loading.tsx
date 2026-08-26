@@ -3,7 +3,7 @@ import type { CSSProperties } from 'react';
 
 export default function CustomersLoading() {
   const shimmer: CSSProperties = {
-    background: 'linear-gradient(90deg,rgba(255,255,255,0.04) 25%,rgba(255,255,255,0.09) 50%,rgba(255,255,255,0.04) 75%)',
+    background: 'linear-gradient(90deg,rgba(15,23,42,0.05) 25%,rgba(15,23,42,0.10) 50%,rgba(15,23,42,0.05) 75%)',
     backgroundSize: '400% 100%',
     animation: 'shimmer 1.4s infinite',
     borderRadius: '8px',

@@ -142,7 +142,7 @@ export default function SignupPage() {
               {/* ── 기본 정보 ── */}
               <div className="auth-field">
                 <label className="auth-label" htmlFor="fullName">
-                  성명 <span style={{ color: '#f87171' }}>*</span>
+                  성명 <span style={{ color: '#dc2626' }}>*</span>
                 </label>
                 <input
                   id="fullName"
@@ -193,7 +193,7 @@ export default function SignupPage() {
               {/* ── 계정 정보 ── */}
               <div className="auth-field" style={{ marginTop: '0.25rem' }}>
                 <label className="auth-label" htmlFor="email">
-                  이메일 <span style={{ color: '#f87171' }}>*</span>
+                  이메일 <span style={{ color: '#dc2626' }}>*</span>
                 </label>
                 <input
                   id="email"
@@ -212,7 +212,7 @@ export default function SignupPage() {
                 <label className="auth-label" htmlFor="password">
                   비밀번호{' '}
                   <span style={{ color: 'var(--text-muted)', fontSize: '0.73rem' }}>(최소 8자)</span>{' '}
-                  <span style={{ color: '#f87171' }}>*</span>
+                  <span style={{ color: '#dc2626' }}>*</span>
                 </label>
                 <input
                   id="password"
@@ -229,7 +229,7 @@ export default function SignupPage() {
 
               <div className="auth-field">
                 <label className="auth-label" htmlFor="confirm">
-                  비밀번호 확인 <span style={{ color: '#f87171' }}>*</span>
+                  비밀번호 확인 <span style={{ color: '#dc2626' }}>*</span>
                 </label>
                 <input
                   id="confirm"

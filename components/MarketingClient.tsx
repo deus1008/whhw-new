@@ -16,10 +16,10 @@ import {
 
 /* ── 색상 헬퍼 ──────────────────────────────────────────────── */
 const COLOR_PALETTE = [
-  '#a78bfa', '#c084fc', '#f472b6', '#fb7185',
-  '#fb923c', '#fbbf24', '#a3e635', '#34d399',
-  '#22d3ee', '#60a5fa', '#818cf8', '#4ade80',
-  '#f87171', '#38bdf8', '#94a3b8', '#e2e8f0',
+  '#7c3aed', '#9333ea', '#f472b6', '#fb7185',
+  '#fb923c', '#b45309', '#a3e635', '#059669',
+  '#0891b2', '#2563eb', '#4f46e5', '#059669',
+  '#dc2626', '#38bdf8', '#94a3b8', '#e2e8f0',
 ];
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -292,7 +292,7 @@ export default function MarketingClient({
         <div style={calGrid}>
           {DAYS_KO.map((d, i) => (
             <div key={d} style={{ textAlign:'center', fontSize:'0.72rem', fontWeight:600,
-              color: i===0 ? '#fca5a5' : i===6 ? '#93c5fd' : 'var(--text-muted)',
+              color: i===0 ? '#dc2626' : i===6 ? '#2563eb' : 'var(--text-muted)',
               paddingBottom:'0.5rem' }}>
               {d}
             </div>
@@ -310,15 +310,15 @@ export default function MarketingClient({
             return (
               <div key={ymd} onClick={() => setSelectedDate(isSel ? null : ymd)} style={{
                 borderRadius:'8px', padding:'0.3rem 0.2rem', cursor:'pointer', minHeight:'52px',
-                background: isSel ? 'rgba(79,142,247,0.18)' : isToday ? 'rgba(255,255,255,0.05)' : 'transparent',
-                border: isSel ? '1px solid rgba(79,142,247,0.5)' : isToday ? '1px solid rgba(255,255,255,0.12)' : '1px solid transparent',
+                background: isSel ? 'rgba(79,142,247,0.18)' : isToday ? '#f8fafc' : 'transparent',
+                border: isSel ? '1px solid rgba(79,142,247,0.5)' : isToday ? '1px solid #e5e9f0' : '1px solid transparent',
                 transition:'background 0.12s',
               }}
-              onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-              onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = isToday ? 'rgba(255,255,255,0.05)' : 'transparent'; }}
+              onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = '#f8fafc'; }}
+              onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = isToday ? '#f8fafc' : 'transparent'; }}
               >
                 <div style={{ textAlign:'center', fontSize:'0.78rem', fontWeight: isToday ? 700 : 400,
-                  color: isToday ? '#93c5fd' : dow===0 ? '#fca5a5' : dow===6 ? '#93c5fd' : 'var(--text-primary)',
+                  color: isToday ? '#2563eb' : dow===0 ? '#dc2626' : dow===6 ? '#2563eb' : 'var(--text-primary)',
                   marginBottom:'0.2rem' }}>
                   {day}
                 </div>
@@ -337,7 +337,7 @@ export default function MarketingClient({
         </div>
 
         {/* 카테고리 필터 */}
-        <div style={{ display:'flex', flexWrap:'wrap', gap:'0.5rem', marginTop:'1rem', paddingTop:'0.8rem', borderTop:'1px solid rgba(255,255,255,0.06)', alignItems:'center' }}>
+        <div style={{ display:'flex', flexWrap:'wrap', gap:'0.5rem', marginTop:'1rem', paddingTop:'0.8rem', borderTop:'1px solid #f1f5f9', alignItems:'center' }}>
           {cats.map(cat => {
             const active = filterCat === cat.name;
             const cc = catColorFromHex(cat.color);
@@ -347,7 +347,7 @@ export default function MarketingClient({
                 fontSize:'0.72rem', cursor:'pointer', fontFamily:'inherit',
                 padding:'0.18rem 0.55rem', borderRadius:'100px',
                 background: active ? cc.bg : 'transparent',
-                border: active ? `1px solid ${cat.color}55` : '1px solid rgba(255,255,255,0.1)',
+                border: active ? `1px solid ${cat.color}55` : '1px solid #e5e9f0',
                 color: active ? cc.text : 'var(--text-muted)',
                 transition:'all 0.15s',
               }}>
@@ -360,8 +360,8 @@ export default function MarketingClient({
             <button onClick={() => setFilterCat(null)} style={{
               fontSize:'0.68rem', cursor:'pointer', fontFamily:'inherit',
               padding:'0.18rem 0.5rem', borderRadius:'100px',
-              background:'transparent', border:'1px solid rgba(255,255,255,0.1)',
-              color:'rgba(255,255,255,0.3)',
+              background:'transparent', border:'1px solid #e5e9f0',
+              color:'#94a3b8',
             }}>✕ 전체</button>
           )}
         </div>
@@ -379,7 +379,7 @@ export default function MarketingClient({
               </span>
             )}
             <span style={{ background:'rgba(79,142,247,0.12)', border:'1px solid rgba(79,142,247,0.25)',
-              borderRadius:'100px', padding:'2px 10px', fontSize:'0.72rem', fontWeight:600, color:'#93c5fd' }}>
+              borderRadius:'100px', padding:'2px 10px', fontSize:'0.72rem', fontWeight:600, color:'#2563eb' }}>
               {listSchedules.length}
             </span>
           </h2>
@@ -401,8 +401,8 @@ export default function MarketingClient({
               const isConf  = confirmId === s.id;
               const editable = canEdit(s);
               return (
-                <div key={s.id} style={{ borderRadius:'10px', background:'rgba(255,255,255,0.03)',
-                  border:'1px solid rgba(255,255,255,0.07)', padding:'0.75rem 1rem' }}>
+                <div key={s.id} style={{ borderRadius:'10px', background:'#ffffff',
+                  border:'1px solid #f1f5f9', padding:'0.75rem 1rem' }}>
                   <div style={{ display:'flex', alignItems:'flex-start', gap:'0.8rem', flexWrap:'wrap' }}>
                     {s.category && (
                       <span style={{ fontSize:'0.68rem', fontWeight:600, padding:'2px 8px',
@@ -483,12 +483,12 @@ export default function MarketingClient({
             </div>
 
             <Field label="카테고리">
-              <select className="auth-input" style={{ marginBottom:0, background:'#1e293b' }}
+              <select className="auth-input" style={{ marginBottom:0, background:'#ffffff' }}
                 value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
                 disabled={isPending}>
-                <option value="" style={{ background:'#1e293b', color:'#e2e8f0' }}>— 선택 안함 —</option>
+                <option value="" style={{ background:'#ffffff', color:'#111827' }}>— 선택 안함 —</option>
                 {cats.map(c => (
-                  <option key={c.id} value={c.name} style={{ background:'#1e293b', color:'#e2e8f0' }}>{c.name}</option>
+                  <option key={c.id} value={c.name} style={{ background:'#ffffff', color:'#111827' }}>{c.name}</option>
                 ))}
               </select>
             </Field>
@@ -540,7 +540,7 @@ export default function MarketingClient({
                 return (
                   <div key={cat.id} style={{ display:'flex', alignItems:'center', gap:'0.5rem',
                     padding:'0.5rem 0.7rem', borderRadius:'8px',
-                    background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)' }}>
+                    background:'#ffffff', border:'1px solid #f1f5f9' }}>
                     <span style={{ width:'10px', height:'10px', borderRadius:'50%', background:cat.color, flexShrink:0 }} />
                     <span style={{ flex:1, fontSize:'0.87rem', color:'var(--text-primary)' }}>{cat.name}</span>
 
@@ -570,14 +570,14 @@ export default function MarketingClient({
             {!catFormOpen && (
               <button onClick={openCatAdd} style={{ width:'100%', padding:'0.45rem', borderRadius:'8px',
                 background:'rgba(79,142,247,0.08)', border:'1px dashed rgba(79,142,247,0.3)',
-                color:'#93c5fd', cursor:'pointer', fontSize:'0.83rem', fontFamily:'inherit' }}>
+                color:'#2563eb', cursor:'pointer', fontSize:'0.83rem', fontFamily:'inherit' }}>
                 + 유형 추가
               </button>
             )}
 
             {/* 추가/수정 폼 */}
             {catFormOpen && (
-              <div style={{ borderTop:'1px solid rgba(255,255,255,0.08)', paddingTop:'1rem' }}>
+              <div style={{ borderTop:'1px solid #f1f5f9', paddingTop:'1rem' }}>
                 <p style={{ fontSize:'0.8rem', fontWeight:600, color:'var(--text-muted)', margin:'0 0 0.6rem' }}>
                   {catEditId ? '유형 수정' : '새 유형 추가'}
                 </p>
@@ -612,7 +612,7 @@ export default function MarketingClient({
                       value={catForm.color}
                       onChange={e => setCatForm(f => ({ ...f, color: e.target.value }))}
                       title="직접 선택"
-                      style={{ width:'24px', height:'24px', borderRadius:'50%', border:'2px solid rgba(255,255,255,0.15)',
+                      style={{ width:'24px', height:'24px', borderRadius:'50%', border:'2px solid #d7dce5',
                         cursor:'pointer', padding:'1px', background:'transparent' }}
                     />
                   </div>
@@ -666,57 +666,57 @@ const overlay: React.CSSProperties = {
   display:'flex', alignItems:'center', justifyContent:'center', padding:'1rem',
 };
 const modalBox: React.CSSProperties = {
-  background:'var(--card-bg, #12172b)', border:'1px solid rgba(255,255,255,0.1)',
+  background:'var(--card-bg, #12172b)', border:'1px solid #e5e9f0',
   borderRadius:'16px', padding:'1.8rem', width:'100%', maxWidth:'500px',
   maxHeight:'90vh', overflowY:'auto',
 };
 const navBtn: React.CSSProperties = {
-  background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)',
+  background:'#f1f5f9', border:'1px solid #e5e9f0',
   color:'var(--text-primary)', borderRadius:'8px', cursor:'pointer',
   fontSize:'1.1rem', lineHeight:1, padding:'0.3rem 0.7rem', fontFamily:'inherit',
 };
 const addBtn: React.CSSProperties = {
   background:'rgba(79,142,247,0.15)', border:'1px solid rgba(79,142,247,0.35)',
-  color:'#93c5fd', borderRadius:'8px', cursor:'pointer',
+  color:'#2563eb', borderRadius:'8px', cursor:'pointer',
   fontSize:'0.83rem', fontWeight:600, padding:'0.42rem 1rem', fontFamily:'inherit',
 };
 const mgmtBtn: React.CSSProperties = {
-  background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)',
+  background:'#f8fafc', border:'1px solid #e5e9f0',
   color:'var(--text-muted)', borderRadius:'8px', cursor:'pointer',
   fontSize:'0.83rem', fontWeight:500, padding:'0.42rem 1rem', fontFamily:'inherit',
 };
 const editBtn: React.CSSProperties = {
-  background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)',
+  background:'#f8fafc', border:'1px solid #e5e9f0',
   color:'var(--text-muted)', borderRadius:'6px', cursor:'pointer',
   fontSize:'0.73rem', padding:'0.22rem 0.6rem', fontFamily:'inherit',
 };
 const deleteBtn: React.CSSProperties = {
   background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.2)',
-  color:'#fca5a5', borderRadius:'6px', cursor:'pointer',
+  color:'#dc2626', borderRadius:'6px', cursor:'pointer',
   fontSize:'0.73rem', padding:'0.22rem 0.6rem', fontFamily:'inherit',
 };
 const confirmDeleteBtn: React.CSSProperties = {
   background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.35)',
-  color:'#fca5a5', borderRadius:'6px', cursor:'pointer',
+  color:'#dc2626', borderRadius:'6px', cursor:'pointer',
   fontSize:'0.73rem', padding:'0.22rem 0.6rem', fontFamily:'inherit',
 };
 const cancelBtn: React.CSSProperties = {
-  background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)',
+  background:'#f8fafc', border:'1px solid #e5e9f0',
   color:'var(--text-muted)', borderRadius:'6px', cursor:'pointer',
   fontSize:'0.73rem', padding:'0.22rem 0.6rem', fontFamily:'inherit',
 };
 const saveBtn: React.CSSProperties = {
   flex:1, background:'rgba(79,142,247,0.2)', border:'1px solid rgba(79,142,247,0.4)',
-  color:'#93c5fd', borderRadius:'8px', cursor:'pointer',
+  color:'#2563eb', borderRadius:'8px', cursor:'pointer',
   fontSize:'0.88rem', fontWeight:600, padding:'0.55rem 1rem', fontFamily:'inherit',
 };
 const cancelBtn2: React.CSSProperties = {
-  background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)',
+  background:'#f8fafc', border:'1px solid #e5e9f0',
   color:'var(--text-muted)', borderRadius:'8px', cursor:'pointer',
   fontSize:'0.88rem', padding:'0.55rem 1rem', fontFamily:'inherit',
 };
 const arrowBtn: React.CSSProperties = {
-  background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)',
+  background:'#f8fafc', border:'1px solid #e5e9f0',
   color:'var(--text-muted)', borderRadius:'5px', cursor:'pointer',
   fontSize:'0.7rem', padding:'0.18rem 0.45rem', fontFamily:'inherit', lineHeight:1,
 };
