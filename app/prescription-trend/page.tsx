@@ -34,7 +34,7 @@ export default async function PrescriptionTrendPage() {
   return (
     <div style={{ minHeight: '100vh', width: '100%', background: '#ffffff', alignSelf: 'stretch' }}>
       <div className="relative z-10 w-full px-4" style={{ maxWidth: '1320px', margin: '0 auto', paddingTop: '1.6rem', paddingBottom: '3rem' }}>
-        <h1 style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.35rem, 4vw, 2rem)', fontWeight: 800, color: '#0b1220', letterSpacing: '-0.02em' }}>
+        <h1 style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.35rem, 4vw, 2rem)', fontWeight: 600, color: '#111827', letterSpacing: '-0.02em' }}>
           진료과별 다처방 성분
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '1.4rem', flexWrap: 'wrap' }}>
