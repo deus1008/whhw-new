@@ -7,7 +7,7 @@ import type { EdiReport } from '@/app/edi/actions';
 import type { EdiData, SalesPersonStat, CsoStat, HospitalStat, ItemStat, IHItemStat, DrugPrice } from '@/lib/edi/process';
 
 /* ── 포맷 유틸 ──────────────────────────────────────────────── */
-const fmt = (v: number) => Math.round(v / 1000).toLocaleString();
+const fmt = (v: number) => Math.round(v / 1e6).toLocaleString();
 
 // 복수 키워드 검색 — 공백/쉼표/+ 로 구분, 하나라도 포함되면 매칭(OR)
 function matchKw(name: string, search: string): boolean {
@@ -217,7 +217,7 @@ function ComparisonSummary({ reports }: { reports: EdiReport[] }) {
   const maxAmt = Math.max(...reports.map(r => r.data.totalAmount));
   return (
     <div style={{ background: '#ffffff', border: '1px solid #f1f5f9', borderRadius: 14, padding: '1rem 1.2rem' }}>
-      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.85rem' }}>📊 비교 요약 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400 }}>(단위: 천원)</span></h3>
+      <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.85rem' }}>📊 비교 요약 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400 }}>(단위: 백만원)</span></h3>
       <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
           <thead>
@@ -899,7 +899,7 @@ function ItemSection({ stats, hospStats, totalAmount }: {
     <div style={{ background: '#ffffff', border: '1px solid #f1f5f9', borderRadius: 14, padding: '1.1rem 1.2rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>품목별 현황</h3>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0 }}>(단위: 천원)</span>
+        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0 }}>(단위: 백만원)</span>
       </div>
       <div style={{ marginBottom: '0.5rem' }}>
         <SearchInput value={search} onChange={v => setSearch(v)} />
@@ -1210,7 +1210,7 @@ function Section({ title, children, searchSlot }: { title: string; children: Rea
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: searchSlot ? '0.5rem' : '0.85rem' }}>
         <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{title}</h3>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0 }}>(단위: 천원)</span>
+        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0 }}>(단위: 백만원)</span>
       </div>
       {searchSlot && <div style={{ marginBottom: '0.75rem' }}>{searchSlot}</div>}
       {children}
