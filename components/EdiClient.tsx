@@ -300,7 +300,7 @@ function CompareSection({ title, reports, getStats }: {
 
   return (
     <Section title={title}>
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
           <thead>
             <tr>
@@ -377,6 +377,45 @@ function CompareSection({ title, reports, getStats }: {
           </tbody>
         </table>
       </div>
+
+      {/* ── 모바일 카드 (이름별 · 기간 처방액 + 증감) ── */}
+      <div className="resp-cards">
+        {display.map(name => {
+          const vals = fileMaps.map(m => m.get(name));
+          const firstAmt = vals[0]?.amount ?? 0;
+          const lastAmt  = vals[nFiles - 1]?.amount ?? 0;
+          const delta = firstAmt > 0 ? (lastAmt - firstAmt) / firstAmt * 100 : null;
+          return (
+            <div key={name} className="mcard">
+              <div className="mcard-head">
+                <span className="mcard-title">{name}</span>
+                {nFiles >= 2 && (
+                  <span className="mcard-badge" style={{ marginLeft: 'auto', color: delta === null ? '#64748b' : delta > 0 ? '#059669' : delta < 0 ? '#dc2626' : '#64748b', background: delta === null ? '#f1f5f9' : delta > 0 ? 'rgba(5,150,105,0.10)' : delta < 0 ? 'rgba(220,38,38,0.10)' : '#f1f5f9' }}>
+                    {delta === null ? '—' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)}%`}
+                  </span>
+                )}
+              </div>
+              {periods.map((p, pi) => (
+                <div key={pi} className="mcard-row"><span className="mcard-k">{p}</span><span className="mcard-v">{vals[pi]?.amount ? fmt(vals[pi]!.amount) : '—'}</span></div>
+              ))}
+            </div>
+          );
+        })}
+        <div className="mcard" style={{ background: '#f8fafc' }}>
+          <div className="mcard-head"><span className="mcard-title" style={{ color: '#475569' }}>합계</span></div>
+          {reports.map((r, fi) => {
+            const totAmt = getStats(r.data).reduce((s, e) => s + e.amount, 0);
+            return <div key={fi} className="mcard-row"><span className="mcard-k">{periods[fi]}</span><span className="mcard-v">{fmt(totAmt)}</span></div>;
+          })}
+          {nFiles >= 2 && (() => {
+            const f = getStats(reports[0].data).reduce((s, e) => s + e.amount, 0);
+            const l = getStats(reports[nFiles - 1].data).reduce((s, e) => s + e.amount, 0);
+            const d = f > 0 ? (l - f) / f * 100 : null;
+            return <div className="mcard-row"><span className="mcard-k">증감</span><span className="mcard-v" style={{ color: d === null ? '#64748b' : d > 0 ? '#059669' : d < 0 ? '#dc2626' : '#64748b' }}>{d === null ? '—' : `${d > 0 ? '+' : ''}${d.toFixed(1)}%`}</span></div>;
+          })()}
+        </div>
+      </div>
+
       {allNames.length > 20 && (
         <MoreButton showAll={showAll} total={allNames.length} onClick={() => setShowAll(v => !v)} />
       )}
