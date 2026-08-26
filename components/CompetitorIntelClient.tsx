@@ -13,10 +13,11 @@ export type Trend = {
   author_id: string | null; author_name: string | null; crawled: boolean; created_at: string;
 };
 
-const TYPES = ['신제품출시', '정책변경', '이슈사항', '현장동향', '기타'] as const;
+const TYPES = ['신제품출시', '정책변경', '기업동향', '이슈사항', '현장동향', '기타'] as const;
 const TYPE_STYLE: Record<string, { c: string; bg: string }> = {
   '신제품출시': { c: '#059669', bg: 'rgba(52,211,153,0.14)' },
   '정책변경':   { c: '#2563eb', bg: 'rgba(59,130,246,0.14)' },
+  '기업동향':   { c: '#7c3aed', bg: 'rgba(139,92,246,0.14)' },
   '이슈사항':   { c: '#dc2626', bg: 'rgba(248,113,113,0.14)' },
   '현장동향':   { c: '#b45309', bg: 'rgba(251,191,36,0.14)' },
   '기타':       { c: '#cbd5e1', bg: 'rgba(148,163,184,0.14)' },
