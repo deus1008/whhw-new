@@ -510,7 +510,7 @@ export default function DashboardClient({ data }: { data: DashboardData }) {
           단위: 백만원
         </span>
         <button className="print-btn" onClick={() => window.print()} style={{ marginBottom: 0 }}>
-          🖨️ A4 인쇄
+          🖨️ 인쇄
         </button>
       </div>
 

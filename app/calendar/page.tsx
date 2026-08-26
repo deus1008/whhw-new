@@ -122,9 +122,9 @@ export default async function MarketingPage() {
       <div className="relative z-10 w-full" style={{ maxWidth: '960px', padding: '2.5rem 1rem', minHeight: '100vh' }}>
         <p
           className="domain"
-          style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}
+          style={{ textAlign: 'center', marginBottom: '1.2rem', fontSize: 'clamp(1.4rem, 4vw, 2rem)' }}
         >
-          판매대행사업
+          Calendar
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
