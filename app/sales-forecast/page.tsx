@@ -59,12 +59,7 @@ export default async function SalesForecastPage() {
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem, 4vw, 1.8rem)' }}>
           SF
         </p>
-        <div className="page-nav">
-          
-          <Link href="/disease-learning" style={nl('#2563eb', 'rgba(147,197,253,0.12)', 'rgba(147,197,253,0.28)')}>질환별의약품</Link>
-          <Link href="/market-analysis" style={nl('#db2777', 'rgba(236,72,153,0.12)', 'rgba(236,72,153,0.28)')}>시장분석</Link>
-          
-        </div>
+        <div style={{ marginBottom: '1.5rem' }} />
 
         <SalesForecastClient saved={saved} canEdit={canEdit} />
       </div>

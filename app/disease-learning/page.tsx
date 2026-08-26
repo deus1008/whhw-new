@@ -97,18 +97,7 @@ export default async function DiseaseLearningPage() {
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem, 4vw, 1.8rem)' }}>
           질환별의약품
         </p>
-        <div className="page-nav">
-          
-          <Link href="/drug-search" style={nl('#059669', 'rgba(52,211,153,0.12)', 'rgba(52,211,153,0.28)')}>약품검색</Link>
-          <Link href="/market-analysis" style={nl('#db2777', 'rgba(236,72,153,0.12)', 'rgba(236,72,153,0.28)')}>시장분석</Link>
-          {isAdmin && (
-            <Link href="/disease-learning/admin" style={nl('#b45309', 'rgba(251,191,36,0.12)', 'rgba(251,191,36,0.28)')}>데이터관리</Link>
-          )}
-          {isAdmin && (
-            <Link href="/disease-learning/admin/ingredients" style={nl('#7c3aed', 'rgba(167,139,250,0.12)', 'rgba(167,139,250,0.28)')}>성분설명 검수</Link>
-          )}
-          
-        </div>
+        <div style={{ marginBottom: '1.5rem' }} />
 
         {groups.length === 0 ? (
           <div style={{

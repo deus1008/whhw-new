@@ -64,14 +64,7 @@ export default async function EdiPage() {
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem, 4vw, 1.8rem)' }}>
           처방실적
         </p>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          
-          <Link href="/weekly" style={navLinkStyle}>← 대시보드</Link>
-          {isAdmin && (
-            <Link href="/documents" style={navLinkStyle}>📁 문서관리</Link>
-          )}
-          
-        </div>
+        <div style={{ marginBottom: '1.5rem' }} />
 
         {(isAllianceUser || isAdmin) && (
           <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />

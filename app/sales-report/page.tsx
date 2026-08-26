@@ -75,12 +75,7 @@ export default async function SalesReportPage() {
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem, 4vw, 1.8rem)' }}>
           Sales Report
         </p>
-        <div className="page-nav">
-          
-          <Link href="/visits" style={nl('#059669', 'rgba(52,211,153,0.12)', 'rgba(52,211,153,0.28)')}>영업활동</Link>
-          <Link href="/edi" style={nl('#7c3aed', 'rgba(168,85,247,0.12)', 'rgba(168,85,247,0.28)')}>처방실적</Link>
-          
-        </div>
+        <div style={{ marginBottom: '1.5rem' }} />
 
         <SalesReportClient data={data} />
       </div>

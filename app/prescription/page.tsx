@@ -86,14 +86,7 @@ export default async function PrescriptionPage() {
         <p className="domain" style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: 'clamp(1.2rem, 4vw, 1.8rem)' }}>
           처방처 현황
         </p>
-        <div className="page-nav">
-          
-          <Link href="/weekly" style={nl('#2563eb', 'rgba(59,130,246,0.12)', 'rgba(59,130,246,0.28)')}>대시보드</Link>
-          {isAdmin && (
-            <Link href="/documents" style={nl('#b45309', 'rgba(251,191,36,0.12)', 'rgba(251,191,36,0.28)')}>문서관리</Link>
-          )}
-          
-        </div>
+        <div style={{ marginBottom: '1.5rem' }} />
 
         {(isAllianceUser || isAdmin) && (
           <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />

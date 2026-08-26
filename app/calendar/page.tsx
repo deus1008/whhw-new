@@ -127,12 +127,7 @@ export default async function MarketingPage() {
           Calendar
         </p>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.8rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-          
-          <Link href="/weekly" style={navLink}>← 대시보드</Link>
-          {isAdmin && <Link href="/admin" style={navLink}>관리자 →</Link>}
-          
-        </div>
+        <div style={{ marginBottom: '1.5rem' }} />
 
         {(isAllianceUser || isAdmin) && (
           <AllianceCompanyBar companies={allianceCompanies} activeCompanyId={companyId} />
