@@ -523,8 +523,13 @@ select.auth-input { background-color: #1e293b; }
 .rxt-filter label { font-size: 0.85rem; font-weight: 500; color: var(--rxt-ink); }
 .rxt-select {
   padding: 0.5rem 0.7rem; border-radius: 9px; font-size: 0.9rem; font-weight: 400;
-  background: #fff; border: 1.5px solid var(--rxt-line); color: var(--rxt-ink);
+  background-color: #ffffff; border: 1.5px solid var(--rxt-line); color: var(--rxt-ink);
   font-family: inherit; cursor: pointer; min-height: 42px;
+}
+/* 전역 어두운 select option(#1e293b) 규칙을 이 밝은 셀렉트에서만 해제 → 펼침 목록도 밝게 */
+.rxt-select option {
+  background-color: #ffffff;
+  color: #111827;
 }
 .rxt-btn {
   padding: 0.55rem 1.4rem; border-radius: 9px; border: 1px solid #cdddfb; cursor: pointer;
