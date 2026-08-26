@@ -424,7 +424,8 @@ export default function MBOClient({
             )}
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
+          <>
+          <div className="resp-table" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
               <thead>
                 <tr style={{ background: '#ffffff' }}>
@@ -453,6 +454,24 @@ export default function MBOClient({
               </tbody>
             </table>
           </div>
+          <div className="resp-cards">
+            {targets.map((t, i) => (
+              <TargetCard
+                key={t.id}
+                target={t}
+                isAdmin={isAdmin}
+                isFirst={i === 0}
+                isLast={i === targets.length - 1}
+                isAnnual={true}
+                monthlyActuals={monthlyMap[t.id] ?? []}
+                onMoveUp={i === 0 ? undefined : () => handleMove(i, i - 1)}
+                onMoveDown={i === targets.length - 1 ? undefined : () => handleMove(i, i + 1)}
+                onUpdated={reload}
+                onToast={showToast}
+              />
+            ))}
+          </div>
+          </>
         )}
       </div>
 
@@ -825,6 +844,144 @@ function TargetRow({
         </tr>
       )}
     </>
+  );
+}
+
+/* ════════════════════════════════════════════
+   모바일 카드 버전 (편집·실적입력·월별·관리 유지)
+════════════════════════════════════════════ */
+function TargetCard({
+  target, isAdmin, isFirst, isLast, isAnnual, monthlyActuals,
+  onMoveUp, onMoveDown, onUpdated, onToast,
+}: {
+  target:          MboTarget;
+  isAdmin:         boolean;
+  isFirst:         boolean;
+  isLast:          boolean;
+  isAnnual:        boolean;
+  monthlyActuals:  MonthlyActual[];
+  onMoveUp?:       () => void;
+  onMoveDown?:     () => void;
+  onUpdated:       () => void;
+  onToast:         (msg: string) => void;
+}) {
+  const [editMode,    setEditMode]    = useState(false);
+  const [actualMode,  setActualMode]  = useState(false);
+  const [monthlyOpen, setMonthlyOpen] = useState(false);
+  const [isPending,   startTransition] = useTransition();
+  const [editName,   setEditName]   = useState(target.item_name);
+  const [editTarget, setEditTarget] = useState(target.target_value);
+  const [editUnit,   setEditUnit]   = useState(target.unit);
+  const [actualVal,  setActualVal]  = useState(target.actual_value);
+  const [actualNote, setActualNote] = useState(target.note ?? '');
+
+  const isAvgRow = (target.unit ?? '').trim() === '%';
+  const cum = cumTargetActual(monthlyActuals.map(m => ({ target: m.target_value, actual: m.actual_value })), isAvgRow);
+  const rate = cum ? (cum.target > 0 ? Math.round((cum.actual / cum.target) * 100) : null) : calcRate(target.actual_value, target.target_value);
+
+  function handleSaveEdit() {
+    startTransition(async () => {
+      try {
+        const res = await updateMboTarget(target.id, { item_name: editName.trim(), target_value: editTarget.trim(), unit: editUnit.trim() });
+        if (res.error) { onToast('⚠ ' + res.error); return; }
+        onToast('✓ 목표가 수정되었습니다.'); setEditMode(false); onUpdated();
+      } catch { onToast('⚠ 수정 중 오류가 발생했습니다.'); }
+    });
+  }
+  function handleDelete() {
+    if (!confirm(`"${target.item_name}" 목표를 삭제할까요?`)) return;
+    startTransition(async () => {
+      try {
+        const res = await deleteMboTarget(target.id);
+        if (res.error) { onToast('⚠ ' + res.error); return; }
+        onToast('✓ 삭제되었습니다.'); onUpdated();
+      } catch { onToast('⚠ 삭제 중 오류가 발생했습니다.'); }
+    });
+  }
+  function handleSaveActual() {
+    startTransition(async () => {
+      try {
+        const res = await updateMboActual(target.id, actualVal.trim(), actualNote);
+        if (res.error) { onToast('⚠ ' + res.error); return; }
+        onToast('✓ 실적이 저장되었습니다.'); setActualMode(false); onUpdated();
+      } catch { onToast('⚠ 실적 저장 중 오류가 발생했습니다.'); }
+    });
+  }
+
+  return (
+    <div className="mcard">
+      <div className="mcard-head">
+        <span className="mcard-title">{target.item_name}</span>
+        {rate !== null && (
+          <span className="mcard-badge" style={{ marginLeft: 'auto', color: rateColor(rate), background: `rgba(${rateRgb(rate)},0.15)` }}>{rate}% {rateLabel(rate)}</span>
+        )}
+      </div>
+
+      {editMode && isAdmin ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', padding: '0.3rem 0' }}>
+          <input value={editName} onChange={e => setEditName(e.target.value)} style={inlineInputStyle} placeholder="항목명" />
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <input value={editUnit} onChange={e => setEditUnit(e.target.value)} style={{ ...inlineInputStyle, width: 80 }} placeholder="단위" />
+            <input value={editTarget} onChange={e => setEditTarget(e.target.value)} style={{ ...inlineInputStyle, flex: 1 }} placeholder="목표값" />
+          </div>
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <button onClick={handleSaveEdit} disabled={isPending} style={btnSm('primary')}>저장</button>
+            <button onClick={() => setEditMode(false)} style={btnSm('muted')}>취소</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="mcard-row"><span className="mcard-k">단위</span><span className="mcard-v" style={{ fontWeight: 400 }}>{target.unit || '-'}</span></div>
+          <div className="mcard-row"><span className="mcard-k">목표</span><span className="mcard-v">{cum ? `${numFmt(cum.target)} / ${fmtVal(target.target_value)}` : fmtVal(target.target_value)}</span></div>
+          <div className="mcard-row">
+            <span className="mcard-k">실적</span>
+            <span className="mcard-v" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', color: rate !== null ? rateColor(rate) : '#111827' }}>
+              {cum ? numFmt(cum.actual) : fmtVal(target.actual_value)}
+              {!isAnnual && (
+                <button onClick={() => { setActualVal(target.actual_value); setActualNote(target.note ?? ''); setActualMode(true); }}
+                  style={{ background: 'none', border: '1px solid #e5e9f0', borderRadius: 4, padding: '0.05rem 0.3rem', cursor: 'pointer', color: '#64748b', fontSize: '0.68rem' }}>✏</button>
+              )}
+              {isAnnual && (
+                <button onClick={() => setMonthlyOpen(v => !v)}
+                  style={{ padding: '0.05rem 0.4rem', borderRadius: 4, cursor: 'pointer', fontSize: '0.66rem', fontWeight: 600, fontFamily: 'inherit', background: monthlyOpen ? 'rgba(99,102,241,0.22)' : '#f8fafc', border: `1px solid ${monthlyOpen ? 'rgba(99,102,241,0.5)' : '#e5e9f0'}`, color: monthlyOpen ? '#4f46e5' : '#64748b' }}>
+                  {monthlyOpen ? '▲ 월별' : '▼ 월별'}
+                </button>
+              )}
+            </span>
+          </div>
+          {rate !== null && (
+            <div style={{ height: 8, borderRadius: 4, background: '#f1f5f9', overflow: 'hidden', margin: '0.3rem 0' }}>
+              <div style={{ height: '100%', width: `${Math.min(rate, 100)}%`, background: rateColor(rate), borderRadius: 4, transition: 'width 0.4s ease' }} />
+            </div>
+          )}
+          {target.note && !isAnnual && (
+            <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: '0.1rem 0 0' }}>{target.note}</p>
+          )}
+
+          {actualMode && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(52,211,153,0.06)', borderRadius: 8 }}>
+              <input value={actualVal} onChange={e => setActualVal(e.target.value)} style={{ ...inlineInputStyle, flex: 1, minWidth: 100 }} placeholder={`실적값 (${target.unit || '숫자·텍스트'})`} />
+              <input value={actualNote} onChange={e => setActualNote(e.target.value)} style={{ ...inlineInputStyle, flex: 1, minWidth: 100 }} placeholder="비고 (선택)" />
+              <button onClick={handleSaveActual} disabled={isPending} style={btnSm('primary')}>저장</button>
+              <button onClick={() => setActualMode(false)} style={btnSm('muted')}>취소</button>
+            </div>
+          )}
+          {isAnnual && monthlyOpen && (
+            <div style={{ marginTop: '0.4rem', padding: '0.5rem', background: 'rgba(99,102,241,0.04)', borderRadius: 8 }}>
+              <MonthlyGrid targetId={target.id} unit={target.unit} monthlyActuals={monthlyActuals} onSaved={onUpdated} onToast={onToast} />
+            </div>
+          )}
+          {isAdmin && (
+            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
+              <button onClick={() => setEditMode(true)} style={btnSm('muted')}>수정</button>
+              <button onClick={handleDelete} disabled={isPending} style={btnSm('danger')}>삭제</button>
+              <button onClick={onMoveUp} disabled={isFirst || isPending} style={{ ...btnSm('muted'), marginLeft: 'auto', opacity: isFirst ? 0.3 : 1 }}>▲</button>
+              <button onClick={onMoveDown} disabled={isLast || isPending} style={{ ...btnSm('muted'), opacity: isLast ? 0.3 : 1 }}>▼</button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 
