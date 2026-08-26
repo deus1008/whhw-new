@@ -198,7 +198,7 @@ function TrendCard({ t, showCompany, canDelete, onDelete }: {
   return (
     <div style={{ ...card, padding: '0.7rem 0.9rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: '#64748b', minWidth: 46 }}>{fmtYmd(t.event_date) || '—'}</span>
+        <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: '#64748b', minWidth: 46 }}>{fmtYmd(t.event_date) || fmtYmd(t.created_at?.slice(0, 10)) || '—'}</span>
         <span style={{ fontSize: '0.66rem', fontWeight: 700, padding: '0.1rem 0.45rem', borderRadius: 4, color: ts.c, background: ts.bg }}>{t.trend_type}</span>
         {t.is_field && <span style={{ fontSize: '0.64rem', fontWeight: 700, padding: '0.1rem 0.4rem', borderRadius: 4, color: '#b45309', background: 'rgba(251,191,36,0.14)' }}>현장</span>}
         {t.crawled && <span style={{ fontSize: '0.6rem', color: '#94a3b8' }}>자동수집</span>}
