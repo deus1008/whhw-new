@@ -45,3 +45,7 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# 임시 적재/검증 스크립트
+scratch_*.mts
+scratch_*.ts
