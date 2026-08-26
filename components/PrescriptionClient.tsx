@@ -478,7 +478,7 @@ function NetworkSummary({ rows }: { rows: PrescriptionRow[] }) {
       </div>
 
       {/* 피벗 테이블 */}
-      <div style={{ overflowX: 'auto' }}>
+      <div className="resp-table" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: `${(types.length + 2) * 70}px` }}>
           <thead>
             <tr>
@@ -550,6 +550,41 @@ function NetworkSummary({ rows }: { rows: PrescriptionRow[] }) {
             </tr>
           </tfoot>
         </table>
+      </div>
+
+      {/* ── 모바일 카드 (시도별 · 종별 처방처 수) ── */}
+      <div className="resp-cards">
+        {sidos.map(sido => {
+          const m = pivot.get(sido)!;
+          const total = sidoTotals.get(sido) ?? 0;
+          const nz = types.filter(t => (m.get(t) ?? 0) > 0);
+          return (
+            <div key={sido} className="mcard">
+              <div className="mcard-head">
+                <span className="mcard-title">{sido}</span>
+                <span className="mcard-v" style={{ marginLeft: 'auto', color: '#2563eb' }}>{fmtNum(total)}</span>
+              </div>
+              {nz.map(t => {
+                const ts = typeStyle(t);
+                return (
+                  <div key={t} className="mcard-row">
+                    <span className="mcard-k"><span style={{ background: ts.bg, color: ts.color, borderRadius: 5, padding: '0.05rem 0.4rem', fontSize: '0.7rem' }}>{t}</span></span>
+                    <span className="mcard-v">{fmtNum(m.get(t) ?? 0)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+        <div className="mcard" style={{ background: '#f8fafc' }}>
+          <div className="mcard-head">
+            <span className="mcard-title" style={{ color: '#475569' }}>합계</span>
+            <span className="mcard-v" style={{ marginLeft: 'auto', color: '#2563eb' }}>{fmtNum(grand)}</span>
+          </div>
+          {types.map(t => (
+            <div key={t} className="mcard-row"><span className="mcard-k">{t}</span><span className="mcard-v">{fmtNum(typeTotals.get(t) ?? 0)}</span></div>
+          ))}
+        </div>
       </div>
     </div>
   );
