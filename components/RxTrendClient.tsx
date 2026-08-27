@@ -94,14 +94,18 @@ export default function RxTrendClient() {
                   <th className="l rxt-sep-aju">아주약품 품목</th>
                   <th>처방액</th>
                   <th>M/S</th>
+                  <th>성장율</th>
                   <th className="l rxt-sep-ref">대조약</th>
                   <th>처방액</th>
                   <th>M/S</th>
+                  <th>성장율</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r, i) => {
                   const g = growth(r.cur, r.prev);
+                  const ga = growth(r.aju, r.aju_prev);
+                  const gr = growth(r.ref, r.ref_prev);
                   return (
                     <tr key={r.ingredient}>
                       <td className="c">{i + 1}</td>
@@ -112,9 +116,11 @@ export default function RxTrendClient() {
                       <td className="l rxt-sep-aju rxt-aju">{r.aju_product ?? '—'}</td>
                       <td>{fmtWon(r.aju)}</td>
                       <td>{pct(r.aju, r.cur)}</td>
+                      <td className={`c ${ga.cls}`}>{ga.txt}</td>
                       <td className="l rxt-sep-ref rxt-ref">{r.ref_product ?? '—'}</td>
                       <td>{fmtWon(r.ref)}</td>
                       <td>{pct(r.ref, r.cur)}</td>
+                      <td className={`c ${gr.cls}`}>{gr.txt}</td>
                     </tr>
                   );
                 })}
@@ -126,6 +132,8 @@ export default function RxTrendClient() {
           <div className="rxt-cards">
             {rows.map((r, i) => {
               const g = growth(r.cur, r.prev);
+              const ga = growth(r.aju, r.aju_prev);
+              const gr = growth(r.ref, r.ref_prev);
               return (
                 <div key={r.ingredient} className="rxt-card rxt-item">
                   <div className="rxt-item-head">
@@ -141,6 +149,7 @@ export default function RxTrendClient() {
                     <div className="rxt-row"><span className="k">품목</span><span className="v rxt-aju">{r.aju_product ?? '—'}</span></div>
                     <div className="rxt-row"><span className="k">처방액</span><span className="v">{fmtWon(r.aju)}</span></div>
                     <div className="rxt-row"><span className="k">M/S</span><span className="v">{pct(r.aju, r.cur)}</span></div>
+                    <div className="rxt-row"><span className="k">성장율</span><span className={`v ${ga.cls}`}>{ga.txt}</span></div>
                   </div>
 
                   <div className="rxt-block">
@@ -148,6 +157,7 @@ export default function RxTrendClient() {
                     <div className="rxt-row"><span className="k">품목</span><span className="v rxt-ref">{r.ref_product ?? '—'}</span></div>
                     <div className="rxt-row"><span className="k">처방액</span><span className="v">{fmtWon(r.ref)}</span></div>
                     <div className="rxt-row"><span className="k">M/S</span><span className="v">{pct(r.ref, r.cur)}</span></div>
+                    <div className="rxt-row"><span className="k">성장율</span><span className={`v ${gr.cls}`}>{gr.txt}</span></div>
                   </div>
                 </div>
               );

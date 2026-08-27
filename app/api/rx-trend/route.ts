@@ -8,8 +8,8 @@ export const maxDuration = 60;
 export type RxTrendRow = {
   ingredient: string;
   cur: number; prev: number;
-  aju: number; aju_product: string | null;
-  ref: number; ref_product: string | null;
+  aju: number; aju_prev: number; aju_product: string | null;
+  ref: number; ref_prev: number; ref_product: string | null;
 };
 
 function prevYearMonth(period: string): string {
