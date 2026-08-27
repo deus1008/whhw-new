@@ -606,6 +606,31 @@ select.auth-input { background-color: #ffffff; }
   font-size: 0.62rem; min-width: 16px; height: 16px; display: inline-flex;
   align-items: center; justify-content: center; padding: 0 4px; font-weight: 600;
 }
+/* 순서편집 도구 */
+.app-nav-tools { display: flex; gap: 6px; padding: 0.4rem 0.7rem 0; }
+.app-nav-editbtn, .app-nav-resetbtn {
+  font-family: inherit; font-size: 0.72rem; font-weight: 500; cursor: pointer;
+  border: 1px solid #e5e9f0; background: #fff; color: #64748b;
+  border-radius: 7px; padding: 4px 9px; min-height: 28px;
+}
+.app-nav-editbtn:hover, .app-nav-resetbtn:hover { background: #f8fafc; color: #334155; }
+.app-nav-editbtn.on { background: #e8f0fe; color: #1d4ed8; border-color: #bfdbfe; }
+/* 각 메뉴 행(항목 + 편집 컨트롤) */
+.app-nav-row { display: flex; align-items: center; gap: 2px; border-radius: 9px; }
+.app-nav-row.editing { background: #f8fafc; cursor: grab; }
+.app-nav-row.editing:hover { background: #eef2f7; }
+.app-nav-row.dragging { opacity: 0.55; outline: 1px dashed #93c5fd; }
+.app-nav-row .app-nav-item { flex: 1; min-width: 0; }
+.app-nav-row.editing .app-nav-item { cursor: grab; }
+.app-nav-handle { color: #94a3b8; font-size: 0.9rem; padding-left: 4px; user-select: none; cursor: grab; }
+.app-nav-move { display: flex; flex-direction: column; gap: 1px; padding-right: 3px; }
+.app-nav-move button {
+  font-family: inherit; font-size: 0.55rem; line-height: 1; cursor: pointer;
+  border: 1px solid #e5e9f0; background: #fff; color: #64748b;
+  border-radius: 5px; width: 22px; height: 17px; display: flex; align-items: center; justify-content: center; padding: 0;
+}
+.app-nav-move button:hover:not(:disabled) { background: #e8f0fe; color: #1d4ed8; border-color: #bfdbfe; }
+.app-nav-move button:disabled { opacity: 0.3; cursor: default; }
 .app-sidebar-foot { padding: 0.7rem 0.8rem; border-top: 1px solid #eef1f6; }
 .app-sidebar .app-foot-btn {
   width: 100%; padding: 0.5rem; border-radius: 9px; border: 1px solid #e5e9f0;
