@@ -274,16 +274,6 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
   /* ══ RENDER ══════════════════════════════════════════════════ */
   return (
     <>
-      {/* ── 헤더 ───────────────────────────────────────────────── */}
-      <div style={{ textAlign: 'center', marginBottom: '1.8rem' }}>
-        <h2 style={{ fontSize: 'clamp(1.1rem,3vw,1.5rem)', fontWeight: 700, color: '#111827', margin: 0 }}>
-          🚀 발매예정품목
-        </h2>
-        <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.3rem' }}>
-          자사 및 타사 발매예정·완료 파이프라인을 성분명 중심으로 관리합니다.
-        </p>
-      </div>
-
       {/* ── 검색 툴바 ──────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.75rem' }}>
         {/* 성분명·제품명 통합 검색 */}
