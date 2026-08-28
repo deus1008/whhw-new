@@ -41,12 +41,16 @@ async function getAuthorized() {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: '인증이 필요합니다.' };
   const { data: profile } = await supabase
-    .from('profiles').select('role, status, company_id').eq('id', user.id).single();
+    .from('profiles').select('role, status, company_id, full_name, email').eq('id', user.id).single();
   if (!profile || profile.status !== 'approved') return { error: '승인된 계정이 아닙니다.' };
   const isAdmin = normalizeRole(profile.role) === '관리자';
   const profileCompanyId = (profile.company_id as string) ?? null;
   const companyId = await getEffectiveCompanyId(profileCompanyId, isAdmin);
-  return { supabase, user, isAdmin, companyId };
+  const myName = (profile.full_name || profile.email || '') as string;
+  // 회사 기준 역할: 회사 미지정 = 얼라이언스(지역장/입력측), 회사 지정 = 위탁사(답변측)
+  const isConsignor = !!profileCompanyId;   // 위탁사(아주약품 등) — 답변 주체
+  const isAlliance  = !profileCompanyId;    // 얼라이언스(지역장) — 입력 주체
+  return { supabase, user, isAdmin, companyId, profileCompanyId, myName, isConsignor, isAlliance };
 }
 
 function toNum(s: string): number | null {
@@ -85,9 +89,13 @@ export async function createFiltering(input: FilteringInput): Promise<{ error?: 
   if (!input.hospital_name.trim()) return { error: '처방처명을 입력하세요.' };
   if (!input.product_name.trim())  return { error: '품목명을 입력하세요.' };
 
+  const c = clean(input);
+  // 답변이 이미 있으면 확인완료, 없으면 대기(위탁사 답변 대기)
+  const status = c.answer ? 'confirmed' : 'pending';
+
   const { error } = await auth.supabase
     .from('hospital_filtering')
-    .insert({ ...clean(input), user_id: auth.user!.id, company_id: auth.companyId ?? null });
+    .insert({ ...c, status, user_id: auth.user!.id, company_id: auth.companyId ?? null });
 
   if (error) return { error: `저장 실패: ${error.message}` };
   revalidatePath('/filtering');
@@ -98,21 +106,91 @@ export async function updateFiltering(id: string, input: FilteringInput): Promis
   const auth = await getAuthorized();
   if (auth.error || !auth.supabase) return { error: auth.error };
 
-  const db = auth.isAdmin ? serviceClient() : auth.supabase;
-  if (!auth.isAdmin) {
-    const { data: row } = await auth.supabase
-      .from('hospital_filtering').select('user_id').eq('id', id).single();
-    if (!row || row.user_id !== auth.user!.id) return { error: '수정 권한이 없습니다.' };
+  // 현재 행 조회 (권한·상태 전이 판단)
+  const svc = serviceClient();
+  const { data: row } = await svc
+    .from('hospital_filtering')
+    .select('user_id, company_id, manager, answer, status')
+    .eq('id', id).single();
+  if (!row) return { error: '대상을 찾을 수 없습니다.' };
+
+  const isOwner    = row.user_id === auth.user!.id;
+  const isManager  = auth.isAlliance && !!auth.myName && row.manager === auth.myName;
+  // 위탁사(회사 지정 사용자)는 답변을 위해 수정 가능
+  const canEdit = auth.isAdmin || isOwner || isManager || auth.isConsignor;
+  if (!canEdit) return { error: '수정 권한이 없습니다.' };
+
+  const c = clean(input);
+  const now = new Date().toISOString();
+  const answeredBefore = !!(row.answer && String(row.answer).trim());
+  const answeredNow = !!c.answer;
+
+  // 상태 전이
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const patch: any = { ...c, updated_at: now };
+  if (!answeredNow) {
+    // 답변 비움 → 대기
+    patch.status = 'pending';
+    patch.answered_at = null; patch.answered_by = null; patch.reviewed_at = null;
+  } else if (auth.isConsignor && !isOwner) {
+    // 위탁사가 답변 입력/변경 → 답변완료(지역장 확인 대기)
+    patch.status = 'answered';
+    patch.answered_at = answeredBefore && row.status === 'answered' ? undefined : now;
+    patch.answered_by = auth.user!.id;
+    patch.reviewed_at = null;
+    if (patch.answered_at === undefined) delete patch.answered_at;
+  } else {
+    // 지역장/관리자가 답변 확정 → 확인완료
+    patch.status = 'confirmed';
+    if (!answeredBefore) patch.answered_at = now;
+    patch.reviewed_at = now;
   }
 
-  const { error } = await db
-    .from('hospital_filtering')
-    .update({ ...clean(input), updated_at: new Date().toISOString() })
-    .eq('id', id);
-
+  const { error } = await svc.from('hospital_filtering').update(patch).eq('id', id);
   if (error) return { error: `수정 실패: ${error.message}` };
   revalidatePath('/filtering');
   return {};
+}
+
+/** 지역장(담당자)이 답변완료 항목을 열람 → 확인완료로 전환(배지 감소). */
+export async function confirmFiltering(id: string): Promise<{ error?: string; status?: string }> {
+  const auth = await getAuthorized();
+  if (auth.error) return { error: auth.error };
+  const svc = serviceClient();
+  const { data: row } = await svc
+    .from('hospital_filtering').select('manager, status').eq('id', id).single();
+  if (!row) return { error: '대상을 찾을 수 없습니다.' };
+  if (row.status !== 'answered') return { status: row.status };
+  const isManager = auth.isAlliance && !!auth.myName && row.manager === auth.myName;
+  if (!isManager && !auth.isAdmin) return { status: row.status };  // 권한 없으면 조용히 무시
+
+  const { error } = await svc
+    .from('hospital_filtering')
+    .update({ status: 'confirmed', reviewed_at: new Date().toISOString() })
+    .eq('id', id).eq('status', 'answered');
+  if (error) return { error: error.message };
+  revalidatePath('/filtering');
+  return { status: 'confirmed' };
+}
+
+/** 좌측/홈 아이콘 배지 카운트 — 위탁사: 대기(미답변) 건수, 지역장: 본인 담당 답변완료 건수. */
+export async function getFilteringBadge(): Promise<number> {
+  const auth = await getAuthorized();
+  if (auth.error) return 0;
+  const svc = serviceClient();
+  if (auth.isConsignor) {
+    // 위탁사: 자사(company_id) 대기 건수
+    let q = svc.from('hospital_filtering').select('id', { count: 'exact', head: true }).eq('status', 'pending');
+    if (auth.profileCompanyId) q = q.eq('company_id', auth.profileCompanyId);
+    const { count } = await q;
+    return count ?? 0;
+  }
+  // 지역장(얼라이언스): 본인이 담당자인 답변완료 건수
+  if (!auth.myName) return 0;
+  const { count } = await svc
+    .from('hospital_filtering').select('id', { count: 'exact', head: true })
+    .eq('status', 'answered').eq('manager', auth.myName);
+  return count ?? 0;
 }
 
 export async function deleteFiltering(id: string): Promise<{ error?: string }> {

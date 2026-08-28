@@ -8,6 +8,7 @@ import { NAV_ITEMS, type NavItem } from '@/lib/nav';
 import ErrorReportModal from '@/components/ErrorReportModal';
 import { getPendingCount, getMyUnseenCount } from '@/app/errors/actions';
 import { getPendingUsersCount } from '@/app/admin/actions';
+import { getFilteringBadge } from '@/app/filtering/actions';
 
 // 사이드바를 숨길 경로(인증 화면 등). 홈('/')은 자체 아이콘 화면이 있어 제외.
 const HIDE_PREFIXES = ['/login', '/signup', '/pending', '/reset', '/auth', '/forgot'];
@@ -35,6 +36,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [errBadge, setErrBadge] = useState(0);
   const [userErrBadge, setUserErrBadge] = useState(0);
   const [adminBadge, setAdminBadge] = useState(0);
+  const [filterBadge, setFilterBadge] = useState(0);
 
   const [order, setOrder] = useState<string[]>([]);   // 라벨 순서(사용자 지정)
   const [editing, setEditing] = useState(false);
@@ -50,6 +52,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       setIsAdmin(admin);
       if (admin) { getPendingCount().then(setErrBadge); getPendingUsersCount().then(setAdminBadge); }
       getMyUnseenCount().then(setUserErrBadge);
+      getFilteringBadge().then(setFilterBadge).catch(() => {});
     }
     sb.auth.getSession().then(({ data }) => { setAuthed(!!data.session); load(data.session?.user?.id); });
     const { data: { subscription } } = sb.auth.onAuthStateChange((_, s) => { setAuthed(!!s); load(s?.user?.id); });
@@ -114,7 +117,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     window.location.href = '/';
   }
   const badgeFor = (label: string) =>
-    label === '오류신고' ? userErrBadge : label === '오류신고함' ? errBadge : label === '관리자' ? adminBadge : 0;
+    label === '오류신고' ? userErrBadge : label === '오류신고함' ? errBadge : label === '관리자' ? adminBadge
+    : label === '필터링관리' ? filterBadge : 0;
 
   return (
     <>

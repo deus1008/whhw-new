@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { createFiltering, updateFiltering, deleteFiltering } from '@/app/filtering/actions';
+import { createFiltering, updateFiltering, deleteFiltering, confirmFiltering } from '@/app/filtering/actions';
 import type { FilteringInput } from '@/app/filtering/actions';
 
 /* ── 타입 ── */
@@ -27,6 +27,7 @@ export type FilteringRow = {
   answer:        string | null;
   final_result:  string | null;
   memo:          string | null;
+  status:        string | null;   // pending | answered | confirmed
   user_id:       string | null;
   created_at:    string;
 };
@@ -67,6 +68,20 @@ function AnswerBadge({ a }: { a: string | null }) {
   return (
     <span style={{
       fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap', padding: '0.12rem 0.5rem', borderRadius: 5,
+      background: `rgba(${rgb},0.12)`, border: `1px solid rgba(${rgb},0.3)`, color: col,
+    }}>{label}</span>
+  );
+}
+
+/* ── 진행상태 배지 ── */
+function StatusBadge({ s }: { s: string | null }) {
+  const v = s ?? 'confirmed';
+  let rgb = '148,163,184', col = '#64748b', label = '확인';
+  if (v === 'pending')       { rgb = '251,146,60'; col = '#c2410c'; label = '답변대기'; }
+  else if (v === 'answered') { rgb = '37,99,235';  col = '#2563eb'; label = '답변완료'; }
+  return (
+    <span style={{
+      fontSize: '0.66rem', fontWeight: 700, whiteSpace: 'nowrap', padding: '0.1rem 0.42rem', borderRadius: 5,
       background: `rgba(${rgb},0.12)`, border: `1px solid rgba(${rgb},0.3)`, color: col,
     }}>{label}</span>
   );
@@ -148,14 +163,15 @@ function details(r: FilteringRow): [string, string][] {
 }
 
 /* ── PC 테이블 행 ── */
-function FilterTr({ row: r, canEdit, showActions, colSpan, onEdit, onDelete }: {
-  row: FilteringRow; canEdit: boolean; showActions: boolean; colSpan: number; onEdit: () => void; onDelete: () => void;
+function FilterTr({ row: r, canEdit, showActions, colSpan, onEdit, onDelete, onOpen }: {
+  row: FilteringRow; canEdit: boolean; showActions: boolean; colSpan: number; onEdit: () => void; onDelete: () => void; onOpen: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const dt = details(r);
+  const toggle = () => setOpen(v => { if (!v) onOpen(); return !v; });
   return (
     <>
-      <tr onClick={() => setOpen(v => !v)} style={{ cursor: 'pointer', background: open ? 'rgba(2,132,199,0.06)' : undefined }}>
+      <tr onClick={toggle} style={{ cursor: 'pointer', background: open ? 'rgba(2,132,199,0.06)' : undefined }}>
         <td style={{ ...cellTd, whiteSpace: 'nowrap', color: '#475569' }}>
           <span style={{ marginRight: 4, fontSize: '0.6rem', opacity: 0.6 }}>{open ? '▼' : '▶'}</span>
           {fmtDate(r.received_date)}
@@ -166,7 +182,9 @@ function FilterTr({ row: r, canEdit, showActions, colSpan, onEdit, onDelete }: {
         <td style={{ ...cellTd, fontWeight: 600, color: '#111827', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.hospital_name ?? ''}>{r.hospital_name || '-'}</td>
         <td style={{ ...cellTd, whiteSpace: 'nowrap', color: '#7c3aed', fontWeight: 600 }}>{r.product_name || '-'}</td>
         <td style={{ ...cellTd, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.department ?? ''}>{r.department || '-'}</td>
-        <td style={{ ...cellTd, whiteSpace: 'nowrap' }}><AnswerBadge a={r.answer} /></td>
+        <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>
+          <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}><AnswerBadge a={r.answer} /><StatusBadge s={r.status} /></span>
+        </td>
         <td style={{ ...cellTd, whiteSpace: 'nowrap', color: isPrescribed(r.final_result) ? '#059669' : '#64748b', fontWeight: isPrescribed(r.final_result) ? 600 : 400 }}>{r.final_result || '-'}</td>
         {showActions && (
           <td style={{ ...cellTd, whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
@@ -201,16 +219,18 @@ function FilterTr({ row: r, canEdit, showActions, colSpan, onEdit, onDelete }: {
 }
 
 /* ── 모바일 카드 ── */
-function FilterCard({ row: r, canEdit, onEdit, onDelete }: {
-  row: FilteringRow; canEdit: boolean; onEdit: () => void; onDelete: () => void;
+function FilterCard({ row: r, canEdit, onEdit, onDelete, onOpen }: {
+  row: FilteringRow; canEdit: boolean; onEdit: () => void; onDelete: () => void; onOpen: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const dt = details(r);
+  const toggle = () => setOpen(v => { if (!v) onOpen(); return !v; });
   return (
     <div className="mcard">
-      <div className="mcard-head" onClick={() => setOpen(v => !v)} style={{ cursor: 'pointer' }}>
+      <div className="mcard-head" onClick={toggle} style={{ cursor: 'pointer' }}>
         <span className="mcard-title">{r.hospital_name || '-'}</span>
         <AnswerBadge a={r.answer} />
+        <StatusBadge s={r.status} />
         <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#94a3b8' }}>{open ? '▼' : '▶'}</span>
       </div>
       <div className="mcard-row"><span className="mcard-k">품목</span><span className="mcard-v" style={{ fontWeight: 600, color: '#7c3aed' }}>{r.product_name || '-'}</span></div>
@@ -323,10 +343,21 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
 }
 
 /* ── 메인 ── */
-export default function FilteringClient({ rows: initial, isAdmin, myName, userId }: {
-  rows: FilteringRow[]; isAdmin: boolean; myName: string; userId: string;
+export default function FilteringClient({ rows: initial, isAdmin, isConsignor, myName, userId }: {
+  rows: FilteringRow[]; isAdmin: boolean; isConsignor: boolean; myName: string; userId: string;
 }) {
-  const [rows] = useState<FilteringRow[]>(initial);
+  const isAlliance = !isConsignor;   // 회사 미지정 = 얼라이언스(지역장)
+  const [rows, setRows] = useState<FilteringRow[]>(initial);
+
+  // 지역장이 본인 담당 '답변완료' 항목을 열람 → 확인완료로 전환(배지 감소)
+  function handleOpen(r: FilteringRow) {
+    if (isAlliance && r.manager === myName && r.status === 'answered') {
+      setRows(prev => prev.map(x => x.id === r.id ? { ...x, status: 'confirmed' } : x));
+      confirmFiltering(r.id).catch(() => {});
+    }
+  }
+  const canEditRow = (r: FilteringRow) =>
+    isAdmin || r.user_id === userId || isConsignor || (isAlliance && r.manager === myName);
   const [showForm, setShowForm] = useState(false);
   const [editTarget, setEditTarget] = useState<FilteringRow | null>(null);
   const [inputValue, setInputValue] = useState('');
@@ -387,7 +418,7 @@ export default function FilteringClient({ rows: initial, isAdmin, myName, userId
     };
   }
 
-  const showActions = isAdmin || filtered.some(r => r.user_id === userId);
+  const showActions = isAdmin || isConsignor || filtered.some(r => canEditRow(r));
   const colCount = 9 + (showActions ? 1 : 0);
 
   const STAT = [
@@ -480,14 +511,15 @@ export default function FilteringClient({ rows: initial, isAdmin, myName, userId
               <tbody>
                 {filtered.map(r => (
                   <FilterTr key={r.id} row={r} showActions={showActions} colSpan={colCount}
-                    canEdit={isAdmin || r.user_id === userId} onEdit={() => openEdit(r)} onDelete={() => !deleting && handleDelete(r.id)} />
+                    canEdit={canEditRow(r)} onOpen={() => handleOpen(r)}
+                    onEdit={() => openEdit(r)} onDelete={() => !deleting && handleDelete(r.id)} />
                 ))}
               </tbody>
             </table>
           </div>
           <div className="resp-cards">
             {filtered.map(r => (
-              <FilterCard key={r.id} row={r} canEdit={isAdmin || r.user_id === userId}
+              <FilterCard key={r.id} row={r} canEdit={canEditRow(r)} onOpen={() => handleOpen(r)}
                 onEdit={() => openEdit(r)} onDelete={() => !deleting && handleDelete(r.id)} />
             ))}
           </div>

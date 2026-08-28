@@ -73,6 +73,7 @@ export default async function FilteringPage() {
         <FilteringClient
           rows={(rows ?? []) as FilteringRow[]}
           isAdmin={isAdmin}
+          isConsignor={!!profileCompanyId}
           myName={myName}
           userId={user.id}
         />

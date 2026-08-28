@@ -8,6 +8,7 @@ import { normalizeRole } from '@/lib/roles';
 import ErrorReportModal from '@/components/ErrorReportModal';
 import { getPendingCount, getMyUnseenCount } from '@/app/errors/actions';
 import { getPendingUsersCount } from '@/app/admin/actions';
+import { getFilteringBadge } from '@/app/filtering/actions';
 import { NAV_ITEMS, type NavItem } from '@/lib/nav';
 
 export default function Home() {
@@ -24,6 +25,7 @@ export default function Home() {
   const [errorBadge, setErrorBadge]   = useState(0);
   const [userErrorBadge, setUserErrorBadge] = useState(0);
   const [adminBadge, setAdminBadge]   = useState(0);
+  const [filterBadge, setFilterBadge] = useState(0);
 
   // 위탁사 정보
   const [companyName,    setCompanyName]    = useState<string | null>(null);
@@ -59,6 +61,8 @@ export default function Home() {
       }
       // 신고자 본인: 관리자 조치결과 미확인 건수 → '오류신고' 배지
       getMyUnseenCount().then(setUserErrorBadge);
+      // 필터링관리: 위탁사=대기 건수 / 지역장=본인 담당 답변완료 건수
+      getFilteringBadge().then(setFilterBadge).catch(() => {});
 
       // 위탁사 정보 조회 (쿠키 포함 서버 측에서 읽어야 하므로 API 호출)
       try {
@@ -281,7 +285,8 @@ export default function Home() {
             const badge =
               (label === '오류신고'   && userErrorBadge > 0) ? userErrorBadge :
               (label === '오류신고함' && errorBadge > 0) ? errorBadge :
-              (label === '관리자'    && adminBadge  > 0) ? adminBadge  : 0;
+              (label === '관리자'    && adminBadge  > 0) ? adminBadge  :
+              (label === '필터링관리' && filterBadge  > 0) ? filterBadge  : 0;
             const isDragging = dragging === label;
             const isTarget   = dragTarget === label;
             return (
