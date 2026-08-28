@@ -59,6 +59,18 @@ function fmtDate(d: string | null): string {
   return m ? `${y}년 ${parseInt(m)}월` : d;
 }
 
+/** 메모(개발 히스토리, HTML) → 표/카드 미리보기용 순수 텍스트 */
+function memoPreview(html: string | null | undefined): string {
+  if (!html) return '';
+  return html
+    .replace(/<img[^>]*>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /* ── Props ─────────────────────────────────────────────────────── */
 interface Props {
   initialProducts: UpcomingProduct[];
@@ -366,8 +378,7 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
                   { label: '발매(예정)일', key: 'launch_date'  },
                   { label: '계열',        key: 'indication'   },
                   { label: '판매사',      key: 'manufacturer' },
-                  { label: '보험코드',    key: null           },
-                  { label: '보험가',      key: null           },
+                  { label: '메모',        key: null           },
                   { label: '진행상태',    key: 'status'       },
                   { label: '',           key: null           },
                 ] as { label: string; key: string | null }[]).map(({ label, key }) => (
@@ -441,14 +452,11 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
                       ) : <span style={{ color: '#94a3b8' }}>—</span>}
                     </td>
 
-                    {/* ⑥ 보험코드 */}
-                    <td style={{ padding: '0.7rem 0.9rem', color: '#64748b', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>
-                      {p.insurance_code ?? '—'}
-                    </td>
-
-                    {/* ⑦ 보험가 */}
-                    <td style={{ padding: '0.7rem 0.9rem', color: '#475569', whiteSpace: 'nowrap' }}>
-                      {/^\d+$/.test(String(p.insurance_price ?? '')) ? Number(p.insurance_price).toLocaleString('ko-KR') : (p.insurance_price ?? '—')}
+                    {/* ⑥ 메모 */}
+                    <td style={{ padding: '0.7rem 0.9rem', color: '#475569', minWidth: '160px', maxWidth: '280px' }}>
+                      {(() => { const t = memoPreview(p.history); return t
+                        ? <span title={t} style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', wordBreak: 'break-word' }}>{t}</span>
+                        : <span style={{ color: '#94a3b8' }}>—</span>; })()}
                     </td>
 
                     {/* ⑧ 진행상태 */}
@@ -501,8 +509,10 @@ export default function ProductsClient({ initialProducts, isAdmin, canSeeSecure 
                     ) : '—'}
                   </span>
                 </div>
-                <div className="mcard-row"><span className="mcard-k">보험코드</span><span className="mcard-v">{p.insurance_code ?? '—'}</span></div>
-                <div className="mcard-row"><span className="mcard-k">보험가</span><span className="mcard-v">{/^\d+$/.test(String(p.insurance_price ?? '')) ? Number(p.insurance_price).toLocaleString('ko-KR') : (p.insurance_price ?? '—')}</span></div>
+                <div className="mcard-row" style={{ alignItems: 'flex-start' }}>
+                  <span className="mcard-k">메모</span>
+                  <span className="mcard-v" style={{ textAlign: 'left', whiteSpace: 'normal', wordBreak: 'break-word' }}>{memoPreview(p.history) || '—'}</span>
+                </div>
                 <div className="mcard-row">
                   <span className="mcard-k">진행상태</span>
                   <span className="mcard-v">
