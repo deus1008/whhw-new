@@ -39,6 +39,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: '/approval',        icon: '🔬', label: '허가현황',   color: '#0284c7', bg: 'rgba(14,165,233,0.10)',  bd: 'rgba(14,165,233,0.22)' },
   { href: '/prescription-trend', icon: '🩺', label: '다처방성분', color: '#c2410c', bg: 'rgba(249,115,22,0.10)', bd: 'rgba(249,115,22,0.22)' },
   { href: '/prescription',    icon: '🏥', label: '처방처현황', color: '#059669', bg: 'rgba(74,222,128,0.10)',  bd: 'rgba(74,222,128,0.22)' },
+  { href: '/filtering',       icon: '🔍', label: '필터링관리', color: '#0284c7', bg: 'rgba(14,165,233,0.10)',  bd: 'rgba(14,165,233,0.22)' },
   { href: '/code-delete',     icon: '🗑', label: '삭제대상처', color: '#dc2626', bg: 'rgba(239,68,68,0.10)',   bd: 'rgba(239,68,68,0.22)' },
   { href: '/documents',       icon: '📁', label: '문서관리',   color: '#b45309', bg: 'rgba(251,191,36,0.10)',  bd: 'rgba(251,191,36,0.22)' },
   { href: '/reports',         icon: '📝', label: '분석리포트', color: '#0891b2', bg: 'rgba(6,182,212,0.10)',   bd: 'rgba(6,182,212,0.22)' },
