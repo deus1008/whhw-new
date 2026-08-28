@@ -624,14 +624,14 @@ export default function SettlementClient({
               {selectedFile || '파일을 선택하세요'}
             </div>
             {selectedMeta && (selectedMeta.settMonth || selectedMeta.prescMonth) && (
-              <div style={{ fontSize: '0.72rem', color: 'rgba(180,180,220,0.6)', marginTop: '0.15rem' }}>
+              <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.15rem' }}>
                 {selectedMeta.settMonth  && <span>{fmtMonth(selectedMeta.settMonth)}(정산)</span>}
                 {selectedMeta.settMonth && selectedMeta.prescMonth && <span style={{ margin: '0 0.4rem', opacity: 0.4 }}>·</span>}
                 {selectedMeta.prescMonth && <span>{fmtMonth(selectedMeta.prescMonth)}(처방)</span>}
               </div>
             )}
           </div>
-          <span style={{ fontSize: '0.75rem', color: 'rgba(180,180,220,0.5)', marginLeft: '0.5rem' }}>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '0.5rem' }}>
             {dropOpen ? '▲' : '▼'}
           </span>
         </button>
@@ -639,9 +639,9 @@ export default function SettlementClient({
         {dropOpen && (
           <div style={{
             position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 50,
-            background: 'rgba(20,20,35,0.97)', border: '1px solid rgba(99,102,241,0.3)',
+            background: '#ffffff', border: '1px solid #e5e9f0',
             borderRadius: '10px', overflow: 'hidden',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            boxShadow: '0 8px 24px rgba(15,23,42,0.12)',
           }}>
             {files.map((f, i) => {
               const isActive = f.file === selectedFile;
@@ -660,7 +660,7 @@ export default function SettlementClient({
                     {f.file}
                   </div>
                   {(f.settMonth || f.prescMonth) && (
-                    <div style={{ fontSize: '0.7rem', color: 'rgba(180,180,220,0.5)', marginTop: '0.1rem' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '0.1rem' }}>
                       {f.settMonth  && <span>{fmtMonth(f.settMonth)}(정산)</span>}
                       {f.settMonth && f.prescMonth && <span style={{ margin: '0 0.4rem', opacity: 0.4 }}>·</span>}
                       {f.prescMonth && <span>{fmtMonth(f.prescMonth)}(처방)</span>}
