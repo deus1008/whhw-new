@@ -57,21 +57,33 @@ function isPrescribed(final: string | null): boolean {
   return !!final && /^\d{4}[-./]\d{1,2}/.test(final.trim());
 }
 
-/* ── 답변 배지 ── */
-function AnswerBadge({ a }: { a: string | null }) {
-  const raw = (a ?? '').trim();
-  const up = raw.toUpperCase();
-  let rgb = '148,163,184', col = '#64748b', label = raw || '미답변';
-  if (up === 'O')       { rgb = '34,197,94';  col = '#059669'; label = '가능'; }
-  else if (up === 'X')  { rgb = '239,68,68';  col = '#dc2626'; label = '불가'; }
-  else if (raw === '준비중') { rgb = '251,146,60'; col = '#c2410c'; label = '준비중'; }
+/* 답변(영업가능여부) 색상 — 좌측 강조선/하이라이트용 */
+function answerRgb(a: string | null): string {
+  const raw = (a ?? '').trim(); const up = raw.toUpperCase();
+  if (up === 'O') return '34,197,94';
+  if (up === 'X') return '239,68,68';
+  if (raw === '준비중') return '251,146,60';
+  return '148,163,184';
+}
+
+/* ── 답변 하이라이트(가장 중요 — 크고 굵게, 맨 앞) ── */
+function AnswerHL({ a }: { a: string | null }) {
+  const raw = (a ?? '').trim(); const up = raw.toUpperCase();
+  let col = '#64748b', label = raw || '미답변';
+  if (up === 'O')       { col = '#059669'; label = '가능'; }
+  else if (up === 'X')  { col = '#dc2626'; label = '불가'; }
+  else if (raw === '준비중') { col = '#c2410c'; label = '준비중'; }
+  const rgb = answerRgb(a);
   return (
     <span style={{
-      fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap', padding: '0.12rem 0.5rem', borderRadius: 5,
-      background: `rgba(${rgb},0.12)`, border: `1px solid rgba(${rgb},0.3)`, color: col,
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      minWidth: '3.4rem', padding: '0.3rem 0.7rem', borderRadius: 8,
+      background: `rgba(${rgb},0.16)`, border: `1.5px solid rgba(${rgb},0.55)`,
+      color: col, fontWeight: 800, fontSize: '0.92rem', letterSpacing: '0.02em', whiteSpace: 'nowrap',
     }}>{label}</span>
   );
 }
+
 
 /* ── 진행상태 배지 ── */
 function StatusBadge({ s }: { s: string | null }) {
@@ -173,19 +185,20 @@ function FilterTr({ row: r, canEdit, showActions, colSpan, onEdit, onDelete, onO
   return (
     <>
       <tr onClick={toggle} style={{ cursor: 'pointer', background: open ? 'rgba(2,132,199,0.06)' : undefined }}>
-        <td style={{ ...cellTd, whiteSpace: 'nowrap', color: '#475569' }}>
-          <span style={{ marginRight: 4, fontSize: '0.6rem', opacity: 0.6 }}>{open ? '▼' : '▶'}</span>
-          {fmtDate(r.received_date)}
+        <td style={{ ...cellTd, whiteSpace: 'nowrap', borderLeft: `4px solid rgba(${answerRgb(r.answer)},0.75)` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: '0.6rem', opacity: 0.6 }}>{open ? '▼' : '▶'}</span>
+            <AnswerHL a={r.answer} />
+            <StatusBadge s={r.status} />
+          </div>
         </td>
+        <td style={{ ...cellTd, whiteSpace: 'nowrap', color: '#475569' }}>{fmtDate(r.received_date)}</td>
         <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>{r.manager || '-'}</td>
         <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>{r.company_name || '-'}</td>
         <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>{r.hospital_type || '-'}</td>
         <td style={{ ...cellTd, fontWeight: 600, color: '#111827', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.hospital_name ?? ''}>{r.hospital_name || '-'}</td>
         <td style={{ ...cellTd, whiteSpace: 'nowrap', color: '#7c3aed', fontWeight: 600 }}>{r.product_name || '-'}</td>
         <td style={{ ...cellTd, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.department ?? ''}>{r.department || '-'}</td>
-        <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>
-          <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}><AnswerBadge a={r.answer} /><StatusBadge s={r.status} /></span>
-        </td>
         <td style={{ ...cellTd, whiteSpace: 'nowrap', color: isPrescribed(r.final_result) ? '#059669' : '#64748b', fontWeight: isPrescribed(r.final_result) ? 600 : 400 }}>{r.final_result || '-'}</td>
         {showActions && (
           <td style={{ ...cellTd, whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
@@ -227,12 +240,15 @@ function FilterCard({ row: r, canEdit, onEdit, onDelete, onOpen }: {
   const dt = details(r);
   const toggle = () => setOpen(v => { if (!v) onOpen(); return !v; });
   return (
-    <div className="mcard">
-      <div className="mcard-head" onClick={toggle} style={{ cursor: 'pointer' }}>
-        <span className="mcard-title">{r.hospital_name || '-'}</span>
-        <AnswerBadge a={r.answer} />
+    <div className="mcard" style={{ borderLeft: `5px solid rgba(${answerRgb(r.answer)},0.8)` }}>
+      {/* 영업가능여부 — 맨 앞 하이라이트 */}
+      <div onClick={toggle} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: '0.5rem' }}>
+        <AnswerHL a={r.answer} />
         <StatusBadge s={r.status} />
         <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#94a3b8' }}>{open ? '▼' : '▶'}</span>
+      </div>
+      <div className="mcard-row" onClick={toggle} style={{ cursor: 'pointer' }}>
+        <span className="mcard-k">처방처</span><span className="mcard-v" style={{ fontWeight: 700 }}>{r.hospital_name || '-'}</span>
       </div>
       <div className="mcard-row"><span className="mcard-k">품목</span><span className="mcard-v" style={{ fontWeight: 600, color: '#7c3aed' }}>{r.product_name || '-'}</span></div>
       <div className="mcard-row"><span className="mcard-k">종별·처방과</span><span className="mcard-v" style={{ fontWeight: 400 }}>{[r.hospital_type, r.department].filter(Boolean).join(' · ') || '-'}</span></div>
@@ -498,6 +514,7 @@ export default function FilteringClient({ rows: initial, isAdmin, isConsignor, m
             <table style={{ width: '100%', minWidth: showActions ? 1000 : 900, borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
+                  <th style={{ ...cellTh, paddingLeft: '0.9rem' }}>영업가능여부</th>
                   <th style={cellTh}>접수</th>
                   <th style={cellTh}>담당자</th>
                   <th style={cellTh}>업체명</th>
@@ -505,7 +522,6 @@ export default function FilteringClient({ rows: initial, isAdmin, isConsignor, m
                   <th style={cellTh}>처방처명</th>
                   <th style={cellTh}>품목명</th>
                   <th style={cellTh}>처방과</th>
-                  <th style={cellTh}>답변</th>
                   <th style={cellTh}>최종결과</th>
                   {showActions && <th style={cellTh}>관리</th>}
                 </tr>
