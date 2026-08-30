@@ -155,14 +155,6 @@ function downloadCsv(rows: FilteringRow[]) {
 }
 
 /* ── 상세 행 ── */
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', flexShrink: 0, minWidth: '72px', paddingTop: '0.1rem' }}>{label}</span>
-      <span style={{ fontSize: '0.78rem', color: '#334155', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{value}</span>
-    </div>
-  );
-}
 function details(r: FilteringRow): [string, string][] {
   const out: [string, string][] = [];
   const push = (k: string, v: string | number | null) => { if (v != null && String(v).trim() !== '') out.push([k, String(v)]); };
@@ -175,62 +167,59 @@ function details(r: FilteringRow): [string, string][] {
   return out;
 }
 
-/* ── PC 리스트 항목 (전체폭 3줄 — 가로 스크롤 없이 한 화면) ── */
+/* ── PC 리스트 항목 (전체폭 — 모든 정보 인라인, 펼치기 없음) ── */
 function FilterListItem({ row: r, canEdit, onEdit, onDelete, onOpen }: {
   row: FilteringRow; canEdit: boolean; onEdit: () => void; onDelete: () => void; onOpen: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const dt = details(r);
-  const toggle = () => setOpen(v => { if (!v) onOpen(); return !v; });
   const meta = (label: string, val: string | null | undefined) =>
-    val ? <span><span style={{ color: '#94a3b8' }}>{label} </span>{val}</span> : null;
+    val && String(val).trim() ? <span><span style={{ color: '#94a3b8' }}>{label} </span>{val}</span> : null;
+  const line: React.CSSProperties = { display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: '0.77rem', color: '#64748b' };
   return (
-    <div style={{ borderLeft: `4px solid rgba(${answerRgb(r.answer)},0.75)`, borderBottom: '1px solid #eef1f6', background: open ? 'rgba(2,132,199,0.05)' : '#fff' }}>
-      <div onClick={toggle} style={{ display: 'flex', gap: 14, padding: '11px 14px', cursor: 'pointer', alignItems: 'flex-start' }}>
-        {/* 영업가능여부 — 맨 앞 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-start', flexShrink: 0, width: 96 }}>
-          <AnswerHL a={r.answer} />
-          <StatusBadge s={r.status} />
-        </div>
-        {/* 3줄 정보 */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline', fontSize: '0.87rem' }}>
-            <span style={{ fontWeight: 700, color: '#111827' }}>{r.hospital_name || '-'}</span>
-            {r.product_name && <span style={{ color: '#7c3aed', fontWeight: 600 }}>{r.product_name}</span>}
-            {r.department && <span style={{ color: '#475569', fontSize: '0.8rem' }}>· {r.department}</span>}
-          </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: '0.77rem', color: '#475569' }}>
-            {meta('접수', fmtDate(r.received_date))}
-            {meta('담당', r.manager)}
-            {meta('업체', r.company_name)}
-            {meta('종별', r.hospital_type)}
-          </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: '0.77rem', color: '#64748b' }}>
-            <span><span style={{ color: '#94a3b8' }}>최종결과 </span>
-              <b style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b', fontWeight: isPrescribed(r.final_result) ? 700 : 400 }}>{r.final_result || '-'}</b></span>
-            {meta('DC접수', r.dc_timing ? fmtDate(r.dc_timing) : null)}
-            {meta('코딩', r.coding_month ? fmtDate(r.coding_month) : null)}
-            {meta('KOL', r.kol)}
-          </div>
-        </div>
-        {/* 관리 + 펼치기 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
-          {canEdit && (
-            <>
-              <button onClick={onEdit} style={{ ...BTN_GHOST, fontSize: '0.72rem', padding: '0.25rem 0.6rem' }}>수정</button>
-              <button onClick={onDelete} style={{ ...BTN_GHOST, fontSize: '0.72rem', padding: '0.25rem 0.6rem', borderColor: 'rgba(248,113,113,0.3)', color: '#dc2626' }}>삭제</button>
-            </>
-          )}
-          <span onClick={toggle} style={{ fontSize: '0.72rem', color: '#94a3b8', cursor: 'pointer', padding: '0 2px' }}>{open ? '▲' : '▼'}</span>
-        </div>
+    <div onClick={onOpen} style={{ borderLeft: `4px solid rgba(${answerRgb(r.answer)},0.75)`, borderBottom: '1px solid #eef1f6', background: '#fff', display: 'flex', gap: 14, padding: '11px 14px', alignItems: 'flex-start' }}>
+      {/* 영업가능여부 — 맨 앞 */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-start', flexShrink: 0, width: 96 }}>
+        <AnswerHL a={r.answer} />
+        <StatusBadge s={r.status} />
       </div>
-      {open && (
-        <div style={{ padding: '0 14px 12px 32px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '0.45rem 1.2rem' }}>
-            {dt.length ? dt.map(([k, v]) => <DetailRow key={k} label={k} value={v} />)
-              : <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>추가 정보 없음</span>}
-            <DetailRow label="등록일" value={fmtDate(r.created_at.slice(0, 10))} />
+      {/* 전체 정보 인라인 */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline', fontSize: '0.87rem' }}>
+          <span style={{ fontWeight: 700, color: '#111827' }}>{r.hospital_name || '-'}</span>
+          {r.product_name && <span style={{ color: '#7c3aed', fontWeight: 600 }}>{r.product_name}</span>}
+          {r.department && <span style={{ color: '#475569', fontSize: '0.8rem' }}>· {r.department}</span>}
+        </div>
+        <div style={{ ...line, color: '#475569' }}>
+          {meta('접수', fmtDate(r.received_date))}
+          {meta('담당', r.manager)}
+          {meta('업체', r.company_name)}
+          {meta('종별', r.hospital_type)}
+          {meta('처방처코드', r.hospital_code)}
+        </div>
+        <div style={line}>
+          <span><span style={{ color: '#94a3b8' }}>최종결과 </span>
+            <b style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b', fontWeight: isPrescribed(r.final_result) ? 700 : 400 }}>{r.final_result || '-'}</b></span>
+          {meta('DC접수', r.dc_timing ? fmtDate(r.dc_timing) : null)}
+          {meta('코딩', r.coding_month ? fmtDate(r.coding_month) : null)}
+          {meta('EDI수령', r.edi_received)}
+          {meta('MBO', r.mbo != null ? fmtMbo(r.mbo) : null)}
+        </div>
+        <div style={line}>
+          {meta('KOL', r.kol)}
+          {meta('딜러', r.dealer_name)}
+          {meta('딜러연락처', r.dealer_phone)}
+          {meta('등록일', fmtDate(r.created_at.slice(0, 10)))}
+        </div>
+        {r.memo && r.memo.trim() && (
+          <div style={{ fontSize: '0.77rem', color: '#64748b', whiteSpace: 'pre-wrap' }}>
+            <span style={{ color: '#94a3b8' }}>비고 </span>{r.memo}
           </div>
+        )}
+      </div>
+      {/* 관리 */}
+      {canEdit && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+          <button onClick={onEdit} style={{ ...BTN_GHOST, fontSize: '0.72rem', padding: '0.25rem 0.6rem' }}>수정</button>
+          <button onClick={onDelete} style={{ ...BTN_GHOST, fontSize: '0.72rem', padding: '0.25rem 0.6rem', borderColor: 'rgba(248,113,113,0.3)', color: '#dc2626' }}>삭제</button>
         </div>
       )}
     </div>
@@ -241,34 +230,31 @@ function FilterListItem({ row: r, canEdit, onEdit, onDelete, onOpen }: {
 function FilterCard({ row: r, canEdit, onEdit, onDelete, onOpen }: {
   row: FilteringRow; canEdit: boolean; onEdit: () => void; onDelete: () => void; onOpen: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const dt = details(r);
-  const toggle = () => setOpen(v => { if (!v) onOpen(); return !v; });
   return (
-    <div className="mcard" style={{ borderLeft: `5px solid rgba(${answerRgb(r.answer)},0.8)` }}>
+    <div className="mcard" style={{ borderLeft: `5px solid rgba(${answerRgb(r.answer)},0.8)` }} onClick={onOpen}>
       {/* 영업가능여부 — 맨 앞 하이라이트 */}
-      <div onClick={toggle} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: '0.5rem' }}>
         <AnswerHL a={r.answer} />
         <StatusBadge s={r.status} />
-        <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: '#94a3b8' }}>{open ? '▼' : '▶'}</span>
       </div>
-      <div className="mcard-row" onClick={toggle} style={{ cursor: 'pointer' }}>
-        <span className="mcard-k">처방처</span><span className="mcard-v" style={{ fontWeight: 700 }}>{r.hospital_name || '-'}</span>
-      </div>
+      <div className="mcard-row"><span className="mcard-k">처방처</span><span className="mcard-v" style={{ fontWeight: 700 }}>{r.hospital_name || '-'}</span></div>
       <div className="mcard-row"><span className="mcard-k">품목</span><span className="mcard-v" style={{ fontWeight: 600, color: '#7c3aed' }}>{r.product_name || '-'}</span></div>
       <div className="mcard-row"><span className="mcard-k">종별·처방과</span><span className="mcard-v" style={{ fontWeight: 400 }}>{[r.hospital_type, r.department].filter(Boolean).join(' · ') || '-'}</span></div>
       <div className="mcard-row"><span className="mcard-k">담당·업체</span><span className="mcard-v" style={{ fontWeight: 400 }}>{[r.manager, r.company_name].filter(Boolean).join(' / ') || '-'}</span></div>
       <div className="mcard-row"><span className="mcard-k">접수·최종</span><span className="mcard-v" style={{ fontWeight: 400 }}>{fmtDate(r.received_date)} → <span style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b' }}>{r.final_result || '-'}</span></span></div>
-      {open && (
-        <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #eef1f6', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          {dt.map(([k, v]) => <DetailRow key={k} label={k} value={v} />)}
-          <DetailRow label="등록일" value={fmtDate(r.created_at.slice(0, 10))} />
-          {canEdit && (
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.3rem' }}>
-              <button onClick={onEdit} style={{ ...BTN_PRIMARY, fontSize: '0.78rem', padding: '0.4rem 0.9rem' }}>✏️ 수정</button>
-              <button onClick={onDelete} style={{ ...BTN_GHOST, fontSize: '0.78rem', padding: '0.4rem 0.9rem', borderColor: 'rgba(248,113,113,0.35)', color: '#dc2626' }}>🗑 삭제</button>
-            </div>
-          )}
+      {/* 나머지 상세 — 처음부터 표시 */}
+      {dt.map(([k, v]) => (
+        <div key={k} className="mcard-row" style={{ alignItems: 'flex-start' }}>
+          <span className="mcard-k">{k}</span>
+          <span className="mcard-v" style={{ fontWeight: 400, textAlign: 'left', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{v}</span>
+        </div>
+      ))}
+      <div className="mcard-row"><span className="mcard-k">등록일</span><span className="mcard-v" style={{ fontWeight: 400 }}>{fmtDate(r.created_at.slice(0, 10))}</span></div>
+      {canEdit && (
+        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }} onClick={e => e.stopPropagation()}>
+          <button onClick={onEdit} style={{ ...BTN_PRIMARY, fontSize: '0.78rem', padding: '0.4rem 0.9rem' }}>✏️ 수정</button>
+          <button onClick={onDelete} style={{ ...BTN_GHOST, fontSize: '0.78rem', padding: '0.4rem 0.9rem', borderColor: 'rgba(248,113,113,0.35)', color: '#dc2626' }}>🗑 삭제</button>
         </div>
       )}
     </div>
