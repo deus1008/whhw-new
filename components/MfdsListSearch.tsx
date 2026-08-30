@@ -15,8 +15,11 @@ export default function MfdsListSearch({ type, columns, placeholder }: {
   const [searched, setSearched] = useState(false);
   const [notice, setNotice]   = useState('');
   const [listQuery, setListQuery] = useState('');
-  const [sortKey, setSortKey] = useState<string>(columns[0].key);
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  // 날짜 컬럼(회수명령일자/처분일자)이 있으면 기본 정렬을 '최신 날짜 순(내림차순)'으로.
+  const hasDate = columns.some(c => c.key === 'date');
+  const dateKey = (columns.find(c => c.key === 'date') ?? columns[0]).key;
+  const [sortKey, setSortKey] = useState<string>(hasDate ? dateKey : columns[0].key);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(hasDate ? 'desc' : 'asc');
   const [isPending, startTransition] = useTransition();
 
   function runSearch(e?: React.FormEvent) {
@@ -29,6 +32,7 @@ export default function MfdsListSearch({ type, columns, placeholder }: {
         setRows(data.items ?? []);
         setSearched(true);
         setListQuery('');
+        if (hasDate) { setSortKey(dateKey); setSortDir('desc'); }  // 조회 시 최신 날짜 순
         if (data.notAvailable) setNotice(data.message ?? '현재 조회할 수 없습니다.');
       } catch {
         setRows([]); setSearched(true); setNotice('조회 중 오류가 발생했습니다.');
