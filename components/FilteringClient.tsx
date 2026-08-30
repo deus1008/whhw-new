@@ -156,7 +156,8 @@ function details(r: FilteringRow): [string, string][] {
   const push = (k: string, v: string | number | null) => { if (v != null && String(v).trim() !== '') out.push([k, String(v)]); };
   push('딜러명', r.dealer_name); push('딜러연락처', r.dealer_phone);
   push('처방처코드', r.hospital_code); push('KOL', r.kol);
-  push('DC접수시기', r.dc_timing); push('코딩가능월', r.coding_month);
+  push('DC접수시기', r.dc_timing ? fmtDate(r.dc_timing) : null);
+  push('코딩가능월', r.coding_month ? fmtDate(r.coding_month) : null);
   push('EDI수령', r.edi_received); push('MBO', r.mbo != null ? fmtMbo(r.mbo) : null);
   push('비고', r.memo);
   return out;
@@ -270,7 +271,6 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
     onSaved(); onClose();
   }
 
-  const two: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' };
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(15,23,42,0.55)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '1rem' }}
@@ -280,19 +280,19 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
           {editId ? '필터링 항목 수정' : '필터링 항목 등록'}
         </h2>
 
-        <div style={two}>
+        <div className="filt-2col">
           <Field label="접수일자"><input type="date" style={INPUT_STYLE} value={form.received_date} onChange={e => set('received_date', e.target.value)} /></Field>
           <Field label="담당자"><input style={INPUT_STYLE} value={form.manager} onChange={e => set('manager', e.target.value)} /></Field>
         </div>
-        <div style={two}>
+        <div className="filt-2col">
           <Field label="업체명"><input style={INPUT_STYLE} value={form.company_name} onChange={e => set('company_name', e.target.value)} placeholder="CSO 법인" /></Field>
           <Field label="딜러명 (선택)"><input style={INPUT_STYLE} value={form.dealer_name} onChange={e => set('dealer_name', e.target.value)} /></Field>
         </div>
-        <div style={two}>
+        <div className="filt-2col">
           <Field label="딜러연락처 (선택)"><input style={INPUT_STYLE} value={form.dealer_phone} onChange={e => set('dealer_phone', e.target.value)} /></Field>
           <Field label="처방처코드"><input style={INPUT_STYLE} value={form.hospital_code} onChange={e => set('hospital_code', e.target.value)} /></Field>
         </div>
-        <div style={two}>
+        <div className="filt-2col">
           <Field label="종별">
             <select style={INPUT_STYLE} value={form.hospital_type} onChange={e => set('hospital_type', e.target.value)}>
               {HOSPITAL_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -305,11 +305,11 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
         <Field label="품목명 *"><input style={INPUT_STYLE} value={form.product_name} onChange={e => set('product_name', e.target.value)} placeholder="예: 유로박솜군" /></Field>
         <Field label="KOL"><input style={INPUT_STYLE} value={form.kol} onChange={e => set('kol', e.target.value)} placeholder="처방의 (쉼표로 여러 명)" /></Field>
 
-        <div style={two}>
-          <Field label="DC접수시기"><input type="date" style={INPUT_STYLE} value={/^\d{4}-\d{2}-\d{2}$/.test(form.dc_timing) ? form.dc_timing : ''} onChange={e => set('dc_timing', e.target.value)} /></Field>
-          <Field label="코딩가능월"><input type="date" style={INPUT_STYLE} value={/^\d{4}-\d{2}-\d{2}$/.test(form.coding_month) ? form.coding_month : ''} onChange={e => set('coding_month', e.target.value)} /></Field>
+        <div className="filt-2col">
+          <Field label="DC접수시기"><input type="date" style={{ ...INPUT_STYLE, fontSize: '16px', minHeight: '44px' }} value={/^\d{4}-\d{2}-\d{2}$/.test(form.dc_timing) ? form.dc_timing : ''} onChange={e => set('dc_timing', e.target.value)} /></Field>
+          <Field label="코딩가능월"><input type="date" style={{ ...INPUT_STYLE, fontSize: '16px', minHeight: '44px' }} value={/^\d{4}-\d{2}-\d{2}$/.test(form.coding_month) ? form.coding_month : ''} onChange={e => set('coding_month', e.target.value)} /></Field>
         </div>
-        <div style={two}>
+        <div className="filt-2col">
           <Field label="EDI수령여부">
             <select style={INPUT_STYLE} value={form.edi_received} onChange={e => set('edi_received', e.target.value)}>
               {YESNO.map(v => <option key={v} value={v}>{v || '-'}</option>)}
@@ -320,7 +320,7 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
             onChange={e => set('mbo', e.target.value.replace(/[^\d]/g, ''))} placeholder="예: 50,000,000" /></Field>
         </div>
 
-        <div style={two}>
+        <div className="filt-2col">
           <Field label="답변 (영업가능여부)">
             <select style={INPUT_STYLE} value={form.answer} onChange={e => set('answer', e.target.value)}>
               <option value="">-</option>

@@ -668,6 +668,9 @@ select.auth-input { background-color: #ffffff; }
   .resp-table { display: none !important; }
   .resp-cards { display: block; }
 }
+/* 폼 2열 그리드 — 모바일에서는 1열로 스택(좁은 화면에서 날짜/숫자 입력 잘림 방지) */
+.filt-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+@media (max-width: 640px) { .filt-2col { grid-template-columns: 1fr; } }
 .mcard {
   border: 1px solid #e5e9f0; border-radius: 10px;
   padding: 0.7rem 0.8rem; margin-bottom: 0.6rem; background: #ffffff;
