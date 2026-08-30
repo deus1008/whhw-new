@@ -175,60 +175,65 @@ function details(r: FilteringRow): [string, string][] {
   return out;
 }
 
-/* ── PC 테이블 행 ── */
-function FilterTr({ row: r, canEdit, showActions, colSpan, onEdit, onDelete, onOpen }: {
-  row: FilteringRow; canEdit: boolean; showActions: boolean; colSpan: number; onEdit: () => void; onDelete: () => void; onOpen: () => void;
+/* ── PC 리스트 항목 (전체폭 3줄 — 가로 스크롤 없이 한 화면) ── */
+function FilterListItem({ row: r, canEdit, onEdit, onDelete, onOpen }: {
+  row: FilteringRow; canEdit: boolean; onEdit: () => void; onDelete: () => void; onOpen: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const dt = details(r);
   const toggle = () => setOpen(v => { if (!v) onOpen(); return !v; });
+  const meta = (label: string, val: string | null | undefined) =>
+    val ? <span><span style={{ color: '#94a3b8' }}>{label} </span>{val}</span> : null;
   return (
-    <>
-      <tr onClick={toggle} style={{ cursor: 'pointer', background: open ? 'rgba(2,132,199,0.06)' : undefined }}>
-        <td style={{ ...cellTd, whiteSpace: 'nowrap', borderLeft: `4px solid rgba(${answerRgb(r.answer)},0.75)` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: '0.6rem', opacity: 0.6 }}>{open ? '▼' : '▶'}</span>
-            <AnswerHL a={r.answer} />
-            <StatusBadge s={r.status} />
+    <div style={{ borderLeft: `4px solid rgba(${answerRgb(r.answer)},0.75)`, borderBottom: '1px solid #eef1f6', background: open ? 'rgba(2,132,199,0.05)' : '#fff' }}>
+      <div onClick={toggle} style={{ display: 'flex', gap: 14, padding: '11px 14px', cursor: 'pointer', alignItems: 'flex-start' }}>
+        {/* 영업가능여부 — 맨 앞 */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-start', flexShrink: 0, width: 96 }}>
+          <AnswerHL a={r.answer} />
+          <StatusBadge s={r.status} />
+        </div>
+        {/* 3줄 정보 */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'baseline', fontSize: '0.87rem' }}>
+            <span style={{ fontWeight: 700, color: '#111827' }}>{r.hospital_name || '-'}</span>
+            {r.product_name && <span style={{ color: '#7c3aed', fontWeight: 600 }}>{r.product_name}</span>}
+            {r.department && <span style={{ color: '#475569', fontSize: '0.8rem' }}>· {r.department}</span>}
           </div>
-        </td>
-        <td style={{ ...cellTd, whiteSpace: 'nowrap', color: '#475569' }}>{fmtDate(r.received_date)}</td>
-        <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>{r.manager || '-'}</td>
-        <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>{r.company_name || '-'}</td>
-        <td style={{ ...cellTd, whiteSpace: 'nowrap' }}>{r.hospital_type || '-'}</td>
-        <td style={{ ...cellTd, fontWeight: 600, color: '#111827', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.hospital_name ?? ''}>{r.hospital_name || '-'}</td>
-        <td style={{ ...cellTd, whiteSpace: 'nowrap', color: '#7c3aed', fontWeight: 600 }}>{r.product_name || '-'}</td>
-        <td style={{ ...cellTd, maxWidth: 130, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.department ?? ''}>{r.department || '-'}</td>
-        <td style={{ ...cellTd, whiteSpace: 'nowrap', color: isPrescribed(r.final_result) ? '#059669' : '#64748b', fontWeight: isPrescribed(r.final_result) ? 600 : 400 }}>{r.final_result || '-'}</td>
-        {showActions && (
-          <td style={{ ...cellTd, whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
-            {canEdit ? (
-              <div style={{ display: 'flex', gap: '0.3rem' }}>
-                <button onClick={onEdit} style={{ ...BTN_GHOST, fontSize: '0.7rem', padding: '0.22rem 0.5rem' }}>수정</button>
-                <button onClick={onDelete} style={{ ...BTN_GHOST, fontSize: '0.7rem', padding: '0.22rem 0.5rem', borderColor: 'rgba(248,113,113,0.3)', color: '#dc2626' }}>삭제</button>
-              </div>
-            ) : <span style={{ opacity: 0.3 }}>-</span>}
-          </td>
-        )}
-      </tr>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: '0.77rem', color: '#475569' }}>
+            {meta('접수', fmtDate(r.received_date))}
+            {meta('담당', r.manager)}
+            {meta('업체', r.company_name)}
+            {meta('종별', r.hospital_type)}
+          </div>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: '0.77rem', color: '#64748b' }}>
+            <span><span style={{ color: '#94a3b8' }}>최종결과 </span>
+              <b style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b', fontWeight: isPrescribed(r.final_result) ? 700 : 400 }}>{r.final_result || '-'}</b></span>
+            {meta('DC접수', r.dc_timing ? fmtDate(r.dc_timing) : null)}
+            {meta('코딩', r.coding_month ? fmtDate(r.coding_month) : null)}
+            {meta('KOL', r.kol)}
+          </div>
+        </div>
+        {/* 관리 + 펼치기 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+          {canEdit && (
+            <>
+              <button onClick={onEdit} style={{ ...BTN_GHOST, fontSize: '0.72rem', padding: '0.25rem 0.6rem' }}>수정</button>
+              <button onClick={onDelete} style={{ ...BTN_GHOST, fontSize: '0.72rem', padding: '0.25rem 0.6rem', borderColor: 'rgba(248,113,113,0.3)', color: '#dc2626' }}>삭제</button>
+            </>
+          )}
+          <span onClick={toggle} style={{ fontSize: '0.72rem', color: '#94a3b8', cursor: 'pointer', padding: '0 2px' }}>{open ? '▲' : '▼'}</span>
+        </div>
+      </div>
       {open && (
-        <tr>
-          <td colSpan={colSpan} style={{ ...cellTd, background: '#ffffff' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '0.45rem 1.2rem', padding: '0.2rem 0.2rem 0.4rem' }}>
-              {dt.length ? dt.map(([k, v]) => <DetailRow key={k} label={k} value={v} />)
-                : <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>추가 정보 없음</span>}
-              <DetailRow label="등록일" value={fmtDate(r.created_at.slice(0, 10))} />
-            </div>
-            {canEdit && (
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
-                <button onClick={e => { e.stopPropagation(); onEdit(); }} style={{ ...BTN_PRIMARY, fontSize: '0.78rem', padding: '0.4rem 0.9rem' }}>✏️ 수정</button>
-                <button onClick={e => { e.stopPropagation(); onDelete(); }} style={{ ...BTN_GHOST, fontSize: '0.78rem', padding: '0.4rem 0.9rem', borderColor: 'rgba(248,113,113,0.35)', color: '#dc2626' }}>🗑 삭제</button>
-              </div>
-            )}
-          </td>
-        </tr>
+        <div style={{ padding: '0 14px 12px 32px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '0.45rem 1.2rem' }}>
+            {dt.length ? dt.map(([k, v]) => <DetailRow key={k} label={k} value={v} />)
+              : <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>추가 정보 없음</span>}
+            <DetailRow label="등록일" value={fmtDate(r.created_at.slice(0, 10))} />
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 }
 
@@ -436,8 +441,6 @@ export default function FilteringClient({ rows: initial, isAdmin, isConsignor, m
     };
   }
 
-  const showActions = isAdmin || isConsignor || filtered.some(r => canEditRow(r));
-  const colCount = 9 + (showActions ? 1 : 0);
 
   const STAT = [
     { tab: '전체', color: '#0284c7', rgba: 'rgba(14,165,233,', flt: '' },
@@ -510,30 +513,11 @@ export default function FilteringClient({ rows: initial, isAdmin, isConsignor, m
         </div>
       ) : (
         <>
-          <div className="resp-table" style={{ overflowX: 'auto', border: '1px solid #f1f5f9', borderRadius: 12 }}>
-            <table style={{ width: '100%', minWidth: showActions ? 1000 : 900, borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  <th style={{ ...cellTh, paddingLeft: '0.9rem' }}>영업가능여부</th>
-                  <th style={cellTh}>접수</th>
-                  <th style={cellTh}>담당자</th>
-                  <th style={cellTh}>업체명</th>
-                  <th style={cellTh}>종별</th>
-                  <th style={cellTh}>처방처명</th>
-                  <th style={cellTh}>품목명</th>
-                  <th style={cellTh}>처방과</th>
-                  <th style={cellTh}>최종결과</th>
-                  {showActions && <th style={cellTh}>관리</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(r => (
-                  <FilterTr key={r.id} row={r} showActions={showActions} colSpan={colCount}
-                    canEdit={canEditRow(r)} onOpen={() => handleOpen(r)}
-                    onEdit={() => openEdit(r)} onDelete={() => !deleting && handleDelete(r.id)} />
-                ))}
-              </tbody>
-            </table>
+          <div className="resp-table" style={{ border: '1px solid #eef1f6', borderRadius: 12, overflow: 'hidden' }}>
+            {filtered.map(r => (
+              <FilterListItem key={r.id} row={r} canEdit={canEditRow(r)} onOpen={() => handleOpen(r)}
+                onEdit={() => openEdit(r)} onDelete={() => !deleting && handleDelete(r.id)} />
+            ))}
           </div>
           <div className="resp-cards">
             {filtered.map(r => (
