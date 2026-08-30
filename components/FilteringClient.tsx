@@ -306,8 +306,8 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
         <Field label="KOL"><input style={INPUT_STYLE} value={form.kol} onChange={e => set('kol', e.target.value)} placeholder="처방의 (쉼표로 여러 명)" /></Field>
 
         <div style={two}>
-          <Field label="DC접수시기"><input style={INPUT_STYLE} value={form.dc_timing} onChange={e => set('dc_timing', e.target.value)} placeholder="예: 2024-07-01 / O / 준비중" /></Field>
-          <Field label="코딩가능월"><input style={INPUT_STYLE} value={form.coding_month} onChange={e => set('coding_month', e.target.value)} /></Field>
+          <Field label="DC접수시기"><input type="date" style={INPUT_STYLE} value={/^\d{4}-\d{2}-\d{2}$/.test(form.dc_timing) ? form.dc_timing : ''} onChange={e => set('dc_timing', e.target.value)} /></Field>
+          <Field label="코딩가능월"><input type="date" style={INPUT_STYLE} value={/^\d{4}-\d{2}-\d{2}$/.test(form.coding_month) ? form.coding_month : ''} onChange={e => set('coding_month', e.target.value)} /></Field>
         </div>
         <div style={two}>
           <Field label="EDI수령여부">
