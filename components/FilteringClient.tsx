@@ -315,7 +315,9 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
               {YESNO.map(v => <option key={v} value={v}>{v || '-'}</option>)}
             </select>
           </Field>
-          <Field label="MBO (원)"><input style={INPUT_STYLE} inputMode="numeric" value={form.mbo} onChange={e => set('mbo', e.target.value)} placeholder="예: 5000000" /></Field>
+          <Field label="MBO (원)"><input style={INPUT_STYLE} inputMode="numeric"
+            value={(() => { const d = String(form.mbo).replace(/[^\d]/g, ''); return d ? Number(d).toLocaleString('ko-KR') : ''; })()}
+            onChange={e => set('mbo', e.target.value.replace(/[^\d]/g, ''))} placeholder="예: 50,000,000" /></Field>
         </div>
 
         <div style={two}>
