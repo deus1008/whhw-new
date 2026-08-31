@@ -52,8 +52,17 @@ export function cmpStrength(a: string | null, b: string | null): number {
     const d = (A[i] ?? 0) - (B[i] ?? 0);
     if (d) return d;
   }
-  return 0;
+  // 숫자 동률: 일반정보다 서방(徐放) 뒤로
+  const er = (s: string | null) => (/서방/.test(s ?? '') ? 1 : 0);
+  return er(a) - er(b);
 }
+
+// 서방(徐放, extended-release) 판정 — 제품명 기준(엑스알/XR/서방정 등)
+export const isExtendedRelease = (name: string | null | undefined): boolean =>
+  /서방|엑스알|엑스엘|\bxr\b|\bxl\b|\bsr\b|\bcr\b|\ber\b/i.test(String(name ?? ''));
+// 함량에 서방 표기 부가 → 4단계에서 일반정과 별도 구분(예: "500mg(서방)")
+export const strengthWithForm = (st: string | null, name: string | null | undefined): string | null =>
+  st && isExtendedRelease(name) ? `${st}(서방)` : st;
 
 export type DrugCore = Record<string, unknown>;
 
@@ -228,7 +237,7 @@ export async function resolveDrugCore(
         byCode.set(code, {
           id: null, disease_group: group, sub_category: sub ?? null, treatment_class: null,
           ingredient_name: koIngr, product_name: r.item_name,
-          strength: strengthOf(eng) || null,
+          strength: strengthWithForm(strengthOf(eng) || null, (r.item_name as string) ?? ''),
           manufacturer: r.manufacturer || null,
           distributor:  r.manufacturer || null,
           standard: r.standard || null, pay_type: r.pay_type || null,
@@ -262,7 +271,7 @@ export async function resolveDrugCore(
       byCode.set(code, {
         id: null, disease_group: group, sub_category: sub ?? null, treatment_class: null,
         ingredient_name: ko, product_name: r.item_name,
-        strength: doseSimple(eng),
+        strength: strengthWithForm(doseSimple(eng), (r.item_name as string) ?? ''),
         manufacturer: r.manufacturer || null,
         distributor:  r.manufacturer || null,
         standard: r.standard || null, pay_type: r.pay_type || null,
