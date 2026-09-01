@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { createFiltering, updateFiltering, deleteFiltering, confirmFiltering } from '@/app/filtering/actions';
 import type { FilteringInput } from '@/app/filtering/actions';
+import type { HospitalHit } from '@/app/api/hospital-search/route';
 
 /* ── 타입 ── */
 export type FilteringRow = {
@@ -261,6 +262,61 @@ function FilterCard({ row: r, canEdit, onEdit, onDelete, onOpen }: {
   );
 }
 
+/* ── 처방처 검색 자동완성 (병의원 마스터) ── */
+function HospitalPicker({ value, onChange, onPick }: {
+  value: string;
+  onChange: (v: string) => void;
+  onPick: (h: HospitalHit) => void;
+}) {
+  const [items, setItems] = useState<HospitalHit[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function query(v: string) {
+    onChange(v);
+    if (timer.current) clearTimeout(timer.current);
+    if (v.trim().length < 2) { setItems([]); setOpen(false); return; }
+    timer.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/hospital-search?q=${encodeURIComponent(v.trim())}`);
+        const d = await res.json();
+        setItems(d.items ?? []); setOpen(true);
+      } catch { setItems([]); }
+      finally { setLoading(false); }
+    }, 250);
+  }
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <input style={INPUT_STYLE} value={value} placeholder="병원명 또는 처방처코드로 검색"
+        autoComplete="off"
+        onChange={e => query(e.target.value)}
+        onFocus={() => { if (items.length) setOpen(true); }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)} />
+      {open && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, zIndex: 30, background: '#fff', border: '1px solid #e5e9f0', borderRadius: 8, boxShadow: '0 8px 24px rgba(15,23,42,0.14)', maxHeight: 280, overflowY: 'auto' }}>
+          {loading && <div style={{ padding: '0.55rem 0.7rem', fontSize: '0.78rem', color: '#94a3b8' }}>검색 중…</div>}
+          {!loading && items.length === 0 && <div style={{ padding: '0.55rem 0.7rem', fontSize: '0.78rem', color: '#94a3b8' }}>결과 없음 · 직접 입력 가능</div>}
+          {items.map(h => (
+            <button key={h.hospital_code} type="button"
+              onMouseDown={e => { e.preventDefault(); onPick(h); setOpen(false); }}
+              style={{ width: '100%', textAlign: 'left', padding: '0.5rem 0.7rem', background: 'transparent', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <div style={{ fontSize: '0.83rem', color: '#111827', fontWeight: 600 }}>
+                {h.hospital_name} <span style={{ fontSize: '0.7rem', color: '#0891b2', fontWeight: 500 }}>{h.hospital_type ?? ''}</span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                {h.hospital_code}{[h.sido, h.gugun].filter(Boolean).length ? ' · ' + [h.sido, h.gugun].filter(Boolean).join(' ') : ''}{h.address ? ' · ' + h.address : ''}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── 등록/수정 폼 ── */
 function FilterForm({ initial, myName, editId, onClose, onSaved }: {
   initial: FilteringInput; myName: string; editId?: string; onClose: () => void; onSaved: () => void;
@@ -308,7 +364,11 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
           </Field>
           <Field label="처방과"><input style={INPUT_STYLE} value={form.department} onChange={e => set('department', e.target.value)} /></Field>
         </div>
-        <Field label="처방처명 *"><input style={INPUT_STYLE} value={form.hospital_name} onChange={e => set('hospital_name', e.target.value)} placeholder="병원명" /></Field>
+        <Field label="처방처명 * (검색·자동완성 — 선택 시 코드·종별 자동입력)">
+          <HospitalPicker value={form.hospital_name}
+            onChange={v => set('hospital_name', v)}
+            onPick={h => setForm(p => ({ ...p, hospital_name: h.hospital_name, hospital_code: h.hospital_code, hospital_type: h.hospital_type || p.hospital_type }))} />
+        </Field>
         <Field label="품목명 *"><input style={INPUT_STYLE} value={form.product_name} onChange={e => set('product_name', e.target.value)} placeholder="예: 유로박솜군" /></Field>
         <Field label="KOL"><input style={INPUT_STYLE} value={form.kol} onChange={e => set('kol', e.target.value)} placeholder="처방의 (쉼표로 여러 명)" /></Field>
 
