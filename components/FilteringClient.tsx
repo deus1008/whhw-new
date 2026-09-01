@@ -273,10 +273,7 @@ function FilterCard({ row: r, canEdit, onEdit, onDelete, onOpen }: {
       <div className="mcard-row"><span className="mcard-k">품목</span><span className="mcard-v" style={{ fontWeight: 600, color: '#7c3aed' }}>{r.product_name || '-'}</span></div>
       <div className="mcard-row"><span className="mcard-k">종별·처방과</span><span className="mcard-v" style={{ fontWeight: 400 }}>{[r.hospital_type, r.department].filter(Boolean).join(' · ') || '-'}</span></div>
       <div className="mcard-row"><span className="mcard-k">담당·업체</span><span className="mcard-v" style={{ fontWeight: 400 }}>{[r.manager, r.company_name].filter(Boolean).join(' / ') || '-'}</span></div>
-      <div className="mcard-row"><span className="mcard-k">접수·최초처방월</span><span className="mcard-v" style={{ fontWeight: 400 }}>{fmtDate(r.received_date)} → <span style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b' }}>{r.final_result || '-'}</span>{r.first_rx_amount != null && isPrescribed(r.final_result) ? <b style={{ color: '#0891b2', marginLeft: 5 }}>{fmtMbo(r.first_rx_amount)}원</b> : null}</span></div>
-      {r.last_rx_month && (
-        <div className="mcard-row"><span className="mcard-k">최근월실적</span><span className="mcard-v" style={{ fontWeight: 400 }}>{fmtDate(r.last_rx_month)}{r.last_rx_amount != null ? <b style={{ color: '#0891b2', marginLeft: 5 }}>{fmtMbo(r.last_rx_amount)}원</b> : null}</span></div>
-      )}
+      <div className="mcard-row"><span className="mcard-k">접수일</span><span className="mcard-v" style={{ fontWeight: 400 }}>{fmtDate(r.received_date)}</span></div>
       {/* 나머지 상세 — 처음부터 표시 */}
       {dt.map(([k, v]) => (
         <div key={k} className="mcard-row" style={{ alignItems: 'flex-start' }}>
@@ -285,6 +282,11 @@ function FilterCard({ row: r, canEdit, onEdit, onDelete, onOpen }: {
         </div>
       ))}
       <div className="mcard-row"><span className="mcard-k">등록일</span><span className="mcard-v" style={{ fontWeight: 400 }}>{fmtDate(r.created_at.slice(0, 10))}</span></div>
+      {/* 최초처방월·최근월실적 — 맨 밑 배치 */}
+      <div className="mcard-row"><span className="mcard-k">최초처방월</span><span className="mcard-v" style={{ fontWeight: 400 }}><span style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b' }}>{r.final_result || '-'}</span>{r.first_rx_amount != null && isPrescribed(r.final_result) ? <b style={{ color: '#0891b2', marginLeft: 5 }}>{fmtMbo(r.first_rx_amount)}원</b> : null}</span></div>
+      {r.last_rx_month && (
+        <div className="mcard-row"><span className="mcard-k">최근월실적</span><span className="mcard-v" style={{ fontWeight: 400 }}>{fmtDate(r.last_rx_month)}{r.last_rx_amount != null ? <b style={{ color: '#0891b2', marginLeft: 5 }}>{fmtMbo(r.last_rx_amount)}원</b> : null}</span></div>
+      )}
       {canEdit && (
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }} onClick={e => e.stopPropagation()}>
           <button onClick={onEdit} style={{ ...BTN_PRIMARY, fontSize: '0.78rem', padding: '0.4rem 0.9rem' }}>✏️ 수정</button>
