@@ -8,6 +8,7 @@ import FilteringClient from '@/components/FilteringClient';
 import type { FilteringRow } from '@/components/FilteringClient';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300;  // 실적 자동확인(일괄) 여유 시간
 
 export default async function FilteringPage() {
   const supabase = await createClient();
