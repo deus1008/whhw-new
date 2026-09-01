@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react';
-import { createFiltering, updateFiltering, deleteFiltering, confirmFiltering } from '@/app/filtering/actions';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { createFiltering, updateFiltering, deleteFiltering, confirmFiltering, refreshFilteringResults, getFilteringLogs } from '@/app/filtering/actions';
 import type { FilteringInput } from '@/app/filtering/actions';
 import type { HospitalHit } from '@/app/api/hospital-search/route';
+import type { ProductHit } from '@/app/api/product-search/route';
 
 /* ── 타입 ── */
 export type FilteringRow = {
@@ -29,12 +30,16 @@ export type FilteringRow = {
   final_result:  string | null;
   memo:          string | null;
   status:        string | null;   // pending | answered | confirmed
+  item_insurance_code: string | null;  // 품목 보험코드(EDI 매칭)
+  result_auto:   boolean | null;       // 최종결과 자동표기 여부
+  notify_target: string | null;        // 통보대상
+  notify_reason: string | null;        // 사유
   user_id:       string | null;
   created_at:    string;
 };
 
 const HOSPITAL_TYPES = ['상급종합', '종합병원', '병원', '의원', '기타'];
-const ANSWER_OPTS    = ['O', 'X', '준비중'];
+const ANSWER_OPTS    = ['O', 'X', '취소', '준비중'];
 const YESNO          = ['', 'O', 'X'];
 
 const EMPTY: FilteringInput = {
@@ -43,6 +48,7 @@ const EMPTY: FilteringInput = {
   hospital_type: '종합병원', hospital_name: '', product_name: '',
   department: '', kol: '', dc_timing: '', coding_month: '',
   edi_received: '', mbo: '', answer: '', final_result: '', memo: '',
+  item_insurance_code: '', notify_target: '', notify_reason: '',
 };
 
 /* ── 유틸 ── */
@@ -52,6 +58,12 @@ function fmtDate(d: string | null): string {
 }
 function fmtMbo(v: number | null): string {
   return v == null ? '-' : v.toLocaleString();
+}
+function fmtDateTime(s: string): string {
+  try {
+    const k = new Date(new Date(s).getTime() + 9 * 3600 * 1000);
+    return k.toISOString().slice(0, 16).replace('T', ' ').replace(/-/g, '.');
+  } catch { return s; }
 }
 /** 최종결과가 처방시작월(날짜)인지 판별 */
 function isPrescribed(final: string | null): boolean {
@@ -63,6 +75,7 @@ function answerRgb(a: string | null): string {
   const raw = (a ?? '').trim(); const up = raw.toUpperCase();
   if (up === 'O') return '34,197,94';
   if (up === 'X') return '239,68,68';
+  if (raw === '취소') return '109,40,217';
   if (raw === '준비중') return '251,146,60';
   return '148,163,184';
 }
@@ -73,6 +86,7 @@ function AnswerHL({ a }: { a: string | null }) {
   let col = '#64748b', label = raw || '미답변';
   if (up === 'O')       { col = '#059669'; label = '가능'; }
   else if (up === 'X')  { col = '#dc2626'; label = '불가'; }
+  else if (raw === '취소') { col = '#6d28d9'; label = '취소'; }
   else if (raw === '준비중') { col = '#c2410c'; label = '준비중'; }
   const rgb = answerRgb(a);
   return (
@@ -160,10 +174,11 @@ function details(r: FilteringRow): [string, string][] {
   const out: [string, string][] = [];
   const push = (k: string, v: string | number | null) => { if (v != null && String(v).trim() !== '') out.push([k, String(v)]); };
   push('딜러명', r.dealer_name); push('딜러연락처', r.dealer_phone);
-  push('처방처코드', r.hospital_code); push('KOL', r.kol);
+  push('처방처코드', r.hospital_code); push('품목 보험코드', r.item_insurance_code); push('KOL', r.kol);
   push('DC접수시기', r.dc_timing ? fmtDate(r.dc_timing) : null);
   push('코딩가능월', r.coding_month ? fmtDate(r.coding_month) : null);
   push('EDI수령', r.edi_received); push('MBO', r.mbo != null ? fmtMbo(r.mbo) : null);
+  push('통보대상', r.notify_target); push('사유', r.notify_reason);
   push('비고', r.memo);
   return out;
 }
@@ -198,7 +213,10 @@ function FilterListItem({ row: r, canEdit, onEdit, onDelete, onOpen }: {
         </div>
         <div style={line}>
           <span><span style={{ color: '#94a3b8' }}>최종결과 </span>
-            <b style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b', fontWeight: isPrescribed(r.final_result) ? 700 : 400 }}>{r.final_result || '-'}</b></span>
+            <b style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b', fontWeight: isPrescribed(r.final_result) ? 700 : 400 }}>{r.final_result || '-'}</b>
+            {r.result_auto && isPrescribed(r.final_result) && (
+              <span style={{ marginLeft: 4, fontSize: '0.62rem', fontWeight: 700, color: '#059669', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 4, padding: '0.02rem 0.28rem' }}>EDI자동</span>
+            )}</span>
           {meta('DC접수', r.dc_timing ? fmtDate(r.dc_timing) : null)}
           {meta('코딩', r.coding_month ? fmtDate(r.coding_month) : null)}
           {meta('EDI수령', r.edi_received)}
@@ -207,7 +225,8 @@ function FilterListItem({ row: r, canEdit, onEdit, onDelete, onOpen }: {
         <div style={line}>
           {meta('KOL', r.kol)}
           {meta('딜러', r.dealer_name)}
-          {meta('딜러연락처', r.dealer_phone)}
+          {meta('통보대상', r.notify_target)}
+          {meta('사유', r.notify_reason)}
           {meta('등록일', fmtDate(r.created_at.slice(0, 10)))}
         </div>
         {r.memo && r.memo.trim() && (
@@ -317,6 +336,84 @@ function HospitalPicker({ value, onChange, onPick }: {
   );
 }
 
+/* ── 품목 검색 자동완성 (products 마스터) ── */
+function ProductPicker({ value, onChange, onPick }: {
+  value: string;
+  onChange: (v: string) => void;
+  onPick: (p: ProductHit) => void;
+}) {
+  const [items, setItems] = useState<ProductHit[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function query(v: string) {
+    onChange(v);
+    if (timer.current) clearTimeout(timer.current);
+    if (v.trim().length < 1) { setItems([]); setOpen(false); return; }
+    timer.current = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/product-search?q=${encodeURIComponent(v.trim())}`);
+        const d = await res.json();
+        setItems(d.items ?? []); setOpen(true);
+      } catch { setItems([]); }
+      finally { setLoading(false); }
+    }, 250);
+  }
+  return (
+    <div style={{ position: 'relative' }}>
+      <input style={INPUT_STYLE} value={value} placeholder="품목명 또는 보험코드로 검색"
+        autoComplete="off"
+        onChange={e => query(e.target.value)}
+        onFocus={() => { if (items.length) setOpen(true); }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)} />
+      {open && (
+        <div style={{ position: 'absolute', top: 'calc(100% + 2px)', left: 0, right: 0, zIndex: 30, background: '#fff', border: '1px solid #e5e9f0', borderRadius: 8, boxShadow: '0 8px 24px rgba(15,23,42,0.14)', maxHeight: 280, overflowY: 'auto' }}>
+          {loading && <div style={{ padding: '0.55rem 0.7rem', fontSize: '0.78rem', color: '#94a3b8' }}>검색 중…</div>}
+          {!loading && items.length === 0 && <div style={{ padding: '0.55rem 0.7rem', fontSize: '0.78rem', color: '#94a3b8' }}>결과 없음 · 직접 입력 가능</div>}
+          {items.map(p => (
+            <button key={(p.insurance_code ?? '') + p.product_name} type="button"
+              onMouseDown={e => { e.preventDefault(); onPick(p); setOpen(false); }}
+              style={{ width: '100%', textAlign: 'left', padding: '0.5rem 0.7rem', background: 'transparent', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontFamily: 'inherit' }}>
+              <div style={{ fontSize: '0.83rem', color: '#111827', fontWeight: 600 }}>{p.product_name}</div>
+              <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                {p.insurance_code ? '보험 ' + p.insurance_code : ''}{p.manufacturer ? ' · ' + p.manufacturer : ''}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── 통보·변경 이력(증빙) ── */
+function LogHistory({ id }: { id: string }) {
+  type Log = Awaited<ReturnType<typeof getFilteringLogs>>[number];
+  const [logs, setLogs] = useState<Log[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    getFilteringLogs(id).then(l => { if (alive) { setLogs(l); setLoaded(true); } }).catch(() => { if (alive) setLoaded(true); });
+    return () => { alive = false; };
+  }, [id]);
+  if (!loaded || logs.length === 0) return null;
+  return (
+    <div style={{ marginTop: '0.6rem', padding: '0.7rem 0.85rem', background: '#f8fafc', border: '1px solid #eef1f6', borderRadius: 10 }}>
+      <div style={{ fontSize: '0.74rem', fontWeight: 700, color: '#475569', marginBottom: '0.4rem' }}>📜 통보·변경 이력 (증빙)</div>
+      {logs.map((l, i) => (
+        <div key={i} style={{ fontSize: '0.72rem', color: '#64748b', padding: '0.28rem 0', borderTop: i ? '1px solid #eef1f6' : 'none', lineHeight: 1.5 }}>
+          <span style={{ color: '#94a3b8' }}>{fmtDateTime(l.created_at)}</span>
+          {'  '}답변 {l.from_answer ?? '-'} → <b style={{ color: '#334155' }}>{l.to_answer ?? '-'}</b>
+          {l.notify_target ? <> · 통보대상 <b style={{ color: '#334155' }}>{l.notify_target}</b></> : null}
+          {l.reason ? ` · 사유 ${l.reason}` : ''}
+          {l.changed_by_name ? ` · ${l.changed_by_name}` : ''}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── 등록/수정 폼 ── */
 function FilterForm({ initial, myName, editId, onClose, onSaved }: {
   initial: FilteringInput; myName: string; editId?: string; onClose: () => void; onSaved: () => void;
@@ -369,7 +466,16 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
             onChange={v => set('hospital_name', v)}
             onPick={h => setForm(p => ({ ...p, hospital_name: h.hospital_name, hospital_code: h.hospital_code, hospital_type: h.hospital_type || p.hospital_type }))} />
         </Field>
-        <Field label="품목명 *"><input style={INPUT_STYLE} value={form.product_name} onChange={e => set('product_name', e.target.value)} placeholder="예: 유로박솜군" /></Field>
+        <Field label="품목명 * (검색·자동완성 — 선택 시 보험코드 연동)">
+          <ProductPicker value={form.product_name}
+            onChange={v => set('product_name', v)}
+            onPick={p => setForm(f => ({ ...f, product_name: p.product_name, item_insurance_code: (p.insurance_code || p.representative_code || '').replace(/\D/g, '') }))} />
+          {form.item_insurance_code && (
+            <div style={{ fontSize: '0.7rem', color: '#0891b2', marginTop: '0.25rem' }}>
+              연동 보험코드: {form.item_insurance_code} · EDI 실적으로 최초 처방월이 최종결과에 자동 표기됩니다
+            </div>
+          )}
+        </Field>
         <Field label="KOL"><input style={INPUT_STYLE} value={form.kol} onChange={e => set('kol', e.target.value)} placeholder="처방의 (쉼표로 여러 명)" /></Field>
 
         <div className="filt-2col">
@@ -395,13 +501,26 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
               {form.answer && !ANSWER_OPTS.includes(form.answer) && <option value={form.answer}>{form.answer}</option>}
             </select>
           </Field>
-          <Field label="최종결과"><input style={INPUT_STYLE} value={form.final_result} onChange={e => set('final_result', e.target.value)} placeholder="처방시작월(2025-02-01) 또는 처방없음" /></Field>
+          <Field label="최종결과 (비워두면 EDI 실적으로 자동 표기)"><input style={INPUT_STYLE} value={form.final_result} onChange={e => set('final_result', e.target.value)} placeholder="처방시작월(2025-02-01) 또는 처방없음" /></Field>
         </div>
+
+        {(form.answer === 'X' || form.answer === '취소') && (
+          <div style={{ fontSize: '0.72rem', color: '#c2410c', margin: '0 0 0.5rem' }}>
+            ※ 불가/취소 통보 시 사유·통보대상을 남기면 변경일시와 함께 이력(증빙)에 기록됩니다(선택).
+          </div>
+        )}
+        <div className="filt-2col">
+          <Field label="통보대상 (선택)"><input style={INPUT_STYLE} value={form.notify_target} onChange={e => set('notify_target', e.target.value)} placeholder="예: 김윤성 지역장" /></Field>
+          <Field label="사유 (선택)"><input style={INPUT_STYLE} value={form.notify_reason} onChange={e => set('notify_reason', e.target.value)} placeholder="불가/취소 등 사유" /></Field>
+        </div>
+
         <Field label="비고">
           <textarea style={{ ...INPUT_STYLE, minHeight: '60px', resize: 'vertical', lineHeight: 1.5 }} value={form.memo} onChange={e => set('memo', e.target.value)} placeholder="DC 실패 이유 또는 특이사항" />
         </Field>
 
-        {error && <p style={{ color: '#dc2626', fontSize: '0.82rem', margin: '0 0 0.75rem' }}>{error}</p>}
+        {editId && <LogHistory id={editId} />}
+
+        {error && <p style={{ color: '#dc2626', fontSize: '0.82rem', margin: '0.6rem 0 0.75rem' }}>{error}</p>}
         <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'flex-end' }}>
           <button style={BTN_GHOST} onClick={onClose} disabled={saving}>취소</button>
           <button style={BTN_PRIMARY} onClick={submit} disabled={saving}>{saving ? '저장 중...' : editId ? '수정' : '등록'}</button>
@@ -435,8 +554,18 @@ export default function FilteringClient({ rows: initial, isAdmin, isConsignor, m
   const [fAnswer, setFAnswer] = useState('');
   const [fYm, setFYm] = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   function applySearch() { setSearch(inputValue.trim()); }
+
+  async function runRefresh() {
+    setRefreshing(true);
+    const res = await refreshFilteringResults();
+    setRefreshing(false);
+    if (res.error) { alert(res.error); return; }
+    alert(`EDI 실적 자동확인 완료 — 최종결과 ${res.updated}건 반영`);
+    if (res.updated > 0) window.location.reload();
+  }
 
   const ymOptions = useMemo(() =>
     Array.from(new Set(rows.map(r => r.ym).filter(Boolean) as string[])).sort().reverse(), [rows]);
@@ -484,6 +613,7 @@ export default function FilteringClient({ rows: initial, isAdmin, isConsignor, m
       department: r.department ?? '', kol: r.kol ?? '', dc_timing: r.dc_timing ?? '', coding_month: r.coding_month ?? '',
       edi_received: r.edi_received ?? '', mbo: r.mbo != null ? String(r.mbo) : '', answer: r.answer ?? '',
       final_result: r.final_result ?? '', memo: r.memo ?? '',
+      item_insurance_code: r.item_insurance_code ?? '', notify_target: r.notify_target ?? '', notify_reason: r.notify_reason ?? '',
     };
   }
 
@@ -531,6 +661,10 @@ export default function FilteringClient({ rows: initial, isAdmin, isConsignor, m
           </select>
           <button style={{ ...primaryBtn, flexShrink: 0 }} onClick={applySearch}>검색</button>
           <button style={{ ...primaryBtn, flexShrink: 0 }} onClick={() => { setEditTarget(null); setShowForm(true); }}>+ 등록</button>
+          <button style={{ ...BTN_GHOST, flexShrink: 0, minHeight: 44, padding: '0 0.9rem', opacity: refreshing ? 0.6 : 1 }}
+            disabled={refreshing} onClick={runRefresh} title="EDI 실적에서 처방시작월을 자동 반영">
+            {refreshing ? '확인 중…' : '⟳ 실적 자동확인'}
+          </button>
         </div>
         {(search || fType || fAnswer || fYm) && (
           <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>

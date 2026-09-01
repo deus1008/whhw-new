@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { normalizeRole } from '@/lib/roles';
 import { getEffectiveCompanyId } from '@/lib/active-company';
+import { detectPrescriptionStart, runResultRefresh } from '@/lib/filtering/results';
 
 /** 서비스 롤 — 관리자 수정·삭제 시 RLS 우회(권한은 getAuthorized로 검증). */
 function serviceClient() {
@@ -34,6 +35,9 @@ export type FilteringInput = {
   answer:        string;
   final_result:  string;
   memo:          string;
+  item_insurance_code: string;  // 품목 보험코드(9) — EDI 매칭
+  notify_target:       string;  // 통보대상(자유입력)
+  notify_reason:       string;  // 사유
 };
 
 async function getAuthorized() {
@@ -80,6 +84,9 @@ function clean(input: FilteringInput) {
     answer:        t(input.answer),
     final_result:  t(input.final_result),
     memo:          t(input.memo),
+    item_insurance_code: (input.item_insurance_code ?? '').replace(/\D/g, '') || null,
+    notify_target: t(input.notify_target),
+    notify_reason: t(input.notify_reason),
   };
 }
 
@@ -93,9 +100,16 @@ export async function createFiltering(input: FilteringInput): Promise<{ error?: 
   // 답변이 이미 있으면 확인완료, 없으면 대기(위탁사 답변 대기)
   const status = c.answer ? 'confirmed' : 'pending';
 
+  // 실적 자동 감지 — 최종결과 비어있고 병원명·보험코드 있으면 최초 처방월 표기
+  let result_auto = false;
+  if (!c.final_result && c.hospital_name && c.item_insurance_code) {
+    const det = await detectPrescriptionStart(serviceClient(), c.hospital_name, c.item_insurance_code);
+    if (det) { c.final_result = det; result_auto = true; }
+  }
+
   const { error } = await auth.supabase
     .from('hospital_filtering')
-    .insert({ ...c, status, user_id: auth.user!.id, company_id: auth.companyId ?? null });
+    .insert({ ...c, status, result_auto, user_id: auth.user!.id, company_id: auth.companyId ?? null });
 
   if (error) return { error: `저장 실패: ${error.message}` };
   revalidatePath('/filtering');
@@ -113,6 +127,7 @@ export async function updateFiltering(id: string, input: FilteringInput): Promis
     .select('user_id, company_id, manager, answer, status')
     .eq('id', id).single();
   if (!row) return { error: '대상을 찾을 수 없습니다.' };
+  const prevAnswer = (row.answer as string | null) ?? null;
 
   const isOwner    = row.user_id === auth.user!.id;
   const isManager  = auth.isAlliance && !!auth.myName && row.manager === auth.myName;
@@ -146,10 +161,52 @@ export async function updateFiltering(id: string, input: FilteringInput): Promis
     patch.reviewed_at = now;
   }
 
+  // 실적 자동 감지 — 최종결과 비어있고 병원명·보험코드 있으면 최초 처방월 표기
+  if (!c.final_result && c.hospital_name && c.item_insurance_code) {
+    const det = await detectPrescriptionStart(svc, c.hospital_name, c.item_insurance_code);
+    if (det) { patch.final_result = det; patch.result_auto = true; }
+  }
+
   const { error } = await svc.from('hospital_filtering').update(patch).eq('id', id);
   if (error) return { error: `수정 실패: ${error.message}` };
+
+  // 통보/상태 변경 이력(증빙) — 답변이 바뀌면 기록
+  const nextAnswer = c.answer ?? null;
+  if (prevAnswer !== nextAnswer) {
+    await svc.from('filtering_log').insert({
+      filtering_id: id, hospital_name: c.hospital_name, product_name: c.product_name,
+      action: '답변변경', from_answer: prevAnswer, to_answer: nextAnswer,
+      reason: c.notify_reason, notify_target: c.notify_target,
+      changed_by: auth.user!.id, changed_by_name: auth.myName,
+    });
+  }
+
   revalidatePath('/filtering');
   return {};
+}
+
+/** EDI 실적 기반 최종결과 자동 갱신(버튼/수동 실행). 갱신 건수 반환. */
+export async function refreshFilteringResults(): Promise<{ updated: number; error?: string }> {
+  const auth = await getAuthorized();
+  if (auth.error) return { updated: 0, error: auth.error };
+  const updated = await runResultRefresh(serviceClient());
+  revalidatePath('/filtering');
+  return { updated };
+}
+
+/** 특정 항목의 통보/변경 이력 조회. */
+export async function getFilteringLogs(id: string): Promise<{
+  created_at: string; action: string | null; from_answer: string | null; to_answer: string | null;
+  reason: string | null; notify_target: string | null; changed_by_name: string | null;
+}[]> {
+  const auth = await getAuthorized();
+  if (auth.error) return [];
+  const svc = serviceClient();
+  const { data } = await svc
+    .from('filtering_log')
+    .select('created_at, action, from_answer, to_answer, reason, notify_target, changed_by_name')
+    .eq('filtering_id', id).order('created_at', { ascending: false }).limit(50);
+  return data ?? [];
 }
 
 /** 지역장(담당자)이 답변완료 항목을 열람 → 확인완료로 전환(배지 감소). */
