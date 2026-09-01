@@ -335,7 +335,7 @@ function HospitalPicker({ value, onChange, onPick }: {
           {items.map(h => (
             <button key={h.hospital_code} type="button"
               onMouseDown={e => { e.preventDefault(); onPick(h); setOpen(false); }}
-              style={{ width: '100%', textAlign: 'left', padding: '0.5rem 0.7rem', background: 'transparent', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', textAlign: 'left', minHeight: 0, padding: '0.5rem 0.7rem', background: 'transparent', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontFamily: 'inherit' }}>
               <div style={{ fontSize: '0.83rem', color: '#111827', fontWeight: 600 }}>
                 {h.hospital_name} <span style={{ fontSize: '0.7rem', color: '#0891b2', fontWeight: 500 }}>{h.hospital_type ?? ''}</span>
               </div>
@@ -388,7 +388,7 @@ function ProductPicker({ value, onChange, onPick }: {
           {items.map(p => (
             <button key={(p.insurance_code ?? '') + p.product_name} type="button"
               onMouseDown={e => { e.preventDefault(); onPick(p); setOpen(false); }}
-              style={{ width: '100%', textAlign: 'left', padding: '0.5rem 0.7rem', background: 'transparent', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', textAlign: 'left', minHeight: 0, padding: '0.5rem 0.7rem', background: 'transparent', border: 'none', borderBottom: '1px solid #f1f5f9', cursor: 'pointer', fontFamily: 'inherit' }}>
               <div style={{ fontSize: '0.83rem', color: '#111827', fontWeight: 600 }}>{p.product_name}</div>
               <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
                 {p.insurance_code ? '보험 ' + p.insurance_code : ''}{p.manufacturer ? ' · ' + p.manufacturer : ''}
