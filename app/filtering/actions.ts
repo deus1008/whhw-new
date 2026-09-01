@@ -299,15 +299,10 @@ export async function getFilteringBadge(): Promise<number> {
 export async function deleteFiltering(id: string): Promise<{ error?: string }> {
   const auth = await getAuthorized();
   if (auth.error || !auth.supabase) return { error: auth.error };
+  // 삭제는 시스템 관리자만 가능
+  if (!auth.isAdmin) return { error: '삭제는 시스템 관리자만 가능합니다.' };
 
-  const db = auth.isAdmin ? serviceClient() : auth.supabase;
-  if (!auth.isAdmin) {
-    const { data: row } = await auth.supabase
-      .from('hospital_filtering').select('user_id').eq('id', id).single();
-    if (!row || row.user_id !== auth.user!.id) return { error: '삭제 권한이 없습니다.' };
-  }
-
-  const { error } = await db.from('hospital_filtering').delete().eq('id', id);
+  const { error } = await serviceClient().from('hospital_filtering').delete().eq('id', id);
   if (error) return { error: `삭제 실패: ${error.message}` };
   revalidatePath('/filtering');
   return {};
