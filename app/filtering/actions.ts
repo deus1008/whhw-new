@@ -97,6 +97,8 @@ export async function createFiltering(input: FilteringInput): Promise<{ error?: 
   if (!input.product_name.trim())  return { error: '품목명을 입력하세요.' };
 
   const c = clean(input);
+  // 가능여부(답변) 입력은 위탁사·관리자만 — 그 외 등록자는 답변을 무시(비움)
+  if (!(auth.isAdmin || auth.isConsignor)) c.answer = null;
   // 답변이 이미 있으면 확인완료, 없으면 대기(위탁사 답변 대기)
   const status = c.answer ? 'confirmed' : 'pending';
 
@@ -133,11 +135,14 @@ export async function createFilteringBatch(
   const list = (products ?? []).filter(p => p.product_name.trim());
   if (list.length === 0) return { error: '품목을 1개 이상 선택하세요.' };
 
+  const canAnswer = auth.isAdmin || auth.isConsignor;
   const svc = serviceClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rowsToInsert: any[] = [];
   for (const p of list) {
     const c = clean({ ...base, product_name: p.product_name, item_insurance_code: p.item_insurance_code });
+    // 가능여부(답변) 입력은 위탁사·관리자만 — 그 외 등록자는 답변을 무시(비움)
+    if (!canAnswer) c.answer = null;
     const status = c.answer ? 'confirmed' : 'pending';
     let result_auto = false;
     let first_rx_amount: number | null = null;
@@ -179,6 +184,11 @@ export async function updateFiltering(id: string, input: FilteringInput): Promis
   if (!canEdit) return { error: '수정 권한이 없습니다.' };
 
   const c = clean(input);
+  // 가능여부(답변) 변경은 위탁사·관리자만 가능
+  const canAnswer = auth.isAdmin || auth.isConsignor;
+  if ((c.answer ?? null) !== prevAnswer && !canAnswer) {
+    return { error: '가능여부(영업가능여부) 입력은 위탁사 또는 관리자만 가능합니다.' };
+  }
   const now = new Date().toISOString();
   const answeredBefore = !!(row.answer && String(row.answer).trim());
   const answeredNow = !!c.answer;

@@ -187,8 +187,8 @@ function details(r: FilteringRow): [string, string][] {
 }
 
 /* ── PC 리스트 항목 (전체폭 — 모든 정보 인라인, 펼치기 없음) ── */
-function FilterListItem({ row: r, canEdit, isAdmin, onEdit, onAnswer, onDelete, onOpen }: {
-  row: FilteringRow; canEdit: boolean; isAdmin: boolean; onEdit: () => void; onAnswer: () => void; onDelete: () => void; onOpen: () => void;
+function FilterListItem({ row: r, canEdit, canAnswer, isAdmin, onEdit, onAnswer, onDelete, onOpen }: {
+  row: FilteringRow; canEdit: boolean; canAnswer: boolean; isAdmin: boolean; onEdit: () => void; onAnswer: () => void; onDelete: () => void; onOpen: () => void;
 }) {
   const meta = (label: string, val: string | null | undefined) =>
     val && String(val).trim() ? <span><span style={{ color: '#94a3b8' }}>{label} </span>{val}</span> : null;
@@ -247,10 +247,10 @@ function FilterListItem({ row: r, canEdit, isAdmin, onEdit, onAnswer, onDelete, 
         )}
       </div>
       {/* 관리 */}
-      {(canEdit || isAdmin) && (
+      {(canEdit || canAnswer || isAdmin) && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
           {canEdit && <button onClick={onEdit} style={{ ...BTN_GHOST, fontSize: '0.72rem', padding: '0.25rem 0.6rem' }}>신청서수정</button>}
-          {canEdit && <button onClick={onAnswer} style={{ ...BTN_GHOST, fontSize: '0.72rem', padding: '0.25rem 0.6rem', borderColor: 'rgba(2,132,199,0.35)', color: '#0284c7' }}>가능여부입력</button>}
+          {canAnswer && <button onClick={onAnswer} style={{ ...BTN_GHOST, fontSize: '0.72rem', padding: '0.25rem 0.6rem', borderColor: 'rgba(2,132,199,0.35)', color: '#0284c7' }}>가능여부입력</button>}
           {isAdmin && <button onClick={onDelete} style={{ ...BTN_GHOST, fontSize: '0.72rem', padding: '0.25rem 0.6rem', borderColor: 'rgba(248,113,113,0.3)', color: '#dc2626' }}>삭제</button>}
         </div>
       )}
@@ -259,8 +259,8 @@ function FilterListItem({ row: r, canEdit, isAdmin, onEdit, onAnswer, onDelete, 
 }
 
 /* ── 모바일 카드 ── */
-function FilterCard({ row: r, canEdit, isAdmin, onEdit, onAnswer, onDelete, onOpen }: {
-  row: FilteringRow; canEdit: boolean; isAdmin: boolean; onEdit: () => void; onAnswer: () => void; onDelete: () => void; onOpen: () => void;
+function FilterCard({ row: r, canEdit, canAnswer, isAdmin, onEdit, onAnswer, onDelete, onOpen }: {
+  row: FilteringRow; canEdit: boolean; canAnswer: boolean; isAdmin: boolean; onEdit: () => void; onAnswer: () => void; onDelete: () => void; onOpen: () => void;
 }) {
   const dt = details(r);
   return (
@@ -288,10 +288,10 @@ function FilterCard({ row: r, canEdit, isAdmin, onEdit, onAnswer, onDelete, onOp
       {r.last_rx_month && (
         <div className="mcard-row"><span className="mcard-k">최근월실적</span><span className="mcard-v" style={{ fontWeight: 400 }}>{fmtDate(r.last_rx_month)}{r.last_rx_amount != null ? <b style={{ color: '#0891b2', marginLeft: 5 }}>{fmtMbo(r.last_rx_amount)}원</b> : null}</span></div>
       )}
-      {(canEdit || isAdmin) && (
+      {(canEdit || canAnswer || isAdmin) && (
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', flexWrap: 'wrap' }} onClick={e => e.stopPropagation()}>
           {canEdit && <button onClick={onEdit} style={{ ...BTN_GHOST, fontSize: '0.78rem', padding: '0.4rem 0.9rem' }}>✏️ 신청서수정</button>}
-          {canEdit && <button onClick={onAnswer} style={{ ...BTN_PRIMARY, fontSize: '0.78rem', padding: '0.4rem 0.9rem' }}>✅ 가능여부입력</button>}
+          {canAnswer && <button onClick={onAnswer} style={{ ...BTN_PRIMARY, fontSize: '0.78rem', padding: '0.4rem 0.9rem' }}>✅ 가능여부입력</button>}
           {isAdmin && <button onClick={onDelete} style={{ ...BTN_GHOST, fontSize: '0.78rem', padding: '0.4rem 0.9rem', borderColor: 'rgba(248,113,113,0.35)', color: '#dc2626' }}>🗑 삭제</button>}
         </div>
       )}
@@ -433,8 +433,8 @@ function LogHistory({ id }: { id: string }) {
 }
 
 /* ── 등록/수정 폼 ── */
-function FilterForm({ initial, myName, editId, onClose, onSaved }: {
-  initial: FilteringInput; myName: string; editId?: string; onClose: () => void; onSaved: () => void;
+function FilterForm({ initial, myName, editId, canAnswer, onClose, onSaved }: {
+  initial: FilteringInput; myName: string; editId?: string; canAnswer: boolean; onClose: () => void; onSaved: () => void;
 }) {
   const [form, setForm] = useState<FilteringInput>({ ...initial, manager: initial.manager || myName });
   const [saving, setSaving] = useState(false);
@@ -556,30 +556,41 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
         </div>
 
         <div className="filt-2col">
-          <Field label="답변 (영업가능여부)">
-            <select style={INPUT_STYLE} value={form.answer} onChange={e => set('answer', e.target.value)}>
-              <option value="">-</option>
-              {ANSWER_OPTS.map(v => <option key={v} value={v}>{v === 'O' ? 'O (가능)' : v === 'X' ? 'X (불가)' : v}</option>)}
-              {form.answer && !ANSWER_OPTS.includes(form.answer) && <option value={form.answer}>{form.answer}</option>}
-            </select>
-          </Field>
+          {canAnswer && (
+            <Field label="답변 (영업가능여부)">
+              <select style={INPUT_STYLE} value={form.answer} onChange={e => set('answer', e.target.value)}>
+                <option value="">-</option>
+                {ANSWER_OPTS.map(v => <option key={v} value={v}>{v === 'O' ? 'O (가능)' : v === 'X' ? 'X (불가)' : v}</option>)}
+                {form.answer && !ANSWER_OPTS.includes(form.answer) && <option value={form.answer}>{form.answer}</option>}
+              </select>
+            </Field>
+          )}
           <Field label="최초처방월 (비워두면 EDI 실적으로 자동 표기)"><input style={INPUT_STYLE} value={form.final_result} onChange={e => set('final_result', e.target.value)} placeholder="처방시작월(2025-02-01) 또는 처방없음" /></Field>
         </div>
-        {!editId && products.length > 1 && (
+        {!canAnswer && (
+          <div style={{ fontSize: '0.72rem', color: '#64748b', margin: '0 0 0.5rem' }}>
+            ※ 가능여부(영업가능여부) 입력은 위탁사·관리자만 가능합니다. 신청 후 위탁사 답변을 기다려 주세요.
+          </div>
+        )}
+        {canAnswer && !editId && products.length > 1 && (
           <div style={{ fontSize: '0.72rem', color: '#64748b', margin: '0 0 0.5rem' }}>
             ※ 등록 시 답변은 모든 품목에 동일 적용됩니다. 보통 비워두고 등록한 뒤, 각 품목 항목에서 개별로 가능여부를 판단하세요.
           </div>
         )}
 
-        {(form.answer === 'X' || form.answer === '취소') && (
-          <div style={{ fontSize: '0.72rem', color: '#c2410c', margin: '0 0 0.5rem' }}>
-            ※ 불가/취소 통보 시 사유·통보대상을 남기면 변경일시와 함께 이력(증빙)에 기록됩니다(선택).
-          </div>
+        {canAnswer && (
+          <>
+            {(form.answer === 'X' || form.answer === '취소') && (
+              <div style={{ fontSize: '0.72rem', color: '#c2410c', margin: '0 0 0.5rem' }}>
+                ※ 불가/취소 통보 시 사유·통보대상을 남기면 변경일시와 함께 이력(증빙)에 기록됩니다(선택).
+              </div>
+            )}
+            <div className="filt-2col">
+              <Field label="통보대상 (선택)"><input style={INPUT_STYLE} value={form.notify_target} onChange={e => set('notify_target', e.target.value)} placeholder="예: 김윤성 지역장" /></Field>
+              <Field label="사유 (선택)"><input style={INPUT_STYLE} value={form.notify_reason} onChange={e => set('notify_reason', e.target.value)} placeholder="불가/취소 등 사유" /></Field>
+            </div>
+          </>
         )}
-        <div className="filt-2col">
-          <Field label="통보대상 (선택)"><input style={INPUT_STYLE} value={form.notify_target} onChange={e => set('notify_target', e.target.value)} placeholder="예: 김윤성 지역장" /></Field>
-          <Field label="사유 (선택)"><input style={INPUT_STYLE} value={form.notify_reason} onChange={e => set('notify_reason', e.target.value)} placeholder="불가/취소 등 사유" /></Field>
-        </div>
 
         <Field label="비고">
           <textarea style={{ ...INPUT_STYLE, minHeight: '60px', resize: 'vertical', lineHeight: 1.5 }} value={form.memo} onChange={e => set('memo', e.target.value)} placeholder="DC 실패 이유 또는 특이사항" />
@@ -824,13 +835,13 @@ export default function FilteringClient({ rows: initial, isAdmin, isConsignor, m
         <>
           <div className="resp-table" style={{ border: '1px solid #eef1f6', borderRadius: 12, overflow: 'hidden' }}>
             {filtered.map(r => (
-              <FilterListItem key={r.id} row={r} canEdit={canEditRow(r)} isAdmin={isAdmin} onOpen={() => handleOpen(r)}
+              <FilterListItem key={r.id} row={r} canEdit={canEditRow(r)} canAnswer={isConsignor || isAdmin} isAdmin={isAdmin} onOpen={() => handleOpen(r)}
                 onEdit={() => openEdit(r)} onAnswer={() => openAnswer(r)} onDelete={() => !deleting && handleDelete(r.id)} />
             ))}
           </div>
           <div className="resp-cards">
             {filtered.map(r => (
-              <FilterCard key={r.id} row={r} canEdit={canEditRow(r)} isAdmin={isAdmin} onOpen={() => handleOpen(r)}
+              <FilterCard key={r.id} row={r} canEdit={canEditRow(r)} canAnswer={isConsignor || isAdmin} isAdmin={isAdmin} onOpen={() => handleOpen(r)}
                 onEdit={() => openEdit(r)} onAnswer={() => openAnswer(r)} onDelete={() => !deleting && handleDelete(r.id)} />
             ))}
           </div>
@@ -838,7 +849,7 @@ export default function FilteringClient({ rows: initial, isAdmin, isConsignor, m
       )}
 
       {showForm && (
-        <FilterForm initial={editTarget ? toInput(editTarget) : EMPTY} myName={myName} editId={editTarget?.id}
+        <FilterForm initial={editTarget ? toInput(editTarget) : EMPTY} myName={myName} editId={editTarget?.id} canAnswer={isConsignor || isAdmin}
           onClose={() => setShowForm(false)} onSaved={() => window.location.reload()} />
       )}
       {answerTarget && (
