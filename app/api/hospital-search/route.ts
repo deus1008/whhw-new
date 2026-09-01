@@ -27,10 +27,12 @@ export async function GET(req: NextRequest) {
   const cols = 'hospital_code, hospital_name, hospital_type, sido, gugun, address';
 
   // 숫자만 → 처방처코드 접두 검색, 그 외 → 처방처명 부분일치(trgm 인덱스)
+  // 폐업 처방처는 자동완성에서 제외(정상·미표기만)
+  const ACTIVE = 'closed_status.is.null,closed_status.neq.폐업';
   const isCode = /^\d+$/.test(q);
   const { data, error } = isCode
-    ? await svc.from('hospital_master').select(cols).ilike('hospital_code', `${q}%`).limit(30)
-    : await svc.from('hospital_master').select(cols).ilike('hospital_name', `%${q}%`).limit(50);
+    ? await svc.from('hospital_master').select(cols).ilike('hospital_code', `${q}%`).or(ACTIVE).limit(30)
+    : await svc.from('hospital_master').select(cols).ilike('hospital_name', `%${q}%`).or(ACTIVE).limit(50);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

@@ -13,6 +13,7 @@ import { parseDmfBuffer }             from '@/lib/dmf/parse';
 import { parseMonthlyStockBuffer }    from '@/lib/monthly-stock/parse';
 import { parseEdiBuffer, syncEdiToDb } from '@/lib/edi/parse-and-sync';
 import { parseProductListBuffer } from '@/lib/products/parse-list';
+import { parseHospitalMasterBuffer, type HospitalMasterRow } from '@/lib/hospital-master/parse';
 import { enrichProductsFromMfds } from '@/lib/products/enrich-mfds';
 import { matchProductsReference } from '@/lib/products/match-reference';
 import { invalidateDashboardCache } from '@/lib/dashboard-cache';
@@ -470,6 +471,39 @@ export async function POST(request: Request) {
     revalidatePath('/weekly');
     console.log(`[process:${documentId}] EDI ${parseResult.rows.length}행 저장 완료`);
     return Response.json({ ok: true, inserted: parseResult.rows.length });
+  }
+
+  // ── 병의원마스터 폴더 → hospital_master 갱신(폐업 플래그 방식) ─────────────
+  if (category === '병의원마스터') {
+    console.log(`[process:${documentId}] 병의원마스터 → hospital_master 갱신`);
+    let rows: HospitalMasterRow[];
+    try {
+      rows = parseHospitalMasterBuffer(buffer);
+    } catch (e) {
+      return fail(`병의원 마스터 파싱 실패: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    if (!rows.length) return fail('병의원 마스터 파싱 결과가 없습니다. (엑셀에 "처방처코드" 헤더가 있는지 확인)');
+
+    const uploadTs = new Date().toISOString();
+    const CHUNK = 1000;
+    let upserted = 0;
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const slice = rows.slice(i, i + CHUNK).map(r => ({ ...r, updated_at: uploadTs }));
+      const { error } = await supabase.from('hospital_master').upsert(slice, { onConflict: 'hospital_code' });
+      if (error) return fail(`병의원 마스터 저장 실패: ${error.message}`);
+      upserted += slice.length;
+    }
+    // 이번 파일에 없는(갱신되지 않은) 기존 처방처 → 폐업 플래그 (기존 필터링 기록은 보존)
+    const { error: cErr } = await supabase.from('hospital_master')
+      .update({ closed_status: '폐업' })
+      .lt('updated_at', uploadTs)
+      .or('closed_status.is.null,closed_status.neq.폐업');
+    if (cErr) console.warn(`[process:${documentId}] 폐업 처리 경고(무시): ${cErr.message}`);
+
+    await supabase.from('documents').update({ status: 'ready', error_message: null }).eq('id', documentId);
+    revalidatePath('/filtering');
+    console.log(`[process:${documentId}] hospital_master ${upserted}건 갱신 완료`);
+    return Response.json({ ok: true, upserted });
   }
 
   // ── M. 위탁품목리스트 폴더 → products 마스터(보험코드) 적재 ─────────────
