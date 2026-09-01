@@ -105,8 +105,8 @@ export async function createFiltering(input: FilteringInput): Promise<{ error?: 
   let first_rx_amount: number | null = null;
   let last_rx_month: string | null = null;
   let last_rx_amount: number | null = null;
-  if (c.hospital_name && c.item_insurance_code) {
-    const det = await detectPrescriptionStart(serviceClient(), c.hospital_name, c.item_insurance_code);
+  if (c.hospital_name && (c.item_insurance_code || c.product_name)) {
+    const det = await detectPrescriptionStart(serviceClient(), c.hospital_name, c.item_insurance_code, c.product_name);
     if (det) {
       last_rx_month = det.lastMonth; last_rx_amount = det.lastAmount;
       if (!c.final_result) { c.final_result = det.month; first_rx_amount = det.amount; result_auto = true; }
@@ -168,8 +168,8 @@ export async function updateFiltering(id: string, input: FilteringInput): Promis
   }
 
   // 실적 자동 감지 — 최근월실적은 갱신, 최초처방월은 비어있을 때만 자동 표기
-  if (c.hospital_name && c.item_insurance_code) {
-    const det = await detectPrescriptionStart(svc, c.hospital_name, c.item_insurance_code);
+  if (c.hospital_name && (c.item_insurance_code || c.product_name)) {
+    const det = await detectPrescriptionStart(svc, c.hospital_name, c.item_insurance_code, c.product_name);
     if (det) {
       patch.last_rx_month = det.lastMonth; patch.last_rx_amount = det.lastAmount;
       if (!c.final_result) { patch.final_result = det.month; patch.first_rx_amount = det.amount; patch.result_auto = true; }
