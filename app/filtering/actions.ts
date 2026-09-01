@@ -100,16 +100,22 @@ export async function createFiltering(input: FilteringInput): Promise<{ error?: 
   // 답변이 이미 있으면 확인완료, 없으면 대기(위탁사 답변 대기)
   const status = c.answer ? 'confirmed' : 'pending';
 
-  // 실적 자동 감지 — 최종결과 비어있고 병원명·보험코드 있으면 최초 처방월 표기
+  // 실적 자동 감지 — 병원명·보험코드 있으면 최초/최근 처방월·금액 표기
   let result_auto = false;
-  if (!c.final_result && c.hospital_name && c.item_insurance_code) {
+  let first_rx_amount: number | null = null;
+  let last_rx_month: string | null = null;
+  let last_rx_amount: number | null = null;
+  if (c.hospital_name && c.item_insurance_code) {
     const det = await detectPrescriptionStart(serviceClient(), c.hospital_name, c.item_insurance_code);
-    if (det) { c.final_result = det; result_auto = true; }
+    if (det) {
+      last_rx_month = det.lastMonth; last_rx_amount = det.lastAmount;
+      if (!c.final_result) { c.final_result = det.month; first_rx_amount = det.amount; result_auto = true; }
+    }
   }
 
   const { error } = await auth.supabase
     .from('hospital_filtering')
-    .insert({ ...c, status, result_auto, user_id: auth.user!.id, company_id: auth.companyId ?? null });
+    .insert({ ...c, status, result_auto, first_rx_amount, last_rx_month, last_rx_amount, user_id: auth.user!.id, company_id: auth.companyId ?? null });
 
   if (error) return { error: `저장 실패: ${error.message}` };
   revalidatePath('/filtering');
@@ -161,10 +167,13 @@ export async function updateFiltering(id: string, input: FilteringInput): Promis
     patch.reviewed_at = now;
   }
 
-  // 실적 자동 감지 — 최종결과 비어있고 병원명·보험코드 있으면 최초 처방월 표기
-  if (!c.final_result && c.hospital_name && c.item_insurance_code) {
+  // 실적 자동 감지 — 최근월실적은 갱신, 최초처방월은 비어있을 때만 자동 표기
+  if (c.hospital_name && c.item_insurance_code) {
     const det = await detectPrescriptionStart(svc, c.hospital_name, c.item_insurance_code);
-    if (det) { patch.final_result = det; patch.result_auto = true; }
+    if (det) {
+      patch.last_rx_month = det.lastMonth; patch.last_rx_amount = det.lastAmount;
+      if (!c.final_result) { patch.final_result = det.month; patch.first_rx_amount = det.amount; patch.result_auto = true; }
+    }
   }
 
   const { error } = await svc.from('hospital_filtering').update(patch).eq('id', id);

@@ -32,6 +32,9 @@ export type FilteringRow = {
   status:        string | null;   // pending | answered | confirmed
   item_insurance_code: string | null;  // 품목 보험코드(EDI 매칭)
   result_auto:   boolean | null;       // 최종결과 자동표기 여부
+  first_rx_amount: number | null;      // 최초처방월의 처방금액
+  last_rx_month: string | null;        // 최근 처방월
+  last_rx_amount: number | null;       // 최근 처방월의 처방금액
   notify_target: string | null;        // 통보대상
   notify_reason: string | null;        // 사유
   user_id:       string | null;
@@ -147,7 +150,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 /* ── CSV ── */
 const CSV_HEADERS = [
   '접수일자', '년월', '담당자', '업체명', '딜러명', '딜러연락처', '처방처코드', '종별', '처방처명',
-  '품목명', '처방과', 'KOL', 'DC접수시기', '코딩가능월', 'EDI수령여부', 'MBO', '답변', '최초처방월', '비고',
+  '품목명', '처방과', 'KOL', 'DC접수시기', '코딩가능월', 'EDI수령여부', 'MBO', '답변', '최초처방월', '처방금액', '최근월실적', '최근처방액', '비고',
 ];
 function csvEsc(v: unknown): string { return `"${(v == null ? '' : String(v)).replace(/"/g, '""')}"`; }
 function toCsv(rows: FilteringRow[]): string {
@@ -155,7 +158,7 @@ function toCsv(rows: FilteringRow[]): string {
     r.received_date ?? '', r.ym ?? '', r.manager ?? '', r.company_name ?? '', r.dealer_name ?? '', r.dealer_phone ?? '',
     r.hospital_code ?? '', r.hospital_type ?? '', r.hospital_name ?? '', r.product_name ?? '', r.department ?? '',
     r.kol ?? '', r.dc_timing ?? '', r.coding_month ?? '', r.edi_received ?? '', r.mbo ?? '', r.answer ?? '',
-    r.final_result ?? '', r.memo ?? '',
+    r.final_result ?? '', r.first_rx_amount ?? '', r.last_rx_month ?? '', r.last_rx_amount ?? '', r.memo ?? '',
   ].map(csvEsc).join(','));
   return '﻿' + [CSV_HEADERS.map(csvEsc).join(','), ...lines].join('\r\n');
 }
@@ -225,9 +228,17 @@ function FilterListItem({ row: r, canEdit, onEdit, onDelete, onOpen }: {
           {meta('등록일', fmtDate(r.created_at.slice(0, 10)))}
           <span><span style={{ color: '#94a3b8' }}>최초처방월 </span>
             <b style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b', fontWeight: isPrescribed(r.final_result) ? 700 : 400 }}>{r.final_result || '-'}</b>
+            {r.first_rx_amount != null && isPrescribed(r.final_result) && (
+              <b style={{ marginLeft: 6, color: '#0891b2' }}>{fmtMbo(r.first_rx_amount)}원</b>
+            )}
             {r.result_auto && isPrescribed(r.final_result) && (
               <span style={{ marginLeft: 4, fontSize: '0.62rem', fontWeight: 700, color: '#059669', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 4, padding: '0.02rem 0.28rem' }}>EDI자동</span>
             )}</span>
+          {r.last_rx_month && (
+            <span><span style={{ color: '#94a3b8' }}>최근월실적 </span>
+              <b style={{ color: '#334155' }}>{fmtDate(r.last_rx_month)}</b>
+              {r.last_rx_amount != null && <b style={{ marginLeft: 5, color: '#0891b2' }}>{fmtMbo(r.last_rx_amount)}원</b>}</span>
+          )}
         </div>
         {r.memo && r.memo.trim() && (
           <div style={{ fontSize: '0.77rem', color: '#64748b', whiteSpace: 'pre-wrap' }}>
@@ -262,7 +273,10 @@ function FilterCard({ row: r, canEdit, onEdit, onDelete, onOpen }: {
       <div className="mcard-row"><span className="mcard-k">품목</span><span className="mcard-v" style={{ fontWeight: 600, color: '#7c3aed' }}>{r.product_name || '-'}</span></div>
       <div className="mcard-row"><span className="mcard-k">종별·처방과</span><span className="mcard-v" style={{ fontWeight: 400 }}>{[r.hospital_type, r.department].filter(Boolean).join(' · ') || '-'}</span></div>
       <div className="mcard-row"><span className="mcard-k">담당·업체</span><span className="mcard-v" style={{ fontWeight: 400 }}>{[r.manager, r.company_name].filter(Boolean).join(' / ') || '-'}</span></div>
-      <div className="mcard-row"><span className="mcard-k">접수·최초처방월</span><span className="mcard-v" style={{ fontWeight: 400 }}>{fmtDate(r.received_date)} → <span style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b' }}>{r.final_result || '-'}</span></span></div>
+      <div className="mcard-row"><span className="mcard-k">접수·최초처방월</span><span className="mcard-v" style={{ fontWeight: 400 }}>{fmtDate(r.received_date)} → <span style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b' }}>{r.final_result || '-'}</span>{r.first_rx_amount != null && isPrescribed(r.final_result) ? <b style={{ color: '#0891b2', marginLeft: 5 }}>{fmtMbo(r.first_rx_amount)}원</b> : null}</span></div>
+      {r.last_rx_month && (
+        <div className="mcard-row"><span className="mcard-k">최근월실적</span><span className="mcard-v" style={{ fontWeight: 400 }}>{fmtDate(r.last_rx_month)}{r.last_rx_amount != null ? <b style={{ color: '#0891b2', marginLeft: 5 }}>{fmtMbo(r.last_rx_amount)}원</b> : null}</span></div>
+      )}
       {/* 나머지 상세 — 처음부터 표시 */}
       {dt.map(([k, v]) => (
         <div key={k} className="mcard-row" style={{ alignItems: 'flex-start' }}>
