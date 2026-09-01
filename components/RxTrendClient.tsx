@@ -67,12 +67,23 @@ export default function RxTrendClient() {
         <button className="rxt-btn" onClick={run} disabled={loading || !period}>
           {loading ? '⏳ 집계 중…' : '🔍 분석'}
         </button>
+        {rows && rows.length > 0 && (
+          <button className="rxt-btn no-print" onClick={() => window.print()}>🖨 인쇄</button>
+        )}
         {rows && prev && (
           <span className="rxt-note">
             {fmtPeriod(prev)}(전년동월) vs {fmtPeriod(period)}(당월) · 상위 {rows.length}성분 · 금액 단위: 백만원
           </span>
         )}
       </div>
+
+      {/* 인쇄 전용 요약 헤더 */}
+      {rows && rows.length > 0 && (
+        <div className="rxt-print-head">
+          진료과별 다처방 성분 · 기준월 {fmtPeriod(period)}{specialty ? ` · ${specialty}` : ' · 전체 진료과'}
+          {prev ? ` · ${fmtPeriod(prev)}(전년동월) 대비` : ''} · 상위 {rows.length}성분 · 금액 단위: 백만원
+        </div>
+      )}
 
       {/* 결과 */}
       {rows === null ? (

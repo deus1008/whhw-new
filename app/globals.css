@@ -480,6 +480,26 @@ select.auth-input { background-color: #ffffff; }
   body { background: #fff !important; color: #000 !important; display: block !important; }
 }
 
+/* 인쇄 전용 요약 헤더(화면에선 숨김) */
+.rxt-print-head { display: none; }
+
+/* 다처방성분 인쇄: 표 전체가 잘리지 않게 · 카드 숨김 · 색 유지 */
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  .rxt-print-head {
+    display: block; margin: 0 0 8px; font-size: 11px; font-weight: 600; color: #111827;
+  }
+  .rxt-root .rxt-filter { display: none !important; }
+  .rxt-root .rxt-card { border: none !important; box-shadow: none !important; border-radius: 0 !important; }
+  .rxt-root .rxt-tablewrap { display: block !important; overflow: visible !important; padding: 0 !important; }
+  .rxt-root .rxt-cards { display: none !important; }
+  .rxt-root .rxt-table { font-size: 9px; width: 100%; }
+  .rxt-root .rxt-table th, .rxt-root .rxt-table td { padding: 2px 4px !important; }
+  .rxt-root .rxt-table thead { display: table-header-group; }  /* 페이지마다 헤더 반복 */
+  .rxt-root .rxt-table tr { page-break-inside: avoid; }
+  .rxt-root { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
 /* ══════════════════════════════════════════════════════════
    다처방성분(/prescription-trend) — 밝은 테마 · 반응형
    PC: 넓은 표 / 모바일: 성분별 카드 세로 나열
