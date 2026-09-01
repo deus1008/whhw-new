@@ -212,11 +212,6 @@ function FilterListItem({ row: r, canEdit, onEdit, onDelete, onOpen }: {
           {meta('처방처코드', r.hospital_code)}
         </div>
         <div style={line}>
-          <span><span style={{ color: '#94a3b8' }}>최초처방월 </span>
-            <b style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b', fontWeight: isPrescribed(r.final_result) ? 700 : 400 }}>{r.final_result || '-'}</b>
-            {r.result_auto && isPrescribed(r.final_result) && (
-              <span style={{ marginLeft: 4, fontSize: '0.62rem', fontWeight: 700, color: '#059669', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 4, padding: '0.02rem 0.28rem' }}>EDI자동</span>
-            )}</span>
           {meta('DC접수', r.dc_timing ? fmtDate(r.dc_timing) : null)}
           {meta('코딩', r.coding_month ? fmtDate(r.coding_month) : null)}
           {meta('EDI수령', r.edi_received)}
@@ -228,6 +223,11 @@ function FilterListItem({ row: r, canEdit, onEdit, onDelete, onOpen }: {
           {meta('통보대상', r.notify_target)}
           {meta('사유', r.notify_reason)}
           {meta('등록일', fmtDate(r.created_at.slice(0, 10)))}
+          <span><span style={{ color: '#94a3b8' }}>최초처방월 </span>
+            <b style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b', fontWeight: isPrescribed(r.final_result) ? 700 : 400 }}>{r.final_result || '-'}</b>
+            {r.result_auto && isPrescribed(r.final_result) && (
+              <span style={{ marginLeft: 4, fontSize: '0.62rem', fontWeight: 700, color: '#059669', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 4, padding: '0.02rem 0.28rem' }}>EDI자동</span>
+            )}</span>
         </div>
         {r.memo && r.memo.trim() && (
           <div style={{ fontSize: '0.77rem', color: '#64748b', whiteSpace: 'pre-wrap' }}>
