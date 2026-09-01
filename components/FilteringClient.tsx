@@ -147,7 +147,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 /* ── CSV ── */
 const CSV_HEADERS = [
   '접수일자', '년월', '담당자', '업체명', '딜러명', '딜러연락처', '처방처코드', '종별', '처방처명',
-  '품목명', '처방과', 'KOL', 'DC접수시기', '코딩가능월', 'EDI수령여부', 'MBO', '답변', '최종결과', '비고',
+  '품목명', '처방과', 'KOL', 'DC접수시기', '코딩가능월', 'EDI수령여부', 'MBO', '답변', '최초처방월', '비고',
 ];
 function csvEsc(v: unknown): string { return `"${(v == null ? '' : String(v)).replace(/"/g, '""')}"`; }
 function toCsv(rows: FilteringRow[]): string {
@@ -212,7 +212,7 @@ function FilterListItem({ row: r, canEdit, onEdit, onDelete, onOpen }: {
           {meta('처방처코드', r.hospital_code)}
         </div>
         <div style={line}>
-          <span><span style={{ color: '#94a3b8' }}>최종결과 </span>
+          <span><span style={{ color: '#94a3b8' }}>최초처방월 </span>
             <b style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b', fontWeight: isPrescribed(r.final_result) ? 700 : 400 }}>{r.final_result || '-'}</b>
             {r.result_auto && isPrescribed(r.final_result) && (
               <span style={{ marginLeft: 4, fontSize: '0.62rem', fontWeight: 700, color: '#059669', background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 4, padding: '0.02rem 0.28rem' }}>EDI자동</span>
@@ -262,7 +262,7 @@ function FilterCard({ row: r, canEdit, onEdit, onDelete, onOpen }: {
       <div className="mcard-row"><span className="mcard-k">품목</span><span className="mcard-v" style={{ fontWeight: 600, color: '#7c3aed' }}>{r.product_name || '-'}</span></div>
       <div className="mcard-row"><span className="mcard-k">종별·처방과</span><span className="mcard-v" style={{ fontWeight: 400 }}>{[r.hospital_type, r.department].filter(Boolean).join(' · ') || '-'}</span></div>
       <div className="mcard-row"><span className="mcard-k">담당·업체</span><span className="mcard-v" style={{ fontWeight: 400 }}>{[r.manager, r.company_name].filter(Boolean).join(' / ') || '-'}</span></div>
-      <div className="mcard-row"><span className="mcard-k">접수·최종</span><span className="mcard-v" style={{ fontWeight: 400 }}>{fmtDate(r.received_date)} → <span style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b' }}>{r.final_result || '-'}</span></span></div>
+      <div className="mcard-row"><span className="mcard-k">접수·최초처방월</span><span className="mcard-v" style={{ fontWeight: 400 }}>{fmtDate(r.received_date)} → <span style={{ color: isPrescribed(r.final_result) ? '#059669' : '#64748b' }}>{r.final_result || '-'}</span></span></div>
       {/* 나머지 상세 — 처음부터 표시 */}
       {dt.map(([k, v]) => (
         <div key={k} className="mcard-row" style={{ alignItems: 'flex-start' }}>
@@ -472,7 +472,7 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
             onPick={p => setForm(f => ({ ...f, product_name: p.product_name, item_insurance_code: (p.insurance_code || p.representative_code || '').replace(/\D/g, '') }))} />
           {form.item_insurance_code && (
             <div style={{ fontSize: '0.7rem', color: '#0891b2', marginTop: '0.25rem' }}>
-              연동 보험코드: {form.item_insurance_code} · EDI 실적으로 최초 처방월이 최종결과에 자동 표기됩니다
+              연동 보험코드: {form.item_insurance_code} · EDI 실적으로 최초처방월이 자동 표기됩니다
             </div>
           )}
         </Field>
@@ -501,7 +501,7 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
               {form.answer && !ANSWER_OPTS.includes(form.answer) && <option value={form.answer}>{form.answer}</option>}
             </select>
           </Field>
-          <Field label="최종결과 (비워두면 EDI 실적으로 자동 표기)"><input style={INPUT_STYLE} value={form.final_result} onChange={e => set('final_result', e.target.value)} placeholder="처방시작월(2025-02-01) 또는 처방없음" /></Field>
+          <Field label="최초처방월 (비워두면 EDI 실적으로 자동 표기)"><input style={INPUT_STYLE} value={form.final_result} onChange={e => set('final_result', e.target.value)} placeholder="처방시작월(2025-02-01) 또는 처방없음" /></Field>
         </div>
 
         {(form.answer === 'X' || form.answer === '취소') && (
@@ -563,7 +563,7 @@ export default function FilteringClient({ rows: initial, isAdmin, isConsignor, m
     const res = await refreshFilteringResults();
     setRefreshing(false);
     if (res.error) { alert(res.error); return; }
-    alert(`EDI 실적 자동확인 완료 — 최종결과 ${res.updated}건 반영`);
+    alert(`EDI 실적 자동확인 완료 — 최초처방월 ${res.updated}건 반영`);
     if (res.updated > 0) window.location.reload();
   }
 
