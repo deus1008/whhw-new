@@ -122,6 +122,43 @@ export async function createFiltering(input: FilteringInput): Promise<{ error?: 
   return {};
 }
 
+/** 신청 1건에 여러 품목 — 품목마다 개별 행으로 등록(병원·담당 등은 공유, 품목·보험코드·답변은 각각). */
+export async function createFilteringBatch(
+  base: FilteringInput,
+  products: { product_name: string; item_insurance_code: string }[],
+): Promise<{ error?: string; created?: number }> {
+  const auth = await getAuthorized();
+  if (auth.error || !auth.supabase) return { error: auth.error };
+  if (!base.hospital_name.trim()) return { error: '처방처명을 입력하세요.' };
+  const list = (products ?? []).filter(p => p.product_name.trim());
+  if (list.length === 0) return { error: '품목을 1개 이상 선택하세요.' };
+
+  const svc = serviceClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rowsToInsert: any[] = [];
+  for (const p of list) {
+    const c = clean({ ...base, product_name: p.product_name, item_insurance_code: p.item_insurance_code });
+    const status = c.answer ? 'confirmed' : 'pending';
+    let result_auto = false;
+    let first_rx_amount: number | null = null;
+    let last_rx_month: string | null = null;
+    let last_rx_amount: number | null = null;
+    if (c.hospital_name && (c.item_insurance_code || c.product_name)) {
+      const det = await detectPrescriptionStart(svc, c.hospital_name, c.item_insurance_code, c.product_name);
+      if (det) {
+        last_rx_month = det.lastMonth; last_rx_amount = det.lastAmount;
+        if (!c.final_result) { c.final_result = det.month; first_rx_amount = det.amount; result_auto = true; }
+      }
+    }
+    rowsToInsert.push({ ...c, status, result_auto, first_rx_amount, last_rx_month, last_rx_amount, user_id: auth.user!.id, company_id: auth.companyId ?? null });
+  }
+
+  const { error } = await auth.supabase.from('hospital_filtering').insert(rowsToInsert);
+  if (error) return { error: `저장 실패: ${error.message}` };
+  revalidatePath('/filtering');
+  return { created: rowsToInsert.length };
+}
+
 export async function updateFiltering(id: string, input: FilteringInput): Promise<{ error?: string }> {
   const auth = await getAuthorized();
   if (auth.error || !auth.supabase) return { error: auth.error };

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { createFiltering, updateFiltering, deleteFiltering, confirmFiltering, refreshFilteringResults, getFilteringLogs } from '@/app/filtering/actions';
+import { createFilteringBatch, updateFiltering, deleteFiltering, confirmFiltering, refreshFilteringResults, getFilteringLogs } from '@/app/filtering/actions';
 import type { FilteringInput } from '@/app/filtering/actions';
 import type { HospitalHit } from '@/app/api/hospital-search/route';
 import type { ProductHit } from '@/app/api/product-search/route';
@@ -437,11 +437,29 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
   const [form, setForm] = useState<FilteringInput>({ ...initial, manager: initial.manager || myName });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // 신규 등록: 품목 여러 개 선택(품목마다 개별 항목으로 등록 → 품목별 가능여부 판단)
+  const [products, setProducts] = useState<{ product_name: string; item_insurance_code: string }[]>([]);
+  const [prodDraft, setProdDraft] = useState('');
   function set(f: keyof FilteringInput, v: string) { setForm(p => ({ ...p, [f]: v })); }
+  function addProduct(product_name: string, item_insurance_code: string) {
+    setProducts(prev => prev.some(x => x.product_name === product_name && x.item_insurance_code === item_insurance_code)
+      ? prev : [...prev, { product_name, item_insurance_code }]);
+    setProdDraft('');
+  }
 
   async function submit() {
     setSaving(true); setError('');
-    const res = editId ? await updateFiltering(editId, form) : await createFiltering(form);
+    let res;
+    if (editId) {
+      res = await updateFiltering(editId, form);
+    } else {
+      // 검색 후 선택하지 않고 직접 입력만 한 품목도 포함
+      const draft = prodDraft.trim();
+      const list = draft && !products.some(p => p.product_name === draft)
+        ? [...products, { product_name: draft, item_insurance_code: '' }]
+        : products;
+      res = await createFilteringBatch(form, list);
+    }
     setSaving(false);
     if (res.error) { setError(res.error); return; }
     onSaved(); onClose();
@@ -482,16 +500,42 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
             onChange={v => set('hospital_name', v)}
             onPick={h => setForm(p => ({ ...p, hospital_name: h.hospital_name, hospital_code: h.hospital_code, hospital_type: h.hospital_type || p.hospital_type }))} />
         </Field>
-        <Field label="품목명 * (검색·자동완성 — 선택 시 보험코드 연동)">
-          <ProductPicker value={form.product_name}
-            onChange={v => set('product_name', v)}
-            onPick={p => setForm(f => ({ ...f, product_name: p.product_name, item_insurance_code: (p.insurance_code || p.representative_code || '').replace(/\D/g, '') }))} />
-          {form.item_insurance_code && (
-            <div style={{ fontSize: '0.7rem', color: '#0891b2', marginTop: '0.25rem' }}>
-              연동 보험코드: {form.item_insurance_code} · EDI 실적으로 최초처방월이 자동 표기됩니다
+        {editId ? (
+          <Field label="품목명 * (검색·자동완성 — 선택 시 보험코드 연동)">
+            <ProductPicker value={form.product_name}
+              onChange={v => set('product_name', v)}
+              onPick={p => setForm(f => ({ ...f, product_name: p.product_name, item_insurance_code: (p.insurance_code || p.representative_code || '').replace(/\D/g, '') }))} />
+            {form.item_insurance_code && (
+              <div style={{ fontSize: '0.7rem', color: '#0891b2', marginTop: '0.25rem' }}>
+                연동 보험코드: {form.item_insurance_code} · EDI 실적으로 최초처방월이 자동 표기됩니다
+              </div>
+            )}
+          </Field>
+        ) : (
+          <Field label="품목명 * (여러 개 선택 가능 — 품목마다 개별 등록되어 가능여부를 각각 판단)">
+            <ProductPicker value={prodDraft}
+              onChange={setProdDraft}
+              onPick={p => addProduct(p.product_name, (p.insurance_code || p.representative_code || '').replace(/\D/g, ''))} />
+            {products.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                {products.map((p, i) => (
+                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 6px 4px 11px', background: '#eef4ff', border: '1px solid #d5e3fb', borderRadius: 999, fontSize: '0.8rem', color: '#1e3a8a', fontWeight: 600 }}>
+                    {p.product_name}
+                    {p.item_insurance_code ? <span style={{ color: '#0891b2', fontSize: '0.7rem', fontWeight: 500 }}>· {p.item_insurance_code}</span> : null}
+                    <button type="button" onClick={() => setProducts(prev => prev.filter((_, j) => j !== i))}
+                      style={{ border: 'none', background: 'transparent', color: '#64748b', cursor: 'pointer', fontSize: '1rem', lineHeight: 1, minHeight: 0, padding: '0 2px' }}
+                      aria-label="삭제">×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+            <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: 6 }}>
+              {products.length
+                ? `${products.length}개 품목 선택됨 · 각 품목이 개별 항목으로 등록되어 품목별로 가능여부를 판단합니다`
+                : '품목을 검색해 선택하면 아래에 추가됩니다 (여러 개 선택 가능)'}
             </div>
-          )}
-        </Field>
+          </Field>
+        )}
         <Field label="KOL"><input style={INPUT_STYLE} value={form.kol} onChange={e => set('kol', e.target.value)} placeholder="처방의 (쉼표로 여러 명)" /></Field>
 
         <div className="filt-2col">
@@ -519,6 +563,11 @@ function FilterForm({ initial, myName, editId, onClose, onSaved }: {
           </Field>
           <Field label="최초처방월 (비워두면 EDI 실적으로 자동 표기)"><input style={INPUT_STYLE} value={form.final_result} onChange={e => set('final_result', e.target.value)} placeholder="처방시작월(2025-02-01) 또는 처방없음" /></Field>
         </div>
+        {!editId && products.length > 1 && (
+          <div style={{ fontSize: '0.72rem', color: '#64748b', margin: '0 0 0.5rem' }}>
+            ※ 등록 시 답변은 모든 품목에 동일 적용됩니다. 보통 비워두고 등록한 뒤, 각 품목 항목에서 개별로 가능여부를 판단하세요.
+          </div>
+        )}
 
         {(form.answer === 'X' || form.answer === '취소') && (
           <div style={{ fontSize: '0.72rem', color: '#c2410c', margin: '0 0 0.5rem' }}>
