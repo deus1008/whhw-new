@@ -244,7 +244,7 @@ function AccordionTable({
                           style={{ cursor: 'pointer', background: l2Open ? accentL2 : accentL3 }}>
                           <td style={{ ...TD_L, paddingLeft: '1.7rem', fontSize: '0.75rem' }}>
                             <span style={{ marginRight: '0.35rem', fontSize: '0.63rem', opacity: 0.5 }}>{l2Open ? '▲' : '▶'}</span>
-                            <span style={{ color: l2Open ? '#475569' : 'var(--text-muted)' }}>{l2.name}</span>
+                            <span style={{ color: '#111827', fontWeight: 500 }}>{l2.name}</span>
                           </td>
                           <td style={{ ...TD, color: '#2563eb', fontSize: '0.75rem' }}>{fmtChun(l2.presc)}</td>
                           <td style={{ ...TD, color: '#059669', fontSize: '0.75rem' }}>{fmtChun(l2.sett)}</td>
@@ -267,7 +267,7 @@ function AccordionTable({
                                 }}
                               >
                                 <td style={{ ...TD_L, paddingLeft: '3.2rem', fontSize: '0.7rem',
-                                  color: '#64748b', maxWidth: '200px',
+                                  color: '#1f2937', maxWidth: '200px',
                                   overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                   {hasL4 && <span style={{ marginRight: '0.3rem', fontSize: '0.6rem', opacity: 0.4 }}>{l3Open ? '▲' : '▶'}</span>}
                                   {l3.name}
@@ -280,7 +280,7 @@ function AccordionTable({
                               {l3Open && l3.sub?.map((l4, j) => (
                                 <tr key={l4.name} style={{ background: j % 2 === 0 ? 'rgba(100,80,180,0.05)' : undefined }}>
                                   <td style={{ ...TD_L, paddingLeft: '4.8rem', fontSize: '0.66rem',
-                                    color: '#94a3b8', maxWidth: '180px',
+                                    color: '#1f2937', maxWidth: '180px',
                                     overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                     {l4.name}
                                   </td>

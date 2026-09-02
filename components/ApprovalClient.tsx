@@ -230,8 +230,8 @@ function DrilldownCompanyTable({ drilldownRows, title }: {
                         {isIngOpen && sorted.map((p, pi) => (
                           <tr key={pi} style={{ background: 'rgba(124,58,237,0.04)' }}>
                             <td style={{ ...TD, borderBottom: '1px solid rgba(124,58,237,0.05)' }} />
-                            <td style={{ ...TD, paddingLeft: '3.5rem', fontSize: '0.73rem', color: '#64748b', borderBottom: '1px solid rgba(124,58,237,0.05)' }}>
-                              <span style={{ marginRight: '0.3rem', color: '#64748b' }}>•</span>
+                            <td style={{ ...TD, paddingLeft: '3.5rem', fontSize: '0.73rem', color: '#1f2937', borderBottom: '1px solid rgba(124,58,237,0.05)' }}>
+                              <span style={{ marginRight: '0.3rem', color: '#7c3aed' }}>•</span>
                               {p.product}
                             </td>
                             <td style={{ ...TD, borderBottom: '1px solid rgba(124,58,237,0.05)' }} />
@@ -279,9 +279,9 @@ function DrilldownCompanyTable({ drilldownRows, title }: {
                       <span style={{ color: '#2563eb', whiteSpace: 'nowrap' }}>{products.length}건</span>
                     </div>
                     {isIngOpen && sorted.map((p, pi) => (
-                      <div key={pi} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', padding: '0.18rem 0 0.18rem 0.9rem', fontSize: '0.77rem', color: '#64748b' }}>
+                      <div key={pi} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', padding: '0.18rem 0 0.18rem 0.9rem', fontSize: '0.77rem', color: '#1f2937' }}>
                         <span>• {p.product}</span>
-                        <span style={{ color: '#94a3b8', whiteSpace: 'nowrap' }}>{p.approvalDate || '-'}</span>
+                        <span style={{ color: '#64748b', whiteSpace: 'nowrap' }}>{p.approvalDate || '-'}</span>
                       </div>
                     ))}
                   </div>
@@ -407,8 +407,8 @@ function DrilldownIngredientTable({ rows, drilldownRows, title }: {
                         {isCoOpen && sorted.map((p, pi) => (
                           <tr key={pi} style={{ background: 'rgba(79,142,247,0.04)' }}>
                             <td style={{ ...TD, borderBottom: '1px solid rgba(79,142,247,0.05)' }} />
-                            <td style={{ ...TD, paddingLeft: '3.5rem', fontSize: '0.73rem', color: '#64748b', borderBottom: '1px solid rgba(79,142,247,0.05)' }}>
-                              <span style={{ marginRight: '0.3rem', color: '#64748b' }}>•</span>
+                            <td style={{ ...TD, paddingLeft: '3.5rem', fontSize: '0.73rem', color: '#1f2937', borderBottom: '1px solid rgba(79,142,247,0.05)' }}>
+                              <span style={{ marginRight: '0.3rem', color: '#4f8ef7' }}>•</span>
                               {p.product}
                             </td>
                             <td style={{ ...TD, borderBottom: '1px solid rgba(79,142,247,0.05)' }} />
@@ -456,9 +456,9 @@ function DrilldownIngredientTable({ rows, drilldownRows, title }: {
                       <span style={{ color: '#7c3aed', whiteSpace: 'nowrap' }}>{products.length}건</span>
                     </div>
                     {isCoOpen && sorted.map((p, pi) => (
-                      <div key={pi} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', padding: '0.18rem 0 0.18rem 0.9rem', fontSize: '0.77rem', color: '#64748b' }}>
+                      <div key={pi} style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', padding: '0.18rem 0 0.18rem 0.9rem', fontSize: '0.77rem', color: '#1f2937' }}>
                         <span>• {p.product}</span>
-                        <span style={{ color: '#94a3b8', whiteSpace: 'nowrap' }}>{p.approvalDate || '-'}</span>
+                        <span style={{ color: '#64748b', whiteSpace: 'nowrap' }}>{p.approvalDate || '-'}</span>
                       </div>
                     ))}
                   </div>
