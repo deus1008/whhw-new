@@ -147,27 +147,33 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <div style={{ marginBottom: '0.7rem' }}><label style={LABEL_STYLE}>{label}</label>{children}</div>;
 }
 
-/* ── CSV ── */
-const CSV_HEADERS = [
+/* ── 다운로드(XLSX) ── */
+const XLSX_HEADERS = [
   '접수일자', '년월', '담당자', '업체명', '딜러명', '딜러연락처', '처방처코드', '종별', '처방처명',
   '품목명', '처방과', 'KOL', 'DC접수시기', '코딩가능월', 'EDI수령여부', 'MBO', '답변', '최초처방월', '처방금액', '최근월실적', '최근처방액', '비고',
 ];
-function csvEsc(v: unknown): string { return `"${(v == null ? '' : String(v)).replace(/"/g, '""')}"`; }
-function toCsv(rows: FilteringRow[]): string {
-  const lines = rows.map(r => [
+function rowValues(r: FilteringRow): (string | number)[] {
+  return [
     r.received_date ?? '', r.ym ?? '', r.manager ?? '', r.company_name ?? '', r.dealer_name ?? '', r.dealer_phone ?? '',
     r.hospital_code ?? '', r.hospital_type ?? '', r.hospital_name ?? '', r.product_name ?? '', r.department ?? '',
     r.kol ?? '', r.dc_timing ?? '', r.coding_month ?? '', r.edi_received ?? '', r.mbo ?? '', r.answer ?? '',
     r.final_result ?? '', r.first_rx_amount ?? '', r.last_rx_month ?? '', r.last_rx_amount ?? '', r.memo ?? '',
-  ].map(csvEsc).join(','));
-  return '﻿' + [CSV_HEADERS.map(csvEsc).join(','), ...lines].join('\r\n');
+  ];
 }
-function downloadCsv(rows: FilteringRow[]) {
-  const blob = new Blob([toCsv(rows)], { type: 'text/csv;charset=utf-8;' });
+async function downloadXlsx(rows: FilteringRow[]) {
+  const XLSX = await import('xlsx');
+  const aoa: (string | number)[][] = [XLSX_HEADERS, ...rows.map(rowValues)];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  // 컬럼 너비(가독성)
+  ws['!cols'] = XLSX_HEADERS.map((h, i) => ({ wch: i === 8 || i === 9 ? 26 : Math.max(8, h.length + 2) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '종병필터링');
+  const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);
   const stamp = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10).replace(/-/g, '');
   const a = document.createElement('a');
-  a.href = url; a.download = `종합병원필터링_${stamp}.csv`;
+  a.href = url; a.download = `종병필터링_${stamp}.xlsx`;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
 }
@@ -820,9 +826,9 @@ export default function FilteringClient({ rows: initial, isAdmin, isConsignor, m
         <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
           {filtered.length}건{filtered.length !== rows.length && ` / 전체 ${rows.length}건`}
         </span>
-        <button onClick={() => downloadCsv(filtered)} disabled={filtered.length === 0}
+        <button onClick={() => downloadXlsx(filtered)} disabled={filtered.length === 0}
           style={{ ...BTN_GHOST, fontSize: '0.76rem', padding: '0.35rem 0.8rem', opacity: filtered.length === 0 ? 0.4 : 1, cursor: filtered.length === 0 ? 'not-allowed' : 'pointer' }}>
-          ⬇ 리스트 다운로드
+          ⬇ 엑셀 다운로드
         </button>
       </div>
 

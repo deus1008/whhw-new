@@ -118,7 +118,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }
   const badgeFor = (label: string) =>
     label === '오류신고' ? userErrBadge : label === '오류신고함' ? errBadge : label === '관리자' ? adminBadge
-    : label === '필터링관리' ? filterBadge : 0;
+    : label === '종병필터링' ? filterBadge : 0;
 
   return (
     <>

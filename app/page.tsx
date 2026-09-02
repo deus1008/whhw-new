@@ -286,7 +286,7 @@ export default function Home() {
               (label === '오류신고'   && userErrorBadge > 0) ? userErrorBadge :
               (label === '오류신고함' && errorBadge > 0) ? errorBadge :
               (label === '관리자'    && adminBadge  > 0) ? adminBadge  :
-              (label === '필터링관리' && filterBadge  > 0) ? filterBadge  : 0;
+              (label === '종병필터링' && filterBadge  > 0) ? filterBadge  : 0;
             const isDragging = dragging === label;
             const isTarget   = dragTarget === label;
             return (
