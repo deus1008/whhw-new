@@ -460,8 +460,23 @@ export async function POST(request: Request) {
   // ── L. EDI 폴더 → trend_prescriptions 자동 동기화 ────────────────────
   if (category === 'EDI') {
     console.log(`[process:${documentId}] EDI 폴더 → 처방 데이터 파싱 및 DB 동기화`);
+
+    // 가드 1: 파일명이 Ubist면 EDI 폴더 대상이 아님 → 파싱 전 차단
+    if (/ubist/i.test(doc.filename)) {
+      return fail('EDI 형식이 아닙니다 — Ubist 파일로 보입니다. 이 파일은 「Ubist」 폴더에 업로드하세요. (EDI 폴더에는 「EDI현황조회」 파일만 업로드)');
+    }
+
     const parseResult = parseEdiBuffer(buffer, doc.filename, doc.file_type);
     if ('error' in parseResult) return fail(`EDI 파싱 실패: ${parseResult.error}`);
+
+    // 가드 2: 헤더 검증 — 처방처명이 병원명이 아니라 숫자로 인식되면(위치 폴백 오인식) EDI 아님 → 차단
+    const hnames = parseResult.data.hospitalRanking.map(h => h.name).filter(n => n && n.trim());
+    const numericLike = hnames.filter(n => /^[\d.,\s]+$/.test(n)).length;
+    const numericRatio = hnames.length ? numericLike / hnames.length : 1;
+    if (hnames.length === 0 || numericRatio > 0.5) {
+      return fail('EDI 형식이 아닙니다 — 처방처명(병원명) 컬럼을 인식할 수 없습니다. 올바른 「EDI현황조회」 파일인지 확인하세요. (처방처명이 숫자로 채워져 있어 EDI 파일이 아닌 것으로 판단)');
+    }
+
     await syncEdiToDb(supabase, parseResult.rows, parseResult.data, doc.filename, docCompanyId);
     // 얼라이언스 MBO 처방 지표는 EDI(trend_prescriptions) 기반 → 롤업 갱신
     const { error: rollupErr } = await supabase.rpc('refresh_alliance_rollup');
