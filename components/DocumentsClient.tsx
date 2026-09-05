@@ -7,7 +7,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { deleteDocument, renameFolder, getDownloadUrl } from '@/app/documents/actions';
 import type { Document } from '@/app/documents/page';
-import { DOC_TEMPLATES, findTemplate, type DocTemplate } from '@/lib/documents/templates';
+import { DOC_TEMPLATES, findTemplate, validateHeaderGrid, type DocTemplate } from '@/lib/documents/templates';
 
 /** 표준양식(헤더+예시) XLSX 다운로드 */
 async function downloadTemplate(t: DocTemplate) {
@@ -238,10 +238,43 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
     return folder || null;
   }
 
+  /* ── 업로드 전 헤더 사전 검증(표준양식 대조) ───────────── */
+  async function precheckHeaders(category: string | null): Promise<boolean> {
+    const tpl = findTemplate(category ?? undefined);
+    if (!tpl || !tpl.required?.length) return true;
+    const parseable = selectedFiles.filter(f => ['xlsx', 'xls', 'xlsb'].includes(getExt(f.name)));
+    if (!parseable.length) return true;
+    const XLSX = await import('xlsx');
+    const issues: string[] = [];
+    for (const f of parseable) {
+      try {
+        const buf = await f.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array', sheetRows: 25 });
+        let best = wb.SheetNames[0], bestRows = -1;
+        for (const n of wb.SheetNames) {
+          const ref = wb.Sheets[n]['!ref']; if (!ref) continue;
+          const r = XLSX.utils.decode_range(ref); const c = r.e.r - r.s.r;
+          if (c > bestRows) { bestRows = c; best = n; }
+        }
+        const grid = XLSX.utils.sheet_to_json(wb.Sheets[best], { header: 1, defval: null, raw: true }) as unknown[][];
+        const res = validateHeaderGrid(grid, tpl);
+        if (!res.ok) issues.push(`• ${f.name} → 누락: ${res.missing.join(', ')}`);
+      } catch { /* 클라이언트 파싱 불가 시 통과(서버 파서에 위임) */ }
+    }
+    if (issues.length === 0) return true;
+    return window.confirm(
+      `⚠️ "${tpl.label}" 표준양식과 헤더가 일치하지 않습니다.\n\n${issues.join('\n')}\n\n` +
+      `표준양식을 내려받아 데이터를 채워 올리는 것을 권장합니다.\n올바른 폴더인지, 파일이 맞는지 확인하세요.\n\n그래도 업로드하시겠습니까?`,
+    );
+  }
+
   /* ── 업로드 ───────────────────────────────────────────── */
   async function handleUpload() {
     if (!requireAdmin()) return;
     if (selectedFiles.length === 0 || uploading) return;
+    // 표준양식 헤더 사전 검증 — 불일치 시 경고 후 진행 여부 확인
+    const proceed = await precheckHeaders(resolvedFolder());
+    if (!proceed) return;
     setUploading(true);
     setUploadError('');
 
