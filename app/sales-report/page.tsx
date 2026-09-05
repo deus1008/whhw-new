@@ -19,10 +19,10 @@ export default async function SalesReportPage() {
 
   const svc = createServiceClient();
 
-  // ── 방문 기록 (전량 — 872행) ───────────────────────────────
+  // ── 방문 기록 (전량 — 효과성 분석 필드 포함) ───────────────
   const { data: vrRows } = await svc
     .from('visit_records')
-    .select('id, user_id, visited_at, customer_name, customer_type')
+    .select('id, user_id, visited_at, customer_name, customer_type, purpose, products, content, next_action, follow_up_date')
     .order('visited_at', { ascending: true });
 
   // ── 방문 소개 품목 (1620행) ────────────────────────────────
@@ -44,12 +44,18 @@ export default async function SalesReportPage() {
   const { data: rx } = await svc.rpc('get_sales_report_rx');
 
   const data: SalesReportData = {
+    today: new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10), // KST 기준일
     visits: (vrRows ?? []).map(r => ({
       id: String(r.id),
       uid: String(r.user_id ?? ''),
       date: String(r.visited_at ?? ''),
       customer: String(r.customer_name ?? ''),
       type: String(r.customer_type ?? ''),
+      purpose: String(r.purpose ?? ''),
+      productsText: String(r.products ?? ''),
+      content: String(r.content ?? ''),
+      nextAction: String(r.next_action ?? ''),
+      followUp: r.follow_up_date ? String(r.follow_up_date) : '',
     })),
     products: (vpRows ?? []).map(r => ({
       visitId: String(r.visit_id),
