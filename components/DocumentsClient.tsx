@@ -7,6 +7,24 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { deleteDocument, renameFolder, getDownloadUrl } from '@/app/documents/actions';
 import type { Document } from '@/app/documents/page';
+import { DOC_TEMPLATES, findTemplate, type DocTemplate } from '@/lib/documents/templates';
+
+/** 표준양식(헤더+예시) XLSX 다운로드 */
+async function downloadTemplate(t: DocTemplate) {
+  const XLSX = await import('xlsx');
+  const aoa: (string | number)[][] = [t.headers, ...(t.example ? [t.example] : [])];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = t.headers.map(h => ({ wch: Math.max(10, h.length + 4) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, t.category.slice(0, 28));
+  const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `[표준양식]${t.category}.xlsx`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
 
 /* ── 허용 형식 ──────────────────────────────────────────── */
 const ALLOWED_EXTS = new Set(['pdf', 'docx', 'xlsx', 'xls', 'xlsb', 'html']);
@@ -138,6 +156,9 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
 
   // 폴더 목록 (문서가 추가/삭제될 때마다 재계산)
   const folders = extractFolders(documents);
+
+  // 업로드 대상 폴더에 해당하는 표준양식
+  const uploadTpl = findTemplate(showNewFolder ? newFolder.trim() : folder);
 
   // activeFolder가 삭제된 경우 전체로 리셋
   useEffect(() => {
@@ -540,6 +561,37 @@ export default function DocumentsClient({ initialDocuments, userId, isAdmin, com
           </button>
         </div>
 
+        {/* ── 표준양식 다운로드 ── */}
+        <div style={{ marginTop: '1rem', padding: '0.8rem 0.9rem', background: 'rgba(34,197,94,0.05)', border: '1px solid rgba(34,197,94,0.22)', borderRadius: 10 }}>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#059669', marginBottom: '0.15rem' }}>📋 표준양식 다운로드</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.6rem', lineHeight: 1.5 }}>
+            잘못된 파일 업로드로 인한 오류를 막기 위해, 표준 헤더가 담긴 양식을 내려받아 데이터를 채운 뒤 업로드하세요.
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            {uploadTpl && (
+              <button type="button" onClick={() => downloadTemplate(uploadTpl)} style={tplBtnPrimary}>
+                ⬇ &ldquo;{uploadTpl.label}&rdquo; 표준양식 받기
+              </button>
+            )}
+            <select
+              value=""
+              onChange={e => { const t = DOC_TEMPLATES.find(x => x.category === e.target.value); if (t) downloadTemplate(t); e.target.value = ''; }}
+              style={{ ...selectStyle, maxWidth: 320 }}
+            >
+              <option value="">— 양식 선택해 다운로드 —</option>
+              {DOC_TEMPLATES.map(t => (
+                <option key={t.category} value={t.category}>{t.label}{t.external ? ' (외부원본·헤더확인용)' : ''}</option>
+              ))}
+            </select>
+          </div>
+          {uploadTpl && (
+            <div style={{ fontSize: '0.73rem', color: '#64748b', marginTop: '0.5rem', lineHeight: 1.5 }}>
+              ℹ️ <b>{uploadTpl.label}</b> · {uploadTpl.note}
+              <div style={{ marginTop: '0.2rem', color: '#94a3b8' }}>헤더: {uploadTpl.headers.join(' · ')}</div>
+            </div>
+          )}
+        </div>
+
       </div>
 
       {/* ── 문서 목록 ── */}
@@ -899,6 +951,12 @@ const uploadBtn: React.CSSProperties = {
   color: '#fff', fontSize: '0.88rem', fontWeight: 600,
   display: 'flex', alignItems: 'center', gap: '0.5rem',
   flexShrink: 0, height: '40px', boxSizing: 'border-box',
+};
+
+const tplBtnPrimary: React.CSSProperties = {
+  padding: '0.5rem 1rem', borderRadius: '9px', border: '1px solid rgba(34,197,94,0.4)', fontFamily: 'inherit',
+  background: 'rgba(34,197,94,0.12)', color: '#059669', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
+  flexShrink: 0,
 };
 
 const spinnerStyle: React.CSSProperties = {
