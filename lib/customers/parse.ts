@@ -3,6 +3,7 @@
  * 컬럼명 자동 감지 + 정규화
  */
 import * as XLSX from 'xlsx';
+import { parseKoreanRegion } from './region';
 
 export type CustomerRow = {
   source_file:   string;
@@ -155,14 +156,23 @@ export function parseCustomerBuffer(buffer: Buffer, fileName: string): ParseCust
   for (const row of normalizedRows) {
     const name = str(COL.name ? row[COL.name] : null);
     if (!name) continue;
+    const addr = str(COL.addr ? row[COL.addr] : null);
+    let region = str(COL.region ? row[COL.region] : null);
+    let subRegion = str(COL.sub ? row[COL.sub] : null);
+    // 시도/시군구 컬럼이 없으면 주소에서 보강
+    if ((!region || !subRegion) && addr) {
+      const parsed = parseKoreanRegion(addr);
+      region = region || parsed.region;
+      subRegion = subRegion || parsed.sub;
+    }
     rows.push({
       source_file:   fileName,
       customer_code: str(COL.code    ? row[COL.code]    : null),
       customer_name: name,
       customer_type: str(COL.type    ? row[COL.type]    : null),
-      region:        str(COL.region  ? row[COL.region]  : null),
-      sub_region:    str(COL.sub     ? row[COL.sub]     : null),
-      address:       str(COL.addr    ? row[COL.addr]    : null),
+      region:        region,
+      sub_region:    subRegion,
+      address:       addr,
       phone:         str(COL.phone   ? row[COL.phone]   : null),
       manager:       str(COL.manager ? row[COL.manager] : null),
       cso:           str(COL.cso     ? row[COL.cso]     : null),

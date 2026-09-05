@@ -43,6 +43,26 @@ export default async function SalesReportPage() {
   // ── 처방 매트릭스 (RPC — DB에서 GROUP BY) ──────────────────
   const { data: rx } = await svc.rpc('get_sales_report_rx');
 
+  // ── 거래처 지역(시도) 매핑 — 방문 거래처명 → customer_status.region ──
+  const visitCustNames = [...new Set((vrRows ?? []).map(r => r.customer_name).filter(Boolean) as string[])];
+  const regionAgg = new Map<string, Map<string, number>>(); // name → region → count
+  for (let i = 0; i < visitCustNames.length; i += 100) {
+    const chunk = visitCustNames.slice(i, i + 100);
+    const { data: cr } = await svc
+      .from('customer_status').select('customer_name, region').in('customer_name', chunk).not('region', 'is', null);
+    for (const r of cr ?? []) {
+      const n = String(r.customer_name); const rg = String(r.region);
+      if (!rg.trim()) continue;
+      if (!regionAgg.has(n)) regionAgg.set(n, new Map());
+      const m = regionAgg.get(n)!;
+      m.set(rg, (m.get(rg) ?? 0) + 1);
+    }
+  }
+  const regionOf: Record<string, string> = {};
+  for (const [n, m] of regionAgg) {
+    regionOf[n] = [...m.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  }
+
   const data: SalesReportData = {
     today: new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10), // KST 기준일
     visits: (vrRows ?? []).map(r => ({
@@ -51,6 +71,7 @@ export default async function SalesReportPage() {
       date: String(r.visited_at ?? ''),
       customer: String(r.customer_name ?? ''),
       type: String(r.customer_type ?? ''),
+      region: regionOf[String(r.customer_name ?? '')] ?? '미상',
       purpose: String(r.purpose ?? ''),
       productsText: String(r.products ?? ''),
       content: String(r.content ?? ''),

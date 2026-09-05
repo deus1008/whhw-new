@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 export type SalesReportData = {
   today: string;
   visits: {
-    id: string; uid: string; date: string; customer: string; type: string;
+    id: string; uid: string; date: string; customer: string; type: string; region: string;
     purpose: string; productsText: string; content: string; nextAction: string; followUp: string;
   }[];
   products: { visitId: string; name: string }[];
@@ -178,7 +178,7 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
   const today = data.today || new Date().toISOString().slice(0, 10);
 
   // ── 지역장별 효과성 상세(전 기간) ─────────────────────
-  type Cust = { name: string; type: string; dates: string[] };
+  type Cust = { name: string; type: string; region: string; dates: string[] };
   type MgrM = {
     uid: string; name: string; visits: number;
     custs: Map<string, Cust>; days: Map<string, number>;
@@ -200,7 +200,7 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
       if (v.followUp) m.followUp++;
       if (v.nextAction.trim()) m.nextAction++;
       if (v.purpose.trim()) m.purpose++;
-      if (!m.custs.has(v.customer)) m.custs.set(v.customer, { name: v.customer, type: v.type, dates: [] });
+      if (!m.custs.has(v.customer)) m.custs.set(v.customer, { name: v.customer, type: v.type, region: v.region || '미상', dates: [] });
       m.custs.get(v.customer)!.dates.push(v.date);
     }
     // 사전 계획(follow_up_date) 이행: 계획 이후 같은 거래처를 실제 재방문했는지
@@ -247,7 +247,7 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
     return [...selM.custs.values()].map(c => {
       const s = [...c.dates].sort();
       const interval = c.dates.length > 1 ? Math.round(daysBetween(s[0], s[s.length - 1]) / (c.dates.length - 1)) : null;
-      return { name: c.name, type: c.type, visits: c.dates.length, first: s[0], last: s[s.length - 1], interval, since: daysBetween(s[s.length - 1], today) };
+      return { name: c.name, type: c.type, region: c.region, visits: c.dates.length, first: s[0], last: s[s.length - 1], interval, since: daysBetween(s[s.length - 1], today) };
     }).sort((a, b) => b.since - a.since);
   }, [selM, today]);
 
@@ -264,6 +264,35 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
   }, [selM, selUid, csoTrend, rxMonths, today]);
 
   const selKpi = kpis.find(k => k.uid === selUid);
+
+  // 선택 지역장 지역 분포 & 동선 효율(전 기간)
+  const selRegion = useMemo(() => {
+    if (!selM) return null;
+    const dist = new Map<string, { customers: number; visits: number }>();
+    let known = 0, total = 0;
+    for (const c of selM.custs.values()) {
+      const rg = c.region || '미상';
+      const e = dist.get(rg) ?? { customers: 0, visits: 0 };
+      e.customers += 1; e.visits += c.dates.length; dist.set(rg, e);
+      total += c.dates.length; if (rg !== '미상') known += c.dates.length;
+    }
+    const distArr = [...dist.entries()].map(([region, v]) => ({ region, ...v })).sort((a, b) => b.visits - a.visits);
+    // 동선효율: 지역 확인된 방문의 하루 distinct 시도 수
+    const dayReg = new Map<string, Set<string>>();
+    for (const v of data.visits) {
+      if (v.uid !== selUid || !v.region || v.region === '미상') continue;
+      if (!dayReg.has(v.date)) dayReg.set(v.date, new Set());
+      dayReg.get(v.date)!.add(v.region);
+    }
+    const counts = [...dayReg.values()].map(s => s.size);
+    return {
+      dist: distArr,
+      coverage: total ? (known / total) * 100 : 0,
+      routeAvg: counts.length ? counts.reduce((a, b) => a + b, 0) / counts.length : null,
+      singleRate: counts.length ? (counts.filter(c => c === 1).length / counts.length) * 100 : null,
+      geoDays: counts.length,
+    };
+  }, [selM, selUid, data]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.4rem' }}>
@@ -497,6 +526,7 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
                 <thead>
                   <tr>
                     <th style={{ ...th, textAlign: 'left' }}>거래처</th>
+                    <th style={th}>지역</th>
                     <th style={th}>유형</th>
                     <th style={th}>방문</th>
                     <th style={th}>평균주기</th>
@@ -509,6 +539,7 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
                   {selCadence.slice(0, 40).map(c => (
                     <tr key={c.name} style={c.since > NEGLECT_DAYS ? { background: 'rgba(251,146,60,0.07)' } : undefined}>
                       <td style={{ ...td, textAlign: 'left', color: '#111827' }}>{c.name}</td>
+                      <td style={{ ...td, color: c.region === '미상' ? '#cbd5e1' : '#334155' }}>{c.region}</td>
                       <td style={td}>{c.type}</td>
                       <td style={{ ...td, fontWeight: 700, color: '#0891b2' }}>{c.visits}</td>
                       <td style={td}>{c.interval == null ? <span style={{ opacity: 0.5 }}>1회</span> : `${c.interval}일`}</td>
@@ -523,7 +554,7 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
             <div className="resp-cards">
               {selCadence.slice(0, 40).map(c => (
                 <div key={c.name} className="mcard" style={c.since > NEGLECT_DAYS ? { borderColor: 'rgba(251,146,60,0.4)' } : undefined}>
-                  <div className="mcard-head"><span className="mcard-title">{c.name}</span><span className="mcard-sub">{c.type}</span></div>
+                  <div className="mcard-head"><span className="mcard-title">{c.name}</span><span className="mcard-sub">{c.region !== '미상' ? `${c.region} · ` : ''}{c.type}</span></div>
                   <div className="mcard-row"><span className="mcard-k">방문·주기</span><span className="mcard-v">{c.visits}회 · {c.interval == null ? '1회' : `${c.interval}일`}</span></div>
                   <div className="mcard-row"><span className="mcard-k">마지막·경과</span><span className="mcard-v" style={{ color: c.since > NEGLECT_DAYS ? '#c2410c' : undefined }}>{c.last?.slice(2)} · {c.since}일</span></div>
                 </div>
@@ -567,6 +598,55 @@ export default function SalesReportClient({ data }: { data: SalesReportData }) {
               </div>
             )}
             <p style={{ ...noteSm, marginTop: '0.6rem' }}>처방 하락 거래처에 <b>어떤 메시지로 방문했는지</b>를 최근 방문 기록으로 확인합니다. 경과일이 큰 하락처는 즉시 대응이 필요합니다.</p>
+          </Section>
+
+          {/* ── 섹션 9: 지역 분포 & 동선 효율 ── */}
+          <Section title="⑨ 거래처 지역 분포 · 동선 효율" desc={`${sel.name} · 전 기간 · 거래처 시도(광역) 분포와 일별 이동 지역 수 (거래처 마스터 주소 기반)`}>
+            {selRegion && (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.6rem', marginBottom: '0.8rem' }}>
+                  <MiniStat label="지역 확인 커버리지" value={`${selRegion.coverage.toFixed(0)}%`} tone={selRegion.coverage < 50 ? 'bad' : 'neutral'} sub="거래처 주소 매칭 방문 비율" />
+                  <MiniStat label="일평균 이동 시도 수" value={selRegion.routeAvg == null ? '—' : selRegion.routeAvg.toFixed(2)} tone={selRegion.routeAvg != null && selRegion.routeAvg > 1.6 ? 'bad' : 'ok'} sub={`${selRegion.geoDays}일 기준(낮을수록 집중)`} />
+                  <MiniStat label="단일지역 방문일 비율" value={selRegion.singleRate == null ? '—' : `${selRegion.singleRate.toFixed(0)}%`} tone={selRegion.singleRate != null && selRegion.singleRate < 60 ? 'bad' : 'ok'} sub="하루 1개 시도만 방문(효율)" />
+                  <MiniStat label="담당 시도 수" value={`${selRegion.dist.filter(d => d.region !== '미상').length}개`} tone="neutral" sub="거래처가 분포한 광역시도" />
+                </div>
+                <div className="resp-table" style={{ overflowX: 'auto' }}>
+                  <table style={tbl}>
+                    <thead>
+                      <tr>
+                        <th style={{ ...th, textAlign: 'left' }}>시도(광역)</th>
+                        <th style={th}>거래처</th>
+                        <th style={th}>방문</th>
+                        <th style={{ ...th, textAlign: 'left', width: '40%' }}>방문 비중</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selRegion.dist.map(d => {
+                        const totalV = selRegion.dist.reduce((a, b) => a + b.visits, 0) || 1;
+                        const pct = (d.visits / totalV) * 100;
+                        return (
+                          <tr key={d.region}>
+                            <td style={{ ...td, textAlign: 'left', fontWeight: 600, color: d.region === '미상' ? '#94a3b8' : '#111827' }}>{d.region}</td>
+                            <td style={{ ...td, color: '#0891b2', fontWeight: 700 }}>{d.customers}</td>
+                            <td style={td}>{d.visits}</td>
+                            <td style={{ ...td, textAlign: 'left' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <div style={{ height: 8, borderRadius: 4, background: d.region === '미상' ? '#cbd5e1' : '#0891b2', width: `${Math.max(4, pct)}%` }} />
+                                <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{pct.toFixed(0)}%</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+            <p style={{ ...noteSm, marginTop: '0.6rem' }}>
+              거래처(CSO법인·딜러) 주소를 거래처현황 마스터에서 매칭해 시도를 산출합니다 · <b>일평균 이동 시도 수</b>가 1에 가까울수록, <b>단일지역 방문일 비율</b>이 높을수록 동선이 효율적입니다.
+              {selRegion && selRegion.coverage < 60 ? ' · 지역 미확인(미상) 거래처는 거래처현황(재위탁현황) 업로드로 주소가 채워지면 자동 반영됩니다.' : ''}
+            </p>
           </Section>
         </>
       )}
